@@ -1,0 +1,184 @@
+// /backend/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// model SystemConfig removido (não mais necessário)
+
+model User {
+  id         String        @id @default(cuid())
+  email      String        @unique
+  name       String
+  password   String
+  avatar    String?
+  role       UserRole      @default(SALES)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  activities ActivityLog[]
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  
+  // --- NOVOS CAMPOS ADICIONADOS ---
+  cpf_cnpj  String?
+  
+  // Endereço
+  zip           String?
+  street        String?
+  number        String?
+  neighborhood  String?
+  city          String?
+  state         String?
+
+  // Contas Contrato
+  // Usamos 'Json' para salvar a lista: [{ uc: "123", type: "GERADORA" }]
+  contractAccounts Json?  
+
+  // Relacionamentos existentes
+  projects    Project[]
+  attachments Attachment[] 
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Project {
+  id                 String        @id @default(cuid())
+  title              String
+  description        String?
+  status             ProjectStatus @default(LEAD)
+  pipeline           String        @default("SALES")
+  rank               Float?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  clientId           String
+  client             Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  
+  // --- FASE II: ENTRADAS TÉCNICAS (ATUALIZADO) ---
+  monthlyUsage       Float?
+  consumptionHistory Json?
+  location           String?
+  roofType           String?
+  orientation        String?       // <--- NOVO: Norte, Sul, Leste...
+  roofArea           Float?        // <--- NOVO: Área disponível em m2
+  
+  
+  // --- (Campos de cálculo removidos: systemSize, panelCount, inverterSize, estimatedGen, generationHistory, bom) ---
+
+  price              Float?
+  energyTariff       Float?
+  // --- (Campos removidos: connectionType, availabilityFee, annualInflation, panelDegradation, panelModel, inverterModel, solarPanelId, inverterId) ---
+  
+  // Relacionamentos
+  activities         ActivityLog[]
+  attachments        Attachment[]
+  units              ConsumerUnit[]
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  type      String
+  action    String
+  details   String?
+  createdAt DateTime @default(now())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+}
+
+model Attachment {
+  id        String   @id @default(cuid())
+  fileName  String
+  filePath  String
+  fileType  String   // ex: 'PDF', 'IMG'
+  
+  // Relacionamento com Projeto
+  projectId String?  
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  // Relacionamento com Cliente
+  clientId  String?
+  client    Client?  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+// model SolarPanel removido (catálogo de painéis não mais usado)
+
+// model Inverter removido (catálogo de inversores não mais usado)
+
+model Location {
+  id          String            @id @default(cuid())
+  city        String            @unique
+  state       String
+  irradiation IrradiationData[]
+}
+
+model IrradiationData {
+  id          String   @id @default(cuid())
+  month       Int
+  irradiation Float
+  locationId  String
+  location    Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@unique([locationId, month])
+}
+
+enum UserRole {
+  SALES
+  ENGINEER
+  ADMIN
+}
+
+enum ProjectStatus {
+  // --- STATUS ANTIGOS (Manter para histórico ou migração) ---
+  LEAD
+  VISIT
+  PROPOSAL
+  NEGOTIATION
+  
+  // --- NOVOS STATUS (COMERCIAL) ---
+  CONTACT   // 1. Primeiro Contato
+  BUDGET    // 2. Proposta & Orçamento
+  WAITING   // 3. Ag. Aprovação
+  APPROVED  // 4. Aprovado (Vai p/ Engenharia)
+  REJECTED  // 5. Arquivado
+
+  // --- NOVOS STATUS (ENGENHARIA) ---
+  READY     // 1. Aguardando Início
+  EXECUTION // 2. Em Andamento
+  REVIEW    // 3. Vistoria
+  DONE      // 4. Concluído
+  
+  // STATUS COMUM
+  CLOSED    // Fechado (Legado ou Final)
+}
+// No final do arquivo schema.prisma
+
+model ConsumerUnit {
+  id          String   @id @default(cuid())
+  code        String   // Número da Conta Contrato
+  isGenerator Boolean  @default(false) // True = Onde fica a placa
+  averageAvg  Float?   // Média de consumo dessa unidade (kWh)
+  titular         String?
+  group           String?  // Ex: B, A
+  meterNumber     String?  // Número do Medidor
+  availabilityFee Float?   // Taxa Disp. (30, 50, 100)
+  voltage         String?  // Tensão (127/220)
+  concessionaire  String?  // Ex: Equatorial
+  
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+

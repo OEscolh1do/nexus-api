@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: nexus_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: neonorte123
+      MYSQL_DATABASE: neonorte
+      MYSQL_USER: neonorte
+      MYSQL_PASSWORD: neonorte123
+    ports:
+      - "3307:3306"
+    volumes:
+      - nexus_mysql_data:/var/lib/mysql
+
+volumes:
+  nexus_mysql_data:
