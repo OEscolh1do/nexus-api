@@ -48,7 +48,7 @@ const StyledSelect = ({ children, ...props }) => (
 // ---------------------------------------------------------------------------
 
 function ProjectModal({ project, onClose, onSaveSuccess }) {
-  const token = useAuthStore(state => state.token); // <--- 2. PEGA O TOKEN
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const [activeTab, setActiveTab] = useState('activity'); 
 
   // --- ESTADOS ---
@@ -60,6 +60,7 @@ function ProjectModal({ project, onClose, onSaveSuccess }) {
   const [consumptionHistory, setConsumptionHistory] = useState(Array(12).fill(''));
   const [showMonthlyDetails, setShowMonthlyDetails] = useState(false);
 
+  const [loadingUnits, setLoadingUnits] = useState(false);
   const [units, setUnits] = useState([]);
   const [newUnit, setNewUnit] = useState({
       code: '', averageAvg: '', isGenerator: false,
@@ -99,31 +100,36 @@ function ProjectModal({ project, onClose, onSaveSuccess }) {
     // Calls removed: Catalog API deprecated
     // api.get('/catalog/panels').then(res => setCatalogPanels(res.data)).catch(console.error);
     // api.get('/catalog/inverters').then(res => setCatalogInverters(res.data)).catch(console.error);
-  }, [token]);
+    // api.get('/catalog/inverters').then(res => setCatalogInverters(res.data)).catch(console.error);
+  }, []);
 
   const loadActivities = useCallback(() => {
-    if (!project || !token) return;
+    if (!project || !isAuthenticated) return;
     api.get(`/projects/${project.id}/activities`).then(res => setActivities(res.data));
-  }, [project, token]);
+  }, [project, isAuthenticated]);
 
   const loadAttachments = useCallback(() => {
-    if (!project || !token) return;
+    if (!project || !isAuthenticated) return;
     api.get(`/projects/${project.id}/attachments`).then(res => setAttachments(res.data));
-  }, [project, token]);
+  }, [project, isAuthenticated]);
 
   const loadUnits = useCallback(async () => {
-      if(!project || !token) return;
+      if (!project || !isAuthenticated) return;
+
+      setLoadingUnits(true);
       try {
-          const res = await api.get(`/projects/${project.id}`);
-          if (res.data.units) {
-              setUnits(res.data.units);
-              if (res.data.units.length > 0) {
-                  const total = res.data.units.reduce((acc, u) => acc + (u.averageAvg || 0), 0);
-                  setMonthlyUsage(total.toString());
-              }
+          const res = await api.get(`/projects/${project.id}/units`);
+          setUnits(res.data);
+          if (res.data.length > 0) {
+              const total = res.data.reduce((acc, u) => acc + (u.averageAvg || 0), 0);
+              setMonthlyUsage(total.toString());
           }
-      } catch (e) { console.error(e); }
-  }, [project, token]);
+      } catch (e) { 
+          console.error(e); 
+      } finally {
+          setLoadingUnits(false);
+      }
+  }, [project, isAuthenticated]);
 
   useEffect(() => {
     if (project) {
@@ -180,6 +186,7 @@ function ProjectModal({ project, onClose, onSaveSuccess }) {
 
   const handleAddUnit = async () => {
       if (!newUnit.code || !newUnit.averageAvg) return alert("Preencha a conta e a média.");
+      if (!isAuthenticated) { alert("Sessão expirada."); return; }
       try {
           await api.post(`/projects/${project.id}/units`, newUnit);
           setNewUnit({ 
@@ -192,6 +199,7 @@ function ProjectModal({ project, onClose, onSaveSuccess }) {
 
   const handleRemoveUnit = async (unitId) => {
       if(window.confirm("Remover unidade?")) {
+          if (!isAuthenticated) { alert("Sessão expirada."); return; }
           try { await api.delete(`/units/${unitId}`); loadUnits(); } 
           catch { alert("Erro ao remover."); }
       }
@@ -208,6 +216,7 @@ function ProjectModal({ project, onClose, onSaveSuccess }) {
 
   const handleCalculate = async () => {
     setIsCalculating(true);
+    if (!isAuthenticated) { alert("Sessão expirada."); setIsCalculating(false); return; }
     try {
         const historyToSend = consumptionHistory.map(v => parseFloat(v) || parseFloat(monthlyUsage) || 0);
         
@@ -248,6 +257,7 @@ function ProjectModal({ project, onClose, onSaveSuccess }) {
   
   const handleSaveCommercial = async () => {
       setIsSavingCommercial(true);
+      if (!isAuthenticated) { alert("Sessão expirada."); setIsSavingCommercial(false); return; }
       try {
           await api.put(`/projects/${project.id}`, { 
               price: parseFloat(price) || 0, energyTariff: parseFloat(energyTariff) || 0,
@@ -265,6 +275,7 @@ function ProjectModal({ project, onClose, onSaveSuccess }) {
   
   const handleGenerateProposal = () => {
       if (!project.price) { alert("Salve o Valor Final antes."); return; }
+      if (!isAuthenticated) { alert("Sessão expirada."); return; }
       
       // Para abrir PDF em nova aba, passamos o token via query param ou usamos fetch blob
       // Método simples (requer que a rota de PDF aceite token na URL ou cookie, mas aqui vamos tentar direto)
@@ -291,6 +302,7 @@ function ProjectModal({ project, onClose, onSaveSuccess }) {
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0]; if (!file) return;
+    if (!isAuthenticated) { alert("Sessão expirada."); return; }
     const formData = new FormData(); formData.append('file', file);
     setIsUploading(true);
     try { 
@@ -306,6 +318,7 @@ function ProjectModal({ project, onClose, onSaveSuccess }) {
 
   const handleDeleteAttachment = async (id) => {
     if (window.confirm("Remover anexo?")) { 
+        if (!isAuthenticated) { alert("Sessão expirada."); return; }
         try { 
             await api.delete(`/attachments/${id}`); 
             loadAttachments(); 
@@ -315,12 +328,14 @@ function ProjectModal({ project, onClose, onSaveSuccess }) {
 
   const handleAddNote = async () => {
       if (!newNote.trim()) return; setIsSavingNote(true);
+      if (!isAuthenticated) { alert("Sessão expirada."); setIsSavingNote(false); return; }
       try { await api.post(`/projects/${project.id}/activities`, { note: newNote }); setNewNote(''); loadActivities(); }
       catch (e) { console.error(e); alert('Erro nota.'); } finally { setIsSavingNote(false); }
   };
 
   const handleDelete = async () => {
     if (window.confirm(`Excluir projeto "${project.title}"?`)) {
+        if (!isAuthenticated) { alert("Sessão expirada."); return; }
         try { await api.delete(`/projects/${project.id}`); onClose(); if(onSaveSuccess) onSaveSuccess(); } catch (e) { console.error(e); alert('Erro excluir.'); }
     }
   };
@@ -364,9 +379,15 @@ function ProjectModal({ project, onClose, onSaveSuccess }) {
                         <table className="w-full text-left text-xs">
                             <thead className="bg-neo-surface-1 text-neo-text-sec font-semibold border-b border-neo-surface-2"><tr><th className="p-2 pl-3">Conta</th><th className="p-2">Titular</th><th className="p-2">Tipo</th><th className="p-2">Consumo</th><th className="p-2 w-8"></th></tr></thead>
                             <tbody className="divide-y divide-neo-surface-2/50">
-                                {units.map(u => (
-                                    <tr key={u.id} className="group hover:bg-neo-surface-1/50 transition-colors"><td className="p-2 pl-3 font-mono text-neo-white">{u.code}</td><td className="p-2 text-neo-text-sec truncate max-w-[100px]">{u.titular}</td><td className="p-2">{u.isGenerator ? <span className="text-[9px] bg-neo-purple-main text-white px-1.5 py-0.5 rounded">GERADORA</span> : <span className="text-[9px] bg-neo-surface-2 text-neo-text-sec px-1.5 py-0.5 rounded">BENEF.</span>}</td><td className="p-2 font-bold text-neo-white">{u.averageAvg} kWh</td><td className="p-2 text-right"><button onClick={() => handleRemoveUnit(u.id)} className="text-neo-text-sec hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14}/></button></td></tr>
-                                ))}
+                                {loadingUnits ? (
+                                    <tr><td colSpan="5" className="p-4 text-center text-neo-text-sec italic">Carregando unidades...</td></tr>
+                                ) : units.length === 0 ? (
+                                    <tr><td colSpan="5" className="p-4 text-center text-neo-text-sec italic">Nenhuma unidade adicionada.</td></tr>
+                                ) : (
+                                    units.map(u => (
+                                        <tr key={u.id} className="group hover:bg-neo-surface-1/50 transition-colors"><td className="p-2 pl-3 font-mono text-neo-white">{u.code}</td><td className="p-2 text-neo-text-sec truncate max-w-[100px]">{u.titular}</td><td className="p-2">{u.isGenerator ? <span className="text-[9px] bg-neo-purple-main text-white px-1.5 py-0.5 rounded">GERADORA</span> : <span className="text-[9px] bg-neo-surface-2 text-neo-text-sec px-1.5 py-0.5 rounded">BENEF.</span>}</td><td className="p-2 font-bold text-neo-white">{u.averageAvg} kWh</td><td className="p-2 text-right"><button onClick={() => handleRemoveUnit(u.id)} className="text-neo-text-sec hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14}/></button></td></tr>
+                                    ))
+                                )}
                                 <tr className="bg-neo-surface-1/20"><td className="p-1 pl-2"><StyledInput placeholder="Nº Conta" name="code" value={newUnit.code} onChange={handleNewUnitChange} /></td><td className="p-1"><StyledInput placeholder="Titular" name="titular" value={newUnit.titular} onChange={handleNewUnitChange} /></td><td className="p-1"><select className="w-full bg-neo-bg-main border border-neo-surface-2 rounded px-1 py-1.5 text-xs text-white outline-none" value={newUnit.isGenerator ? 'sim' : 'nao'} onChange={(e) => setNewUnit(prev => ({...prev, isGenerator: e.target.value === 'sim'}))}><option value="nao">Beneficiária</option><option value="sim">Geradora</option></select></td><td className="p-1"><StyledInput placeholder="Média" type="number" name="averageAvg" value={newUnit.averageAvg} onChange={handleNewUnitChange} /></td><td className="p-1 text-center"><button onClick={handleAddUnit} className="bg-neo-green-main hover:bg-neo-green-light text-neo-bg-main p-1.5 rounded transition-colors"><Plus size={14}/></button></td></tr>
                             </tbody>
                         </table>

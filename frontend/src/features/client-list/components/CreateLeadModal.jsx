@@ -7,7 +7,7 @@ import useAuthStore from '../../../store/useAuthStore'; // Importante para o tok
 
 
 function CreateLeadModal({ onClose, onSuccess }) {
-  const token = useAuthStore(state => state.token); // Pega o token
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const [mode, setMode] = useState('NEW'); 
   
   // Lista de clientes para busca
@@ -28,14 +28,14 @@ function CreateLeadModal({ onClose, onSuccess }) {
 
   // 1. Busca clientes (Rota correta: /api/clients)
   useEffect(() => {
-      if (!token) return;
+      if (!isAuthenticated) return;
 
       api.get('/clients') 
         .then(res => {
             setClientsList(res.data);
         })
         .catch(err => console.error("Erro ao buscar clientes", err));
-  }, [token]);
+  }, [isAuthenticated]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -65,7 +65,7 @@ function CreateLeadModal({ onClose, onSuccess }) {
     e.preventDefault();
     setLoading(true);
 
-    if (!token) {
+    if (!isAuthenticated) {
         alert("Sessão expirada.");
         setLoading(false);
         return;

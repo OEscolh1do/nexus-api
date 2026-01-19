@@ -7,7 +7,7 @@ import useAuthStore from '../../../store/useAuthStore';
 
 
 function ClientDetailModal({ project, onClose, onSuccess }) {
-  const token = useAuthStore(state => state.token);
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   
   const [activeTab, setActiveTab] = useState('general');
   const [loading, setLoading] = useState(false);
@@ -60,7 +60,7 @@ function ClientDetailModal({ project, onClose, onSuccess }) {
   const fetchFullClientDetails = useCallback(async () => {
       try {
           const clientId = getClientId();
-          if (!clientId || !token) return;
+          if (!clientId || !isAuthenticated) return;
 
           // Busca o cliente completo no backend (lá vem com os attachments)
           const res = await api.get(`/clients/${clientId}`);
@@ -78,7 +78,7 @@ function ClientDetailModal({ project, onClose, onSuccess }) {
       } catch (error) {
           console.error("Erro ao buscar detalhes completos do cliente:", error);
       }
-  }, [token, getClientId]); // Added project to dependency as getClientId uses it
+  }, [isAuthenticated, getClientId]); // Added project to dependency as getClientId uses it
 
   // USE EFFECT PRINCIPAL
   useEffect(() => {
@@ -121,7 +121,7 @@ function ClientDetailModal({ project, onClose, onSuccess }) {
       const file = e.target.files[0];
       if (!file) return;
 
-      if (!token) { alert("Sessão expirada."); return; }
+      if (!isAuthenticated) { alert("Sessão expirada."); return; }
 
       setUploading(true);
       const uploadData = new FormData();
@@ -167,7 +167,7 @@ function ClientDetailModal({ project, onClose, onSuccess }) {
     e.preventDefault();
     setLoading(true);
     
-    if (!token) {
+    if (!isAuthenticated) {
         alert("Sessão expirada.");
         setLoading(false);
         return;

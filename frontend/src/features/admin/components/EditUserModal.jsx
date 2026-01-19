@@ -7,7 +7,7 @@ import useAuthStore from '../../../store/useAuthStore';
 
 
 function EditUserModal({ user, onClose, onSuccess }) {
-  const token = useAuthStore(state => state.token);
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const [formData, setFormData] = useState({ name: '', email: '', role: 'SALES', password: '' });
   const [loading, setLoading] = useState(false);
 
@@ -27,7 +27,7 @@ function EditUserModal({ user, onClose, onSuccess }) {
     setLoading(true);
 
       // --- VERIFICAÇÃO DE SEGURANÇA ADICIONADA ---
-      if (!token) {
+      if (!isAuthenticated) {
           alert("Sessão inválida. Faça login.");
           setLoading(false);
           return;

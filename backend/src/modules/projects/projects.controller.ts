@@ -159,6 +159,20 @@ export class ProjectController {
   }
 
   // --- ACTIVITIES (Notes) ---
+  async getActivities(req: Request, res: Response) {
+      const { id } = req.params as { id: string };
+      try {
+          const activities = await prisma.activityLog.findMany({
+              where: { projectId: id },
+              orderBy: { createdAt: 'desc' },
+              include: { user: true }
+          });
+          return res.json(activities);
+      } catch (error) {
+          return res.status(500).json({ error: 'Erro ao buscar atividades.' });
+      }
+  }
+
   async addActivity(req: Request, res: Response) {
     const { id } = req.params as { id: string };
     const { note } = req.body;
@@ -181,6 +195,19 @@ export class ProjectController {
   }
 
   // --- UNITS ---
+  async getUnits(req: Request, res: Response) {
+      const { id } = req.params as { id: string };
+      try {
+          const units = await prisma.consumerUnit.findMany({
+              where: { projectId: id },
+              orderBy: { id: 'asc' }
+          });
+          return res.json(units);
+      } catch (error) {
+          return res.status(500).json({ error: 'Erro ao buscar unidades.' });
+      }
+  }
+
   async addUnit(req: Request, res: Response) {
     const { id } = req.params as { id: string };
     const { isGenerator, ...unitData } = req.body;

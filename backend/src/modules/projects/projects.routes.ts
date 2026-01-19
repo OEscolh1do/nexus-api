@@ -25,9 +25,11 @@ router.post('/projects/:id/calculate', validateSync(CalculateProjectSchema), con
 
 
 // Activities
+router.get('/projects/:id/activities', controller.getActivities);
 router.post('/projects/:id/activities', validateSync(AddActivitySchema), controller.addActivity);
 
 // Units
+router.get('/projects/:id/units', controller.getUnits);
 router.post('/projects/:id/units', validateSync(AddUnitSchema), controller.addUnit);
 router.delete('/units/:unitId', controller.deleteUnit); // Note: Global path /api/units/:unitId in legacy
 

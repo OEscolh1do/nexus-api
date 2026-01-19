@@ -28,7 +28,7 @@ const STAGE_ORDER = [
 ];
 
 function DashboardPage() {
-  const token = useAuthStore(state => state.token); // <--- 2. PEGA O TOKEN DO STORE
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -47,10 +47,11 @@ function DashboardPage() {
     }
   }, []);
 
-  useEffect(() => { 
-      // 3. SÓ BUSCA SE TIVER TOKEN
-      if(token) fetchAndCalculateMetrics(); 
-  }, [token, fetchAndCalculateMetrics]);
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    fetchAndCalculateMetrics();
+  }, [isAuthenticated, fetchAndCalculateMetrics]);
 
   // Move calculateMetrics and helper outside to avoid dependency issues
 

@@ -55,10 +55,10 @@ export class ClientController {
   // --- UPDATE CLIENT ---
   async updateClient(req: Request, res: Response) {
     const { id } = req.params as { id: string };
-    const { contractAccounts, ...data } = req.body;
+    const { contractAccounts, attachments, projects, ...data } = req.body;
 
     try {
-      // Prepare update data
+      // Prepare update data (Exclude relations from direct update)
       const updateData: Prisma.ClientUpdateInput = {
         ...data,
       };
