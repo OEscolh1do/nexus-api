@@ -4,7 +4,7 @@ import useAuthStore from '../store/useAuthStore';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const user = useAuthStore((state) => state.user);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   // 1. Se não estiver logado, manda pro login
   if (!isAuthenticated || !user) {

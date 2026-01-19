@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../../../lib/axios';
+
 import { Eye, EyeOff, Lock, Mail, ChevronRight, Zap, AlertCircle } from 'lucide-react'; 
 import useAuthStore from '../../../store/useAuthStore'; 
 
@@ -44,34 +44,26 @@ function LoginPage() {
     setIsLoading(true);
 
     try {
-      // 1. Envia credenciais para o Backend
-      const response = await api.post('/auth/login', { email, password });
-      
-      const { token, user } = response.data;
-      
-      // 2. Salva no Store Global (Zustand) e LocalStorage
-      login(token, user); 
-      
-      // 3. Redirecionamento Inteligente baseado no Cargo (Role)
-      // ADMIN vê o Dashboard Gerencial, Vendedores vão para o Kanban
-      if (user.role === 'ADMIN' || user.role === 'MANAGER') {
-          navigate('/dashboard');
+      // Delegamos o login inteiramente para o Store (que faz a chamada API)
+      const result = await login(email, password);
+
+      if (result.success) {
+        // Redirecionamento baseado no cargo (o user já foi atualizado no store)
+        const user = useAuthStore.getState().user; 
+        if (user.role === 'ADMIN' || user.role === 'MANAGER') {
+            navigate('/dashboard');
+        } else {
+            navigate('/kanban');
+        }
       } else {
-          navigate('/kanban');
+        // Erro retornado pelo Store
+        setError(result.error);
+        setPassword('');
       }
 
     } catch (err) {
-      // Tratamento de Erro Seguro
-      const errorData = err.response?.data;
-      const msg = errorData?.error || 'Falha na autenticação.';
-      
-      // Se tiver retryAfter, inicia o timer
-      if (errorData?.retryAfter) {
-          setRetrySeconds(errorData.retryAfter);
-      }
-      
-      setError(msg);
-      setPassword(''); // Limpa a senha por segurança em caso de erro
+      console.error("Login Error:", err);
+      setError('Erro inesperado no login.');
     } finally {
       setIsLoading(false);
     }

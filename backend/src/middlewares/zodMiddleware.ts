@@ -16,6 +16,11 @@ export const validateSync = (schema: ZodSchema<any>) => (
   } catch (error) {
     if (error instanceof ZodError) {
       const issues = (error as any).errors || (error as any).issues || [];
+      
+      // DEBUG LOG
+      console.error("❌ Validation Failed:", JSON.stringify(issues, null, 2));
+      console.error("📩 Payload:", { ...req.body, password: '[REDACTED]' });
+
       return res.status(422).json({
         error: 'Data Validation Failed',
         details: issues.map((e: any) => ({

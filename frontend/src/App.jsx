@@ -24,7 +24,7 @@ function App() {
   }, [checkAuth]);
 
   return (
-    <BrowserRouter basename="/nexus">
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Routes>
         {/* ROTA PÚBLICA */}
         <Route path="/login" element={<LoginPage />} />
