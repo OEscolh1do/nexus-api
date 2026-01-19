@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
+import { Logger } from '../../lib/logger';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../../lib/prisma';
 
@@ -27,8 +28,17 @@ export class AuthController {
         { expiresIn: '12h' }
       );
 
+      // --- COOKIE SETUP ---
+      const isProduction = process.env.NODE_ENV === 'production';
+      res.cookie('token', token, {
+        httpOnly: true,
+        secure: isProduction, // HTTPS only in prod
+        sameSite: isProduction ? 'strict' : 'lax',
+        maxAge: 12 * 60 * 60 * 1000 // 12h in ms
+      });
+
       return res.json({
-        token,
+        message: 'Login realizado com sucesso',
         user: {
           id: user.id,
           name: user.name,
@@ -37,8 +47,8 @@ export class AuthController {
           avatar: user.avatar,
         },
       });
-    } catch (error) {
-      console.error('Login error:', error);
+    } catch (error: any) {
+      Logger.error('Login error', { error: error.message });
       return res.status(500).json({ error: 'Erro ao processar login.' });
     }
   }
@@ -169,6 +179,38 @@ export class AuthController {
       // P2003 = Foreign Key Constraint (caso user tenha logs, etc. - tratar depois com Cascade ou soft delete)
       console.error('Delete User Err:', error);
       return res.status(500).json({ error: 'Erro ao excluir usuário.' });
+    }
+  }
+
+  // --- LOGOUT ---
+  async logout(req: Request, res: Response) {
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax'
+    });
+    return res.json({ message: 'Logout realizado com sucesso.' });
+  }
+
+  // --- ME (Session Check) ---
+  async me(req: Request, res: Response) {
+    // Middleware already attached user to req
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Não autenticado' });
+
+    try {
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user) return res.status(401).json({ error: 'Usuário não encontrado' });
+      
+      return res.json({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar
+      });
+    } catch (error) {
+       return res.status(500).json({ error: 'Erro ao validar sessão' });
     }
   }
 }

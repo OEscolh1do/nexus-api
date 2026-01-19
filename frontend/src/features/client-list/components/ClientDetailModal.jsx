@@ -1,5 +1,5 @@
 // /frontend/src/features/client-list/components/ClientDetailModal.jsx
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../../../lib/axios';
 import { X, Save, User, MapPin, Zap, Paperclip, Trash2, Plus, Upload, Download, FileText, RefreshCw } from 'lucide-react';
 import useAuthStore from '../../../store/useAuthStore';
@@ -22,10 +22,10 @@ function ClientDetailModal({ project, onClose, onSuccess }) {
   });
 
   // Identifica o ID do cliente corretamente
-  const getClientId = () => project.client?.id || project.id;
+  const getClientId = useCallback(() => project.client?.id || project.id, [project]);
 
   // --- CARREGAR DADOS INICIAIS (Visual Imediato) ---
-  const loadInitialData = () => {
+  const loadInitialData = useCallback(() => {
     if (project) {
       const data = project.client || project;
 
@@ -54,10 +54,10 @@ function ClientDetailModal({ project, onClose, onSuccess }) {
         attachments: data.attachments || [] 
       }));
     }
-  };
+  }, [project]);
 
   // --- BUSCAR DADOS COMPLETOS NO SERVIDOR (Anexos atualizados) ---
-  const fetchFullClientDetails = async () => {
+  const fetchFullClientDetails = useCallback(async () => {
       try {
           const clientId = getClientId();
           if (!clientId || !token) return;
@@ -78,7 +78,7 @@ function ClientDetailModal({ project, onClose, onSuccess }) {
       } catch (error) {
           console.error("Erro ao buscar detalhes completos do cliente:", error);
       }
-  };
+  }, [token, getClientId]); // Added project to dependency as getClientId uses it
 
   // USE EFFECT PRINCIPAL
   useEffect(() => {
@@ -87,7 +87,7 @@ function ClientDetailModal({ project, onClose, onSuccess }) {
       
       // 2. Busca os dados frescos no servidor (para trazer os ANEXOS)
       fetchFullClientDetails();
-  }, [project, token]); 
+  }, [loadInitialData, fetchFullClientDetails]); 
 
 
   const handleChange = (e) => {
@@ -157,6 +157,7 @@ function ClientDetailModal({ project, onClose, onSuccess }) {
               attachments: prev.attachments.filter(f => f.id !== attachmentId)
           }));
       } catch (error) {
+          console.error(error);
           alert("Erro ao excluir anexo.");
       }
   };

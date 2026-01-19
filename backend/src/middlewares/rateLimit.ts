@@ -13,7 +13,7 @@ export const apiLimiter = rateLimit({
 
 export const authLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 5, // Limit to 5 failed login attempts per hour per IP (strict)
+  max: process.env.NODE_ENV === 'development' ? 100 : 5, // 100 for dev, 5 for prod
   standardHeaders: true,
   legacyHeaders: false,
   message: {

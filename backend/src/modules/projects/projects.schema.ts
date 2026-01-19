@@ -51,6 +51,20 @@ export const UpdateProjectSchema = z.object({
   }),
 });
 
+export const CalculateProjectSchema = z.object({
+  params: z.object({ id: z.string().cuid() }),
+  body: z.object({
+    monthlyUsage: z.number().min(1, "Consumo deve ser maior que 0"),
+    location: z.string().optional(),
+    roofType: z.string().optional(),
+    orientation: z.string().optional(),
+    roofArea: z.number().optional(),
+    panelId: z.string().optional().nullable(),
+    inverterId: z.string().optional().nullable(),
+    consumptionHistory: z.array(z.number()).optional(),
+  })
+});
+
 // --- SUB-RESOURCES ---
 export const AddActivitySchema = z.object({
   params: z.object({ id: z.string().cuid() }),

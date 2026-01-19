@@ -130,7 +130,7 @@ function KanbanBoard() {
             await api.put(`/projects/${project.id}`, 
                 { rank: newRank }
             ); 
-        } catch (e) { fetchProjects(); }
+        } catch { fetchProjects(); }
         return;
     }
 
@@ -156,7 +156,7 @@ function KanbanBoard() {
           { status: finalStatus, pipeline: newPipeline }
       );
       if (newPipeline !== currentPipeline) setTimeout(fetchProjects, 500);
-    } catch (error) { fetchProjects(); }
+    } catch { fetchProjects(); }
   };
 
   const handleCardClick = (project) => { setSelectedProject(project); setIsModalOpen(true); };

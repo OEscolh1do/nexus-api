@@ -20,7 +20,7 @@ import useAuthStore from '../../../store/useAuthStore';
 
 
 function ClientList() {
-  const { user, token } = useAuthStore();
+  const { user } = useAuthStore();
   
   const [clients, setClients] = useState([]); // Lista direta de clientes
   const [isLoading, setIsLoading] = useState(true);

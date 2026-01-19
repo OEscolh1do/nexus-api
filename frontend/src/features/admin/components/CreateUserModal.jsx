@@ -2,12 +2,12 @@
 import { useState } from 'react';
 import api from '../../../lib/axios';
 import { X, User, Mail, Shield, Key, Save, Eye, EyeOff } from 'lucide-react';
-import useAuthStore from '../../../store/useAuthStore';
+// import useAuthStore from '../../../store/useAuthStore'; // Unused
 
 
 
 function CreateUserModal({ onClose, onSuccess }) {
-  const token = useAuthStore(state => state.token); // Pega o token para autorização (opcional se a rota for publica, mas recomendado)
+
   
   const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'SALES' });
   const [showPassword, setShowPassword] = useState(false);

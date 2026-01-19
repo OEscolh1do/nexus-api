@@ -6,26 +6,20 @@ const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 const api = axios.create({
   baseURL,
+  withCredentials: true, // Enable sending cookies
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Interceptor para adicionar Token JWT automaticamente
-api.interceptors.request.use((config) => {
-  try {
-    const storageItem = localStorage.getItem('auth-storage');
-    if (storageItem) {
-      const parsed = JSON.parse(storageItem);
-      const token = parsed.state?.token;
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-    }
-  } catch (error) {
-    console.error("Erro ao recuperar token:", error);
+// Response interceptor for generic error handling
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // If 401 (Unauthorized), it means cookie is invalid or missing
+    // We optionally reject it so the store can handle "isAuthenticated: false"
+    return Promise.reject(error);
   }
-  return config;
-});
+);
 
 export default api;

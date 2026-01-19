@@ -50,6 +50,9 @@ model Client {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([name])
 }
 
 model Project {
@@ -83,6 +86,10 @@ model Project {
   activities         ActivityLog[]
   attachments        Attachment[]
   units              ConsumerUnit[]
+
+  @@index([status])
+  @@index([clientId])
+  @@index([pipeline])
 }
 
 model ActivityLog {
@@ -180,5 +187,8 @@ model ConsumerUnit {
   
   projectId       String
   project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([code])
 }
 

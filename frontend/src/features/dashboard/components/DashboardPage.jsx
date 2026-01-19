@@ -1,5 +1,5 @@
 // /frontend/src/features/dashboard/components/DashboardPage.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../../../lib/axios';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -34,12 +34,8 @@ function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [chartTab, setChartTab] = useState('commercial'); 
 
-  useEffect(() => { 
-      // 3. SÓ BUSCA SE TIVER TOKEN
-      if(token) fetchAndCalculateMetrics(); 
-  }, [token]);
-
-  const fetchAndCalculateMetrics = async () => {
+  // 2. DEFINIÇÃO DA FUNÇÃO (Deve vir ANTES do useEffect)
+  const fetchAndCalculateMetrics = useCallback(async () => {
     try {
       // 4. ENVIA O TOKEN NO HEADER (IMPÍCITO NO AXIOS CONFIG)
       const res = await api.get('/projects');
@@ -49,73 +45,15 @@ function DashboardPage() {
     } finally { 
         setLoading(false); 
     }
-  };
+  }, []);
 
-  // --- FUNÇÕES DE CÁLCULO (MANTIDAS) ---
-  const getCalendarDaysDiff = (date1, date2) => {
-      const d1 = new Date(date1);
-      const d2 = new Date(date2);
-      d1.setHours(0, 0, 0, 0);
-      d2.setHours(0, 0, 0, 0);
-      const diffTime = Math.abs(d2 - d1);
-      return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  };
+  useEffect(() => { 
+      // 3. SÓ BUSCA SE TIVER TOKEN
+      if(token) fetchAndCalculateMetrics(); 
+  }, [token, fetchAndCalculateMetrics]);
 
-  const calculateMetrics = (projects) => {
-    const funnelMap = {};
-    STAGE_ORDER.forEach(key => funnelMap[key] = { name: key, value: 0, revenue: 0 });
+  // Move calculateMetrics and helper outside to avoid dependency issues
 
-    let totalProjects = 0, pipelineValue = 0, closedValue = 0, closedCount = 0;
-    const activeConstructions = [];
-    let leadTimes = [];
-    const now = new Date();
-
-    projects.forEach(p => {
-        totalProjects++;
-        // Normaliza status antigos
-        let status = p.status === 'LEAD' ? 'CONTACT' : p.status === 'VISIT' ? 'BUDGET' : p.status;
-        
-        if (!funnelMap[status]) return;
-
-        funnelMap[status].value += 1;
-        const valor = Number(p.price || p.value || 0);
-        funnelMap[status].revenue += valor;
-        
-        const lastActivity = p.updatedAt ? new Date(p.updatedAt) : new Date(p.createdAt);
-        const createdAt = new Date(p.createdAt);
-        const daysDiff = getCalendarDaysDiff(now, lastActivity);
-
-        // Lead Time (Dias entre criação e venda)
-        if (['APPROVED', 'DONE'].includes(status)) {
-            const cycleDays = getCalendarDaysDiff(createdAt, lastActivity);
-            leadTimes.push(cycleDays);
-        }
-
-        // Obras Ativas
-        if (['EXECUTION', 'REVIEW'].includes(status)) {
-            activeConstructions.push({ ...p, startDate: lastActivity, daysRunning: daysDiff });
-        }
-
-        // KPIs Financeiros
-        if (['APPROVED', 'DONE', 'CLOSED', 'READY', 'EXECUTION', 'REVIEW'].includes(status)) {
-            closedValue += valor;
-            closedCount++;
-        } else if (status !== 'REJECTED') {
-            pipelineValue += valor;
-        }
-    });
-
-    const avgLeadTime = leadTimes.length > 0 ? (leadTimes.reduce((a, b) => a + b, 0) / leadTimes.length).toFixed(0) : 0;
-
-    return {
-        kpis: { 
-            totalProjects, pipelineValue, closedValue, closedCount, 
-            conversionRate: totalProjects > 0 ? ((closedCount / totalProjects) * 100).toFixed(1) : 0, avgLeadTime 
-        },
-        funnelData: Object.values(funnelMap),
-        activeConstructions: activeConstructions.sort((a, b) => b.daysRunning - a.daysRunning)
-    };
-  };
 
   // --- RENDERIZAÇÃO ---
   if (loading) return <div className="p-8 text-neo-text-sec text-xs animate-pulse">Carregando painel...</div>;
@@ -136,7 +74,7 @@ function DashboardPage() {
   );
 
   return (
-    <div className="p-6 bg-neo-bg-main min-h-screen text-neo-white pb-20 font-sans animate-fade-in-up">
+    <div className="p-6 bg-neo-bg-main min-h-screen text-neo-white pb-20 font-sans">
       <div className="flex items-center justify-between mb-6 border-b border-neo-surface-2 pb-4">
         <div className="flex items-center gap-3">
             <div className="p-2 bg-neo-surface-2 rounded-lg text-neo-green-main"><LayoutDashboard size={20} /></div>
@@ -228,6 +166,77 @@ function DashboardPage() {
     </div>
   );
 }
+
+// --- FUNÇÕES DE CÁLCULO (MOVIDAS PARA FORA) ---
+const getCalendarDaysDiff = (date1, date2) => {
+    const d1 = new Date(date1);
+    const d2 = new Date(date2);
+    d1.setHours(0, 0, 0, 0);
+    d2.setHours(0, 0, 0, 0);
+    const diffTime = Math.abs(d2 - d1);
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+};
+
+const calculateMetrics = (projects) => {
+  console.log('Calculate Metrics Input:', projects);
+  if (!Array.isArray(projects)) {
+      console.error('Expected array, got:', typeof projects);
+      projects = [];
+  }
+  const funnelMap = {};
+  STAGE_ORDER.forEach(key => funnelMap[key] = { name: key, value: 0, revenue: 0 });
+
+  let totalProjects = 0, pipelineValue = 0, closedValue = 0, closedCount = 0;
+  const activeConstructions = [];
+  let leadTimes = [];
+  const now = new Date();
+
+  projects.forEach(p => {
+      totalProjects++;
+      // Normaliza status antigos
+      let status = p.status === 'LEAD' ? 'CONTACT' : p.status === 'VISIT' ? 'BUDGET' : p.status;
+      
+      if (!funnelMap[status]) return;
+
+      funnelMap[status].value += 1;
+      const valor = Number(p.price || p.value || 0);
+      funnelMap[status].revenue += valor;
+      
+      const lastActivity = p.updatedAt ? new Date(p.updatedAt) : new Date(p.createdAt);
+      const createdAt = new Date(p.createdAt);
+      const daysDiff = getCalendarDaysDiff(now, lastActivity);
+
+      // Lead Time (Dias entre criação e venda)
+      if (['APPROVED', 'DONE'].includes(status)) {
+          const cycleDays = getCalendarDaysDiff(createdAt, lastActivity);
+          leadTimes.push(cycleDays);
+      }
+
+      // Obras Ativas
+      if (['EXECUTION', 'REVIEW'].includes(status)) {
+          activeConstructions.push({ ...p, startDate: lastActivity, daysRunning: daysDiff });
+      }
+
+      // KPIs Financeiros
+      if (['APPROVED', 'DONE', 'CLOSED', 'READY', 'EXECUTION', 'REVIEW'].includes(status)) {
+          closedValue += valor;
+          closedCount++;
+      } else if (status !== 'REJECTED') {
+          pipelineValue += valor;
+      }
+  });
+
+  const avgLeadTime = leadTimes.length > 0 ? (leadTimes.reduce((a, b) => a + b, 0) / leadTimes.length).toFixed(0) : 0;
+
+  return {
+      kpis: { 
+          totalProjects, pipelineValue, closedValue, closedCount, 
+          conversionRate: totalProjects > 0 ? ((closedCount / totalProjects) * 100).toFixed(1) : 0, avgLeadTime 
+      },
+      funnelData: Object.values(funnelMap),
+      activeConstructions: activeConstructions.sort((a, b) => b.daysRunning - a.daysRunning)
+  };
+};
 
 // Componente Auxiliar para KPIs
 const MiniKpi = ({ label, value, sub, icon, color }) => (

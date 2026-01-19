@@ -13,7 +13,16 @@ import RegisterUserPage from './features/admin/components/RegisterUserPage';
 import DashboardPage from './features/dashboard/components/DashboardPage';
 import ProfilePage from './features/profile/components/ProfilePage';
 
+import { useEffect } from 'react';
+import useAuthStore from './store/useAuthStore';
+
 function App() {
+  const checkAuth = useAuthStore((state) => state.checkAuth);
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
   return (
     <BrowserRouter basename="/nexus">
       <Routes>

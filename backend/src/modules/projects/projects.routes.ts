@@ -6,7 +6,8 @@ import {
   CreateLeadSchema, 
   UpdateProjectSchema, 
   AddActivitySchema, 
-  AddUnitSchema 
+  AddUnitSchema,
+  CalculateProjectSchema
 } from './projects.schema';
 
 const router = Router();
@@ -20,6 +21,8 @@ router.get('/projects', controller.getProjects);
 router.get('/projects/:id', controller.getProjectById);
 router.put('/projects/:id', validateSync(UpdateProjectSchema), controller.updateProject);
 router.delete('/projects/:id', controller.deleteProject);
+router.post('/projects/:id/calculate', validateSync(CalculateProjectSchema), controller.calculate);
+
 
 // Activities
 router.post('/projects/:id/activities', validateSync(AddActivitySchema), controller.addActivity);

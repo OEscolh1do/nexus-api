@@ -17,6 +17,8 @@ router.post('/login', validateSync(LoginSchema), controller.login);
 router.post('/register', validateSync(RegisterSchema), controller.register);
 
 // Private Routes (Logged In)
+router.post('/logout', controller.logout);
+router.get('/me', authenticateToken, controller.me);
 router.put('/profile', authenticateToken, validateSync(UpdateProfileSchema), controller.updateProfile);
 
 // Admin Routes

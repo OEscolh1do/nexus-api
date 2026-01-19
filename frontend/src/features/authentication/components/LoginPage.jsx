@@ -10,6 +10,18 @@ function LoginPage() {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [retrySeconds, setRetrySeconds] = useState(0); 
+  
+  // Timer Effect
+  useEffect(() => {
+    let interval;
+    if (retrySeconds > 0) {
+      interval = setInterval(() => {
+        setRetrySeconds((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [retrySeconds]);
   
   const navigate = useNavigate();
   // Pega a função de login do Zustand Store
@@ -49,14 +61,23 @@ function LoginPage() {
       }
 
     } catch (err) {
-      // Tratamento de Erro Seguro (Não revelar se o email existe ou não explicitamente)
-      const msg = err.response?.data?.error || 'Falha na autenticação.';
+      // Tratamento de Erro Seguro
+      const errorData = err.response?.data;
+      const msg = errorData?.error || 'Falha na autenticação.';
+      
+      // Se tiver retryAfter, inicia o timer
+      if (errorData?.retryAfter) {
+          setRetrySeconds(errorData.retryAfter);
+      }
+      
       setError(msg);
       setPassword(''); // Limpa a senha por segurança em caso de erro
     } finally {
       setIsLoading(false);
     }
   };
+
+  const isBlocked = retrySeconds > 0;
 
   return (
     <div className="relative flex items-center justify-center min-h-screen bg-gray-50 dark:bg-[#050508] text-gray-800 dark:text-white overflow-hidden font-sans transition-colors duration-500">
@@ -138,13 +159,13 @@ function LoginPage() {
 
             <button 
               type="submit" 
-              disabled={isLoading}
+              disabled={isLoading || isBlocked}
               className="w-full mt-6 bg-gray-900 dark:bg-white text-white dark:text-black font-bold py-4 rounded-xl relative overflow-hidden group transition-all hover:scale-[1.02] hover:shadow-lg dark:hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
             >
               <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer"></div>
               <div className="flex items-center justify-center gap-2 relative z-10">
-                  {isLoading ? 'Autenticando...' : 'ACESSAR SISTEMA'}
-                  {!isLoading && <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />}
+                  {isBlocked ? `Aguarde ${retrySeconds}s` : (isLoading ? 'Autenticando...' : 'ACESSAR SISTEMA')}
+                  {!isLoading && !isBlocked && <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />}
               </div>
             </button>
 

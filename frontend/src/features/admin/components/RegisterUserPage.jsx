@@ -1,5 +1,5 @@
 // /frontend/src/features/admin/components/RegisterUserPage.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../../../lib/axios';
 import { UserPlus, Users, Search, ShieldAlert, Briefcase, Wrench, Mail, Calendar, RefreshCw, Trash2 } from 'lucide-react';
 import useAuthStore from '../../../store/useAuthStore';
@@ -25,7 +25,7 @@ function RegisterUserPage() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [userToEdit, setUserToEdit] = useState(null);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     setErrorMsg(null);
     setIsLoading(true);
 
@@ -43,12 +43,12 @@ function RegisterUserPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
     if (currentUser?.role === 'ADMIN') fetchUsers();
     else setIsLoading(false);
-  }, [currentUser, token]);
+  }, [currentUser, fetchUsers]);
 
   const handleDelete = async (e, userId) => {
       e.stopPropagation();

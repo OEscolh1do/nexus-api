@@ -224,4 +224,52 @@ export class ProjectController {
         return res.status(500).json({ error: 'Erro ao remover unidade.' });
      }
   }
+  async calculate(req: Request, res: Response) {
+    const { id } = req.params;
+    const { monthlyUsage, roofArea } = req.body;
+
+    // Basic Solar Calculation Logic (Safe Default)
+    // Avg Generation Factor: ~120 kWh/kWp/month (Generic Brazil)
+    const AVG_GEN_FACTOR = 125;
+    const PANEL_POWER = 550; // 550W
+
+    try {
+       const hasUsage = Number(monthlyUsage) > 0;
+       if (!hasUsage) return res.status(400).json({ error: "Consumo mensal necessário." });
+       
+       const requiredSystemSize = Number(monthlyUsage) / AVG_GEN_FACTOR; // e.g. 500 / 125 = 4 kWp
+       const panelCount = Math.ceil((requiredSystemSize * 1000) / PANEL_POWER);
+       const realSystemSize = (panelCount * PANEL_POWER) / 1000;
+       const estimatedGen = realSystemSize * AVG_GEN_FACTOR;
+       const inverterSize = Math.ceil(realSystemSize * 0.75); // Undersizing
+
+       const bom = [
+         { item: `Módulo Fotovoltaico ${PANEL_POWER}W`, qtd: panelCount, unit: 'un' },
+         { item: `Inversor ${inverterSize}kW`, qtd: 1, unit: 'un' },
+         { item: `Estrutura de Fixação`, qtd: panelCount, unit: 'un' },
+         { item: `Cabos Solares (Preto/Vermelho)`, qtd: 50, unit: 'm' },
+         { item: `String Box`, qtd: 1, unit: 'un' }
+       ];
+
+       // Update Project with these technical details locally? 
+       // The frontend expects the result to display first, then 'Save'
+       const result = {
+         systemSize: realSystemSize.toFixed(2),
+         panelCount,
+         estimatedGen: Math.round(estimatedGen),
+         inverterSize,
+         coverage: Math.round((estimatedGen / Number(monthlyUsage)) * 100),
+         bom
+       };
+
+       return res.json(result);
+
+    } catch (error) {
+       console.error('[Calculate] Error:', error); // Will be replaced by Logger later if I missed it? 
+       // Ah, I should use Logger here since I already migrated app.ts? 
+       // But I haven't migrated ProjectController yet. 
+       // I'll stick to console.error or use Logger if I add import.
+       return res.status(500).json({ error: "Erro no cálculo." });
+    }
+  }
 }

@@ -2,6 +2,8 @@ import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import path from "path";
+import cookieParser from "cookie-parser";
+import { Logger } from "./lib/logger";
 
 // Placeholder route imports (to be replaced as we migrate)
 // import { authRoutes } from './modules/auth/auth.routes';
@@ -25,6 +27,7 @@ app.use(
 );
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // --- Static Files ---
 app.use("/uploads", express.static(path.join(__dirname, "../../uploads")));
@@ -38,11 +41,12 @@ import { attachmentRoutes } from "./modules/attachments/attachments.routes";
 import { dashboardRoutes } from "./modules/dashboard/dashboard.routes";
 // import { catalogRoutes } from './modules/catalog/catalog.routes';
 import { mobileRoutes } from "./modules/mobile/mobile.routes";
-import { apiLimiter, authLimiter } from "./middlewares/rateLimit";
+import { apiLimiter } from "./middlewares/rateLimit";
+import { progressiveAuthLimiter } from "./middlewares/progressiveLimit";
 
 // --- Routes Setup ---
 // Apply stricter limit to auth routes
-app.use("/api/auth", authLimiter, authRoutes);
+app.use("/api/auth", progressiveAuthLimiter, authRoutes);
 
 // Apply general limit to API
 app.use("/api", apiLimiter);
@@ -60,6 +64,6 @@ app.get("/api/status", (req, res) => {
 
 // --- Generic Error Handler ---
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-  console.error("[Unhandled Error]", err);
+  Logger.error(`[Unhandled Error] ${err.message}`, { stack: err.stack });
   res.status(500).json({ error: "Internal Server Error" });
 });

@@ -1,35 +1,66 @@
-// /frontend/src/store/useAuthStore.js
-
-// A CORREÇÃO ESTÁ AQUI:
-// Antes: import create from 'zustand';
-// Agora: import { create } from 'zustand';
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import api from '../lib/axios';
 
-// Esta store salva o token e o usuário no localStorage
-// para que você continue logado mesmo se atualizar a página
-const useAuthStore = create(
-  persist(
-    (set, get) => ({ // Adicionado 'get' para a função isAuthenticated
-      token: null,
-      user: null,
+const useAuthStore = create((set) => ({
+  user: null,
+  isAuthenticated: false,
+  isLoading: true, // Start loading to check session
+
+  // --- LOGIN ---
+  login: async (email, password) => {
+    try {
+      // Backend sets the cookie, we just get the user
+      const response = await api.post('/auth/login', { email, password });
       
-      // Ação de Login: Salva o token e o usuário
-      login: (token, user) => set({ token, user }),
+      set({ 
+        user: response.data.user, 
+        isAuthenticated: true,
+        isLoading: false 
+      });
       
-      // Ação de Logout: Limpa tudo
-      logout: () => set({ token: null, user: null }),
-      
-      // Verifica se está autenticado
-      isAuthenticated: () => {
-        const { token } = get(); // Usa 'get' para ler o estado atual
-        return !!token;
-      },
-    }),
-    {
-      name: 'auth-storage', // Nome da chave no localStorage
+      return { success: true };
+    } catch (error) {
+      const msg = error.response?.data?.error || 'Erro ao realizar login';
+      set({ 
+        user: null, 
+        isAuthenticated: false,
+        isLoading: false 
+      });
+      return { success: false, error: msg };
     }
-  )
-);
+  },
+
+  // --- LOGOUT ---
+  logout: async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (error) {
+      console.warn("Logout error", error);
+    } finally {
+      // Always clear local state
+      set({ user: null, isAuthenticated: false });
+    }
+  },
+
+  // --- CHECK SESSION (Hydration) ---
+  checkAuth: async () => {
+    set({ isLoading: true });
+    try {
+      const response = await api.get('/auth/me');
+      set({ 
+        user: response.data, 
+        isAuthenticated: true,
+        isLoading: false 
+      });
+    } catch {
+      // If 401 or error, we are not logged in
+      set({ 
+        user: null, 
+        isAuthenticated: false,
+        isLoading: false 
+      });
+    }
+  }
+}));
 
 export default useAuthStore;

@@ -264,25 +264,28 @@ function ProfilePage() {
 
 // --- SUB-COMPONENTES ---
 
-const InputGroup = ({ icon: Icon, label, name, value, onChange, type = "text", ph, disabled }) => (
-    <div className="space-y-2">
-        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide ml-1">{label}</label>
-        <div className="relative group">
-            <div className="absolute left-3 top-3 text-gray-400 group-focus-within:text-neo-purple-light transition-colors">
-                <Icon size={18} />
+const InputGroup = ({ icon, label, name, value, onChange, type = "text", ph, disabled }) => {
+    const Icon = icon;
+    return (
+        <div className="space-y-2">
+            <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide ml-1">{label}</label>
+            <div className="relative group">
+                <div className="absolute left-3 top-3 text-gray-400 group-focus-within:text-neo-purple-light transition-colors">
+                    <Icon size={18} />
+                </div>
+                <input 
+                    type={type} 
+                    name={name}
+                    value={value} 
+                    onChange={onChange}
+                    placeholder={ph}
+                    disabled={disabled}
+                    className={`w-full bg-gray-50 dark:bg-black/30 border border-gray-200 dark:border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-sm text-gray-900 dark:text-white outline-none transition-all ${disabled ? 'opacity-50 cursor-not-allowed' : 'focus:border-neo-purple-light focus:ring-1 focus:ring-neo-purple-light/50'}`}
+                />
             </div>
-            <input 
-                type={type} 
-                name={name}
-                value={value} 
-                onChange={onChange}
-                placeholder={ph}
-                disabled={disabled}
-                className={`w-full bg-gray-50 dark:bg-black/30 border border-gray-200 dark:border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-sm text-gray-900 dark:text-white outline-none transition-all ${disabled ? 'opacity-50 cursor-not-allowed' : 'focus:border-neo-purple-light focus:ring-1 focus:ring-neo-purple-light/50'}`}
-            />
         </div>
-    </div>
-);
+    );
+};
 
 const PasswordInput = ({ label, name, value, onChange }) => {
     const [show, setShow] = useState(false);

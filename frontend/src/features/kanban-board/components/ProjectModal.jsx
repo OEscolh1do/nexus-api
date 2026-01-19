@@ -72,8 +72,8 @@ function ProjectModal({ project, onClose, onSaveSuccess }) {
   const [panelModel, setPanelModel] = useState(''); 
   const [selectedInverterId, setSelectedInverterId] = useState('');
   const [inverterModel, setInverterModel] = useState(''); 
-  const [catalogPanels, setCatalogPanels] = useState([]);
-  const [catalogInverters, setCatalogInverters] = useState([]);
+  const [catalogPanels] = useState([]);
+  const [catalogInverters] = useState([]);
   const [connectionType, setConnectionType] = useState('BIFÁSICO');
   const [availabilityFee, setAvailabilityFee] = useState(50);
   const [annualInflation, setAnnualInflation] = useState('7.0');
@@ -88,7 +88,7 @@ function ProjectModal({ project, onClose, onSaveSuccess }) {
   const [attachments, setAttachments] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [newNote, setNewNote] = useState('');
-  const [isSavingNote, setIsSavingNote] = useState(false);
+  const [isSavingNote, setIsSavingNote] = useState(false); // Used in logic now
 
   // --- CONFIG AXIOS COM TOKEN ---
 
@@ -96,8 +96,9 @@ function ProjectModal({ project, onClose, onSaveSuccess }) {
   // --- CARREGAMENTO ---
   useEffect(() => {
     // Catálogos são públicos ou protegidos? Se protegidos, adicione authConfig
-    api.get('/catalog/panels').then(res => setCatalogPanels(res.data)).catch(console.error);
-    api.get('/catalog/inverters').then(res => setCatalogInverters(res.data)).catch(console.error);
+    // Calls removed: Catalog API deprecated
+    // api.get('/catalog/panels').then(res => setCatalogPanels(res.data)).catch(console.error);
+    // api.get('/catalog/inverters').then(res => setCatalogInverters(res.data)).catch(console.error);
   }, [token]);
 
   const loadActivities = useCallback(() => {
@@ -186,13 +187,13 @@ function ProjectModal({ project, onClose, onSaveSuccess }) {
               group: 'B', availabilityFee: '50', voltage: '220', concessionaire: 'Equatorial' 
           });
           loadUnits();
-      } catch (error) { alert("Erro ao adicionar unidade."); }
+      } catch (error) { console.error(error); alert("Erro ao adicionar unidade."); }
   };
 
   const handleRemoveUnit = async (unitId) => {
       if(window.confirm("Remover unidade?")) {
           try { await api.delete(`/units/${unitId}`); loadUnits(); } 
-          catch (e) { alert("Erro ao remover."); }
+          catch { alert("Erro ao remover."); }
       }
   };
 
@@ -258,7 +259,7 @@ function ProjectModal({ project, onClose, onSaveSuccess }) {
           await api.post(`/projects/${project.id}/activities`, { note: `Dados comerciais salvos. Valor: R$ ${price}` });
           loadActivities();
           if (onSaveSuccess) onSaveSuccess();
-      } catch (error) { alert('Erro ao salvar.'); } 
+      } catch (error) { console.error(error); alert('Erro ao salvar.'); } 
       finally { setIsSavingCommercial(false); }
   };
   
@@ -300,7 +301,7 @@ function ProjectModal({ project, onClose, onSaveSuccess }) {
         }); 
         loadAttachments(); 
     } 
-    catch (e) { alert('Erro envio.'); } finally { setIsUploading(false); }
+    catch (e) { console.error(e); alert('Erro envio.'); } finally { setIsUploading(false); }
   };
 
   const handleDeleteAttachment = async (id) => {
@@ -308,19 +309,19 @@ function ProjectModal({ project, onClose, onSaveSuccess }) {
         try { 
             await api.delete(`/attachments/${id}`); 
             loadAttachments(); 
-        } catch (e) { alert("Erro remover."); } 
+        } catch (e) { console.error(e); alert("Erro remover."); } 
     }
   };
 
   const handleAddNote = async () => {
       if (!newNote.trim()) return; setIsSavingNote(true);
       try { await api.post(`/projects/${project.id}/activities`, { note: newNote }); setNewNote(''); loadActivities(); }
-      catch (e) { alert('Erro nota.'); } finally { setIsSavingNote(false); }
+      catch (e) { console.error(e); alert('Erro nota.'); } finally { setIsSavingNote(false); }
   };
 
   const handleDelete = async () => {
     if (window.confirm(`Excluir projeto "${project.title}"?`)) {
-        try { await api.delete(`/projects/${project.id}`); onClose(); if(onSaveSuccess) onSaveSuccess(); } catch (e) { alert('Erro excluir.'); }
+        try { await api.delete(`/projects/${project.id}`); onClose(); if(onSaveSuccess) onSaveSuccess(); } catch (e) { console.error(e); alert('Erro excluir.'); }
     }
   };
 
@@ -499,7 +500,7 @@ function ProjectModal({ project, onClose, onSaveSuccess }) {
                 </div>
                 <div className="p-4 border-t border-neo-surface-2 bg-neo-surface-1/10 space-y-3">
                     {activeTab === 'activity' ? (
-                        <div className="relative"><input type="text" value={newNote} onChange={(e) => setNewNote(e.target.value)} placeholder="Escreva uma nota..." className="w-full bg-neo-surface-2 border-none rounded-md py-2 pl-3 pr-8 text-xs text-white focus:ring-1 focus:ring-neo-purple-light outline-none" onKeyPress={(e) => e.key === 'Enter' && handleAddNote()}/><button onClick={handleAddNote} disabled={!newNote.trim()} className="absolute right-1 top-1 text-neo-purple-light hover:text-white p-1"><MessageSquare size={14} /></button></div>
+                        <div className="relative"><input type="text" value={newNote} onChange={(e) => setNewNote(e.target.value)} placeholder="Escreva uma nota..." className="w-full bg-neo-surface-2 border-none rounded-md py-2 pl-3 pr-8 text-xs text-white focus:ring-1 focus:ring-neo-purple-light outline-none" onKeyPress={(e) => e.key === 'Enter' && handleAddNote()}/><button onClick={handleAddNote} disabled={!newNote.trim() || isSavingNote} className="absolute right-1 top-1 text-neo-purple-light hover:text-white p-1"><MessageSquare size={14} /></button></div>
                     ) : (
                         attachments.length === 0 ? (
                             <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-neo-surface-2 hover:border-neo-purple-light rounded-lg cursor-pointer transition-all group"><CloudUpload size={24} className="text-neo-text-sec group-hover:text-neo-purple-light mb-2" /><span className="text-xs font-bold text-neo-white">Clique para fazer upload</span><input type="file" className="hidden" onChange={handleFileUpload} disabled={isUploading} /></label>
