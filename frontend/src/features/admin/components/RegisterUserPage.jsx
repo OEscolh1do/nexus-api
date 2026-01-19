@@ -15,7 +15,7 @@ const ROLE_MAP = {
 };
 
 function RegisterUserPage() {
-  const { user: currentUser, token } = useAuthStore(state => state);
+  const { user: currentUser, isAuthenticated } = useAuthStore(state => state);
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -29,7 +29,7 @@ function RegisterUserPage() {
     setErrorMsg(null);
     setIsLoading(true);
 
-    if (!token) { setIsLoading(false); return; }
+    if (!isAuthenticated) { setIsLoading(false); return; }
 
     try {
       const res = await api.get('/auth/users');
@@ -43,7 +43,7 @@ function RegisterUserPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [token]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (currentUser?.role === 'ADMIN') fetchUsers();
