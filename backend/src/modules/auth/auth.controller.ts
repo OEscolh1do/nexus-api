@@ -32,9 +32,9 @@ export class AuthController {
       const isProduction = process.env.NODE_ENV === 'production';
       res.cookie('token', token, {
         httpOnly: true,
-        secure: isProduction, // HTTPS only in prod
-        sameSite: isProduction ? 'strict' : 'lax',
-        maxAge: 12 * 60 * 60 * 1000 // 12h in ms
+        secure: isProduction, // HTTPS required for SameSite=None
+        sameSite: isProduction ? 'none' : 'lax', // Must be 'none' for cross-domain (Hostinger -> Render)
+        maxAge: 12 * 60 * 60 * 1000 // 12h
       });
 
       return res.json({
@@ -187,7 +187,7 @@ export class AuthController {
     res.clearCookie('token', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax'
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
     });
     return res.json({ message: 'Logout realizado com sucesso.' });
   }

@@ -12,9 +12,10 @@ export const app = express();
 
 // --- Global Middlewares ---
 app.use(helmet()); // Basic security headers
-const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:3000",
+  "https://www.neonorte.tech",
+  "https://neonorte.tech",
   process.env.CORS_ORIGIN || "https://www.neonorte.tech",
 ];
 
