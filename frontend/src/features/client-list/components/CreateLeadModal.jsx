@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import api from '../../../lib/axios';
 import { X, User, Phone, Mail, FileText, Save, Search, UserCheck, UserPlus } from 'lucide-react';
-import useAuthStore from '../../../store/useAuthStore'; // Importante para o token
+import useAuthStore from '../../../store/useAuthStore';
 
 
 
