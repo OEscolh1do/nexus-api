@@ -52,7 +52,7 @@ const PIPELINES = {
 };
 
 function KanbanBoard() {
-  const { token } = useAuthStore(); // <--- PEGA O TOKEN AQUI
+  const { isAuthenticated } = useAuthStore();
   const [projects, setProjects] = useState([]);
   const [currentPipeline, setCurrentPipeline] = useState('SALES'); 
   const [searchTerm, setSearchTerm] = useState('');
@@ -62,10 +62,10 @@ function KanbanBoard() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false); 
   const [selectedProject, setSelectedProject] = useState(null);
 
-  // Carrega ao iniciar ou mudar o token
+  // Carrega ao iniciar ou mudar o estado de autenticação
   useEffect(() => { 
-      if (token) fetchProjects(); 
-  }, [token]);
+      if (isAuthenticated) fetchProjects(); 
+  }, [isAuthenticated]);
 
   const fetchProjects = async () => {
     try {
