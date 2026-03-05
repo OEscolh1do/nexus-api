@@ -39,8 +39,8 @@ export default function CommercialPipeline() {
   const fetchData = async () => {
     try {
       const [leadsRes, pipelineRes] = await Promise.all([
-        fetch(\`${import.meta.env.VITE_API_BASE_URL || "http://localhost:3001"}/api/v2/commercial/leads\`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }),
-        fetch(\`${import.meta.env.VITE_API_BASE_URL || "http://localhost:3001"}/api/v2/commercial/pipeline\`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } })
+        fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:3001"}/api/v2/commercial/leads`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }),
+        fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:3001"}/api/v2/commercial/pipeline`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } })
       ]);
 
       const leadsData = await leadsRes.json();

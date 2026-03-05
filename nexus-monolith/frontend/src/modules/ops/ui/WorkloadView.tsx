@@ -43,7 +43,7 @@ const WorkloadView: React.FC = () => {
     try {
       // Ensure we hit the V2 endpoint
       const token = localStorage.getItem("token");
-      const response = await axios.get(\`${import.meta.env.VITE_API_BASE_URL || "http://localhost:3001"}/api/v2/ops/workload\`, {
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:3001"}/api/v2/ops/workload`, {
         headers: { Authorization: `Bearer ${token}` },
         params: filters
       });

@@ -58,7 +58,7 @@ export function InspectionWizard() {
     try {
         // Envia para o Sync Engine (que decide entre Rede ou Fila)
         await SyncEngine.fetchOrQueue(
-            \`${import.meta.env.VITE_API_BASE_URL || "http://localhost:3001"}/api/v2/ops/inspections\`,
+            `${import.meta.env.VITE_API_BASE_URL || "http://localhost:3001"}/api/v2/ops/inspections`,
             'POST',
             data
         );

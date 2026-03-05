@@ -22,7 +22,7 @@ export function LeadsPipeline() {
   const fetchLeads = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get(\`${import.meta.env.VITE_API_BASE_URL || "http://localhost:3001"}/api/v2/commercial/leads\`, {
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:3001"}/api/v2/commercial/leads`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.success) {
