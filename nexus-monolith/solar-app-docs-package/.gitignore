@@ -1,0 +1,21 @@
+# Arquivos temporários
+*.tmp
+*.bak
+*~
+
+# Diretórios de build (se desenvolvedor clonar aqui)
+node_modules/
+dist/
+build/
+.next/
+.turbo/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

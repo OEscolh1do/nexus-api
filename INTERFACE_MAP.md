@@ -1,172 +1,101 @@
 # INTERFACE_MAP.md - Mapa de Interface - Sistema NEONORTE NEXUS
 
-> **Última Atualização:** 2026-01-15  
-> **Arquiteto:** Tecnologia Neonorte  
-> **Versão:** 1.1.0 (Lean CRM)
+> **Última Atualização:** 23/01/2026
+> **Arquiteto:** Antigravity AI
+> **Versão:** 2.1.0 (Neonorte | Nexus SQL - Purged)
 
 ---
 
 ## 📋 VISÃO GERAL
 
-Este documento mapeia **TODA a interface do usuário** do sistema NEXUS, incluindo estruturas de navegação e componentes principais.
+Este documento mapeia **TODA a interface do usuário** do sistema NEXUS, correlacionando a estrutura de navegação (`MainLayout.tsx`) com os componentes de visualização (`src/views/`) e a lógica de roteamento (`App.tsx`).
+
+> **Nota:** O sistema utiliza Roteamento de Estado (`useUI().currentView`) e não roteamento de URL tradicional (React Router).
 
 ---
 
-## 🗺️ MAPA DE NAVEGAÇÃO
+## 🧭 ESTRUTURA DE NAVEGAÇÃO (Sidebar)
 
-```mermaid
-graph TB
-    START([👤 Usuário acessa aplicação]) --> CHECK{Autenticado?}
+A navegação é definida em `src/components/layout/MainLayout.tsx` e segue um modelo de **Permissões por Capacidade** (RBAC).
 
-    CHECK -->|Não| LOGIN[🔑 /login<br/>LoginPage]
-    CHECK -->|Sim| LAYOUT[📐 MainLayout<br/>Sidebar + Outlet]
+### Seção 1: Estratégia & Gestão
 
-    LOGIN -->|Credenciais corretas| LAYOUT
-    LOGIN -->|Credenciais incorretas| LOGIN
+| Label                     |       Ícone       | View ID (`currentView`) | Permissão (`capability`) | Arquivo View              |
+| :------------------------ | :---------------: | :---------------------- | :----------------------- | :------------------------ |
+| **Painel Estratégico**    | `LayoutDashboard` | `dashboard`             | `strategy.view`          | `DashboardView.tsx`       |
+| **Gestão de Estratégias** |     `Target`      | `strategies`            | `strategy.view`          | `StrategyManagerView.tsx` |
+| **Gestão de Pessoas**     |     `UserCog`     | `people`                | `team.view`              | `PeopleView.tsx`          |
 
-    LAYOUT --> DEFAULT{Rota padrão}
-    DEFAULT --> KANBAN
+### Seção 2: Engenharia & Projetos
 
-    subgraph "ROTAS COMERCIAIS (SALES, ENGINEER, ADMIN)"
-        KANBAN[🎯 /kanban<br/>KanbanBoard<br/>Pipeline SALES/ENGINEERING]
-        CLIENTS[👥 /clients<br/>ClientList<br/>Base de Clientes]
-        PROFILE[👤 /profile<br/>ProfilePage<br/>Perfil do Usuário]
-    end
+| Label                 |      Ícone      | View ID (`currentView`) | Permissão (`capability`) | Arquivo View          |
+| :-------------------- | :-------------: | :---------------------- | :----------------------- | :-------------------- |
+| **Portfólio**         |   `Briefcase`   | `projects`              | `projects.view`          | `ProjectBoard.tsx`    |
+| **Cronograma Mestre** | `CalendarRange` | `gantt`                 | `tasks.view`             | `GanttMatrixView.tsx` |
+| **Fluxo de Trabalho** |   `Workflow`    | `kanban`                | `tasks.view`             | `KanbanView.tsx`      |
+| **Cadastrar Projeto** |  `PlusSquare`   | `project-logic`         | `projects.create`        | `ProjectWizard.tsx`   |
 
-    subgraph "ROTAS ADMINISTRATIVAS (Apenas ADMIN)"
-        DASHBOARD[📊 /dashboard<br/>DashboardPage<br/>Métricas e Gráficos]
-        USERS[👥 /admin/users<br/>RegisterUserPage<br/>Gestão de Equipe]
-    end
+### Seção 3: Governança do Sistema
 
-    LAYOUT --> KANBAN
-    LAYOUT --> CLIENTS
-    LAYOUT --> PROFILE
-    LAYOUT --> DASHBOARD
-    LAYOUT --> USERS
-
-    KANBAN -.->|Clique no card| PROJECTMODAL[🔍 ProjectModal<br/>Modal Global]
-    CLIENTS -.->|Clique na linha| CLIENTMODAL[🔍 ClientDetailModal<br/>Detalhes do Cliente]
-    KANBAN -.->|Botão Novo| LEADMODAL[➕ CreateLeadModal<br/>Criar Lead]
-
-    style LOGIN fill:#e3f2fd,stroke:#1976d2,stroke-width:3px
-    style PROJECTMODAL fill:#fff3e0,stroke:#f57c00,stroke-width:3px
-    style DASHBOARD fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    style USERS fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-```
+| Label                    |     Ícone     | View ID (`currentView`) | Permissão (`capability`) | Arquivo View               |
+| :----------------------- | :-----------: | :---------------------- | :----------------------- | :------------------------- |
+| **Controle de Acesso**   | `ShieldCheck` | `org`                   | `users.manage`           | `DirectoryView.tsx`        |
+| **Matriz de Permissões** |   `FileKey`   | `provisioning`          | `users.manage`           | `PermissionMatrixView.tsx` |
+| **Trilha de Auditoria**  | `ScrollText`  | `audit`                 | `audit.view`             | `AuditView.tsx`            |
+| **Integridade de Dados** | `DatabaseZap` | `schema`                | `users.manage`           | `SchemaValidator.tsx`      |
 
 ---
 
-## 🧭 SIDEBAR - Navegação Principal
+## 🧩 MAPA DE COMPONENTES DE VISUALIZAÇÃO
 
-### Sidebar.jsx
+Mapeamento detalhado extraído de `src/App.tsx`.
 
-**Seções:**
+### Views Principais (`src/views/`)
 
-#### 1. **Navegação Principal**
+1.  **DashboardView.tsx** (`dashboard`)
+    - **Função:** Visão Executiva de KPIs.
+    - **Contexto:** Admin Only.
+    - **Wrapper:** `ErrorBoundary` (ViewName: "Dashboard").
 
-- 🎯 **Quadro Kanban** (`/kanban`)
-- 👥 **Base de Clientes** (`/clients`)
-- 📊 **Dashboard** (`/dashboard`) - ADMIN only
+2.  **StrategyManagerView.tsx** (`strategies`)
+    - **Função:** Gestão de Objetivos e Resultados Chave (BSC).
+    - **Contexto:** Planejamento Estratégico.
 
-#### 2. **Navegação Admin** (ADMIN only)
+3.  **KanbanView.tsx** (`kanban`)
+    - **Função:** Gestão Operacional de Tarefas.
+    - **Features:** Drag & Drop, Checklists.
+    - **Wrapper:** `ErrorBoundary` (ViewName: "Fluxo de Trabalho").
 
-- 👥 **Gestão de Equipe** (`/admin/users`)
+4.  **GanttMatrixView.tsx** (`gantt`)
+    - **Função:** Cronograma e dependências temporais.
 
-#### 3. **Sistema**
+5.  **PeopleView.tsx** (`people`)
+    - **Função:** Diretório de colaboradores e hierarquia.
 
-- 🌙 **Alternar Tema**
-- **Perfil do Usuário**
+6.  **PermissionMatrixView.tsx** (`provisioning`)
+    - **Função:** Grid de gestão de permissões (RBAC Granular).
 
----
+7.  **AuditView.tsx** (`audit`)
+    - **Função:** Visualizador de Logs de Segurança (`AuditLog`).
 
-## 📄 PÁGINAS PRINCIPAIS
-
-### 1. 🔑 LoginPage - Autenticação
-
-**Rota:** `/login`
-
-### 2. 🎯 KanbanBoard - Pipeline de Projetos
-
-**Rota:** `/kanban`
-
-**Pipelines:**
-
-- **COMERCIAL:** Contact -> Proposal -> Budget -> Waiting -> Approved/Rejected
-- **ENGENHARIA:** Ready -> Execution -> Review -> Done/Closed
-
-**Modais:**
-
-- `ProjectModal` (Detalhes)
-- `CreateLeadModal` (Novo Lead)
-
-### 3. 👥 ClientList - Base de Clientes
-
-**Rota:** `/clients`
-
-- Lista com busca e filtros.
-- Abre `ClientDetailModal`.
-
-### 4. 📊 DashboardPage - Métricas (ADMIN)
-
-**Rota:** `/dashboard`
-
-- KPIs: Projetos Totais, Pipeline, Conversão.
-- Gráficos de Status.
-
-### 5. 👥 RegisterUserPage - Gestão de Equipe (ADMIN)
-
-**Rota:** `/admin/users`
-
-- CRUD de usuários.
+8.  **DirectoryView.tsx** (`org`)
+    - **Função:** Cadastro Geral e Controle de Servidores.
 
 ---
 
-## 🪟 MODAIS E OVERLAYS
+## 🏗️ COMPONENTES AUXILIARES DE ROTEAMENTO
 
-### ProjectModal - Modal Detalhado de Projeto
+Algumas "Views" são renderizadas diretamente por componentes complexos em `src/components/`:
 
-**Estrutura Simplificada (Lean):**
-
-```
-┌──────────────────────────────────────────────┐
-│ [Visão Geral] [Anexos]                    🗑️ │
-├──────────────────────────────────────────────┤
-│                                              │
-│  (Conteúdo da aba ativa)                     │
-│                                              │
-└──────────────────────────────────────────────┘
-```
-
-#### **Aba 1: Visão Geral**
-
-- **Dados do Projeto:** Título, Cliente, Status, Valor (Input manual).
-- **Dados Técnicos (Opcional):** Consumo médio (Input manual), Localização.
-- **Timeline:** Histórico de atividades (`ActivityLog`).
-- **Notas:** Adicionar comentários.
-
-#### **Aba 2: Anexos**
-
-- **Upload:** Enviar arquivos (PDF, Imagens).
-- **Lista:** Visualizar e excluir anexos.
+- **`ProjectBoard.tsx`** (`projects`): Visualização em Cards/Grid do portfólio.
+- **`ProjectWizard.tsx`** (`project-logic`): Wizard passo-a-passo para criação de projetos complexos.
+- **`SchemaValidator.tsx`** (`schema`): Ferramenta técnica para validar integridade do banco.
 
 ---
 
-### CreateLeadModal
+## 🔄 CICLO DE VIDA DA INTERFACE (`App.tsx`)
 
-- Cria Lead selecionando cliente existente ou cadastrando novo.
-
-### ClientDetailModal
-
-- Edita dados cadastrais do cliente (Nome, Email, Telefone, Endereço).
-- Visualiza lista de projetos do cliente.
-
----
-
-## 🎨 DESIGN SYSTEM
-
-### Paleta de Cores (Tailwind/Neon)
-
-- Background: `#0a0a0b`
-- Surface: `#141416`
-- Primary: `#ffffff`
-- Accents: Neon Purple (`#a78bfa`), Neon Green (`#10b981`)
+1.  **Gatekeeper:** Verifica `isAuthenticated`. Se falso, renderiza `LoginView`.
+2.  **System Init:** Executa `RecurrenceService.checkAndSpawnRecurringTasks()` no load.
+3.  **Onboarding:** Verifica flags de localStorage para exibir `OnboardingWizard`.
+4.  **Router Switch:** Renderiza o componente baseado na string `currentView` do `UIContext`.

@@ -1,157 +1,89 @@
-# MAPA_SISTEMA.md - Mapa de Sistema Integrado
+# MAPA_SISTEMA.md - Mapa de Sistema Integrado (Neonorte | Nexus 2.0)
 
 > **Localização:** Raiz do Projeto
-> **Objetivo:** Facilitar a navegação e comunicação entre Usuário e Agente, mapeando Interface Visual -> Código Fonte.
-> **Instrução de Uso:** Ao solicitar alterações, cite o ID ou Nome do Objeto listado abaixo.
+> **Objetivo:** Facilitar a navegação mapeando Interface Visual -> Código Fonte no diretório `nexus-core`.
+> **Status:** Atualizado Pós-Purge (23/01/2026)
 
 ---
 
-## 🗺️ FRONTEND (Interface do Usuário)
+## 🗺️ FRONTEND (`nexus-core/frontend`)
 
-### 🖥️ Módulos Principais (Features)
+### 🖥️ Módulos e Visões (Neonorte | Nexus Monolith)
 
-#### 1. Kanban Board (Gestão de Projetos)
+| Objeto de Interface | Rota            | Arquivo Principal (`nexus-monolith/frontend`)   | Descrição                                 |
+| :------------------ | :-------------- | :---------------------------------------------- | :---------------------------------------- |
+| **Dashboard**       | `/`             | `src/views/DashboardView.tsx`                   | Visão geral de KPIs e Smart Briefing.     |
+| **Estratégias**     | `/ops/strategy` | `src/modules/ops/ui/StrategyManagerView.tsx`    | Gestão de PPA, OKRs e Key Results.        |
+| **Projetos**        | `/ops/gantt`    | `src/modules/ops/ui/GanttMatrixView.tsx`        | Matriz de projetos e visão de cronograma. |
+| **Tarefas**         | `/ops/kanban`   | `src/modules/ops/ui/KanbanView.tsx`             | Quadro Kanban para operação técnica.      |
+| **Pessoas**         | `/ops/people`   | `src/modules/ops/ui/PeopleView.tsx`             | Organograma e gestão de equipe.           |
+| **Solar Tab**       | `/commercial`   | `src/modules/commercial/ui/SolarWizardView.tsx` | Dossiê técnico (Integrado ao Commercial). |
 
-**Rota:** `/kanban`
-**Localização:** `frontend/src/features/kanban-board`
+### ☀️ Solar Tab (INTEGRADO - Módulo Completo)
 
-| Objeto de Interface   | Arquivo Principal                 | Descrição                                            |
-| :-------------------- | :-------------------------------- | :--------------------------------------------------- |
-| **Página Principal**  | `components/KanbanBoard.jsx`      | Container principal das colunas e Drag & Dropcontext |
-| **Coluna**            | `components/KanbanColumn.jsx`     | Coluna vertical (ex: Contato, Orçamento)             |
-| **Cartão de Projeto** | `components/DraggableCard.jsx`    | Card arrastável do projeto                           |
-| **Modal de Detalhes** | `components/ProjectModal.jsx`     | Modal principal com abas (Visão Geral, Anexos)       |
-| **Modal de Consumo**  | `components/ConsumptionModal.jsx` | Modal para dados de energia (se houver)              |
+**Localização:** `frontend/src/modules/solar/`
 
-#### 2. Lista de Clientes (CRM)
+**Trigger:** Ativado automaticamente quando `Project.type === 'SOLAR'`
 
-**Rota:** `/clients`
-**Localização:** `frontend/src/features/client-list`
+**Arquitetura:**
 
-| Objeto de Interface    | Arquivo Principal                  | Descrição                                  |
-| :--------------------- | :--------------------------------- | :----------------------------------------- |
-| **Página de Listagem** | `components/ClientList.jsx`        | Tabela com filtro e busca de clientes      |
-| **Modal Novo Lead**    | `components/CreateLeadModal.jsx`   | Modal para criar Clientes/Projetos rápidos |
-| **Modal Detalhes**     | `components/ClientDetailModal.jsx` | Edição completa e histórico do cliente     |
+```
+SolarModuleView.tsx (Orquestrador)
+├── components/
+│   ├── InputForm.tsx (Fase 1: Mapeamento Leaflet)
+│   ├── EnergyFluxForm.tsx (Fase 2: Consumo)
+│   ├── TechnicalForm.tsx (Fase 3: Dimensionamento)
+│   ├── ModuleForm.tsx (Fase 4: Painéis)
+│   ├── InverterForm.tsx (Fase 5: Inversores)
+│   ├── ServiceCompositionPhase.tsx (Fase 6: Proposta)
+│   ├── ProposalTemplate.tsx (PDF Generator)
+│   ├── SolarCharts.tsx (Gráficos)
+│   ├── AnalysisPhase.tsx
+│   ├── SettingsPanel.tsx
+│   └── TechConfigForm.tsx
+├── services/
+│   ├── solarEngine.ts (Cálculos)
+│   ├── weatherService.ts (NASA API)
+│   └── cresesbData.ts (Irradiação BR)
+├── data/
+│   ├── modules.ts (Catálogo painéis)
+│   └── inverters.ts (Catálogo inversores)
+└── types.ts (TypeScript definitions)
+```
 
-#### 3. Administração (Usuários)
+**Fluxo de Dados:**
 
-**Rota:** `/admin/users`
-**Localização:** `frontend/src/features/admin`
-
-| Objeto de Interface      | Arquivo Principal                 | Descrição                         |
-| :----------------------- | :-------------------------------- | :-------------------------------- |
-| **Página de Usuários**   | `components/RegisterUserPage.jsx` | Listagem de usuários do sistema   |
-| **Modal Novo Usuário**   | `components/CreateUserModal.jsx`  | Formulário de cadastro de usuário |
-| **Modal Editar Usuário** | `components/EditUserModal.jsx`    | Edição de permissões e dados      |
-
-#### 4. Dashboard (Métricas)
-
-**Rota:** `/dashboard`
-**Localização:** `frontend/src/features/dashboard`
-
-| Objeto de Interface     | Arquivo Principal              | Descrição                      |
-| :---------------------- | :----------------------------- | :----------------------------- |
-| **Página de Dashboard** | `components/DashboardPage.jsx` | Visão geral de KPIs e gráficos |
-
-#### 5. Perfil & Autenticação
-
-**Rota:** `/login`, `/profile`
-
-| Objeto de Interface | Arquivo Principal                       | Descrição               |
-| :------------------ | :-------------------------------------- | :---------------------- |
-| **Login**           | `features/authentication/LoginPage.jsx` | Tela de entrada         |
-| **Perfil**          | `features/profile/ProfilePage.jsx`      | Dados do usuário logado |
-
-### 🧱 Componentes Globais & Layout
-
-| Objeto de Interface  | Arquivo Principal                  | Descrição                         |
-| :------------------- | :--------------------------------- | :-------------------------------- |
-| **Layout Principal** | `components/Layout/MainLayout.jsx` | Wrapper com Sidebar e Outlet      |
-| **Menu Lateral**     | `components/Layout/Sidebar.jsx`    | Navegação principal               |
-| **Troca de Tema**    | `components/ThemeToggle.jsx`       | Botão Dark/Light mode             |
-| **Proteção de Rota** | `components/ProtectedRoute.jsx`    | Wrapper de segurança (Auth Check) |
+1. Usuário preenche wizard (6 etapas)
+2. Estado gerenciado em `SolarModuleView` (useState)
+3. Cálculos executados por `solarEngine.ts`
+4. Dados persistidos em `Project.details` via `PUT /api/projects/:id`
+5. Validação Zod obrigatória no backend
+6. PDF gerado via `ProposalTemplate` + jspdf + html2canvas
 
 ---
 
-## ⚙️ BACKEND (API & Lógica)
+## ⚙️ BACKEND (`nexus-core/backend`)
 
-### 📡 Controladores (Endpoints)
+### 📡 Arquitetura Universal
 
-**Localização:** `backend/src/controllers`
+O backend opera com um controlador universal que mapeia rotas diretamente para modelos Prisma.
 
-| Entidade         | Arquivo                | Funções Principais                                            |
-| :--------------- | :--------------------- | :------------------------------------------------------------ |
-| **Projetos**     | `projectController.js` | `getProjects`, `createLead`, `updateProject`, `deleteProject` |
-| **Clientes**     | `clientController.js`  | `getClients`, `updateClient`, `deleteClient`                  |
-| **Autenticação** | `authController.js`    | `login`, `register`                                           |
-| **Mobile**       | `mobileController.js`  | `createLeadMobile` (Integração App)                           |
-
-### 🧩 Módulos & Serviços
-
-**Localização:** `backend/src/modules` (Estrutura Modular)
-**Nota:** A lógica de negócio tende a ser delegada para services dentro destes módulos.
-
-| Módulo        | Pasta          | Responsabilidade                     |
-| :------------ | :------------- | :----------------------------------- |
-| **Projetos**  | `projects/`    | Lógica de Kanban, Status, Drag&Drop  |
-| **Clientes**  | `clients/`     | Gestão de dados pessoais e contatos  |
-| **Auth**      | `auth/`        | Gestão de tokens e segurança         |
-| **Dashboard** | `dashboard/`   | Agregação de estatísticas            |
-| **Anexos**    | `attachments/` | Upload e gestão de arquivos (Multer) |
-| **Mobile**    | `mobile/`      | Endpoints específicos para app móvel |
-
-### 💾 Banco de Dados & Modelos
-
-**Localização:** `backend/prisma/schema.prisma`
-
-| Modelo           | Tabela DB      | Descrição                               |
-| :--------------- | :------------- | :-------------------------------------- |
-| **Project**      | `Project`      | Entidade central (Kanban Card)          |
-| **Client**       | `Client`       | Cliente (Pessoa/Empresa)                |
-| **User**         | `User`         | Usuário do sistema (Vendedor/Eng/Admin) |
-| **ActivityLog**  | `ActivityLog`  | Histórico de ações (Audit)              |
-| **Attachment**   | `Attachment`   | Referência de arquivos                  |
-| **ConsumerUnit** | `ConsumerUnit` | Dados técnicos de energia               |
+| Recurso            | Arquivo                | Lógica                                            |
+| :----------------- | :--------------------- | :------------------------------------------------ |
+| **Server Central** | `src/server.js`        | Definição de rotas, middlewares e Universal CRUD. |
+| **Schema DB**      | `prisma/schema.prisma` | Definição de tabelas MySQL.                       |
 
 ---
 
-## 🧠 LÓGICA & ESTADO (Architecture Deep Dive)
+## 🔗 Conexões Dinâmicas
 
-### Frontend: Estado Misto
+1. **Adicionar Campo em Projeto?**
+   - Backend: Alterar `prisma/schema.prisma` -> `Project`.
+   - Frontend: Atualizar `TaskFormModal.tsx` ou formulários específicos.
 
-O sistema utiliza uma abordagem híbrida de gerenciamento de estado:
+2. **Mudar lógica do Dashboard?**
+   - Frontend: Alterar `src/services/dashboardService.ts`.
 
-1.  **Estado Global Persistente (Zustand)**
-    - `src/store/useAuthStore.js`: Token JWT e Dados do Usuário.
-    - `src/store/useThemeStore.js`: Tema Dark/Light.
-2.  **Estado de Servidor/Local (React + Axios)**
-    - **Padrão Atual:** Chamadas diretas à API (`api.get`, `api.post`) dentro de componentes (`useEffect`).
-    - **Cliente HTTP:** `src/lib/axios.js` (Configuração central + Interceptor de Auth).
-    - _Nota:_ Não há camada de "Services" isolada no frontend; a lógica está nos componentes (ex: `KanbanBoard.jsx` gerencia o fetch de projetos).
-
-### Backend: Middlewares & Segurança
-
-**Localização:** `backend/src/middlewares`
-
-| Middleware       | Arquivo             | Função                            |
-| :--------------- | :------------------ | :-------------------------------- |
-| **Autenticação** | `authMiddleware.ts` | Valida JWT e popula `req.user`.   |
-| **Validação**    | `zodMiddleware.ts`  | Valida input contra schemas Zod.  |
-| **Rate Limit**   | `rateLimit.ts`      | Proteção contra DDoS/Brute Force. |
-
----
-
-## 🔗 Conexões Comuns (Cheatsheet)
-
-1. **Alterar colunas do Kanban?**
-   - Frontend: `KanbanBoard.jsx` (Visualização)
-   - Backend: `projectController.js` (Persistência Status) + `prisma/schema.prisma` (Enum ProjectStatus)
-
-2. **Adicionar campo no cadastro de Cliente?**
-   - Frontend: `CreateLeadModal.jsx` (Criação) + `ClientDetailModal.jsx` (Edição)
-   - Backend: `clientController.js` (Recebimento) + `prisma/schema.prisma` (Model Client)
-
-3. **Mudar lógica de Permissões?**
-   - Frontend: `ProtectedRoute.jsx` (Bloqueio de Rota) + `Sidebar.jsx` (Ocultar Menu)
-   - Backend: `authController.js` (Role no Token) + Middleware de rota
+3. **Configurar conexão com Banco?**
+   - Docker: `docker-compose.yml` (`DATABASE_URL`).
+   - Local: `.env` na raiz da pasta `backend`.

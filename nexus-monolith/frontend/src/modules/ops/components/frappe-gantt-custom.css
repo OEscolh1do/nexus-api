@@ -1,0 +1,140 @@
+/**
+ * Custom Styles for Frappe Gantt
+ * Based on "Exemplo 1" provided by user.
+ */
+
+.gantt .grid-header {
+  fill: #f8fafc; /* Slate-50 */
+  stroke: #e2e8f0; /* Slate-200 */
+}
+
+.gantt .grid-row {
+  fill: #ffffff;
+}
+
+.gantt .grid-row:nth-child(even) {
+  fill: #f8fafc; /* Slate-50 */
+}
+
+.gantt .tick {
+  stroke: #e2e8f0;
+  stroke-width: 1px;
+}
+
+.gantt text {
+  fill: #64748b; /* Slate-500 */
+  font-family: inherit;
+}
+
+/* --- Bar Styles (Exemplo 1 Palette) --- */
+
+/* BLUE (Default) */
+.gantt .bar-wrapper.blue .bar {
+  fill: #3b82f6 !important; /* Blue-500 */
+}
+.gantt .bar-wrapper.blue .bar-progress {
+  fill: #2563eb !important; /* Blue-600 */
+}
+
+/* PINK (Emphasis) */
+.gantt .bar-wrapper.pink .bar {
+  fill: #ec4899 !important; /* Pink-500 */
+}
+.gantt .bar-wrapper.pink .bar-progress {
+  fill: #db2777 !important; /* Pink-600 */
+}
+
+/* PURPLE (Milestone/Special) */
+.gantt .bar-wrapper.purple .bar {
+  fill: #a855f7 !important; /* Purple-500 */
+}
+.gantt .bar-wrapper.purple .bar-progress {
+  fill: #7e22ce !important; /* Purple-700 */
+}
+
+/* PROJECT HEADER (Gray) */
+.gantt .bar-wrapper.project-header .bar {
+  fill: #94a3b8 !important; /* Slate-400 */
+  opacity: 0.5;
+}
+.gantt .bar-wrapper.project-header .bar-progress {
+  fill: #64748b !important;
+}
+
+/* BLOCKED (Red) */
+.gantt .bar-wrapper.blocked .bar {
+  fill: #ef4444 !important; /* Red-500 */
+}
+.gantt .bar-wrapper.blocked .bar-progress {
+  fill: #b91c1c !important; /* Red-700 */
+}
+
+/* COMPLETED (Green) */
+.gantt .bar-wrapper.completed .bar {
+  fill: #10b981 !important; /* Emerald-500 */
+}
+.gantt .bar-wrapper.completed .bar-progress {
+  fill: #047857 !important; /* Emerald-700 */
+}
+
+/* --- Popup Customization --- */
+.details-container {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow:
+    0 4px 6px -1px rgb(0 0 0 / 0.1),
+    0 2px 4px -2px rgb(0 0 0 / 0.1);
+  padding: 12px;
+  width: 240px;
+  z-index: 50;
+  pointer-events: none;
+}
+
+.details-container h5 {
+  font-weight: 700;
+  color: #1e293b; /* Slate-800 */
+  margin: 0 0 8px 0;
+  font-size: 0.875rem;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 8px;
+}
+
+.details-container p {
+  color: #64748b; /* Slate-500 */
+  margin: 4px 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.details-container p span {
+  font-weight: 600;
+  color: #475569;
+}
+
+/* Dark Mode Overrides */
+.dark .details-container {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #f8fafc;
+}
+.dark .details-container h5 {
+  color: #f1f5f9;
+  border-color: #334155;
+}
+.dark .details-container p {
+  color: #94a3b8;
+}
+.dark .details-container p span {
+  color: #cbd5e1;
+}
+.dark .gantt .grid-header {
+  fill: #1e293b;
+  stroke: #334155;
+}
+.dark .gantt .grid-row {
+  fill: #0f172a;
+}
+.dark .gantt .grid-row:nth-child(even) {
+  fill: #1e293b;
+}
