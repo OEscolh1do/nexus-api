@@ -13,27 +13,40 @@ Este documento define as diretrizes, fases e responsabilidades para desacoplar o
 
 A migração foi dividida em Fases Controladas para garantir *zero downtime* ou perda de dados. Nenhuma fase avança sem a validação (Check-point) da anterior.
 
-### Fase 1: Adequação da Camada de Banco de Dados (ORM)
+### Fase 1: Adequação da Camada de Banco de Dados (ORM) [✅ CONCLUÍDA]
 **Objetivo:** Adaptar o código do Backend para falar a língua do PostgreSQL em vez do MySQL de forma local, sem quebrar a estrutura.
-- [ ] Alterar o `provider` no `backend/prisma/schema.prisma` de `"mysql"` para `"postgresql"`.
-- [ ] Mapear as tipagens nativas do MySQL (ex: `@db.LongText`, `@db.TinyInt`) para seus equivalentes no PostgreSQL.
-- [ ] Adaptar queries brutas (`prisma.$queryRaw`) que usem sintaxe exclusiva do MySQL, caso existam.
-- [ ] Rodar validação local de compilação do Prisma Cliente.
+- [x] Alterar o `provider` no `backend/prisma/schema.prisma` de `"mysql"` para `"postgresql"`.
+- [x] Mapear as tipagens nativas do MySQL (ex: `@db.LongText`, `@db.TinyInt`) para seus equivalentes no PostgreSQL.
+- [x] Adaptar queries brutas (`prisma.$queryRaw`) que usem sintaxe exclusiva do MySQL, caso existam.
+- [x] Rodar validação local de compilação do Prisma Cliente.
 
-### Fase 2: Provisionamento da Nuvem e ETL (Data Migration)
-**Objetivo:** Criar o banco e transportar os dados existentes de um motor para o outro.
-- [ ] Criar o Projeto "Neonorte Nexus" no Supabase e resgatar as chaves (`DATABASE_URL`, `SUPABASE_KEY`).
-- [ ] Aplicar o DDL gerado na Fase 1 (estruturas de tabelas) no ambiente do Supabase (`prisma db push` ou gerar arquivos de *migration*).
-- [ ] Realizar um *dump* seguro dos dados legados (Hostinger) usando ferramentas de ETL (como `pgloader` ou scripts Node de Seeders construídos sob medida) para inserir o volume histórico de clientes, oportunidades e configs no Postgres do Supabase.
+### Fase 2: Provisionamento da Nuvem [✅ CONCLUÍDA]
+**Objetivo:** Criar o novo banco de dados no Supabase.
+- [x] Criar o Projeto "Neonorte Nexus" no Supabase e resgatar as chaves (`DATABASE_URL`, `DIRECT_URL`).
+- [x] Atualizar o `.env` local com as variáveis do banco Supabase.
+- [x] Aplicar o DDL gerado na Fase 1 (estruturas de tabelas) no ambiente do Supabase (`npx prisma db push`).
 
-### Fase 3: Homologação e Redirecionamento (Cutover)
-**Objetivo:** Transferir a carga de apontamento para a nova nuvem.
-- [ ] Atualizar o `.env` de homologação/produção direcionando para o banco Supabase.
-- [ ] Testar todos os fluxos críticos de CRUD (Criar, Ler, Atualizar, Deletar) via interface visual do Frontend.
-- [ ] Implantação e Deploy contínuo do Front-end (ex: Cloudflare Pages).
-- [ ] Monitoramento contínuo pós-migração.
+### Fase 3: Extração e Migração de Dados (ETL) [✅ CONCLUÍDA]
+**Objetivo:** Transportar os dados existentes de um motor para o outro.
+- [x] Desenvolver script de ETL (`migrate.js`) em Node.js.
+- [x] Conectar simultaneamente no MySQL (Source) e PostgreSQL (Target).
+- [x] Realizar a extração dos dados legados, transformando bools, resolvendo Foreign Keys e inserindo no Supabase.
+- [x] Validar a integridade dos dados cruzados.
 
-### Fase 4 (Longo Prazo/Opcional): Governança de Autenticação
+### Fase 4: O Grande Lançamento (Deploy na Nuvem) [✅ CONCLUÍDA]
+**Objetivo:** Colocar a aplicação em produção nativa na web com Latência Zero.
+- [x] Configurar hospedagem do Backend no **Fly.io** (Região GRU - São Paulo).
+- [x] Resolver erros de build no `Dockerfile` e ajustar scripts do NPM.
+- [x] Injetar variáveis de ambiente seguras (Secrets) na nuvem do Fly.io.
+- [x] Configurar o Frontend Vite com variáveis de ambiente de produção (`.env.production`).
+- [x] Realizar o deploy do Frontend na **Cloudflare Pages** conectado diretamente ao GitHub (branch `main`).
+- [x] Redefinir senhas com Bcryptjs para acesso administrativo em produção.
+
+**Links de Produção Atuais:**
+* **Frontend:** [https://neonorte-nexus-frontend.pages.dev/](https://neonorte-nexus-frontend.pages.dev/)
+* **Backend API:** [https://neonorte-nexus-api.fly.dev](https://neonorte-nexus-api.fly.dev)
+
+### Fase 5 (Futuro): Governança de Autenticação
 **Objetivo:** Migrar o controle de Usuários para o Supabase Auth.
 - [ ] Integrar Supabase Auth no Frontend.
 - [ ] Substituir emissões legadas de Token (JWT customizado) e mover regras de autorização de níveis de acesso (RBAC e Multi-tenant) para as Row Level Security (RLS) do Banco de Dados.
