@@ -1,8 +1,0 @@
-{
-  "name": "SolarFlow Propose Engine",
-  "description": "A high-fidelity solar proposal generator with dynamic location-based irradiation analysis and unified technical configuration.",
-  "requestFramePermissions": [
-    "geolocation",
-    "camera"
-  ]
-}
