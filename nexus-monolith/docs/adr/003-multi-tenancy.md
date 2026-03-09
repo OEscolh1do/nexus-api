@@ -2,7 +2,7 @@
 
 ## Status
 
-Aceito
+Aceito — **Implementado universalmente** (7 ciclos de auditoria SEC-OPS, Mar 2026)
 
 ## Contexto
 
@@ -10,23 +10,25 @@ O Neonorte | Nexus Monolith foi inicialmente concebido para uso interno da Neono
 
 ## Decisão
 
-Implementar isolamento de dados por **Multi-tenancy Lógico** (Row-Level Isolation) desde já.
+Implementar isolamento de dados por **Multi-tenancy Lógico** (Row-Level Isolation).
 
 ### Diretrizes Técnicas
 
 1.  **Schema de Banco de Dados:**
-    - Toda tabela principal (ie: `Project`, `Lead`, `Objective`) DEVE ter uma coluna `tenantId` (String/UUID).
-    - A única exceção são tabelas de sistema global (ex: `PricingPlans`, `SysConfig`).
-2.  **Validação (Zod):**
-    - Todo Schema de Criação (Input) deve prever ou injetar `tenantId`.
-3.  **Service Layer:**
-    - **Proibido:** `prisma.lead.findMany({})` (Isso retorna leads de concorrentes misturados!).
-    - **Obrigatório:** `prisma.lead.findMany({ where: { tenantId: ctx.user.tenantId } })`.
-4.  **Middleware:**
-    - O `auth.middleware.js` deve garantir que o `tenantId` esteja presente no objeto `req.user`.
+    - Toda tabela principal (ie: `Project`, `Lead`, `Objective`) DEVE ter uma coluna `tenantId` (String).
+    - Exceção: tabelas de sistema global (ex: `PricingPlans`, `SysConfig`).
+2.  **Service Layer — `withTenant(tx)`:**
+    - **Proibido:** `prisma.lead.findMany({})` (retorna dados de todos os tenants).
+    - **Obrigatório:** Usar `withTenant(tenantId, async (tx) => { ... })` que injeta `tenantId` automaticamente via `asyncLocalStorage`. Todas as queries dentro do callback são isoladas.
+    - O `auth.middleware.js` propaga `tenantId` + `userId` no contexto assíncrono via `asyncLocalStorage`.
+3.  **CRONs e Background Jobs:**
+    - Não existe contexto HTTP. O job deve extrair `tenantId` dos registros que processa e usar `withTenant` explicitamente.
+    - Locking distribuído via `cron-lock.js` com `lockSignature` para release idempotente.
+4.  **Audit Trail:**
+    - `asyncLocalStorage` propaga `tenantId` + `userId` para o middleware de auditoria, que persiste em banco automaticamente.
 
 ## Consequências
 
-- **Segurança:** Garante que Dados da "Empresa A" nunca vazem para "Empresa B".
-- **Complexidade:** Aumenta o boilerplate das queries Prisma, exigindo atenção constante no Code Review.
+- **Segurança:** Dados da "Empresa A" nunca vazam para "Empresa B". Validado em 7 ciclos de auditoria.
+- **Complexidade:** Requer disciplina com `withTenant`, mas elimina o boilerplate manual de `tenantId` em cada query.
 - **Futuro:** Permite escalar para milhares de clientes sem criar milhares de bancos de dados.

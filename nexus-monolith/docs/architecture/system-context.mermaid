@@ -1,5 +1,5 @@
 C4Context
-    title Arquitetura Nexus Monolith (Modular)
+    title Arquitetura Nexus Monolith (Modular) — Atualizado Mar 2026
 
     Enterprise_Boundary(nexus, "Nexus Enterprise System") {
         
@@ -9,25 +9,46 @@ C4Context
             Component(api_gateway, "API Routing", "Express", "Rotas /api/v2 distribuem para módulos")
             
             Boundary(modules, "Módulos de Domínio (src/modules)") {
-                Component(mod_iam, "IAM Module", "Auth & RBAC", "Gestão de Identidade")
-                Component(mod_comm, "Commercial Module", "Leads & Propostas", "Funil de Vendas")
-                Component(mod_ops, "Ops Module", "Projetos & Gantt", "Gestão de Tarefas e Obras")
-                Component(mod_strategy, "Strategy Module", "BSC & Hoshin", "Planejamento Estratégico")
-                Component(mod_fin, "Finance Module", "Ledger", "Contabilidade Imutável")
+                Component(mod_iam, "IAM Module", "Auth & RBAC & SSO", "Identidade, JWT, Rate-Limit, SSO Interception")
+                Component(mod_comm, "Commercial Module", "Leads & Propostas", "Funil de Vendas, Lead Scoring")
+                Component(mod_ops, "Ops Module", "Projetos & Gantt", "Gestão de Tarefas, Kanban, Curva S")
+                Component(mod_strategy, "Strategy Module", "BSC & Hoshin", "OKRs, Planejamento Estratégico")
+                Component(mod_fin, "Finance Module", "LedgerEntry", "Contabilidade Imutável PostgreSQL")
                 Component(mod_solar, "Solar Module", "Engine PV", "Cálculo de Dimensionamento")
+                Component(mod_extranet, "Extranet Module", "B2B & B2P", "Portais Self-Service Isolados")
+                Component(mod_gateway, "Enterprise Gateway", "API Monetization", "Rate-Limit Contábil, TenantApiKey")
             }
 
-            ComponentDb(database, "Nexus DB", "PostgreSQL", "Schema único gerenciado via Prisma")
+            Boundary(jobs, "Background Jobs (CRONs)") {
+                Component(cron_jit, "JIT CRON", "Procurement", "Compras Just-In-Time")
+                Component(cron_sla, "SLA CRON", "Workflow", "Escalonamento de Aprovações")
+            }
+
+            ComponentDb(database, "Supabase PostgreSQL", "PostgreSQL", "Schema único via Prisma + RLS via withTenant")
         }
     }
 
+    System_Ext(cloudflare, "Cloudflare Pages", "Edge Deploy Global", "Frontend estático")
+    System_Ext(flyio, "Fly.io", "Container Runtime", "Backend GRU São Paulo")
+    System_Ext(supabase, "Supabase", "DBaaS", "PostgreSQL + Connection Pooling")
+    System_Ext(idp, "Identity Providers", "SSO", "Microsoft Entra ID / Google Workspace")
+
     Rel(frontend, api_gateway, "HTTPS / JSON", "Usa")
-    Rel(api_gateway, mod_iam, "Protege Rotas", "Middleware")
+    Rel(api_gateway, mod_iam, "Protege Rotas", "authenticateToken + requireRole")
     Rel(api_gateway, mod_comm, "Roteia", "/api/v2/commercial")
     Rel(api_gateway, mod_ops, "Roteia", "/api/v2/ops")
     Rel(api_gateway, mod_strategy, "Roteia", "/api/v2/strategy")
+    Rel(api_gateway, mod_extranet, "Roteia", "/api/v2/extranet")
+    Rel(api_gateway, mod_gateway, "Roteia", "/api/v2/gateway")
     
-    Rel(mod_comm, database, "Leitura/Escrita", "Prisma Client")
-    Rel(mod_ops, database, "Leitura/Escrita", "Prisma Client")
+    Rel(mod_comm, database, "Leitura/Escrita", "withTenant(tx)")
+    Rel(mod_ops, database, "Leitura/Escrita", "withTenant(tx)")
+    Rel(mod_fin, database, "Leitura/Escrita", "withTenant(tx)")
+    Rel(mod_extranet, database, "Leitura/Escrita", "withTenant(tx)")
     
+    Rel(cloudflare, frontend, "Serve", "Static Assets")
+    Rel(flyio, backend, "Runs", "Docker Container")
+    Rel(database, supabase, "Hosted On", "Connection Pool")
+    Rel(mod_iam, idp, "SSO Callback", "OIDC/SAML 2.0")
+
     UpdateRelStyle(frontend, api_gateway, $textColor="blue", $lineColor="blue")

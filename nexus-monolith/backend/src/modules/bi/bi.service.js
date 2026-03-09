@@ -1,48 +1,50 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
-const FinService = require("../fin/fin.service");
+const prisma = require('../../lib/prisma');
+const { withTenant } = require('../../lib/prisma');
+const FinService = require("../fin/services/fin.service");
 const AppError = require("../../utils/AppError");
 
 const BiService = {
   /**
    * Aggregates operational and financial data for executive overview.
+   * Project counts use withTenant for tenant isolation.
    */
   async getOverview() {
     try {
-      // 1. Ops KPIs
-      const [totalProjects, activeProjects, completedProjects] = await prisma.$transaction([
-          prisma.project.count(),
-          prisma.project.count({ where: { status: { not: 'CONCLUIDO' } } }),
-          prisma.project.count({ where: { status: 'CONCLUIDO' } })
-      ]);
-      
+      // 1. Ops KPIs (tenant-isolated via withTenant)
+      const opsData = await withTenant(async (tx) => {
+        const [totalProjects, activeProjects, completedProjects] = await Promise.all([
+          tx.project.count(),
+          tx.project.count({ where: { status: { not: 'CONCLUIDO' } } }),
+          tx.project.count({ where: { status: 'CONCLUIDO' } })
+        ]);
+        return { totalProjects, activeProjects, completedProjects };
+      });
+
       // 2. Financial KPIs
-      // Use FinService but assume it might fail safely or we propagate error?
-      // For BI, better to fail fast or return partial? Let's propagate for now.
       const balance = await FinService.getBalance();
 
-      // 3. Efficiency (Mock logic for now)
-      const avgCostPerProject = completedProjects > 0 
-        ? balance.expenses / completedProjects 
+      // 3. Efficiency
+      const avgCostPerProject = opsData.completedProjects > 0
+        ? balance.expenses / opsData.completedProjects
         : 0;
 
       return {
-          ops: {
-              total: totalProjects,
-              active: activeProjects,
-              completed: completedProjects,
-              efficiencyRate: 95 // Hardcoded MVP
-          },
-          finance: {
-              revenue: balance.income,
-              expenses: balance.expenses,
-              netProfit: balance.total,
-              avgTicket: 0
-          },
-          insights: [
-              { type: 'warning', message: '3 Projetos atrasados na fase de Instalação.' },
-              { type: 'success', message: 'Faturamento superou a meta em 15%.' }
-          ]
+        ops: {
+          total: opsData.totalProjects,
+          active: opsData.activeProjects,
+          completed: opsData.completedProjects,
+          efficiencyRate: 95 // Hardcoded MVP
+        },
+        finance: {
+          revenue: balance.income,
+          expenses: balance.expenses,
+          netProfit: balance.total,
+          avgTicket: 0
+        },
+        insights: [
+          { type: 'warning', message: '3 Projetos atrasados na fase de Instalação.' },
+          { type: 'success', message: 'Faturamento superou a meta em 15%.' }
+        ]
       };
 
     } catch (error) {

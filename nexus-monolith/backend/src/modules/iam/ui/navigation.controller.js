@@ -1,5 +1,4 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const prisma = require('../../../lib/prisma');
 
 /**
  * Navigation Controller
@@ -9,7 +8,7 @@ const prisma = new PrismaClient();
 const getNavigation = async (req, res) => {
   try {
     const userId = req.user.id;
-    
+
     // Fetch user to ensure existence (and potential future dynamic needs)
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -50,10 +49,10 @@ const getNavigation = async (req, res) => {
       menu.push({
         title: "GOVERNANÇA DO SISTEMA",
         items: [
-           { label: "Controle de Acesso", view: "org", icon: "ShieldCheck", params: {}, requiredCapability: "users.manage" },
-           { label: "Matriz de Permissões", view: "provisioning", icon: "FileKey", params: {}, requiredCapability: "users.manage" },
-           { label: "Trilha de Auditoria", view: "audit", icon: "ScrollText", params: {}, requiredCapability: "audit.view" },
-           { label: "Integridade de Dados", view: "schema", icon: "DatabaseZap", params: {}, requiredCapability: "users.manage" }
+          { label: "Controle de Acesso", view: "org", icon: "ShieldCheck", params: {}, requiredCapability: "users.manage" },
+          { label: "Matriz de Permissões", view: "provisioning", icon: "FileKey", params: {}, requiredCapability: "users.manage" },
+          { label: "Trilha de Auditoria", view: "audit", icon: "ScrollText", params: {}, requiredCapability: "audit.view" },
+          { label: "Integridade de Dados", view: "schema", icon: "DatabaseZap", params: {}, requiredCapability: "users.manage" }
         ]
       });
     }

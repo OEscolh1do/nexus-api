@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
 import { ScoringService } from './ScoringService.js';
-
-const prisma = new PrismaClient();
+import prisma from '../../../lib/prisma.js';
 const scoringService = new ScoringService();
 
 export class LeadService {
@@ -31,7 +29,7 @@ export class LeadService {
       if (scoreDelta === 0) return lead; // No score change
 
       const newScore = (lead.academyScore || 0) + scoreDelta;
-      
+
       // 4. Auto-Promotion Logic
       let updateData = {
         academyScore: newScore,
@@ -47,7 +45,7 @@ export class LeadService {
       if (scoringService.shouldPromoteToHot(newScore, lead.status)) {
         updateData.status = 'HOT';
         updateData.notes = (lead.notes || '') + '\n[AUTO] Leads > 150 pts are HOT.';
-        
+
         // Audit Log for Promotion
         await tx.auditLog.create({
           data: {

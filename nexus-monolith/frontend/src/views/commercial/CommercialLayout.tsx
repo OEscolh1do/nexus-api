@@ -2,17 +2,23 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import { LayoutDashboard, FileText, ArrowLeft, Map } from "lucide-react";
 import { Button } from "@/components/ui/mock-components";
 import clsx from "clsx";
+import { useMemo } from "react";
 
 export function CommercialLayout() {
     const location = useLocation();
+    const userData = useMemo(() => {
+        try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; }
+    }, []);
+    const displayName = userData.fullName?.split(' ')[0] || 'Usuário';
+    const initials = (userData.fullName || 'U').split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
 
     const menuGroups = [
         {
             title: "Aquisição & Vendas",
             items: [
                 { path: "/commercial/pipeline", label: "Pipeline (Kanban)", icon: LayoutDashboard },
-                { path: "/commercial/missions", label: "Mission Control", icon: Map },
-                { path: "/commercial/quotes", label: "Solar Wizard", icon: FileText },
+                { path: "/commercial/missions", label: "Central de Missões", icon: Map },
+                { path: "/commercial/quotes", label: "Gerador Solar", icon: FileText },
                 { path: "/commercial/contracts", label: "Contratos", icon: FileText },
             ]
         },
@@ -20,7 +26,7 @@ export function CommercialLayout() {
     ];
 
     const allItems = menuGroups.flatMap(g => g.items);
-    const currentTitle = allItems.find(m => location.pathname.startsWith(m.path))?.label || 'Commercial';
+    const currentTitle = allItems.find(m => location.pathname.startsWith(m.path))?.label || 'Comercial';
 
     return (
         <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -30,7 +36,7 @@ export function CommercialLayout() {
                         <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold shrink-0">CM</div>
                         <div>
                             <h1 className="text-sm font-bold tracking-wider leading-none">Neonorte | Nexus</h1>
-                            <p className="text-xs text-slate-400 mt-1">Commercial View</p>
+                            <p className="text-xs text-slate-400 mt-1">Módulo Comercial</p>
                         </div>
                     </div>
                 </div>
@@ -90,8 +96,8 @@ export function CommercialLayout() {
                         {currentTitle}
                     </h2>
                     <div className="flex items-center space-x-4">
-                        <span className="text-sm text-muted-foreground">Vendedor</span>
-                        <div className="h-8 w-8 bg-blue-100 text-blue-700 flex items-center justify-center rounded-full font-bold text-xs">VE</div>
+                        <span className="text-sm text-muted-foreground">{displayName}</span>
+                        <div className="h-8 w-8 bg-blue-100 text-blue-700 flex items-center justify-center rounded-full font-bold text-xs">{initials}</div>
                     </div>
                 </header>
                 <div className="p-6 flex-1 overflow-y-auto">

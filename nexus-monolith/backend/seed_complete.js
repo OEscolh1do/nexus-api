@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
 async function clearAndSeed() {
@@ -8,28 +9,28 @@ async function clearAndSeed() {
     // Limpar dados na ordem correta (respeitar foreign keys)
     await prisma.checklistItem.deleteMany({});
     console.log('✓ ChecklistItem limpo');
-    
+
     await prisma.checklist.deleteMany({});
     console.log('✓ Checklist limpo');
-    
+
     await prisma.taskDependency.deleteMany({});
     console.log('✓ TaskDependency limpo');
-    
+
     await prisma.task.deleteMany({});
     console.log('✓ Task limpo');
-    
+
     await prisma.project.deleteMany({});
     console.log('✓ Project limpo');
-    
+
     await prisma.keyResult.deleteMany({});
     console.log('✓ KeyResult limpo');
-    
+
     await prisma.strategy.deleteMany({});
     console.log('✓ Strategy limpo');
-    
+
     await prisma.hRLeave.deleteMany({});
     console.log('✓ HRLeave limpo');
-    
+
     // Limpar AuditLog (se existir)
     try {
       await prisma.auditLog.deleteMany({});
@@ -37,50 +38,52 @@ async function clearAndSeed() {
     } catch (e) {
       console.log('⚠ AuditLog não existe ainda (normal em primeira execução)');
     }
-    
+
     await prisma.user.deleteMany({});
     console.log('✓ User limpo');
 
     console.log('\n📦 Populando dados iniciais...\n');
 
-    // 1. Criar usuário ADMIN
+    // 1. Criar usuário ADMIN (Neonorte Tecnologia)
+    const hashedPassword = await bcrypt.hash('bud4X891fd', 10);
     const admin = await prisma.user.create({
       data: {
-        username: 'admin',
-        password: '123', // TODO: Usar bcrypt em produção
-        fullName: 'Administrador do Sistema',
+        username: 'tecnologianeonorte@gmail.com',
+        password: hashedPassword,
+        fullName: 'Tecnologia Neonorte',
         role: 'ADMIN',
-        jobTitle: 'Administrador',
+        jobTitle: 'Responsável Técnico',
+        hierarchyLevel: 'C-LEVEL',
         isActive: true,
       },
     });
-    console.log('✓ Usuário admin criado (username: admin, password: 123)');
+    console.log('✓ Usuário admin criado (login: tecnologianeonorte@gmail.com)');
 
     // 2. Criar usuário COORDENACAO
     const coord = await prisma.user.create({
       data: {
         username: 'coord',
-        password: '123',
+        password: hashedPassword,
         fullName: 'Coordenador de Projetos',
         role: 'COORDENACAO',
         jobTitle: 'Coordenador',
         isActive: true,
       },
     });
-    console.log('✓ Usuário coordenador criado (username: coord, password: 123)');
+    console.log('✓ Usuário coordenador criado (username: coord)');
 
     // 3. Criar usuário VENDEDOR
     const vendedor = await prisma.user.create({
       data: {
         username: 'vendedor',
-        password: '123',
+        password: hashedPassword,
         fullName: 'João Vendedor',
         role: 'VENDEDOR',
         jobTitle: 'Vendedor Solar',
         isActive: true,
       },
     });
-    console.log('✓ Usuário vendedor criado (username: vendedor, password: 123)');
+    console.log('✓ Usuário vendedor criado (username: vendedor)');
 
     // 4. Criar estratégia padrão
     const strategy = await prisma.strategy.create({
@@ -184,19 +187,19 @@ async function clearAndSeed() {
     console.log('CREDENCIAIS DE ACESSO:');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('');
-    console.log('👤 Admin:');
-    console.log('   Username: admin');
-    console.log('   Password: 123');
+    console.log('👤 Admin (Neonorte):');
+    console.log('   Login:    tecnologianeonorte@gmail.com');
+    console.log('   Password: bud4X891fd');
     console.log('   Role: ADMIN (acesso total)');
     console.log('');
     console.log('👤 Coordenador:');
     console.log('   Username: coord');
-    console.log('   Password: 123');
+    console.log('   Password: bud4X891fd');
     console.log('   Role: COORDENACAO (leitura/escrita em projetos)');
     console.log('');
     console.log('👤 Vendedor:');
     console.log('   Username: vendedor');
-    console.log('   Password: 123');
+    console.log('   Password: bud4X891fd');
     console.log('   Role: VENDEDOR (apenas projetos próprios)');
     console.log('');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');

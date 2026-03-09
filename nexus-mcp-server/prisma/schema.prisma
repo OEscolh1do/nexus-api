@@ -1,0 +1,740 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model OrgUnit {
+  id               String            @id @default(cuid())
+  name             String
+  type             String
+  parentId         String?
+  config           String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @default(now()) @updatedAt
+  navigationGroups NavigationGroup[]
+  parent           OrgUnit?          @relation("OrgHierarchy", fields: [parentId], references: [id])
+  children         OrgUnit[]         @relation("OrgHierarchy")
+  pipelines        Pipeline[]
+  Program          Program[]
+  users            User[]
+  WorkflowRule     WorkflowRule[]
+
+  @@index([parentId])
+}
+
+model User {
+  id             String    @id @default(cuid())
+  username       String    @unique
+  password       String
+  fullName       String
+  role           String
+  orgUnitId      String?
+  badgeId        String?
+  jobTitle       String?
+  hierarchyLevel String?
+  employmentType String?
+  supervisorId   String?
+  birthDate      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @default(now()) @updatedAt
+  tenantId       String    @default("default-tenant-001")
+
+  tenant              Tenant            @relation(fields: [tenantId], references: [id])
+  auditLogs           AuditLog[]
+  leaveApprovals      HRLeave[]         @relation("LeaveApprover")
+  leaveRequests       HRLeave[]         @relation("LeaveRequester")
+  leadsOwned          Lead[]            @relation("LeadOwner")
+  missionsCoordinated Mission[]
+  tasksAssigned       OperationalTask[] @relation("TaskAssignee")
+  projectsManaged     Project[]         @relation("ProjectManager")
+  orgUnit             OrgUnit?          @relation(fields: [orgUnitId], references: [id])
+  supervisor          User?             @relation("UserSupervisor", fields: [supervisorId], references: [id])
+  subordinates        User[]            @relation("UserSupervisor")
+
+  @@index([tenantId])
+  @@index([orgUnitId])
+  @@index([supervisorId])
+}
+
+model Project {
+  id                 String            @id @default(cuid())
+  strategyId         String?
+  managerId          String?
+  title              String
+  description        String?
+  progressPercentage Float             @default(0)
+  status             String            @default("PLANEJAMENTO")
+  type               String            @default("GENERIC")
+  details            String?
+  quoteId            String?
+  startDate          DateTime?
+  endDate            DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @default(now()) @updatedAt
+  proposalId         String?           @unique
+  tasks              OperationalTask[]
+  manager            User?             @relation("ProjectManager", fields: [managerId], references: [id])
+  proposal           SolarProposal?    @relation(fields: [proposalId], references: [id])
+  strategy           Strategy?         @relation(fields: [strategyId], references: [id])
+  risks              Risk[]
+  Budget             Budget?
+  Contract           Contract[]
+
+  @@index([managerId])
+  @@index([strategyId])
+}
+
+model OperationalTask {
+  id                String    @id @default(cuid())
+  projectId         String?
+  title             String
+  description       String?
+  status            String    @default("BACKLOG")
+  assignedTo        String?
+  completionPercent Float     @default(0)
+  isMilestone       Boolean   @default(false)
+  startDate         DateTime?
+  endDate           DateTime?
+  dueDate           DateTime?
+  versionId         Int       @default(1)
+  isRecurring       Boolean   @default(false)
+  recurrencePattern String?
+  nextRunAt         DateTime?
+  parentTemplateId  String?
+  isTemplate        Boolean   @default(false)
+  lastSpawnedAt     DateTime?
+  tags              String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @default(now()) @updatedAt
+
+  // Phase 2: EVM (Earned Value Management) Tracking
+  plannedValue Float @default(0) // PV (Orçamento da baseline)
+  earnedValue  Float @default(0) // EV (Valor físico atestado)
+  actualCost   Float @default(0) // AC (Custo real gasto)
+
+  checklists    Checklist[]
+  assignee      User?            @relation("TaskAssignee", fields: [assignedTo], references: [id])
+  project       Project?         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  predecessors  TaskDependency[] @relation("TaskPredecessor")
+  successors    TaskDependency[] @relation("TaskSuccessor")
+  PurchaseOrder PurchaseOrder[]
+  dailyReports  DailyReport[]
+
+  @@index([assignedTo])
+  @@index([projectId])
+}
+
+model Strategy {
+  id          String      @id @default(cuid())
+  code        String      @unique
+  title       String
+  description String?
+  colorCode   String      @default("#3B82F6")
+  startDate   DateTime?
+  endDate     DateTime?
+  isActive    Boolean     @default(true)
+  type        String      @default("PILLAR")
+  parentId    String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @default(now()) @updatedAt
+  keyResults  KeyResult[]
+  projects    Project[]
+  risks       Risk[]
+  parent      Strategy?   @relation("StrategyHierarchy", fields: [parentId], references: [id])
+  children    Strategy[]  @relation("StrategyHierarchy")
+
+  @@index([parentId])
+}
+
+model KeyResult {
+  id            String   @id @default(cuid())
+  strategyId    String
+  title         String
+  targetValue   Float
+  currentValue  Float    @default(0)
+  unit          String   @default("%")
+  perspective   String?
+  indicatorType String?
+  frequency     String?
+  lastUpdatedAt DateTime @default(now())
+  strategy      Strategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+
+  @@index([strategyId])
+}
+
+model Risk {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  probability String
+  impact      String
+  mitigation  String?
+  status      String    @default("OPEN")
+  strategyId  String?
+  projectId   String?
+  createdAt   DateTime  @default(now())
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  strategy    Strategy? @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([strategyId])
+}
+
+model TaskDependency {
+  id            String          @id @default(cuid())
+  predecessorId String
+  successorId   String
+  type          String          @default("FINISH_TO_START")
+  predecessor   OperationalTask @relation("TaskPredecessor", fields: [predecessorId], references: [id], onDelete: Cascade)
+  successor     OperationalTask @relation("TaskSuccessor", fields: [successorId], references: [id], onDelete: Cascade)
+
+  @@unique([predecessorId, successorId])
+  @@index([successorId])
+}
+
+model Checklist {
+  id        String          @id @default(cuid())
+  taskId    String
+  title     String
+  createdAt DateTime        @default(now())
+  task      OperationalTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  items     ChecklistItem[]
+
+  @@index([taskId])
+}
+
+model ChecklistItem {
+  id          String    @id @default(cuid())
+  checklistId String
+  title       String
+  isCompleted Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  checklist   Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+
+  @@index([checklistId])
+}
+
+model Pipeline {
+  id        String   @id @default(cuid())
+  name      String
+  type      String
+  orgUnitId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  orgUnit   OrgUnit  @relation(fields: [orgUnitId], references: [id], onDelete: Cascade)
+  stages    Stage[]
+
+  @@index([orgUnitId])
+}
+
+model Stage {
+  id         String   @id @default(cuid())
+  pipelineId String
+  name       String
+  order      Int
+  createdAt  DateTime @default(now())
+  color      String   @default("bg-slate-500")
+  helpText   String?
+  pipeline   Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+
+  @@index([pipelineId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  tenantId   String
+  userId     String
+  action     String
+  entity     String?
+  resourceId String
+  details    String?
+  timestamp  DateTime @default(now())
+  eventId    String?
+  after      String?
+  before     String?
+  ipAddress  String?
+  userAgent  String?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  event  Event? @relation(fields: [eventId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([eventId])
+  @@index([userId])
+  @@index([resourceId, timestamp])
+  @@index([userId, timestamp])
+}
+
+model Tenant {
+  id        String     @id @default(cuid())
+  name      String
+  type      TenantType @default(SUB_TENANT)
+  parentId  String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  parent   Tenant?  @relation("TenantHierarchy", fields: [parentId], references: [id])
+  children Tenant[] @relation("TenantHierarchy")
+
+  users              User[]
+  auditLogs          AuditLog[]
+  leads              Lead[]
+  missions           Mission[]
+  opportunities      Opportunity[]
+  technicalProposals TechnicalProposal[]
+  vendors            Vendor[]
+
+  @@index([parentId])
+}
+
+model Event {
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  type        String
+  location    String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @default(now()) @updatedAt
+  date        DateTime
+  auditLogs   AuditLog[]
+}
+
+model Lead {
+  id               String      @id @default(cuid())
+  name             String
+  email            String?
+  phone            String
+  status           String      @default("NEW")
+  source           LeadSource?
+  notes            String?
+  ownerId          String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @default(now()) @updatedAt
+  academyOrigin    String?
+  city             String?
+  engagementScore  Int         @default(0)
+  missionId        String?
+  state            String?
+  technicalProfile String?
+  energyBillUrl    String?
+  academyScore     Int?
+  tenantId         String      @default("default-tenant-001")
+
+  tenant       Tenant            @relation(fields: [tenantId], references: [id])
+  mission      Mission?          @relation(fields: [missionId], references: [id])
+  owner        User?             @relation("LeadOwner", fields: [ownerId], references: [id])
+  interactions LeadInteraction[]
+  Opportunity  Opportunity[]
+  proposals    SolarProposal[]
+
+  @@index([tenantId])
+  @@index([ownerId])
+  @@index([missionId])
+}
+
+model Mission {
+  id            String        @id @default(cuid())
+  region        String
+  startDate     DateTime
+  endDate       DateTime
+  status        MissionStatus @default(PLANNING)
+  stats         String?
+  coordinatorId String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  name          String
+  regionPolygon String?
+  tenantId      String        @default("default-tenant-001")
+
+  tenant        Tenant        @relation(fields: [tenantId], references: [id])
+  leads         Lead[]
+  coordinator   User?         @relation(fields: [coordinatorId], references: [id])
+  opportunities Opportunity[]
+
+  @@index([tenantId])
+  @@index([coordinatorId])
+}
+
+model Opportunity {
+  id                  String            @id @default(cuid())
+  title               String
+  leadId              String
+  missionId           String?
+  status              OpportunityStatus @default(LEAD_QUALIFICATION)
+  estimatedValue      Decimal
+  probability         Float             @default(0)
+  technicalProposalId String?           @unique
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  tenantId            String
+
+  tenant            Tenant             @relation(fields: [tenantId], references: [id])
+  lead              Lead               @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  mission           Mission?           @relation(fields: [missionId], references: [id])
+  technicalProposal TechnicalProposal? @relation(fields: [technicalProposalId], references: [id])
+
+  @@index([tenantId])
+  @@index([leadId])
+  @@index([missionId])
+}
+
+model TechnicalProposal {
+  id                   String   @id @default(cuid())
+  kitData              String
+  consumptionAvg       Float
+  infrastructurePhotos String
+  paybackData          String
+  validatedByEng       Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  tenantId             String
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  opportunity Opportunity?
+
+  @@index([tenantId])
+}
+
+model LeadInteraction {
+  id        String   @id @default(cuid())
+  leadId    String
+  type      String
+  content   String
+  authorId  String
+  createdAt DateTime @default(now())
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+}
+
+model SolarProposal {
+  id             String   @id @default(cuid())
+  leadId         String
+  name           String
+  status         String   @default("DRAFT")
+  totalValue     Float
+  systemSize     Float
+  paybackYears   Float
+  monthlySavings Float
+  proposalData   String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now()) @updatedAt
+  project        Project?
+  lead           Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+}
+
+model HRLeave {
+  id          String   @id @default(cuid())
+  type        String
+  startDate   DateTime
+  endDate     DateTime
+  status      String   @default("PENDENTE")
+  reason      String?
+  description String?
+  destination String?
+  requesterId String
+  approverId  String?
+  createdAt   DateTime @default(now())
+  approver    User?    @relation("LeaveApprover", fields: [approverId], references: [id])
+  requester   User     @relation("LeaveRequester", fields: [requesterId], references: [id])
+
+  @@index([approverId])
+  @@index([requesterId])
+}
+
+model Asset {
+  id           String   @id @default(cuid())
+  name         String
+  type         String
+  status       String   @default("AVAILABLE")
+  serialNumber String?
+  location     String?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now())
+}
+
+model Program {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  orgUnitId   String
+  config      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now())
+  OrgUnit     OrgUnit  @relation(fields: [orgUnitId], references: [id], onDelete: Cascade)
+
+  @@index([orgUnitId])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model WorkflowRule {
+  id        String   @id @default(cuid())
+  orgUnitId String
+  name      String
+  condition String
+  action    String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  OrgUnit   OrgUnit  @relation(fields: [orgUnitId], references: [id], onDelete: Cascade)
+
+  @@index([orgUnitId])
+}
+
+model NavigationGroup {
+  id        String           @id @default(cuid())
+  orgUnitId String
+  module    String
+  title     String
+  order     Int              @default(0)
+  isVisible Boolean          @default(true)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  orgUnit   OrgUnit          @relation(fields: [orgUnitId], references: [id], onDelete: Cascade)
+  items     NavigationItem[]
+
+  @@index([orgUnitId, module])
+}
+
+model NavigationItem {
+  id            String          @id @default(cuid())
+  groupId       String
+  label         String
+  path          String
+  icon          String
+  order         Int             @default(0)
+  isVisible     Boolean         @default(true)
+  requiredRoles String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  group         NavigationGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+}
+
+enum MissionStatus {
+  PLANNING
+  ACTIVE
+  COMPLETED
+}
+
+enum LeadSource {
+  ORGANIC
+  REFERRAL
+  PAID_MEDIA
+  ACADEMY
+  OUTBOUND
+}
+
+enum OpportunityStatus {
+  LEAD_QUALIFICATION
+  VISIT_SCHEDULED
+  TECHNICAL_VISIT_DONE
+  PROPOSAL_GENERATED
+  NEGOTIATION
+  CONTRACT_SENT
+  CLOSED_WON
+  CLOSED_LOST
+}
+
+enum TenantType {
+  MASTER
+  SUB_TENANT
+}
+
+model Budget {
+  id           String   @id @default(cuid())
+  projectId    String   @unique
+  totalPlanned Float    @default(0)
+  totalSpent   Float    @default(0)
+  currency     String   @default("BRL")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  costCenters CostCenter[]
+}
+
+model CostCenter {
+  id              String   @id @default(cuid())
+  budgetId        String
+  name            String
+  code            String
+  allocatedAmount Float    @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  budget       Budget        @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([budgetId])
+}
+
+model Transaction {
+  id           String          @id @default(cuid())
+  costCenterId String
+  amount       Float
+  type         TransactionType
+  description  String?
+  date         DateTime        @default(now())
+  createdAt    DateTime        @default(now())
+
+  costCenter CostCenter @relation(fields: [costCenterId], references: [id], onDelete: Cascade)
+
+  @@index([costCenterId])
+}
+
+enum TransactionType {
+  PLANNED
+  ACTUAL
+}
+
+model Vendor {
+  id           String   @id @default(cuid())
+  tenantId     String
+  name         String
+  cnpj         String?  @unique
+  contactEmail String?
+  contactPhone String?
+  status       String   @default("ACTIVE")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contracts      Contract[]
+  purchaseOrders PurchaseOrder[]
+  invoices       Invoice[]
+  dailyReports   DailyReport[]
+
+  @@index([tenantId])
+}
+
+model Contract {
+  id        String    @id @default(cuid())
+  projectId String
+  vendorId  String
+  title     String
+  value     Float
+  startDate DateTime?
+  endDate   DateTime?
+  status    String    @default("DRAFT")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  vendor   Vendor    @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  invoices Invoice[]
+
+  @@index([projectId])
+  @@index([vendorId])
+}
+
+model Material {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  category  String?
+  unit      String   @default("UN")
+  unitCost  Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  purchaseOrders PurchaseOrder[]
+}
+
+model PurchaseOrder {
+  id           String    @id @default(cuid())
+  vendorId     String
+  materialId   String
+  taskId       String?
+  quantity     Float
+  unitPrice    Float
+  totalPrice   Float
+  expectedDate DateTime?
+  status       String    @default("DRAFT")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  vendor   Vendor           @relation(fields: [vendorId], references: [id])
+  material Material         @relation(fields: [materialId], references: [id])
+  task     OperationalTask? @relation(fields: [taskId], references: [id])
+
+  @@index([vendorId])
+  @@index([materialId])
+  @@index([taskId])
+}
+
+// ----------------------------------------------------
+// PHASE 2: Enterprise Operations & Portals (B2P Vendors)
+// ----------------------------------------------------
+
+model ApprovalGate {
+  id            String    @id @default(cuid())
+  resourceType  String // "PurchaseOrder", "Invoice", "ChangeOrder"
+  resourceId    String
+  requiredRole  String // e.g. "C_LEVEL", "DIRECTOR"
+  status        String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  requestedById String
+  approvedById  String?
+  justification String?   @db.Text
+  deadlineAt    DateTime? // For SLA monitoring
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([resourceId])
+  @@index([status])
+}
+
+model Invoice {
+  id         String    @id @default(cuid())
+  contractId String
+  vendorId   String
+  amount     Float
+  status     String    @default("SUBMITTED") // SUBMITTED, APPROVED, PAID, REJECTED
+  dueDate    DateTime?
+  reference  String? // NF Number
+  fileUrl    String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  contract Contract @relation(fields: [contractId], references: [id])
+  vendor   Vendor   @relation(fields: [vendorId], references: [id])
+
+  @@index([contractId])
+  @@index([vendorId])
+}
+
+model DailyReport {
+  id            String   @id @default(cuid())
+  vendorId      String
+  taskId        String
+  reportDate    DateTime
+  weather       String?
+  laborCount    Int      @default(0)
+  progressNotes String   @db.Text
+  incidentNotes String?  @db.Text
+  status        String   @default("DRAFT") // DRAFT, SUBMITTED, REVIEWED
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  vendor Vendor          @relation(fields: [vendorId], references: [id])
+  task   OperationalTask @relation(fields: [taskId], references: [id])
+
+  @@index([vendorId])
+  @@index([taskId])
+}

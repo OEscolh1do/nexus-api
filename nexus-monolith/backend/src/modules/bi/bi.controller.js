@@ -1,12 +1,4 @@
-const express = require('express');
-const router = express.Router();
-const BiService = require('./bi.service');
-const { authenticateToken } = require('../../middleware/auth.middleware');
+// Arquivo de exportação do módulo de Business Intelligence (BI) e Analítico Preditivo
+const biRoutes = require('./bi.routes');
 
-// GET /api/v2/bi/overview -> Dashboard Feed
-router.get('/overview', authenticateToken, async (req, res) => {
-    const data = await BiService.getOverview();
-    res.json({ success: true, data });
-});
-
-module.exports = router;
+module.exports = biRoutes;

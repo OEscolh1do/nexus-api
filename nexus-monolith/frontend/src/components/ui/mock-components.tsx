@@ -8,10 +8,10 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({ className, variant = "default", ...props }, ref) => {
   const base = "px-4 py-2 rounded-md transition-colors font-medium text-sm focus-visible:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:pointer-events-none";
   const variants = {
-      default: "bg-slate-900 text-white hover:bg-slate-800",
-      outline: "border border-slate-200 bg-transparent hover:bg-slate-100 dark:border-slate-800 dark:hover:bg-slate-800",
-      ghost: "hover:bg-slate-100 hover:text-slate-900",
-      secondary: "bg-slate-100 text-slate-900 hover:bg-slate-100/80"
+    default: "bg-slate-900 text-white hover:bg-slate-800",
+    outline: "border border-slate-200 bg-transparent hover:bg-slate-100 dark:border-slate-800 dark:hover:bg-slate-800",
+    ghost: "hover:bg-slate-100 hover:text-slate-900",
+    secondary: "bg-slate-100 text-slate-900 hover:bg-slate-100/80"
   };
   const vClass = variants[variant as keyof typeof variants] || variants.default;
   return <button className={`${base} ${vClass} ${className}`} ref={ref} {...props} />
@@ -27,7 +27,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(({ className
 type CardProps = React.HTMLAttributes<HTMLDivElement>;
 
 export const Card = ({ className, children, ...props }: CardProps) => (
-  <div className={`bg-white border text-card-foreground shadow-sm rounded-xl ${className}`} {...props}>{children}</div>
+  <div className={`bg-card border text-card-foreground shadow-sm rounded-xl ${className}`} {...props}>{children}</div>
 )
 export const CardHeader = ({ className, children, ...props }: CardProps) => <div className={`p-6 ${className}`} {...props}>{children}</div>
 export const CardTitle = ({ className, children, ...props }: CardProps) => <h3 className={`text-2xl font-semibold leading-none tracking-tight ${className}`} {...props}>{children}</h3>
@@ -36,8 +36,8 @@ export const CardContent = ({ className, children, ...props }: CardProps) => <di
 // BADGE
 interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> { variant?: 'default' | 'outline' }
 export const Badge = ({ variant = "default", className, children, ...props }: BadgeProps) => {
-    const bg = variant === "outline" ? "border border-slate-200 bg-transparent text-slate-800" : "bg-slate-900 text-white hover:bg-slate-800";
-    return <div className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${bg} ${className}`} {...props}>{children}</div>
+  const bg = variant === "outline" ? "border border-slate-200 bg-transparent text-slate-800" : "bg-slate-900 text-white hover:bg-slate-800";
+  return <div className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${bg} ${className}`} {...props}>{children}</div>
 }
 
 // TABS

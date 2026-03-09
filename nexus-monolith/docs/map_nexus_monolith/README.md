@@ -1,7 +1,7 @@
 # 🗺️ Índice de Mapas de Interface - Neonorte | Nexus Monolith
 
-> **Versão:** 2.2.0  
-> **Última Atualização:** 2026-01-26
+> **Versão:** 3.0.0  
+> **Última Atualização:** 2026-03-09
 
 ---
 
@@ -57,7 +57,7 @@ Este diretório contém a documentação detalhada de todos os módulos e views 
 **Principais Views:**
 
 - **Commercial Pipeline:** Kanban de vendas
-- **Mission Control:** Metas e gamificação
+- **Commercial Performance:** Metas e painel de vendas
 - **Solar Wizard:** Geração de propostas fotovoltaicas
 - **Leads Pipeline:** Triagem e qualificação
 
@@ -65,7 +65,7 @@ Este diretório contém a documentação detalhada de todos os módulos e views 
 
 - `/commercial/crm` - Pipeline de Vendas
 - `/commercial/leads` - Gestão de Leads
-- `/commercial/mission` - Mission Control
+- `/commercial/performance` - Performance Comercial
 - `/commercial/quotes` - Solar Wizard
 
 **Novidades v2.2:**
@@ -80,16 +80,15 @@ Este diretório contém a documentação detalhada de todos os módulos e views 
 
 ### 4. [Executive](./EXECUTIVE_VIEW_MAP.md)
 
-**Status:** 🚧 Em desenvolvimento  
+**Status:** ✅ Operacional  
 **Descrição:** Painel de comando estratégico com visões consolidadas e de alto nível para tomada de decisão executiva.
 
 **Principais Views:**
 
-- **Executive Dashboard:** Visão 360° do negócio
+- **ApprovalCenterView:** Visão institucional para aprovações e SLA
 - **Strategy Manager:** Gestão de OKRs e pilares estratégicos
 - **Portfolio View:** Visão executiva de projetos
-- **Business Intelligence:** Análises avançadas (planejado)
-- **Risk Management:** Gestão de riscos (planejado)
+- **Financial Dashboard:** Curva S e Burn-rate
 
 **Rotas:**
 
@@ -97,27 +96,41 @@ Este diretório contém a documentação detalhada de todos os módulos e views 
 - `/executive/strategy` - Estratégia
 - `/executive/portfolio` - Portfólio
 - `/executive/bi` - Business Intelligence
-- `/executive/risks` - Gestão de Riscos
 
 ---
 
-### 5. [Academy](./ACADEMY_VIEW_MAP.md)
+### 5. Extranet (B2B/B2P)
 
-**Status:** 📋 Planejado  
-**Descrição:** Plataforma de treinamento e capacitação interna.
+**Status:** ✅ Operacional (Fase 2)  
+**Descrição:** Portais Self-Service isolados para Clientes (B2B) e Fornecedores (B2P).
 
-**Features Planejadas:**
+**Principais Views:**
 
-- Cursos e trilhas de aprendizado
-- Avaliações e certificações
-- Gamificação e rankings
-- Integração com lead scoring (origem Academy)
+- **Client Portal:** Dashboard de avanço de obra (Curva S, Budget), role `B2B_CLIENT`
+- **Vendor Terminal:** Submissão de RDOs e acompanhamento de tasks, role `B2P_VENDOR`, Mobile-First
 
 **Rotas:**
 
-- `/academy/courses` - Catálogo de Cursos
-- `/academy/my-learning` - Meu Aprendizado
-- `/academy/certifications` - Certificações
+- `/extranet/client/dashboard` - Portal do Cliente
+- `/extranet/vendor/tasks` - Terminal do Empreiteiro
+
+---
+
+### 6. Admin / Tenant Settings
+
+**Status:** ✅ Operacional (Fase 3)  
+**Descrição:** Configurações Enterprise por Tenant (SSO, API Quotas).
+
+**Rotas:**
+
+- `/admin/tenant` - SSO Configuration + API Usage Metrics
+
+---
+
+### 7. Academy
+
+**Status:** 📋 Planejado (TRL 1)  
+**Descrição:** Plataforma de treinamento e capacitação interna. Placeholder ativo.
 
 ---
 
@@ -182,14 +195,16 @@ graph LR
 
 ## 📊 Estatísticas de Documentação
 
-| Módulo     |  Views | Componentes |  Rotas | Status       |
-| :--------- | -----: | ----------: | -----: | :----------- |
-| Core       |      5 |          20 |      3 | ✅ Completo  |
-| Operations |      6 |          15 |      7 | ✅ Completo  |
-| Commercial |      4 |          12 |      4 | ✅ Completo  |
-| Executive  |      5 |          10 |      5 | 🚧 Parcial   |
-| Academy    |      3 |           8 |      3 | 📋 Planejado |
-| **Total**  | **23** |      **65** | **22** |              |
+| Módulo | Views | Rotas | Status |
+| :--- | ---: | ---: | :--- |
+| Core | 5 | 3 | ✅ Operacional |
+| Operations | 6 | 7 | ✅ Operacional |
+| Commercial | 4 | 4 | ✅ Operacional |
+| Executive | 4 | 4 | ✅ Operacional |
+| Extranet B2B/B2P | 2 | 2 | ✅ Operacional |
+| Admin | 1 | 1 | ✅ Operacional |
+| Academy | 0 | 0 | 📋 Planejado |
+| **Total** | **22** | **21** | |
 
 ---
 

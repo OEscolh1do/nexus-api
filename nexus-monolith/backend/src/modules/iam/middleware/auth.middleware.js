@@ -16,7 +16,8 @@
  * Data: 2026-01-20
  */
 
-const IamService = require('../iam.service');
+const IamService = require('../services/iam.service');
+const { asyncLocalStorage } = require('../../../lib/asyncContext');
 
 // ========================
 // AUTENTICAÇÃO (Token Verification)
@@ -44,26 +45,42 @@ async function authenticateToken(req, res, next) {
     console.log(`[AUTH DEBUG] Verifying token: ${token}`);
     const user = await IamService.verifyToken(token);
     console.log(`[AUTH DEBUG] User verified: ${user?.username} (${user?.role})`);
-    
-    // Anexar usuário à requisição
+
+    // Anexar usuário e tenant à requisição (Preparação B2P - Fase 1)
     req.user = user;
-    next();
+
+    // Injecting Tenant Context for RLS/Auditing
+    req.tenantContext = {
+      tenantId: user?.tenantId || "default-tenant-001",
+      // Future: fetch tenant hierarchy from DB if dealing with Sub-Tenants vs Master-Tenants
+      isMasterTenant: false
+    };
+
+    // 🛡️ Start the isolated execution context for this request 🛡️
+    // This allows the Prisma Extension down the line to safely extract the tenantId 
+    // without passing it via function arguments.
+    asyncLocalStorage.run({
+      tenantId: req.tenantContext.tenantId,
+      userId: req.user.id // L8 SEC-OPS PATCH: Allow Audit Middlewares to sniff out who fired the trigger
+    }, () => {
+      next();
+    });
   } catch (error) {
     // 🛡️ Error Handling Improvement: Distinguish Infrastructure Errors from Auth Failures
     const isPrismaError = error.code && error.code.startsWith('P'); // Prisma codes start with P
     const isSchemaError = error.message && error.message.includes('Column');
 
     if (isPrismaError || isSchemaError) {
-        console.error("[AUTH CRITICAL] Prisma/Database Error (Schema Drift?):", error);
-        return res.status(500).json({
-            success: false,
-            error: "Internal Authentication Error (Infrastructure Mismatch)",
-            details: process.env.NODE_ENV === 'development' ? error.message : "Contact Admin"
-        });
+      console.error("[AUTH CRITICAL] Prisma/Database Error (Schema Drift?):", error);
+      return res.status(500).json({
+        success: false,
+        error: "Internal Authentication Error (Infrastructure Mismatch)",
+        details: process.env.NODE_ENV === 'development' ? error.message : "Contact Admin"
+      });
     }
 
     console.warn('[AUTH] Token inválido ou Sessão Expirada:', error.message);
-    
+
     // Default to 403 for actual auth failures
     return res.status(403).json({
       success: false,
@@ -235,10 +252,39 @@ function protectProject(action) {
   };
 }
 
+/**
+ * Middleware para garantir que o usuário pertence a uma das roles especificadas.
+ * Útil para blindar rotas de extranet contra acessos internos e vice-versa.
+ * 
+ * @param {Array<string>} allowedRoles - Array de roles permitidas (e.g. ['B2B_CLIENT', 'ADMIN'])
+ * @returns {Function} Middleware Express
+ */
+function requireRole(allowedRoles) {
+  return (req, res, next) => {
+    if (!req.user || !req.user.role) {
+      return res.status(401).json({
+        success: false,
+        error: 'Sessão inválida para validação de papel (Role).'
+      });
+    }
+
+    if (!allowedRoles.includes(req.user.role)) {
+      console.warn(`[AUTHZ] ❌ Acesso negado: Usuário ${req.user.username} (${req.user.role}) tentou acessar rota restrita para: ${allowedRoles.join(', ')}`);
+      return res.status(403).json({
+        success: false,
+        error: 'Acesso Proibido: Nível hierárquico insuficiente ou painel isolado.'
+      });
+    }
+
+    next();
+  };
+}
+
 module.exports = {
   authenticateToken,
   canEditProject,
   canDeleteProject,
   canReadProject,
   protectProject,
+  requireRole,
 };

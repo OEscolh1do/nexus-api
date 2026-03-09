@@ -1,11 +1,9 @@
-import { PrismaClient } from '@prisma/client';
 import { UpdateDealStatusSchema } from '../validators/deal.js';
 import { emitDealWon } from '../events/handlers.js';
-
-const prisma = new PrismaClient();
+import prisma from '../../../lib/prisma.js';
 
 export class CommercialService {
-  
+
   /**
    * Specialized handler for Closing Deals (Handover Protocol).
    * Validates technical integrity and triggers Ops handoff.
@@ -14,7 +12,7 @@ export class CommercialService {
    * @param {String} userId 
    */
   async handleDealWon(dealId, tenantId, userId) {
-     return this.updateDealStatus(dealId, { status: 'CLOSED_WON' }, userId, tenantId);
+    return this.updateDealStatus(dealId, { status: 'CLOSED_WON' }, userId, tenantId);
   }
 
   /**
@@ -46,32 +44,32 @@ export class CommercialService {
       // 2. Handover Protocol (Guardrails)
       if (status === 'CLOSED_WON') {
         const proposal = currentDeal.technicalProposal;
-        
+
         // effective state calculation
         const effectiveTp = {
-            validatedByEng: technicalProposal?.validatedByEng ?? proposal?.validatedByEng,
-            infrastructurePhotos: technicalProposal?.infrastructurePhotos ?? proposal?.infrastructurePhotos ?? []
+          validatedByEng: technicalProposal?.validatedByEng ?? proposal?.validatedByEng,
+          infrastructurePhotos: technicalProposal?.infrastructurePhotos ?? proposal?.infrastructurePhotos ?? []
         };
 
         if (!effectiveTp.validatedByEng) {
-             throw new Error("BusinessRuleError: Handover rejeitado. Validação de Engenharia pendente.");
+          throw new Error("BusinessRuleError: Handover rejeitado. Validação de Engenharia pendente.");
         }
 
         const photoCount = Array.isArray(effectiveTp.infrastructurePhotos) ? effectiveTp.infrastructurePhotos.length : 0;
         if (photoCount < 3) {
-             throw new Error(`BusinessRuleError: Handover rejeitado. Vistoria Digital incompleta (${photoCount}/3 fotos).`);
+          throw new Error(`BusinessRuleError: Handover rejeitado. Vistoria Digital incompleta (${photoCount}/3 fotos).`);
         }
       }
 
       // 3. Update Data
       let tpUpdate = undefined;
       if (technicalProposal && currentDeal.technicalProposalId) {
-          tpUpdate = {
-              update: {
-                  validatedByEng: technicalProposal.validatedByEng,
-                  infrastructurePhotos: technicalProposal.infrastructurePhotos
-              }
-          };
+        tpUpdate = {
+          update: {
+            validatedByEng: technicalProposal.validatedByEng,
+            infrastructurePhotos: technicalProposal.infrastructurePhotos
+          }
+        };
       }
 
       const updatedDeal = await tx.opportunity.update({

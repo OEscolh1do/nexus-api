@@ -21,9 +21,9 @@ export default function NavigationSettings() {
       setGroups(data);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message || "Failed to load");
+        setError(err.message || "Falha ao carregar");
       } else {
-        setError("An unknown error occurred");
+        setError("Erro desconhecido");
       }
     } finally {
       setLoading(false);
@@ -40,12 +40,12 @@ export default function NavigationSettings() {
     setSuccess(null);
     try {
       await updateNavigation(selectedModule, groups);
-      setSuccess("Navigation updated successfully!");
+      setSuccess("Navegação atualizada com sucesso!");
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message || "Failed to save");
+        setError(err.message || "Falha ao salvar");
       } else {
-        setError("An unknown error occurred");
+        setError("Erro desconhecido");
       }
     } finally {
       setLoading(false);
@@ -66,34 +66,34 @@ export default function NavigationSettings() {
 
   // Simple add/remove logic
   const addGroup = () => {
-    setGroups([...groups, { 
-        title: "New Group", 
-        order: groups.length + 1, 
-        items: [] 
+    setGroups([...groups, {
+      title: "Novo Grupo",
+      order: groups.length + 1,
+      items: []
     }]);
   };
 
   const removeGroup = (index: number) => {
-    if (!confirm("Delete group and all items?")) return;
+    if (!confirm("Excluir grupo e todos os itens?")) return;
     const newGroups = groups.filter((_, i) => i !== index);
     setGroups(newGroups);
   };
 
   const addItem = (gIndex: number) => {
-      const newGroups = [...groups];
-      newGroups[gIndex].items.push({
-          label: "New Item",
-          path: "/path",
-          icon: "Target",
-          order: newGroups[gIndex].items.length + 1
-      });
-      setGroups(newGroups);
+    const newGroups = [...groups];
+    newGroups[gIndex].items.push({
+      label: "Novo Item",
+      path: "/path",
+      icon: "Target",
+      order: newGroups[gIndex].items.length + 1
+    });
+    setGroups(newGroups);
   };
 
   const removeItem = (gIndex: number, iIndex: number) => {
-      const newGroups = [...groups];
-      newGroups[gIndex].items = newGroups[gIndex].items.filter((_, i) => i !== iIndex);
-      setGroups(newGroups);
+    const newGroups = [...groups];
+    newGroups[gIndex].items = newGroups[gIndex].items.filter((_, i) => i !== iIndex);
+    setGroups(newGroups);
   };
 
 
@@ -101,116 +101,116 @@ export default function NavigationSettings() {
     <div className="p-8 max-w-5xl mx-auto bg-slate-50 min-h-screen">
       <header className="mb-8 flex justify-between items-center">
         <div>
-           <h1 className="text-2xl font-bold text-slate-800">Navigation Manager</h1>
-           <p className="text-slate-500">Customize module menus</p>
+          <h1 className="text-2xl font-bold text-slate-800">Gerenciador de Navegação</h1>
+          <p className="text-slate-500">Personalize os menus dos módulos</p>
         </div>
         <div className="flex gap-2">
-            {MODULES.map(m => (
-                <button
-                    key={m}
-                    onClick={() => setSelectedModule(m)}
-                    className={`px-4 py-2 rounded font-medium ${selectedModule === m ? 'bg-orange-600 text-white' : 'bg-white text-slate-600 border'}`}
-                >
-                    {m}
-                </button>
-            ))}
+          {MODULES.map(m => (
+            <button
+              key={m}
+              onClick={() => setSelectedModule(m)}
+              className={`px-4 py-2 rounded font-medium ${selectedModule === m ? 'bg-orange-600 text-white' : 'bg-white text-slate-600 border'}`}
+            >
+              {m}
+            </button>
+          ))}
         </div>
       </header>
 
       {error && (
-          <div className="bg-red-100 text-red-800 p-4 rounded mb-4 flex items-center gap-2">
-              <AlertTriangle size={16} /> {error}
-          </div>
+        <div className="bg-red-100 text-red-800 p-4 rounded mb-4 flex items-center gap-2">
+          <AlertTriangle size={16} /> {error}
+        </div>
       )}
 
       {success && (
-          <div className="bg-green-100 text-green-800 p-4 rounded mb-4">
-              {success}
-          </div>
+        <div className="bg-green-100 text-green-800 p-4 rounded mb-4">
+          {success}
+        </div>
       )}
 
-      {loading && <p>Loading...</p>}
+      {loading && <p>Carregando...</p>}
 
       <div className="space-y-6">
-          {groups.sort((a,b) => a.order - b.order).map((group, gIndex) => (
-              <div key={gIndex} className="bg-white p-6 rounded shadow border border-slate-200">
-                  <div className="flex gap-4 mb-4 items-center bg-slate-50 p-3 rounded">
-                      <div className="flex-1">
-                          <label className="text-xs font-bold text-slate-500 uppercase">Group Title</label>
-                          <input 
-                              value={group.title} 
-                              onChange={e => handleGroupChange(gIndex, 'title', e.target.value)}
-                              className="w-full border p-1 rounded"
-                          />
-                      </div>
-                      <div className="w-20">
-                          <label className="text-xs font-bold text-slate-500 uppercase">Order</label>
-                          <input 
-                              type="number"
-                              value={group.order} 
-                              onChange={e => handleGroupChange(gIndex, 'order', parseInt(e.target.value))}
-                              className="w-full border p-1 rounded"
-                          />
-                      </div>
-                      <div className="pt-4">
-                          <button onClick={() => removeGroup(gIndex)} className="text-red-500 hover:bg-red-50 p-2 rounded">
-                              <Trash size={16} />
-                          </button>
-                      </div>
-                  </div>
-
-                  <div className="pl-6 border-l-2 border-slate-100 space-y-3">
-                      {group.items.sort((a,b) => a.order - b.order).map((item, iIndex) => (
-                           <div key={iIndex} className="flex gap-3 items-center">
-                              <input 
-                                  value={item.label} 
-                                  placeholder="Label"
-                                  onChange={e => handleItemChange(gIndex, iIndex, 'label', e.target.value)}
-                                  className="border p-1 rounded flex-1"
-                              />
-                               <input 
-                                  value={item.path} 
-                                  placeholder="Path"
-                                  onChange={e => handleItemChange(gIndex, iIndex, 'path', e.target.value)}
-                                  className="border p-1 rounded flex-1"
-                              />
-                               <input 
-                                  value={item.icon} 
-                                  placeholder="Icon (Lucene)"
-                                  onChange={e => handleItemChange(gIndex, iIndex, 'icon', e.target.value)}
-                                  className="border p-1 rounded w-32"
-                              />
-                              <input 
-                                  type="number"
-                                  value={item.order} 
-                                  onChange={e => handleItemChange(gIndex, iIndex, 'order', parseInt(e.target.value))}
-                                  className="border p-1 rounded w-16"
-                              />
-                              <button onClick={() => removeItem(gIndex, iIndex)} className="text-red-400">
-                                  <Trash size={14} />
-                              </button>
-                           </div>
-                      ))}
-                      <button onClick={() => addItem(gIndex)} className="text-sm text-blue-600 flex items-center gap-1 mt-2">
-                          <Plus size={14} /> Add Item
-                      </button>
-                  </div>
+        {groups.sort((a, b) => a.order - b.order).map((group, gIndex) => (
+          <div key={gIndex} className="bg-white p-6 rounded shadow border border-slate-200">
+            <div className="flex gap-4 mb-4 items-center bg-slate-50 p-3 rounded">
+              <div className="flex-1">
+                <label className="text-xs font-bold text-slate-500 uppercase">Título do Grupo</label>
+                <input
+                  value={group.title}
+                  onChange={e => handleGroupChange(gIndex, 'title', e.target.value)}
+                  className="w-full border p-1 rounded"
+                />
               </div>
-          ))}
+              <div className="w-20">
+                <label className="text-xs font-bold text-slate-500 uppercase">Ordem</label>
+                <input
+                  type="number"
+                  value={group.order}
+                  onChange={e => handleGroupChange(gIndex, 'order', parseInt(e.target.value))}
+                  className="w-full border p-1 rounded"
+                />
+              </div>
+              <div className="pt-4">
+                <button onClick={() => removeGroup(gIndex)} className="text-red-500 hover:bg-red-50 p-2 rounded">
+                  <Trash size={16} />
+                </button>
+              </div>
+            </div>
 
-          <button onClick={addGroup} className="w-full py-4 border-2 border-dashed border-slate-300 text-slate-500 rounded hover:bg-slate-50 font-medium">
-              + Add Group
-          </button>
+            <div className="pl-6 border-l-2 border-slate-100 space-y-3">
+              {group.items.sort((a, b) => a.order - b.order).map((item, iIndex) => (
+                <div key={iIndex} className="flex gap-3 items-center">
+                  <input
+                    value={item.label}
+                    placeholder="Rótulo"
+                    onChange={e => handleItemChange(gIndex, iIndex, 'label', e.target.value)}
+                    className="border p-1 rounded flex-1"
+                  />
+                  <input
+                    value={item.path}
+                    placeholder="Caminho"
+                    onChange={e => handleItemChange(gIndex, iIndex, 'path', e.target.value)}
+                    className="border p-1 rounded flex-1"
+                  />
+                  <input
+                    value={item.icon}
+                    placeholder="Ícone (Lucide)"
+                    onChange={e => handleItemChange(gIndex, iIndex, 'icon', e.target.value)}
+                    className="border p-1 rounded w-32"
+                  />
+                  <input
+                    type="number"
+                    value={item.order}
+                    onChange={e => handleItemChange(gIndex, iIndex, 'order', parseInt(e.target.value))}
+                    className="border p-1 rounded w-16"
+                  />
+                  <button onClick={() => removeItem(gIndex, iIndex)} className="text-red-400">
+                    <Trash size={14} />
+                  </button>
+                </div>
+              ))}
+              <button onClick={() => addItem(gIndex)} className="text-sm text-blue-600 flex items-center gap-1 mt-2">
+                <Plus size={14} /> Adicionar Item
+              </button>
+            </div>
+          </div>
+        ))}
+
+        <button onClick={addGroup} className="w-full py-4 border-2 border-dashed border-slate-300 text-slate-500 rounded hover:bg-slate-50 font-medium">
+          + Adicionar Grupo
+        </button>
       </div>
 
       <div className="sticky bottom-4 mt-8 flex justify-end">
-          <button 
-            onClick={handleSave} 
-            disabled={loading}
-            className="flex items-center gap-2 bg-slate-900 text-white px-6 py-3 rounded shadow-lg hover:bg-slate-800 disabled:opacity-50"
-          >
-              <Save size={18} /> Save Changes
-          </button>
+        <button
+          onClick={handleSave}
+          disabled={loading}
+          className="flex items-center gap-2 bg-slate-900 text-white px-6 py-3 rounded shadow-lg hover:bg-slate-800 disabled:opacity-50"
+        >
+          <Save size={18} /> Salvar Alterações
+        </button>
       </div>
 
     </div>

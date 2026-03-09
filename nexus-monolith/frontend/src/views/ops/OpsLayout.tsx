@@ -22,7 +22,7 @@ export function OpsLayout() {
                         <div className="h-8 w-8 bg-orange-600 rounded-lg flex items-center justify-center font-bold shrink-0">OP</div>
                         <div>
                             <h1 className="text-sm font-bold tracking-wider leading-none">Neonorte | Nexus</h1>
-                            <p className="text-xs text-slate-400 mt-1">Operations View</p>
+                            <p className="text-xs text-slate-400 mt-1">Módulo Operações</p>
                         </div>
                     </div>
                 </div>
@@ -96,7 +96,7 @@ export function OpsLayout() {
                         {currentLabel}
                     </h2>
                     <div className="flex items-center gap-x-4">
-                        <div className="px-3 py-1 bg-orange-100 text-orange-800 text-xs rounded-full font-bold">Engineers Only</div>
+                        <div className="px-3 py-1 bg-orange-100 text-orange-800 text-xs rounded-full font-bold">Área de Engenharia</div>
                     </div>
                 </header>
                 <div className="p-6">

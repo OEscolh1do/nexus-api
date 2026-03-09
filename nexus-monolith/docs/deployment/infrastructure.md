@@ -1,73 +1,75 @@
-# Guia de Deploy e Infraestrutura
+# Infraestrutura de Produção — Neonorte | Nexus
 
-Este documento descreve os requisitos para colocar o Neonorte | Nexus Monolith em produção.
+> **Atualizado:** 2026-03-09
 
-## 1. Variáveis de Ambiente (`.env`)
+## 1. Topologia de Deploy
 
-Estas variáveis devem ser configuradas no servidor de CI/CD e no ambiente de produção. **NUNCA comite o .env!**
+| Camada | Provedor | Região | URL de Produção |
+| :--- | :--- | :--- | :--- |
+| **Frontend SPA** | Cloudflare Pages | Edge Global | `https://neonorte-nexus-frontend.pages.dev` |
+| **Backend API** | Fly.io (Docker) | GRU (São Paulo) | `https://neonorte-nexus-api.fly.dev` |
+| **Database** | Supabase PostgreSQL | São Paulo | Via `DATABASE_URL` (conexão pooled) |
+| **ORM** | Prisma Client v5.10.2 | — | — |
 
-### Core
+## 2. Variáveis de Ambiente (`.env`)
+
+**NUNCA comite o `.env`!** Configure no painel do provedor (Fly.io Secrets / Cloudflare Env Vars).
+
+### Backend (Fly.io)
 
 ```ini
 NODE_ENV=production
 PORT=3000
-DATABASE_URL="postgresql://user:pass@host:5432/nexus_db?schema=public"
-JWT_SECRET="<gerar-hash-seguro-sha256>"
+DATABASE_URL="postgresql://...@aws-0-sa-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
+DIRECT_URL="postgresql://...@aws-0-sa-east-1.pooler.supabase.com:5432/postgres"
+JWT_SECRET="<hash-sha256-seguro>"
 ```
 
-### Módulos Externos (Opcional)
+> ⚠️ **JWT_SECRET:** O servidor recusa inicializar se `JWT_SECRET` for o valor padrão em `NODE_ENV=production` (fail-fast de segurança).
+
+### Frontend (Cloudflare Pages)
 
 ```ini
-# Se usar IA local
-OLLAMA_HOST="http://localhost:11434"
-
-# Se usar Storage Externo (S3/R2)
-STORAGE_BUCKET=""
-STORAGE_KEY=""
+VITE_API_URL="https://neonorte-nexus-api.fly.dev"
 ```
 
-## 2. Scripts de Build
+## 3. Processo de Deploy
 
-O projeto é um Monorepo Híbrido (Frontend e Backend compartilham a mesma raiz para simplicidade neste estágio).
-
-### Backend (Node.js)
-
-O backend não requer transpilação (CommonJS), mas requer geração do Prisma Client.
+### Backend → Fly.io
 
 ```bash
-npm install
-npx prisma generate
+# Deploy via CLI (a partir da raiz do backend)
+fly deploy
+
+# Schema do banco (aplicar mudanças)
+npx prisma db push
 ```
 
-### Frontend (Vite -> Static)
+O `Dockerfile` na raiz do backend gera a imagem de produção. Fly.io executa o container com `npm start` → `node src/server.js`.
 
-O frontend deve ser buildado e servido estaticamente (ou via Nginx).
+### Frontend → Cloudflare Pages
 
-```bash
-cd frontend
-npm install
-npm run build
-# Output: frontend/dist
-```
-
-## 3. Processo de Startup (PM2)
-
-Recomendamos usar PM2 para gerenciar o processo Node no servidor.
-
-```bash
-# Iniciar Backend
-pm2 start server.js --name "nexus-api"
-
-# (Opcional) Servir Frontend via Backend
-# Se o backend estiver configurado para servir arquivos estáticos de 'frontend/dist'
-```
+Deploy automático via integração GitHub:
+1. Push para branch `main`
+2. Cloudflare Pages detecta, executa `npm run build` no diretório `frontend/`
+3. Output `frontend/dist` é servido globalmente no Edge
 
 ## 4. Migrations de Banco
 
-Execute as migrações no deploy para atualizar o schema.
-
 ```bash
-npx prisma migrate deploy
+# Aplicar schema via push (sem migration files)
+npx prisma db push
+
+# Gerar Prisma Client (necessário após mudanças no schema)
+npx prisma generate
 ```
 
-> **Nota de Segurança:** Certifique-se de que a porta do banco de dados (5432) NÃO está exposta para a internet pública. Apenas o servidor da API deve ter acesso.
+> **Nota:** O projeto usa `db push` (não `migrate deploy`) por ser a fase atual de iteração rápida. Para produção enterprise com multiple environments, migrar para `prisma migrate`.
+
+## 5. Segurança de Rede
+
+- Database (porta 5432/6543) acessível APENAS via connection string autenticada. Sem IP público exposto.
+- Backend protegido por Fly.io proxy (TLS automático).
+- Frontend servido via Cloudflare (DDoS protection nativa, TLS automático).
+- Rate-limiting em `/api/v2/iam/login` (10 req / 15 min por IP).
+- API Gateway (`/api/v2/gateway/`) autenticado via `TenantApiKey` com quota enforcement.

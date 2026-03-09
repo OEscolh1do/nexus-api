@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcryptjs');
 
 const prisma = new PrismaClient();
 
@@ -26,34 +27,45 @@ async function main() {
   await prisma.program.deleteMany({});
   await prisma.user.deleteMany({});
   await prisma.orgUnit.deleteMany({});
+  await prisma.tenant.deleteMany({});
+
+  // 1.5. TENANT (Obrigatório para RLS)
+  console.log('   Criando Tenant de Teste...');
+  const tenant = await prisma.tenant.create({
+    data: {
+      id: 'default-tenant-001',
+      name: 'Neonorte Master (Default)',
+      type: 'MASTER'
+    }
+  });
 
   // 2. ESTRUTURA ORGANIZACIONAL
   console.log('   Criando estrutura organizacional...');
-  
+
   const neonorte = await prisma.orgUnit.create({
     data: { name: 'Neonorte Group', type: 'HOLDING' }
   });
 
   const engDept = await prisma.orgUnit.create({
-    data: { 
-      name: 'Diretoria de Engenharia', 
-      type: 'DEPARTMENT', 
-      parentId: neonorte.id 
+    data: {
+      name: 'Diretoria de Engenharia',
+      type: 'DEPARTMENT',
+      parentId: neonorte.id
     }
   });
 
   const comDept = await prisma.orgUnit.create({
-    data: { 
-      name: 'Diretoria Comercial', 
-      type: 'DEPARTMENT', 
-      parentId: neonorte.id 
+    data: {
+      name: 'Diretoria Comercial',
+      type: 'DEPARTMENT',
+      parentId: neonorte.id
     }
   });
 
   const academy = await prisma.orgUnit.create({
-    data: { 
-      name: 'Academy', 
-      type: 'BUSINESS_UNIT', 
+    data: {
+      name: 'Academy',
+      type: 'BUSINESS_UNIT',
       parentId: comDept.id,
       config: JSON.stringify({ modules: ['EVENTS'] })
     }
@@ -61,7 +73,7 @@ async function main() {
 
   // 3. PROGRAMAS
   console.log('   Criando programas...');
-  
+
   await prisma.program.create({
     data: {
       name: 'Programa de Expansão Regional',
@@ -80,7 +92,7 @@ async function main() {
 
   // 4. PIPELINES
   console.log('   Criando pipelines...');
-  
+
   const salesPipeline = await prisma.pipeline.create({
     data: {
       name: 'Pipeline Comercial',
@@ -117,24 +129,26 @@ async function main() {
 
   // 5. USUÁRIOS
   console.log('   Criando usuários...');
-  
+
+  const hashedPassword = await bcrypt.hash('bud4X891fd', 10);
+
   const admin = await prisma.user.create({
     data: {
-      username: 'admin',
-      password: '123',
-      fullName: 'Administrador Neonorte',
+      username: 'tecnologianeonorte@gmail.com',
+      password: hashedPassword,
+      fullName: 'Tecnologia Neonorte',
       role: 'ADMIN',
       orgUnitId: neonorte.id,
-      badgeId: 'ADM001',
-      jobTitle: 'Administrador do Sistema',
-      hierarchyLevel: 'N1'
+      badgeId: 'NEO-001',
+      jobTitle: 'Responsável Técnico',
+      hierarchyLevel: 'C-LEVEL'
     }
   });
 
   const engineer = await prisma.user.create({
     data: {
       username: 'engenheiro',
-      password: '123',
+      password: hashedPassword,
       fullName: 'João Silva',
       role: 'ENGENHARIA',
       orgUnitId: engDept.id,
@@ -148,7 +162,7 @@ async function main() {
   const sales = await prisma.user.create({
     data: {
       username: 'vendedor',
-      password: '123',
+      password: hashedPassword,
       fullName: 'Maria Costa',
       role: 'COORDENACAO',
       orgUnitId: comDept.id,
@@ -161,7 +175,7 @@ async function main() {
 
   // 6. ESTRATÉGIAS
   console.log('   Criando estratégias...');
-  
+
   const pillar1 = await prisma.strategy.create({
     data: {
       code: 'P1',
@@ -218,7 +232,7 @@ async function main() {
 
   // 7. KEY RESULTS
   console.log('   Criando indicadores (Key Results)...');
-  
+
   await prisma.keyResult.createMany({
     data: [
       {
@@ -247,7 +261,7 @@ async function main() {
 
   // 8. PROJETOS
   console.log('   Criando projetos...');
-  
+
   const project1 = await prisma.project.create({
     data: {
       strategyId: initiative1.id,
@@ -278,7 +292,7 @@ async function main() {
 
   // 9. TAREFAS OPERACIONAIS
   console.log('   Criando tarefas...');
-  
+
   await prisma.operationalTask.createMany({
     data: [
       {
@@ -319,7 +333,7 @@ async function main() {
 
   // 10. ATIVOS
   console.log('   Criando ativos...');
-  
+
   await prisma.asset.createMany({
     data: [
       {
@@ -340,7 +354,7 @@ async function main() {
 
   // 11. WORKFLOW RULES
   console.log('   Criando regras de workflow...');
-  
+
   await prisma.workflowRule.create({
     data: {
       orgUnitId: engDept.id,
@@ -353,7 +367,7 @@ async function main() {
 
   // 12. NAVEGAÇÃO DINÂMICA (DEFAULT)
   console.log('   Criando navegação padrão (Ops)...');
-  
+
   // Ops Module Default Navigation
   const opsGroup1 = await prisma.navigationGroup.create({
     data: {
@@ -406,7 +420,7 @@ async function main() {
   console.log('   - 4 OrgUnits criadas');
   console.log('   - 2 Programas criados');
   console.log('   - 2 Pipelines (com 8 estágios)');
-  console.log('   - 3 Usuários criados (admin/engenheiro/vendedor, senha: 123)');
+  console.log('   - 3 Usuários criados (login: tecnologianeonorte@gmail.com, senha: bud4X891fd)');
   console.log('   - 4 Estratégias criadas (hierarquia Pilar > Objetivo > Iniciativa)');
   console.log('   - 3 Key Results criados');
   console.log('   - 2 Projetos criados');

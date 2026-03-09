@@ -1,3 +1,13 @@
+export interface KeyResultCheckIn {
+  id: string;
+  keyResultId: string;
+  userId: string;
+  previousValue: number;
+  newValue: number;
+  comment?: string;
+  createdAt: string;
+  user?: { id: string; fullName: string };
+}
 
 export interface KeyResult {
   id: string;
@@ -7,6 +17,9 @@ export interface KeyResult {
   unit: string;
   perspective?: string; // FINANCIAL, CUSTOMER, PROCESS, LEARNING
   indicatorType?: string; // LEADING, LAGGING
+  ownerId?: string | null;
+  owner?: { id: string; fullName: string };
+  checkIns?: KeyResultCheckIn[];
 }
 
 export interface Risk {
@@ -27,6 +40,8 @@ export interface Strategy {
   endDate: string;
   isActive: boolean;
   colorCode?: string;
+  ownerId?: string | null;
+  owner?: { id: string; fullName: string };
   children?: Strategy[];
   keyResults?: KeyResult[];
   risks?: Risk[];

@@ -16,7 +16,7 @@
  * Data: 2026-01-20
  */
 
-const IamService = require('../modules/iam/iam.service');
+const IamService = require('../modules/iam/services/iam.service');
 
 // ========================
 // AUTENTICAÇÃO (Token Verification)
@@ -42,7 +42,7 @@ async function authenticateToken(req, res, next) {
 
   try {
     const user = await IamService.verifyToken(token);
-    
+
     // Anexar usuário à requisição
     req.user = user;
     next();
@@ -52,7 +52,7 @@ async function authenticateToken(req, res, next) {
     // CRITICAL: Distinguish between Infrastructure/Database errors and actual logic/auth errors
     // Should NOT return 403 for database failures (e.g. schema drift, connection loss)
     if (
-      error.name === 'PrismaClientKnownRequestError' || 
+      error.name === 'PrismaClientKnownRequestError' ||
       error.name === 'PrismaClientUnknownRequestError' ||
       error.name === 'PrismaClientInitializationError' ||
       error.name === 'PrismaClientRustPanicError'

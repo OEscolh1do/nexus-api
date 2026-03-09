@@ -1,5 +1,4 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const prisma = require('../../../lib/prisma');
 
 // 🔒 HARDCODED DEFAULTS (Safety Net)
 // Used if DB is empty for a tenant and no custom config exists.
@@ -30,13 +29,13 @@ const DEFAULT_NAV_CONFIG = {
     }
   ],
   COMMERCIAL: [
-      {
-          title: "Vendas",
-          items: [
-              { path: "/commercial/pipeline", label: "Pipeline", icon: "Kanban" },
-              { path: "/commercial/leads", label: "Base de Leads", icon: "Users" },
-          ]
-      }
+    {
+      title: "Vendas",
+      items: [
+        { path: "/commercial/pipeline", label: "Pipeline", icon: "Kanban" },
+        { path: "/commercial/leads", label: "Base de Leads", icon: "Users" },
+      ]
+    }
   ],
   // Add other modules defaults here as needed
 };
@@ -78,12 +77,12 @@ class NavigationService {
         title: g.title,
         order: g.order,
         items: g.items.map(i => ({
-            id: i.id,
-            label: i.label,
-            path: i.path,
-            icon: i.icon,
-            order: i.order,
-            requiredRoles: i.requiredRoles
+          id: i.id,
+          label: i.label,
+          path: i.path,
+          icon: i.icon,
+          order: i.order,
+          requiredRoles: i.requiredRoles
         }))
       }));
     }
@@ -98,38 +97,38 @@ class NavigationService {
    * Transactional: Deletes old structure, creates new one.
    */
   async saveNavigation(module, tenantId, groupsData) {
-     return await prisma.$transaction(async (tx) => {
-        // 1. Delete existing for this module/tenant
-        await tx.navigationGroup.deleteMany({
-            where: {
-                orgUnitId: tenantId,
-                module: module
-            }
-        });
-
-        // 2. Create new structure
-        // We iterate because Prisma createMany doesn't support nested relations easily in all versions/connectors
-        // and we want to ensure relation integrity.
-        for (const [gIndex, group] of groupsData.entries()) {
-            await tx.navigationGroup.create({
-                data: {
-                    orgUnitId: tenantId,
-                    module: module,
-                    title: group.title,
-                    order: gIndex + 1,
-                    items: {
-                        create: group.items.map((item, iIndex) => ({
-                            label: item.label,
-                            path: item.path,
-                            icon: item.icon,
-                            order: iIndex + 1,
-                            requiredRoles: item.requiredRoles || []
-                        }))
-                    }
-                }
-            });
+    return await prisma.$transaction(async (tx) => {
+      // 1. Delete existing for this module/tenant
+      await tx.navigationGroup.deleteMany({
+        where: {
+          orgUnitId: tenantId,
+          module: module
         }
-     });
+      });
+
+      // 2. Create new structure
+      // We iterate because Prisma createMany doesn't support nested relations easily in all versions/connectors
+      // and we want to ensure relation integrity.
+      for (const [gIndex, group] of groupsData.entries()) {
+        await tx.navigationGroup.create({
+          data: {
+            orgUnitId: tenantId,
+            module: module,
+            title: group.title,
+            order: gIndex + 1,
+            items: {
+              create: group.items.map((item, iIndex) => ({
+                label: item.label,
+                path: item.path,
+                icon: item.icon,
+                order: iIndex + 1,
+                requiredRoles: item.requiredRoles || []
+              }))
+            }
+          }
+        });
+      }
+    });
   }
 }
 

@@ -36,33 +36,25 @@ export const CreateItemSchema = z.object({
 _Arquivo: `src/modules/meu-modulo/services/item.service.js`_
 
 ```javascript
-import prisma from "../../../lib/prisma";
-import { events } from "../../../core/events"; // Event Bus
+import { withTenant } from "../../../lib/prisma";
+import { events } from "../../../core/events";
 
 export const ItemService = {
-  // Recebe 'ctx' com tenantId obrigatório
   async create(data, ctx) {
-    // 1. Persistência Isolada
-    const item = await prisma.item.create({
-      data: {
-        ...data,
-        tenantId: ctx.user.tenantId, // 🔒 SAAS ENFORCEMENT
-      },
+    // 🔒 withTenant injeta tenantId via asyncLocalStorage
+    // Todas as queries dentro do callback são isoladas automaticamente
+    const item = await withTenant(ctx.user.tenantId, async (tx) => {
+      return tx.item.create({ data });
     });
 
-    // 2. Sinergia (Emitir Evento)
-    // "O Software é o Chefe": Avisa outros módulos
+    // Sinergia: avisa outros módulos
     events.emit("meu-modulo.item.created", item);
-
     return item;
   },
 
   async list(filters, ctx) {
-    return prisma.item.findMany({
-      where: {
-        ...filters,
-        tenantId: ctx.user.tenantId, // 🔒 SAAS ENFORCEMENT
-      },
+    return withTenant(ctx.user.tenantId, async (tx) => {
+      return tx.item.findMany({ where: filters });
     });
   },
 };
@@ -117,7 +109,7 @@ export function registerListeners() {
 
 ## ⚔️ Checklist de Qualidade Enterprise
 
-- [ ] **SaaS:** Todas as queries Prisma filtram por `tenantId`?
-- [ ] **Eventos:** O módulo notifica o sistema sobre mudanças de estado importantes?
-- [ ] **RACI:** As permissões refletem a matriz de responsabilidades, não apenas "Admin/User"?
-- [ ] **Offline:** Se for endpoint operacional, suporta sincronização ou idempotência?
+- [ ] **SaaS:** Todas as queries Prisma usam `withTenant(tx)` (nunca `prisma.model.find*` direto)?
+- [ ] **Eventos:** O módulo emite eventos para mudanças de estado cross-module?
+- [ ] **RACI:** Permissões via `requireRole()` refletem a matriz RBAC?
+- [ ] **Zod:** Schema de validação criado ANTES do controller?

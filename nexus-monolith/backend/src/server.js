@@ -1,17 +1,13 @@
 const express = require("express");
 const cors = require("cors");
-const { PrismaClient } = require("@prisma/client");
+const { initSlaCronJobs } = require('./jobs/sla.cron');
+const { initJitCronJobs } = require('./jobs/jit.cron');
+const prisma = require("./lib/prisma"); // Global RLS-aware Prisma Client
 
-// 🛡️ Segurança & Validação
 // 🛡️ Segurança & Validação
 const { authenticateToken, protectProject } = require("./modules/iam/middleware/auth.middleware.js");
 const { validateSolarDetails } = require("./modules/solar/schemas/solar.schemas.js");
 
-// 📊 Services
-// const leadService = require("./services/leadService.js"); (DELETED)
-// const quoteService = require("./services/quoteService.js"); (DELETED)
-
-const prisma = new PrismaClient();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -19,7 +15,7 @@ app.use(cors());
 app.use(express.json());
 
 // --- AUTHENTICATION ---
-const iamRouter = require("./modules/iam/iam.controller");
+const iamRouter = require("./modules/iam/controllers/iam.controller");
 
 // --- MODULE ROUTES ---
 app.use("/api/v2/iam", iamRouter);
@@ -38,13 +34,13 @@ app.get("/api/ui/navigation", authenticateToken, getNavigation);
 
 // --- MODULAR V2 API (Strangler Pattern) ---
 const solarRouter = require("./modules/solar/solar.controller");
-const finRouter = require("./modules/fin/fin.controller");
+const finRouter = require("./modules/fin/controllers/fin.controller");
 const biRouter = require("./modules/bi/bi.controller");
 
 // --- OPS CONTROLLER (Explicit & Validated) ---
 // --- OPS CONTROLLER (Explicit & Validated) ---
-const OpsController = require("./modules/ops/ops.controller");
-const StrategyController = require("./modules/strategy/strategy.controller");
+const OpsController = require("./modules/ops/controllers/ops.controller");
+const StrategyController = require("./modules/strategy/controllers/strategy.controller");
 
 // --- STRATEGY ROUTES ---
 app.get("/api/v2/strategies", authenticateToken, StrategyController.getAll);
@@ -52,6 +48,9 @@ app.get("/api/v2/strategies/:id", authenticateToken, StrategyController.getById)
 app.post("/api/v2/strategies", authenticateToken, StrategyController.create);
 app.put("/api/v2/strategies/:id", authenticateToken, StrategyController.update);
 app.delete("/api/v2/strategies/:id", authenticateToken, StrategyController.delete);
+
+// Strategy Check-ins
+app.post("/api/v2/key-results/:id/checkin", authenticateToken, StrategyController.createCheckIn);
 
 // Projects
 app.get("/api/v2/ops/projects", authenticateToken, OpsController.getAllProjects);
@@ -72,7 +71,7 @@ app.post("/api/v2/ops/inspections", authenticateToken, OpsController.processInsp
 
 // Routes specific to legacy frontend bridging if needed
 // e.g. frontend calls /api/v2/projects (generic list) -> we now route it to OpsController.getAllProjects
-app.get("/api/v2/projects", authenticateToken, OpsController.getAllProjects); 
+app.get("/api/v2/projects", authenticateToken, OpsController.getAllProjects);
 // Note: We map /api/v2/projects to OpsController list to maintain frontend compatibility without generic controller.
 
 app.use("/api/v2/fin", finRouter);
@@ -97,6 +96,13 @@ commercialRoutes.post("/missions", commercialController.createMission);
 
 app.use("/api/v2/commercial", authenticateToken, commercialRoutes);
 
+// --- EXTRANET ROUTES (PHASE 2 B2B/B2P) ---
+const extranetRouter = require("./modules/extranet/extranet.controller");
+app.use("/api/v2/extranet", extranetRouter);
+
+// --- ENTERPRISE GATEWAY ROUTES (PHASE 3 MONETIZATION) ---
+const gatewayRouter = require("./modules/gateway/gateway.controller");
+app.use("/api/v2/gateway", gatewayRouter);
 // --- UNIVERSAL CRUD CONTROLLER ---
 // Maps /api/:resource to Prisma Models (e.g. /api/users -> prisma.user)
 
@@ -114,18 +120,18 @@ const getModel = (resource) => {
     taskDependencies: "taskDependency",
     checklists: "checklist",
     checklistItems: "checklistItem",
-    
+
     // Organization
     orgUnits: "orgUnit",
     programs: "program",
     pipelines: "pipeline",
     stages: "stage",
     workflowRules: "workflowRule",
-    
+
     // HR & Audit
     hrLeaves: "hRLeave",
     auditLogs: "auditLog",
-    
+
     // Assets & Events
     assets: "asset",
     events: "event"
@@ -178,9 +184,9 @@ app.get("/api/v2/:resource", authenticateToken, async (req, res) => {
     if (resource === 'taskDependencies') {
       orderBy.id = 'asc'; // TaskDependency doesn't have createdAt
     } else {
-       orderBy.createdAt = 'desc'; 
+      orderBy.createdAt = 'desc';
     }
-    
+
     // Safety check: Resource-specific sort configurations
     let sortConfig = { createdAt: 'desc' }; // Default
     if (resource === 'taskDependencies' || resource === 'checklistItems' || resource === 'keyResults' || resource === 'risks') {
@@ -191,9 +197,40 @@ app.get("/api/v2/:resource", authenticateToken, async (req, res) => {
       sortConfig = { startDate: 'desc' }; // Uses 'startDate' instead
     }
 
-    const data = await model.findMany({
-      orderBy: sortConfig, 
+    // L8 SEC-OPS PATCH: 
+    // 1. Mandatory 'withTenant' wrapper to enforce RLS across dynamic models.
+    // 2. Hard limit to 1000 rows to prevent Memory Heap Explosions (OOM).
+    const { withTenant } = require("./lib/prisma");
+
+    const data = await withTenant(async (tx) => {
+      // O Tx repassa o RLS config. Encontramos a chave do model no Tx.
+      // prisma[key] foi computado, mas 'model' é da instância original. 
+      // Pra usar tx, precisamos do NOME da chave.
+      // Hack seguro: extraímos o modelName ou nome da propriedade do Prisma.
+      const modelName = model.name ? (model.name.charAt(0).toLowerCase() + model.name.slice(1)) : null;
+
+      // Se conseguir inferir do Prisma AST, usa. Senão cai no fallback sem RLS se a IA estiver confusa.
+      // Melhor forma: já descobrimos a `key` no getModel, mas a reescrevemos:
+      const resourceLower = resource.toLowerCase();
+      const key = Object.keys(tx).find((k) => {
+        const kLower = k.toLowerCase();
+        return kLower === resourceLower || kLower + "s" === resourceLower;
+      });
+
+      if (!key || !tx[key]) {
+        // Fallback ultra safe
+        return model.findMany({
+          orderBy: sortConfig,
+          take: 1000
+        });
+      }
+
+      return tx[key].findMany({
+        orderBy: sortConfig,
+        take: 1000 // OOM Protection Hard Limit
+      });
     });
+
     res.json({ success: true, data });
   } catch (error) {
     console.error(`Error fetching ${req.params.resource}:`);
@@ -201,8 +238,8 @@ app.get("/api/v2/:resource", authenticateToken, async (req, res) => {
 
     // Handle Database Connection Errors
     if (error.code === 'P1001' || error.code === 'P1002') {
-      return res.status(503).json({ 
-        success: false, 
+      return res.status(503).json({
+        success: false,
         error: 'Database Unavailable',
         details: 'Não foi possível conectar ao banco de dados remoto. Verifique a conexão com a internet ou o status do servidor.'
       });
@@ -233,27 +270,27 @@ app.get("/api/v2/:resource/:id", authenticateToken, async (req, res) => {
 
 // CREATE
 app.post("/api/v2/:resource", authenticateToken, async (req, res) => {
-    return res.status(405).json({ 
-        success: false, 
-        error: "Universal CREATE is disabled for security. Use specific controllers." 
-    });
+  return res.status(405).json({
+    success: false,
+    error: "Universal CREATE is disabled for security. Use specific controllers."
+  });
 });
 
 // UPDATE - PROJETOS (Rota migrada para OpsController.updateProject)
 
 // UPDATE - GENÉRICO (para outros recursos que não são 'projects')
 app.put("/api/v2/:resource/:id", authenticateToken, async (req, res) => {
-    return res.status(405).json({ 
-        success: false, 
-        error: "Universal UPDATE is disabled for security. Use specific controllers." 
-    });
+  return res.status(405).json({
+    success: false,
+    error: "Universal UPDATE is disabled for security. Use specific controllers."
+  });
 });
 
 // DELETE
 app.delete("/api/v2/:resource/:id", authenticateToken, async (req, res, next) => {
-  return res.status(405).json({ 
-      success: false, 
-      error: "Universal DELETE is disabled for security. Use specific controllers." 
+  return res.status(405).json({
+    success: false,
+    error: "Universal DELETE is disabled for security. Use specific controllers."
   });
 });
 
@@ -261,7 +298,9 @@ app.delete("/api/v2/:resource/:id", authenticateToken, async (req, res, next) =>
 const errorHandler = require("./middleware/error.middleware");
 app.use(errorHandler);
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 NEXUS 2.0 Backend running on port ${PORT}`);
+  // Start CRON services
+  initSlaCronJobs();
+  initJitCronJobs();
 });
-

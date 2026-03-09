@@ -1,7 +1,6 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const prisma = require('../../lib/prisma');
 const AuditService = require("../audit/audit.service");
-const OpsService = require("../ops/ops.service");
+const OpsService = require("../ops/services/ops.service");
 const AppError = require("../../utils/AppError");
 const SolarCalculator = require("./domain/SolarCalculator");
 
@@ -31,7 +30,7 @@ const SolarService = {
             tariffRate: data.tariffRate ?? defaults.tariff,
             irradiation: data.location?.irradiation ?? defaults.irradiation,
             // Mantendo custo base legado, mas agora injetado explicitamente
-            costPerKwp: 3500 
+            costPerKwp: 3500
           });
 
           data.financials = {
@@ -69,9 +68,9 @@ const SolarService = {
 
       return project;
     } catch (error) {
-       if (error instanceof AppError) throw error;
-       console.error("[SolarService] Erro fatal:", error);
-       throw new AppError("Erro ao criar proposta solar", 500);
+      if (error instanceof AppError) throw error;
+      console.error("[SolarService] Erro fatal:", error);
+      throw new AppError("Erro ao criar proposta solar", 500);
     }
   }
 };

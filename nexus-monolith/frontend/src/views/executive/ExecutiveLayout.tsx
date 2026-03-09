@@ -2,9 +2,15 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import { LayoutDashboard, Wallet, PieChart, ArrowLeft, Users, Target } from "lucide-react";
 import { Button } from "@/components/ui/mock-components";
 import clsx from "clsx";
+import { useMemo } from "react";
 
 export function ExecutiveLayout() {
     const location = useLocation();
+    const userData = useMemo(() => {
+        try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; }
+    }, []);
+    const displayName = userData.fullName?.split(' ')[0] || 'Usuário';
+    const initials = (userData.fullName || 'U').split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
 
     const menuGroups = [
         {
@@ -18,13 +24,14 @@ export function ExecutiveLayout() {
             title: "Inteligência de Negócio",
             items: [
                 { path: "/executive/overview", label: "Visão Geral", icon: LayoutDashboard },
-                { path: "/executive/analytics", label: "Analytics", icon: PieChart },
+                { path: "/executive/analytics", label: "Indicadores", icon: PieChart },
             ]
         },
         {
             title: "Controladoria",
             items: [
                 { path: "/executive/financial", label: "Financeiro", icon: Wallet },
+                { path: "/executive/audit", label: "Audit Trail", icon: Target }, // FASE 1: Foundational Audit
             ]
         }
     ];
@@ -39,7 +46,7 @@ export function ExecutiveLayout() {
                         <div className="h-8 w-8 bg-purple-600 rounded-lg flex items-center justify-center font-bold shrink-0">EX</div>
                         <div>
                             <h1 className="text-sm font-bold tracking-wider leading-none">Neonorte | Nexus</h1>
-                            <p className="text-xs text-slate-400 mt-1">Executive View</p>
+                            <p className="text-xs text-slate-400 mt-1">Módulo Executivo</p>
                         </div>
                     </div>
                 </div>
@@ -96,11 +103,11 @@ export function ExecutiveLayout() {
             <main className="flex-1 overflow-auto">
                 <header className="h-16 border-b bg-white dark:bg-slate-900 flex items-center justify-between px-6 sticky top-0 z-10">
                     <h2 className="text-lg font-medium text-slate-800 dark:text-slate-200">
-                        {allItems.find(m => location.pathname.startsWith(m.path))?.label || 'Dashboard'}
+                        {allItems.find(m => location.pathname.startsWith(m.path))?.label || 'Painel'}
                     </h2>
                     <div className="flex items-center space-x-4">
-                        <span className="text-sm text-muted-foreground">Bem-vindo, CEO</span>
-                        <div className="h-8 w-8 bg-slate-200 rounded-full"></div>
+                        <span className="text-sm text-muted-foreground">Bem-vindo, {displayName}</span>
+                        <div className="h-8 w-8 bg-slate-200 rounded-full flex items-center justify-center text-xs font-bold text-slate-600">{initials}</div>
                     </div>
                 </header>
                 <div className="p-6">
