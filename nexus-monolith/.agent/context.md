@@ -45,6 +45,8 @@ Isolamento de dados por **Row-Level Security**:
 | Role | Escopo |
 |---|---|
 | **ADMIN** | Acesso irrestrito |
+| **C_LEVEL** | Visão executiva de alto nível (BI, Finanças, Estratégia) |
+| **DIRECTOR** | Diretor de área com acesso a BI e portfólios cruzados |
 | **MANAGER** | Acesso total ao seu módulo, leitura em correlatos |
 | **COORDENACAO** | Read/Write todos projetos, sem Delete |
 | **VENDEDOR** | Read/Write apenas projetos próprios |
@@ -65,12 +67,15 @@ Use estes termos exatos em Classes, Tabelas e Variáveis:
 | Commercial | **Lead** | Potencial cliente sem proposta |
 | Commercial | **Deal/Opportunity** | Lead em negociação com valor monetário |
 | Commercial | **TechnicalProposal** | Documento técnico gerado pelo Solar Engine, antes chamado de SolarProposal |
+| Commercial | **Pipeline / Stage** | Estruturas de funil de conversão para Leads e Opportunities |
 | Ops | **Project (Obra)** | Execução vendida. Nasce quando Deal é "Closed Won" |
+| Ops | **Program** | Agrupamento macro de Projetos para gestão de portfólio executivo |
 | Ops | **OperationalTask** | Menor unidade de trabalho (Milestone ou Standard) |
+| Ops | **DailyReport** | (Planejado) RDO submetido por técnicos ou Vendors |
 | Strategy | **Objective** | O que queremos alcançar |
 | Strategy | **KeyResult** | Quantificação do objetivo |
-| Finance | **Ledger** | Registro imutável de transações (PostgreSQL, não arquivo) |
-| Finance | **LedgerEntry** | Entrada única no Ledger. Nunca deletada. |
+| Finance | **Ledger** | (Planejado) Registro imutável de transações (PostgreSQL) |
+| Finance | **LedgerEntry** | (Planejado) Entrada única no Ledger. |
 
 ---
 
@@ -85,6 +90,7 @@ Frontend SPA (React + Vite + Tailwind)
   └── /extranet/client/*         → ClientPortalLayout (B2B Dashboard)
   └── /extranet/vendor/*         → VendorPortalLayout (B2P Mobile Terminal)
   └── /admin/tenant              → TenantSettings (SSO + API Quotas)
+  └── /admin/navigation          → NavigationSettings
   └── /academy                   → Placeholder
 
 Backend Monolith (Node.js + Express)
@@ -93,25 +99,43 @@ Backend Monolith (Node.js + Express)
   └── /api/v2/commercial/*       → Leads, Pipeline, Interactions
   └── /api/v2/extranet/*         → B2B/B2P Isolated APIs
   └── /api/v2/gateway/*          → API Monetization (API Key auth)
+  └── /api/v2/fin/*              → Financial, Ledger, Invoices
+  └── /api/v2/bi/*               → Analytics, DWH, AI Predictions
+  └── /api/v2/strategy/*         → OKRs, Pillars, Check-ins
+  └── /api/v2/solar/*            → Engineering Engine
+  └── /api/v2/audit/*            → Event Sourcing, Trails
+  └── /api/v2/core/*             → Core & Shared Services
   └── /api/v2/:resource          → Universal CRUD (GET only, RLS-wrapped)
 ```
 
 ---
 
-## 6. Infraestrutura de Deploy
+## 7. Infraestrutura de Deploy
+
+## 6. Stack Tecnológica
+
+| Camada | Tecnologia | Versão Principal |
+|---|---|---|
+| Runtime | Node.js | v24+ |
+| Backend | Express + Prisma | Prisma v5.10.x |
+| Frontend | React + Vite + TypeScript | React 19, Vite 7, TS 5.9 |
+| Estilização | TailwindCSS | v4.1.x |
+
+---
+
+## 7. Infraestrutura de Deploy
 
 | Camada | Provedor | Região |
 |---|---|---|
 | Frontend | Cloudflare Pages | Edge Global |
 | Backend API | Fly.io | GRU (São Paulo) |
 | Database | Supabase PostgreSQL | São Paulo |
-| ORM | Prisma Client v5.10.2 | — |
 
 **Variáveis críticas:** `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, `NODE_ENV`
 
 ---
 
-## 7. Enterprise Roadmap — Estado Atual
+## 8. Enterprise Roadmap — Estado Atual
 
 | Fase | Status |
 |---|---|
@@ -123,7 +147,7 @@ Backend Monolith (Node.js + Express)
 
 ---
 
-## 8. Convenção para Novo Módulo
+## 9. Convenção para Novo Módulo
 
 Ao criar qualquer novo módulo:
 
