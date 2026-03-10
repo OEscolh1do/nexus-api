@@ -55,9 +55,9 @@ export function ClientsView() {
                 <div>
                     <div className="flex items-center gap-2.5 mb-1">
                         <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Clientes</h1>
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 rounded-full">
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 dark:bg-blue-900/30 rounded-full">
                             <Users className="w-3 h-3 text-blue-500" />
-                            <span className="text-[11px] font-bold text-blue-600">{clients.length} ativos</span>
+                            <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400">{clients.length} ativos</span>
                         </div>
                     </div>
                     <p className="text-slate-500 text-[14px]">Gerenciamento da base de clientes ativos.</p>
@@ -68,13 +68,13 @@ export function ClientsView() {
             </div>
 
             {/* Search Bar */}
-            <div className="flex justify-between items-center bg-white border border-slate-200/60 p-3 rounded-xl">
+            <div className="flex justify-between items-center bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 p-3 rounded-xl">
                 <div className="relative w-96">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <input
                         type="text"
                         placeholder="Buscar por nome ou e-mail..."
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-300 transition-all"
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg pl-9 pr-4 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-300 dark:focus:border-blue-500/50 dark:text-slate-200 placeholder:text-slate-400 transition-all"
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
                     />
@@ -83,10 +83,10 @@ export function ClientsView() {
             </div>
 
             {/* Table */}
-            <div className="bg-white rounded-xl border border-slate-200/60 overflow-hidden flex-1 flex flex-col">
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/60 dark:border-slate-800/60 overflow-hidden flex-1 flex flex-col">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm whitespace-nowrap">
-                        <thead className="bg-slate-50/50 border-b border-slate-100 text-[11px] text-slate-400 font-semibold uppercase tracking-wider">
+                        <thead className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800/80 text-[11px] text-slate-400 font-semibold uppercase tracking-wider">
                             <tr>
                                 <th className="px-5 py-3">Nome</th>
                                 <th className="px-5 py-3">Contato</th>
@@ -95,14 +95,14 @@ export function ClientsView() {
                                 <th className="px-5 py-3 text-right">Ações</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-50">
+                        <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
                             {isLoading ? (
                                 Array.from({ length: 5 }).map((_, i) => (
                                     <tr key={i} className="animate-pulse">
-                                        <td className="px-5 py-3.5"><div className="h-4 w-32 bg-slate-100 rounded"></div></td>
-                                        <td className="px-5 py-3.5"><div className="h-4 w-40 bg-slate-100 rounded"></div></td>
-                                        <td className="px-5 py-3.5"><div className="h-4 w-24 bg-slate-100 rounded"></div></td>
-                                        <td className="px-5 py-3.5"><div className="h-4 w-20 bg-slate-100 rounded"></div></td>
+                                        <td className="px-5 py-3.5"><div className="h-4 w-32 bg-slate-100 dark:bg-slate-800 rounded"></div></td>
+                                        <td className="px-5 py-3.5"><div className="h-4 w-40 bg-slate-100 dark:bg-slate-800 rounded"></div></td>
+                                        <td className="px-5 py-3.5"><div className="h-4 w-24 bg-slate-100 dark:bg-slate-800 rounded"></div></td>
+                                        <td className="px-5 py-3.5"><div className="h-4 w-20 bg-slate-100 dark:bg-slate-800 rounded"></div></td>
                                         <td className="px-5 py-3.5"></td>
                                     </tr>
                                 ))
@@ -110,31 +110,31 @@ export function ClientsView() {
                                 <tr>
                                     <td colSpan={5} className="px-5 py-16 text-center">
                                         <div className="flex flex-col items-center gap-3">
-                                            <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center">
-                                                <AlertCircle className="w-5 h-5 text-slate-300" />
+                                            <div className="w-12 h-12 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center justify-center">
+                                                <AlertCircle className="w-5 h-5 text-slate-300 dark:text-slate-500" />
                                             </div>
-                                            <p className="text-[14px] font-medium text-slate-500">Nenhum cliente encontrado.</p>
+                                            <p className="text-[14px] font-medium text-slate-500 dark:text-slate-400">Nenhum cliente encontrado.</p>
                                         </div>
                                     </td>
                                 </tr>
                             ) : (
                                 filteredClients.map(client => (
-                                    <tr key={client.id} className="hover:bg-blue-50/30 transition-colors duration-200 group">
+                                    <tr key={client.id} className="hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors duration-200 group">
                                         <td className="px-5 py-3.5">
                                             <div className="flex items-center gap-2.5">
-                                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center text-[10px] font-bold text-blue-700">
+                                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-900/40 dark:to-blue-800/20 flex items-center justify-center text-[10px] font-bold text-blue-700 dark:text-blue-400">
                                                     {client.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
                                                 </div>
-                                                <span className="font-semibold text-[13px] text-slate-800">{client.name}</span>
+                                                <span className="font-semibold text-[13px] text-slate-800 dark:text-slate-200">{client.name}</span>
                                             </div>
                                         </td>
                                         <td className="px-5 py-3.5">
                                             <div className="flex flex-col">
-                                                <span className="text-[13px] text-slate-700">{client.phone}</span>
+                                                <span className="text-[13px] text-slate-700 dark:text-slate-300">{client.phone}</span>
                                                 <span className="text-[11px] text-slate-400">{client.email || '—'}</span>
                                             </div>
                                         </td>
-                                        <td className="px-5 py-3.5 text-slate-600 text-[13px]">
+                                        <td className="px-5 py-3.5 text-slate-600 dark:text-slate-400 text-[13px]">
                                             {client.city ? (
                                                 <span className="flex items-center gap-1.5">
                                                     <MapPin size={13} className="text-slate-400" /> {client.city}/{client.state || ''}
@@ -148,7 +148,7 @@ export function ClientsView() {
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                className="opacity-0 group-hover:opacity-100 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-opacity duration-200"
+                                                className="opacity-0 group-hover:opacity-100 text-blue-600 hover:text-blue-700 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-opacity duration-200"
                                                 onClick={() => handleOpenEdit(client)}
                                             >
                                                 <Edit size={14} />

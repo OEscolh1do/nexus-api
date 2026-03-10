@@ -47,7 +47,9 @@ app.post("/api/v2/strategies", authenticateToken, StrategyController.create);
 app.put("/api/v2/strategies/:id", authenticateToken, StrategyController.update);
 app.delete("/api/v2/strategies/:id", authenticateToken, StrategyController.delete);
 
-// Strategy Check-ins
+// Strategy Key Results, Risks & Check-ins
+app.post("/api/v2/strategies/:id/key-results", authenticateToken, StrategyController.createKeyResult);
+app.post("/api/v2/strategies/:id/risks", authenticateToken, StrategyController.createRisk);
 app.post("/api/v2/key-results/:id/checkin", authenticateToken, StrategyController.createCheckIn);
 
 // Projects
@@ -63,9 +65,13 @@ app.put("/api/v2/ops/tasks/:id", authenticateToken, OpsController.updateTask);
 app.delete("/api/v2/ops/tasks/:id", authenticateToken, OpsController.deleteTask);
 
 app.patch("/api/v2/ops/tasks/:id/status", authenticateToken, OpsController.updateTaskStatus);
-app.patch("/api/v2/ops/tasks/:id/status", authenticateToken, OpsController.updateTaskStatus);
 app.get("/api/v2/ops/workload", authenticateToken, OpsController.getWorkload);
 app.post("/api/v2/ops/inspections", authenticateToken, OpsController.processInspection);
+
+// Team & Calendar (Ops Module)
+app.get("/api/calendar/events", authenticateToken, OpsController.getCalendarEvents);
+app.get("/api/team/hierarchy", authenticateToken, OpsController.getTeamHierarchy);
+app.post("/api/hr/leaves", authenticateToken, OpsController.createLeave);
 
 // Routes specific to legacy frontend bridging if needed
 // e.g. frontend calls /api/v2/projects (generic list) -> we now route it to OpsController.getAllProjects

@@ -41,9 +41,20 @@ const createCheckInSchema = z.object({
   comment: z.string().optional()
 }).strict();
 
+// Risk Schema
+const createRiskSchema = z.object({
+  title: z.string().min(3, "Título obrigatório"),
+  description: z.string().optional(),
+  probability: z.enum(["LOW", "MEDIUM", "HIGH"]),
+  impact: z.enum(["LOW", "MEDIUM", "HIGH"]),
+  mitigation: z.string().optional(),
+  status: z.enum(["OPEN", "RESOLVED", "MITIGATED"]).default("OPEN")
+}).strict();
+
 module.exports = {
   createStrategySchema,
   updateStrategySchema,
   keyResultSchema,
-  createCheckInSchema
+  createCheckInSchema,
+  createRiskSchema
 };

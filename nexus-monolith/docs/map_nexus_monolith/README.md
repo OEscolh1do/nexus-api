@@ -48,6 +48,8 @@ Este diretório contém a documentação detalhada de todos os módulos e views 
 - `/ops/workload` - Gestão de Alocação / Workload
 - `/ops/strategy` - Alinhamento Estratégico
 - `/ops/approvals` - Centro de Aprovações
+- `/ops/issues` - Gestão de Gargalos (Planejado)
+- `/ops/map` - Mapa Operacional (Planejado)
 
 ---
 
@@ -97,6 +99,7 @@ Este diretório contém a documentação detalhada de todos os módulos e views 
 **Rotas:**
 
 - `/executive/overview` - Dashboard Executivo Central
+- `/executive/portfolio` - Portfolio Executivo
 - `/executive/strategy` - Estratégia
 - `/executive/people` - Time / Pessoas
 - `/executive/financial` - Dashboard Financeiro Especializado

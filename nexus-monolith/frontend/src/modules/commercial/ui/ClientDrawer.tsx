@@ -118,7 +118,7 @@ export const ClientDrawer: React.FC<ClientDrawerProps> = ({
                     <form id="client-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 
                         <div className="space-y-4">
-                            <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                            <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                                 <User size={16} className="text-purple-600" />
                                 Dados Principais
                             </h3>
@@ -130,7 +130,7 @@ export const ClientDrawer: React.FC<ClientDrawerProps> = ({
                                 <input
                                     type="text"
                                     {...register('name')}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 text-slate-800 dark:text-slate-200"
                                     placeholder="Ex: João da Silva"
                                 />
                                 {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
@@ -144,7 +144,7 @@ export const ClientDrawer: React.FC<ClientDrawerProps> = ({
                                     <input
                                         type="text"
                                         {...register('phone')}
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 text-slate-800 dark:text-slate-200"
                                         placeholder="(00) 00000-0000"
                                     />
                                     {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
@@ -156,7 +156,7 @@ export const ClientDrawer: React.FC<ClientDrawerProps> = ({
                                     <input
                                         type="email"
                                         {...register('email')}
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 text-slate-800 dark:text-slate-200"
                                         placeholder="email@exemplo.com"
                                     />
                                     {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
@@ -164,8 +164,8 @@ export const ClientDrawer: React.FC<ClientDrawerProps> = ({
                             </div>
                         </div>
 
-                        <div className="space-y-4 pt-4 border-t border-slate-100">
-                            <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                        <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                            <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                                 <MapPin size={16} className="text-purple-600" />
                                 Localização
                             </h3>
@@ -178,7 +178,7 @@ export const ClientDrawer: React.FC<ClientDrawerProps> = ({
                                     <input
                                         type="text"
                                         {...register('city')}
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 text-slate-800 dark:text-slate-200"
                                         placeholder="Ex: Manaus"
                                     />
                                 </div>
@@ -190,7 +190,7 @@ export const ClientDrawer: React.FC<ClientDrawerProps> = ({
                                         type="text"
                                         {...register('state')}
                                         maxLength={2}
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 uppercase"
+                                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 uppercase text-slate-800 dark:text-slate-200"
                                         placeholder="AM"
                                     />
                                     {errors.state && <p className="text-red-500 text-xs mt-1">{errors.state.message}</p>}
@@ -198,7 +198,7 @@ export const ClientDrawer: React.FC<ClientDrawerProps> = ({
                             </div>
                         </div>
 
-                        <div className="space-y-4 pt-4 border-t border-slate-100">
+                        <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                                     Observações
@@ -206,7 +206,7 @@ export const ClientDrawer: React.FC<ClientDrawerProps> = ({
                                 <textarea
                                     {...register('notes')}
                                     rows={4}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 text-slate-800 dark:text-slate-200"
                                     placeholder="Informações adicionais sobre o cliente..."
                                 />
                             </div>
@@ -216,7 +216,7 @@ export const ClientDrawer: React.FC<ClientDrawerProps> = ({
                 </div>
 
                 {/* Footer Actions */}
-                <div className="p-4 border-t border-slate-100 bg-slate-50 flex gap-4">
+                <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex gap-4">
                     <Button variant="outline" className="w-full" onClick={onClose} disabled={isSubmitting}>
                         Cancelar
                     </Button>

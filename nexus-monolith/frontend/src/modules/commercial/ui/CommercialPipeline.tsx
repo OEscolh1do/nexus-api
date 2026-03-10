@@ -186,7 +186,7 @@ export default function CommercialPipeline() {
             <input
               type="text"
               placeholder="Buscar leads..."
-              className="pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 w-64"
+              className="pl-10 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500 w-64"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -230,11 +230,11 @@ export default function CommercialPipeline() {
 
                   {/* Geo-Cluster Alert (Show in the first active qualification column if cluster exists) */}
                   {mappedStatus === 'LEAD_QUALIFICATION' && geoClusters && (
-                    <div className="mt-2 bg-purple-100 border border-purple-200 rounded-lg p-2 flex items-start gap-2">
+                    <div className="mt-2 bg-purple-100 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800/50 rounded-lg p-2 flex items-start gap-2">
                       <div className="bg-purple-500 text-white rounded-full p-1 mt-0.5"><Loader2 size={10} className="animate-spin" /></div>
                       <div>
-                        <p className="text-xs font-bold text-purple-800">Cluster Detectado!</p>
-                        <p className="text-[10px] text-purple-600 leading-tight">Você tem {geoClusters.count} leads em {geoClusters.city}. <span className="underline cursor-pointer">Criar Missão?</span></p>
+                        <p className="text-xs font-bold text-purple-800 dark:text-purple-300">Cluster Detectado!</p>
+                        <p className="text-[10px] text-purple-600 dark:text-purple-400 leading-tight">Você tem {geoClusters.count} leads em {geoClusters.city}. <span className="underline cursor-pointer">Criar Missão?</span></p>
                       </div>
                     </div>
                   )}
@@ -250,7 +250,7 @@ export default function CommercialPipeline() {
                         draggable
                         onDragStart={(e) => handleDragStart(e, opp.id)}
                         onClick={() => openDrawer(opp)}
-                        className="bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm cursor-grab hover:shadow-md transition-all active:cursor-grabbing group group-hover:border-purple-200"
+                        className="bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm cursor-grab hover:shadow-md transition-all active:cursor-grabbing group group-hover:border-purple-200 dark:group-hover:border-purple-500/50"
                       >
                         <div className="flex justify-between items-start mb-2">
                           {/* Opportunity specific title */}
@@ -263,7 +263,7 @@ export default function CommercialPipeline() {
 
                         <div className="flex items-center justify-between mt-auto pt-2 border-t border-slate-50 dark:border-slate-700">
                           <div className="flex -space-x-1">
-                            <div className="w-5 h-5 rounded-full bg-purple-100 border border-white flex items-center justify-center text-[8px] font-bold text-purple-700">VE</div>
+                            <div className="w-5 h-5 rounded-full bg-purple-100 dark:bg-purple-900/40 border border-white dark:border-slate-800 flex items-center justify-center text-[8px] font-bold text-purple-700 dark:text-purple-400">VE</div>
                           </div>
                           <span className="text-[9px] text-slate-400 font-medium">#{opp.id.slice(0, 5)}</span>
                         </div>

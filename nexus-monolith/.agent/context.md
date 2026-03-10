@@ -72,12 +72,14 @@ Use estes termos exatos em Classes, Tabelas e Variáveis:
 | Ops | **Project (Obra)** | Execução vendida. Nasce quando Deal é "Closed Won" |
 | Ops | **Program** | Agrupamento macro de Projetos para gestão de portfólio executivo |
 | Ops | **OperationalTask** | Menor unidade de trabalho (Milestone ou Standard) |
-| Ops | **DailyReport** | (Planejado) RDO submetido por técnicos ou Vendors |
+| Ops | **DailyReport** | Relatório Diário de Obra submetido por técnicos ou Vendors (Implementado) |
 | Strategy | **Objective** | O que queremos alcançar |
 | Strategy | **KeyResult** | Quantificação do objetivo |
 | Strategy | **KeyResultCheckIn** | Registro periódico de progresso de um KeyResult com valor anterior/novo e comentário |
-| Finance | **Ledger** | (Planejado) Registro imutável de transações (PostgreSQL) |
-| Finance | **LedgerEntry** | (Planejado) Entrada única no Ledger. |
+| Finance | **Ledger** | Registro imutável de transações (PostgreSQL) |
+| Finance | **LedgerEntry** | Entrada única no Ledger. |
+| Ops | **HRLeave** | Solicitação e aprovação de ausências (férias, atestado, licenças) |
+| Ops | **Event** | Evento global de calendário na plataforma |
 
 ---
 

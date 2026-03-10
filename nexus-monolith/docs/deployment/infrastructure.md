@@ -1,6 +1,6 @@
 # Infraestrutura de Produção — Neonorte | Nexus
 
-> **Atualizado:** 2026-03-09
+> **Atualizado:** 2026-03-10
 
 ## 1. Topologia de Deploy
 
@@ -19,7 +19,7 @@
 
 ```ini
 NODE_ENV=production
-PORT=3000
+PORT=3001
 DATABASE_URL="postgresql://...@aws-0-sa-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
 DIRECT_URL="postgresql://...@aws-0-sa-east-1.pooler.supabase.com:5432/postgres"
 JWT_SECRET="<hash-sha256-seguro>"

@@ -347,6 +347,128 @@ const OpsService = {
             results.push({ success: true, id: item.id });
         }
         return results;
+    },
+
+    // --- CALENDAR & TEAM ---
+
+    async getCalendarEvents(tenantId, month, year) {
+        if (!tenantId) throw new AppError("Contexto de organização não identificado", 400);
+
+        const targetMonth = parseInt(month, 10);
+        const targetYear = parseInt(year, 10);
+
+        const users = await withTenant(async (tx) => {
+             return tx.user.findMany({
+                 where: { tenantId },
+                 select: { id: true, fullName: true, birthDate: true }
+             });
+        });
+
+        const leaves = await withTenant(async (tx) => {
+             // For simplicity, fetch all leaves and filter in memory since we need to generate dates
+             // In a robust scenario, we'd use raw SQL for date range overlaps
+             return tx.hRLeave.findMany({
+                 where: { 
+                    requester: { tenantId },
+                    status: { not: "REJEITADO" }
+                 },
+                 include: { requester: { select: { fullName: true } } }
+             });
+        });
+
+        const events = [];
+
+        // 1. Birthdays
+        users.forEach(u => {
+             if (u.birthDate) {
+                 const bDate = new Date(u.birthDate);
+                 if (bDate.getMonth() === targetMonth) {
+                     const dateStr = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(bDate.getDate()).padStart(2, '0')}`;
+                     events.push({
+                         date: dateStr,
+                         type: 'BIRTHDAY',
+                         userFullName: u.fullName,
+                         userId: u.id
+                     });
+                 }
+             }
+        });
+
+        // 2. Leaves
+        leaves.forEach(l => {
+             const start = new Date(l.startDate);
+             const end = new Date(l.endDate);
+             
+             // Normalize to dates
+             let current = new Date(start);
+             while (current <= end) {
+                 if (current.getMonth() === targetMonth && current.getFullYear() === targetYear) {
+                     const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+                     // Try mapping HRLeave types to frontend LeaveType
+                     let type = l.type;
+                     if (!['FERIAS', 'FOLGA', 'ATESTADO', 'LICENCA'].includes(type)) type = 'FERIAS';
+
+                     events.push({
+                         date: dateStr,
+                         type: type,
+                         userFullName: l.requester.fullName,
+                         userId: l.requesterId
+                     });
+                 }
+                 current.setDate(current.getDate() + 1);
+             }
+        });
+
+        return events;
+    },
+
+    async getTeamHierarchy(tenantId) {
+        if (!tenantId) throw new AppError("Contexto de organização não identificado", 400);
+
+        const users = await withTenant(async (tx) => {
+            return tx.user.findMany({
+                where: { tenantId },
+                select: { id: true, fullName: true, jobTitle: true, supervisorId: true, leaveRequests: {
+                    where: { 
+                        status: 'APROVADO',
+                        startDate: { lte: new Date() },
+                        endDate: { gte: new Date() }
+                    }
+                } }
+            });
+        });
+
+        const buildNode = (user) => {
+            const isUnavailable = user.leaveRequests && user.leaveRequests.length > 0;
+            return {
+                id: user.id,
+                user: {
+                    id: user.id,
+                    fullName: user.fullName || "Sem Nome",
+                    jobTitle: user.jobTitle || "Membro",
+                },
+                status: isUnavailable ? 'UNAVAILABLE' : 'AVAILABLE',
+                children: users.filter(u => u.supervisorId === user.id).map(buildNode)
+            };
+        };
+
+        const roots = users.filter(u => !u.supervisorId || !users.some(parent => parent.id === u.supervisorId));
+        return roots.map(buildNode);
+    },
+
+    async createLeave(data, userId, tenantId) {
+        return await withTenant(async (tx) => {
+            return tx.hRLeave.create({
+                data: {
+                    type: data.type,
+                    startDate: new Date(data.startDate),
+                    endDate: new Date(data.endDate),
+                    reason: data.reason,
+                    requesterId: data.userId || userId,
+                    status: 'APROVADO' // Auto-approve for demo
+                }
+            });
+        });
     }
 };
 

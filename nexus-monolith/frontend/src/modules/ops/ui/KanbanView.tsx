@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { OpsService, type UserOption } from '../ops.service';
 import {
   Workflow,
@@ -31,7 +30,7 @@ const COLUMNS: { id: TaskStatus; label: string; color: string; darkColor: string
 ];
 
 // --- TEMPLATE SELECTION MODAL ---
-const TemplateSelectionModal: React.FC<{
+const TemplateSelectionModal = React.memo<{
   isOpen: boolean;
   onClose: () => void;
   templates: OperationalTask[];
@@ -40,7 +39,7 @@ const TemplateSelectionModal: React.FC<{
   onCreateTemplate: () => void;
   onEditTemplate: (t: OperationalTask) => void;
   canExecute: boolean;
-}> = ({ isOpen, onClose, templates, onSelectTemplate, onCreateBlank, onCreateTemplate, onEditTemplate, canExecute }) => {
+}>(({ isOpen, onClose, templates, onSelectTemplate, onCreateBlank, onCreateTemplate, onEditTemplate, canExecute }) => {
   if (!isOpen) return null;
 
   return (
@@ -147,7 +146,7 @@ const TemplateSelectionModal: React.FC<{
       </div>
     </div>
   );
-};
+});
 
 export const KanbanView: React.FC = () => {
   const [tasks, setTasks] = useState<OperationalTask[]>([]);
@@ -285,12 +284,12 @@ export const KanbanView: React.FC = () => {
     boardContainerRef.current.scrollLeft = startScrollLeft.current - walk;
   };
 
-  const handleOpenCreateTarget = (status?: TaskStatus) => {
+  const handleOpenCreateTarget = useCallback((status?: TaskStatus) => {
     setTargetColumnStatus(status);
     setIsSelectionModalOpen(true);
-  };
+  }, []);
 
-  const handleFormSubmit = async (data: Partial<OperationalTask>) => {
+  const handleFormSubmit = useCallback(async (data: Partial<OperationalTask>) => {
     const finalIsTemplate = targetIsTemplate || editingTask?.isTemplate || false;
 
     try {
@@ -308,20 +307,17 @@ export const KanbanView: React.FC = () => {
     } catch (e) {
         console.error(e);
     }
-  };
+  }, [targetIsTemplate, editingTask, projects, loadData]);
 
-  const handleDeleteTask = async (id: string) => {
+  const handleDeleteTask = useCallback(async (id: string) => {
       try {
           await OpsService.deleteTask(id);
           setTasks(prev => prev.filter(t => t.id !== id));
       } catch (e) { console.error(e); }
-  };
+  }, []);
 
-  const handleSelectTemplate_Action = async (template: OperationalTask) => {
+  const handleSelectTemplate_Action = useCallback(async (template: OperationalTask) => {
       try {
-          // await apiCall(`/tasks/${template.id}/instantiate`, 'POST');
-          // This logic likely needs a custom endpoint or we do it manually.
-          // Manually: Create new task with template data.
           const pid = template.projectId || projects[0]?.id;
           if(pid) {
              await OpsService.addTask(pid, {
@@ -335,13 +331,13 @@ export const KanbanView: React.FC = () => {
              await loadData();
           }
       } catch (e) { console.error(e); }
-  };
+  }, [projects, loadData]);
 
-  const displayedTasks = showOnlyMine && currentUser
+  const displayedTasks = useMemo(() => showOnlyMine && currentUser
     ? tasks.filter(t => t.assignedTo === currentUser.id && !t.isTemplate)
-    : tasks.filter(t => !t.isTemplate);
+    : tasks.filter(t => !t.isTemplate), [showOnlyMine, currentUser, tasks]);
 
-  const availableTemplates = tasks.filter(t => t.isTemplate);
+  const availableTemplates = useMemo(() => tasks.filter(t => t.isTemplate), [tasks]);
 
   if (isLoading && tasks.length === 0) {
     return (
@@ -527,34 +523,34 @@ export const KanbanView: React.FC = () => {
       {/* SELECTION MODAL */}
       <TemplateSelectionModal
         isOpen={isSelectionModalOpen}
-        onClose={() => setIsSelectionModalOpen(false)}
+        onClose={useCallback(() => setIsSelectionModalOpen(false), [])}
         templates={availableTemplates}
-        onCreateBlank={() => {
+        onCreateBlank={useCallback(() => {
             setTargetIsTemplate(false);
             setIsSelectionModalOpen(false);
             setEditingTask(null);
             setIsModalOpen(true);
-        }}
-        onCreateTemplate={() => {
+        }, [])}
+        onCreateTemplate={useCallback(() => {
             setTargetIsTemplate(true);
             setIsSelectionModalOpen(false);
             setEditingTask(null);
             setIsModalOpen(true);
-        }}
+        }, [])}
         onSelectTemplate={handleSelectTemplate_Action}
-        onEditTemplate={(tpl) => {
+        onEditTemplate={useCallback((tpl: OperationalTask) => {
             setTargetIsTemplate(true);
             setIsSelectionModalOpen(false);
             setEditingTask(tpl);
             setIsModalOpen(true);
-        }}
+        }, [])}
         canExecute={canExecute}
       />
 
       {/* CRUD MODAL */}
       <TaskFormModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={useCallback(() => setIsModalOpen(false), [])}
         onSubmit={handleFormSubmit}
         onDelete={handleDeleteTask}
         projects={projects}

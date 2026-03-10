@@ -14,7 +14,7 @@ const StrategyController = {
         return res.json({ success: true, data: strategy });
     },
 
-    // CREATE
+    // CREATE STRATEGY
     create: async (req, res) => {
         // 1. Validate Payload (Zod throws 400 if fails)
         const data = createStrategySchema.parse(req.body);
@@ -23,6 +23,30 @@ const StrategyController = {
         const newStrategy = await StrategyService.create(data, req.user?.username);
 
         return res.status(201).json({ success: true, data: newStrategy });
+    },
+
+    // CREATE KEY RESULT
+    createKeyResult: async (req, res) => {
+        const { id } = req.params; // Strategy ID
+        
+        // Zod validation isn't strict here since we just reuse the schema but ensure parent is set
+        const { keyResultSchema } = require("../schemas/strategy.schema");
+        const data = keyResultSchema.parse(req.body);
+
+        // Delegate to service
+        const newKr = await StrategyService.createKeyResult(id, data, req.user?.id);
+
+        return res.status(201).json({ success: true, data: newKr });
+    },
+
+    // CREATE RISK
+    createRisk: async (req, res) => {
+        const { id } = req.params; // Strategy ID
+        const { createRiskSchema } = require("../schemas/strategy.schema");
+        const data = createRiskSchema.parse(req.body);
+
+        const newRisk = await StrategyService.createRisk(id, data, req.user?.id);
+        return res.status(201).json({ success: true, data: newRisk });
     },
 
     // UPDATE

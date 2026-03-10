@@ -157,14 +157,14 @@ export function MissionControl() {
               ) : (
                 activities.map(activity => (
                   <div key={activity.id} className="flex items-center">
-                    <div className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs mr-3 shrink-0">
+                    <div className="h-9 w-9 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-xs mr-3 shrink-0">
                       {activity.user?.fullName?.substring(0, 2).toUpperCase() || 'SYS'}
                     </div>
                     <div className="space-y-1">
                       <p className="text-sm font-medium leading-none capitalize truncate max-w-[200px]" title={activity.action.replace(/_/g, ' ')}>
                         {activity.action.replace(/_/g, ' ').toLowerCase()}
                       </p>
-                      <p className="text-xs text-muted-foreground truncate max-w-[200px]" title={activity.details || activity.entity}>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[200px]" title={activity.details || activity.entity}>
                         {activity.details || activity.entity} • {new Date(activity.timestamp).toLocaleDateString('pt-BR')}
                       </p>
                     </div>

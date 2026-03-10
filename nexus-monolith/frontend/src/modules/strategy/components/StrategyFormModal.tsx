@@ -55,14 +55,14 @@ export const StrategyFormModal: React.FC<StrategyFormModalProps> = ({ isOpen, on
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="flex justify-between items-center p-4 border-b border-slate-100 dark:border-slate-800">
-          <h3 className="font-bold text-lg">{initialData ? 'Editar Estratégia' : 'Nova Estratégia'}</h3>
-          <button onClick={onClose}><X size={20} className="text-slate-400" /></button>
+          <h3 className="font-bold text-lg text-slate-900 dark:text-white">{initialData ? 'Editar Estratégia' : 'Nova Estratégia'}</h3>
+          <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors" /></button>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
           <div>
-            <label className="text-sm font-medium">Tipo</label>
-            <select {...register('type')} className="w-full border rounded p-2 bg-transparent">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Tipo</label>
+            <select {...register('type')} className="w-full border border-slate-200 dark:border-slate-700 rounded-lg p-2 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-purple-500/20 outline-none">
               <option value="PILLAR">Pilar Estratégico</option>
               <option value="INITIATIVE">Iniciativa Tática</option>
               <option value="ACTION">Ação Operacional</option>
@@ -70,8 +70,8 @@ export const StrategyFormModal: React.FC<StrategyFormModalProps> = ({ isOpen, on
           </div>
 
           <div>
-            <label className="text-sm font-medium">Responsável (Dono)</label>
-            <select {...register('ownerId')} className="w-full border rounded p-2 bg-transparent text-slate-700 dark:text-slate-200">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Responsável (Dono)</label>
+            <select {...register('ownerId')} className="w-full border border-slate-200 dark:border-slate-700 rounded-lg p-2 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-purple-500/20 outline-none">
               <option value="">Sem responsável</option>
               {users.map(u => (
                 <option key={u.id} value={u.id}>{u.fullName}</option>
@@ -80,18 +80,18 @@ export const StrategyFormModal: React.FC<StrategyFormModalProps> = ({ isOpen, on
           </div>
 
           <div>
-            <label className="text-sm font-medium">Título</label>
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Título</label>
             <Input {...register('title')} placeholder="Ex: Eficiência Operacional" />
             {errors.title && <span className="text-xs text-red-500">{String(errors.title.message)}</span>}
           </div>
 
           <div>
-            <label className="text-sm font-medium">Código (Sigla)</label>
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Código (Sigla)</label>
             <Input {...register('code')} placeholder="Ex: EO-26" />
           </div>
 
           <div>
-            <label className="text-sm font-medium">Cor (Hex)</label>
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Cor (Hex)</label>
             <div className="flex gap-2">
               <Input type="color" {...register('colorCode')} className="w-12 h-10 p-1" />
               <Input {...register('colorCode')} placeholder="#000000" className="flex-1" />
@@ -99,7 +99,7 @@ export const StrategyFormModal: React.FC<StrategyFormModalProps> = ({ isOpen, on
           </div>
 
           <div>
-            <label className="text-sm font-medium">Descrição</label>
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Descrição</label>
             <Input {...register('description')} placeholder="Breve descrição da meta..." />
           </div>
 

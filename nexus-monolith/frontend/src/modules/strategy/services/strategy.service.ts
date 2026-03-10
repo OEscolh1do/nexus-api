@@ -23,6 +23,16 @@ export const StrategyService = {
     await api.delete(`${BASE_PATH}/${id}`);
   },
 
+  async addKeyResult(strategyId: string, data: any) {
+    const res = await api.post(`${BASE_PATH}/${strategyId}/key-results`, data);
+    return res.data.data;
+  },
+
+  async addRisk(strategyId: string, data: any) {
+    const res = await api.post(`${BASE_PATH}/${strategyId}/risks`, data);
+    return res.data.data;
+  },
+
   async createCheckIn(keyResultId: string, data: { newValue: number, comment?: string }) {
     const res = await api.post(`/key-results/${keyResultId}/checkin`, data);
     return res.data.data;

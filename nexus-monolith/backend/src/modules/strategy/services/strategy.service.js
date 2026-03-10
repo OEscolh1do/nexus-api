@@ -96,6 +96,47 @@ const StrategyService = {
     });
   },
 
+  async createKeyResult(strategyId, data, userId) {
+    return withTenant(async (tx) => {
+      // Ensure strategy exists
+      const strategy = await tx.strategy.findUnique({ where: { id: strategyId } });
+      if (!strategy) {
+         throw new AppError("Estratégia/Pilar não encontrado", 404);
+      }
+
+      const newKr = await tx.keyResult.create({
+        data: {
+          ...data,
+          strategyId,
+          ownerId: data.ownerId || userId // Fallback to creator if owner not specified
+        }
+      });
+
+      console.log(`[STRATEGY] KR Created for Strategy ${strategyId} by ${userId}`);
+      return newKr;
+    });
+  },
+
+  async createRisk(strategyId, data, userId) {
+    return withTenant(async (tx) => {
+      // Ensure strategy exists
+      const strategy = await tx.strategy.findUnique({ where: { id: strategyId } });
+      if (!strategy) {
+         throw new AppError("Estratégia/Pilar não encontrado", 404);
+      }
+
+      const newRisk = await tx.risk.create({
+        data: {
+          ...data,
+          strategyId
+        }
+      });
+
+      console.log(`[STRATEGY] Risk Created for Strategy ${strategyId} by ${userId}`);
+      return newRisk;
+    });
+  },
+
   async update(id, data) {
     const { keyResults, ...updateData } = data;
 

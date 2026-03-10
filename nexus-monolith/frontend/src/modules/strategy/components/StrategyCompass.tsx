@@ -108,9 +108,9 @@ export const StrategyCompass: React.FC<StrategyCompassProps> = ({ strategies, pr
                                     {linkedProjects.length > 0 ? (
                                         <ul className="space-y-2">
                                             {linkedProjects.map(p => (
-                                                <li key={p.id} className="text-xs flex justify-between items-center p-2 rounded bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 transition-colors cursor-default">
-                                                    <span className="truncate flex-1">{p.title}</span>
-                                                    <span className={`text-[10px] font-bold px-1.5 rounded-full ${p.progressPercentage === 100 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>
+                                                <li key={p.id} className="text-xs flex justify-between items-center p-2 rounded bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-default">
+                                                    <span className="truncate flex-1 text-slate-700 dark:text-slate-300">{p.title}</span>
+                                                    <span className={`text-[10px] font-bold px-1.5 rounded-full ${p.progressPercentage === 100 ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'}`}>
                                                         {p.progressPercentage}%
                                                     </span>
                                                 </li>
@@ -177,8 +177,8 @@ export const StrategyCompass: React.FC<StrategyCompassProps> = ({ strategies, pr
 
                                         {/* Action Panel: Check-in Form */}
                                         {selectedKRId === kr.id && (
-                                            <div className="mt-4 p-3 bg-slate-50 border border-emerald-100 rounded-lg animate-in fade-in slide-in-from-top-2">
-                                                <h5 className="text-xs font-bold text-emerald-800 mb-2 flex items-center gap-1"><Zap size={14} /> Registrar Novo Valor</h5>
+                                            <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-800/80 border border-emerald-100 dark:border-emerald-900/30 rounded-lg animate-in fade-in slide-in-from-top-2">
+                                                <h5 className="text-xs font-bold text-emerald-800 dark:text-emerald-400 mb-2 flex items-center gap-1"><Zap size={14} /> Registrar Novo Valor</h5>
                                                 <div className="flex gap-2">
                                                     <div className="w-24">
                                                         <Input
@@ -209,7 +209,7 @@ export const StrategyCompass: React.FC<StrategyCompassProps> = ({ strategies, pr
 
                                         {/* Action Panel: History Timeline */}
                                         {showHistoryFor === kr.id && kr.checkIns && (
-                                            <div className="mt-3 bg-slate-50 rounded border border-slate-200 p-2 max-h-40 overflow-y-auto animate-in fade-in zoom-in-95">
+                                            <div className="mt-3 bg-slate-50 dark:bg-slate-800/50 rounded border border-slate-200 dark:border-slate-700 p-2 max-h-40 overflow-y-auto animate-in fade-in zoom-in-95">
                                                 {kr.checkIns.length > 0 ? (
                                                     <div className="space-y-2">
                                                         {kr.checkIns.map((ci: KeyResultCheckIn) => (
@@ -220,12 +220,12 @@ export const StrategyCompass: React.FC<StrategyCompassProps> = ({ strategies, pr
                                                                     <span className="flex items-center gap-1"><Clock size={10} /> {new Date(ci.createdAt).toLocaleDateString()}</span>
                                                                 </div>
                                                                 <div className="flex items-center gap-2 mb-1">
-                                                                    <span className="bg-slate-200 px-1.5 py-0.5 rounded text-slate-600 line-through opacity-70">{ci.previousValue} {kr.unit}</span>
+                                                                    <span className="bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-400 line-through opacity-70">{ci.previousValue} {kr.unit}</span>
                                                                     <span className="text-slate-400">→</span>
-                                                                    <span className="bg-indigo-100 text-indigo-700 font-bold px-1.5 py-0.5 rounded">{ci.newValue} {kr.unit}</span>
+                                                                    <span className="bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-400 font-bold px-1.5 py-0.5 rounded">{ci.newValue} {kr.unit}</span>
                                                                 </div>
                                                                 {ci.comment && (
-                                                                    <p className="text-slate-500 italic flex items-start gap-1 mt-1 bg-white p-1 rounded border border-slate-100">
+                                                                    <p className="text-slate-500 dark:text-slate-400 italic flex items-start gap-1 mt-1 bg-white dark:bg-slate-900 p-1 rounded border border-slate-100 dark:border-slate-800">
                                                                         <MessageSquare size={10} className="mt-0.5 shrink-0 opacity-50" />
                                                                         {ci.comment}
                                                                     </p>

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Cake, Plane, Stethoscope, Coffee, CalendarPlus, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Cake, Plane, Stethoscope, Coffee, Plus, CalendarPlus, X } from 'lucide-react';
 import { FormSelect } from '@/components/ui/FormSelect';
 import type { CalendarEventDTO, LeaveType } from '../types';
 
@@ -110,29 +110,30 @@ export const TeamCalendar: React.FC = () => {
   if (isLoading && events.length === 0 && users.length === 0) return <div className="p-8 text-center text-slate-400">Carregando calendário...</div>;
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col h-full">
+    <div className="bg-white/60 dark:bg-slate-900/50 rounded-2xl shadow-sm border border-slate-200/80 dark:border-slate-800 flex flex-col h-full overflow-hidden backdrop-blur-xl">
       {/* Header */}
-      <div className="p-4 flex items-center justify-between border-b border-slate-200 dark:border-slate-800">
-        <h3 className="font-bold text-lg text-slate-800 dark:text-white capitalize">
+      <div className="p-5 flex items-center justify-between border-b border-slate-200/80 dark:border-slate-800 bg-white/40 dark:bg-transparent">
+        <h3 className="font-semibold text-lg text-slate-800 dark:text-white capitalize tracking-tight flex items-center gap-2">
+           <CalendarPlus className="w-5 h-5 text-purple-500" />
           {currentDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}
         </h3>
-        <div className="flex gap-2">
-          <button onClick={prevMonth} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-600 dark:text-slate-400"><ChevronLeft /></button>
-          <button onClick={nextMonth} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-600 dark:text-slate-400"><ChevronRight /></button>
+        <div className="flex gap-1.5">
+          <button onClick={prevMonth} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md text-slate-500 transition-colors border border-transparent hover:border-slate-200 dark:hover:border-slate-700 shadow-sm"><ChevronLeft size={18} /></button>
+          <button onClick={nextMonth} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md text-slate-500 transition-colors border border-transparent hover:border-slate-200 dark:hover:border-slate-700 shadow-sm"><ChevronRight size={18} /></button>
         </div>
       </div>
 
       {/* Grid Header */}
-      <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900">
+      <div className="grid grid-cols-7 border-b border-slate-200/80 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/50">
         {['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB'].map(d => (
           <div key={d} className="py-2 text-center text-xs font-bold text-slate-400">{d}</div>
         ))}
       </div>
 
       {/* Grid Body */}
-      <div className="grid grid-cols-7 auto-rows-fr flex-1 bg-slate-200 dark:bg-slate-800 gap-px border-b border-slate-200 dark:border-slate-800">
+      <div className="grid grid-cols-7 auto-rows-[minmax(110px,1fr)] flex-1 bg-slate-200/50 dark:bg-slate-800/50 gap-px border-b border-slate-200/80 dark:border-slate-800">
         {days.map((day, idx) => {
-          if (!day) return <div key={idx} className="bg-white dark:bg-slate-950/50" />;
+          if (!day) return <div key={idx} className="bg-slate-50/50 dark:bg-slate-950/30" />;
 
           const dayEvents = getEventsForDay(day);
           const isToday =
@@ -144,31 +145,33 @@ export const TeamCalendar: React.FC = () => {
             <div
               key={idx}
               onClick={() => handleDayClick(day)}
-              className={`bg-white dark:bg-slate-900 min-h-[100px] p-2 hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors cursor-pointer group relative`}
+              className={`bg-white dark:bg-slate-900/80 p-2.5 hover:bg-purple-50/30 dark:hover:bg-slate-800 transition-colors cursor-pointer group relative`}
             >
-              <div className={`text-xs font-bold mb-1 ${isToday ? 'bg-purple-600 text-white w-6 h-6 rounded-full flex items-center justify-center' : 'text-slate-500'}`}>
+              <div className={`text-[13px] font-semibold mb-1.5 ${isToday ? 'bg-gradient-to-br from-purple-500 to-purple-600 text-white w-6 h-6 rounded-md flex items-center justify-center shadow-md shadow-purple-500/20' : 'text-slate-500'}`}>
                 {day}
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 {dayEvents.map((ev, eIdx) => (
-                  <div key={eIdx} className={`text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 truncate border ${ev.type === 'BIRTHDAY' ? 'bg-pink-50 dark:bg-pink-900/20 text-pink-600 border-pink-100 dark:border-pink-800' :
-                    ev.type === 'FERIAS' ? 'bg-teal-50 dark:bg-teal-900/20 text-teal-600 border-teal-100 dark:border-teal-800' :
-                      ev.type === 'FOLGA' ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 border-orange-100 dark:border-orange-800' :
-                        'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
+                  <div key={eIdx} className={`text-[11px] font-medium px-2 py-1 rounded-[6px] flex items-center gap-1.5 truncate border shadow-sm ${ev.type === 'BIRTHDAY' ? 'bg-pink-50/80 dark:bg-pink-900/20 text-pink-600 border-pink-200/60 dark:border-pink-800/40' :
+                    ev.type === 'FERIAS' ? 'bg-teal-50/80 dark:bg-teal-900/20 text-teal-600 border-teal-200/60 dark:border-teal-800/40' :
+                      ev.type === 'FOLGA' ? 'bg-orange-50/80 dark:bg-orange-900/20 text-orange-600 border-orange-200/60 dark:border-orange-800/40' :
+                        'bg-slate-50/80 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 border-slate-200/60 dark:border-slate-700/50'
                     }`} title={ev.userFullName}>
-                    {ev.type === 'BIRTHDAY' && <Cake size={10} />}
-                    {ev.type === 'FERIAS' && <Plane size={10} />}
-                    {ev.type === 'ATESTADO' && <Stethoscope size={10} />}
-                    {ev.type === 'FOLGA' && <Coffee size={10} />}
+                    {ev.type === 'BIRTHDAY' && <Cake size={11} />}
+                    {ev.type === 'FERIAS' && <Plane size={11} />}
+                    {ev.type === 'ATESTADO' && <Stethoscope size={11} />}
+                    {ev.type === 'FOLGA' && <Coffee size={11} />}
                     <span className="truncate">{ev.userFullName.split(' ')[0]}</span>
                   </div>
                 ))}
               </div>
 
               {/* Add Button on Hover */}
-              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <CalendarPlus size={14} className="text-slate-300 hover:text-purple-500" />
+              <div className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-all transform translate-y-1 group-hover:translate-y-0">
+                <div className="w-6 h-6 rounded-md bg-white border border-slate-200 dark:bg-slate-800 dark:border-slate-700 shadow-sm flex items-center justify-center text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors">
+                  <Plus size={14} />
+                </div>
               </div>
             </div>
           );
@@ -177,17 +180,22 @@ export const TeamCalendar: React.FC = () => {
 
       {/* Leave Registration Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-lg shadow-xl p-6 border border-slate-200 dark:border-slate-700">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-slate-800 dark:text-white">Registrar Ausência</h3>
-              <button onClick={() => setIsModalOpen(false)}><X size={20} className="text-slate-400" /></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl p-6 border border-slate-200/80 dark:border-slate-800 animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="font-bold text-lg text-slate-800 dark:text-white tracking-tight">Registrar Ausência</h3>
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 transition-colors"
+               >
+                 <X size={18} />
+               </button>
             </div>
 
-            <form onSubmit={handleLeaveSubmit} className="space-y-3">
+            <form onSubmit={handleLeaveSubmit} className="space-y-4">
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase">Data Início</label>
-                <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded text-sm dark:text-white">{selectedDay}</div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Data Início</label>
+                <div className="px-3 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg text-[14px] dark:text-slate-200 font-medium">{selectedDay.split('-').reverse().join('/')}</div>
               </div>
 
               <FormSelect
@@ -196,7 +204,7 @@ export const TeamCalendar: React.FC = () => {
                 onChange={e => setLeaveForm({ ...leaveForm, userId: e.target.value })}
                 required
               >
-                <option value="" className="dark:bg-slate-900">Selecione...</option>
+                <option value="" className="dark:bg-slate-900">Selecione o membro...</option>
                 {users.map(u => (
                   <option key={u.id} value={u.id} className="dark:bg-slate-900">{u.fullName || u.username}</option>
                 ))}
@@ -207,38 +215,38 @@ export const TeamCalendar: React.FC = () => {
                 value={leaveForm.type}
                 onChange={e => setLeaveForm({ ...leaveForm, type: e.target.value as LeaveType })}
               >
-                <option value="FERIAS" className="dark:bg-slate-900">Férias</option>
-                <option value="FOLGA" className="dark:bg-slate-900">Folga / Banco de Horas</option>
-                <option value="ATESTADO" className="dark:bg-slate-900">Atestado Médico</option>
-                <option value="LICENCA" className="dark:bg-slate-900">Licença (Maternidade/Outros)</option>
+                <option value="FERIAS" className="dark:bg-slate-900">✈️ Férias</option>
+                <option value="FOLGA" className="dark:bg-slate-900">☕ Folga / Banco de Horas</option>
+                <option value="ATESTADO" className="dark:bg-slate-900">⚕️ Atestado Médico</option>
+                <option value="LICENCA" className="dark:bg-slate-900">📄 Licença (Outros)</option>
               </FormSelect>
 
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase">Motivo</label>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Motivo Detalhado</label>
                 <input
                   type="text"
                   value={leaveForm.reason}
                   onChange={e => setLeaveForm({ ...leaveForm, reason: e.target.value })}
-                  className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-900 dark:text-white"
-                  placeholder="Ex: Férias, Médico..."
+                  className="w-full px-3 py-2.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 dark:text-white text-[14px] focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all placeholder:text-slate-400"
+                  placeholder="Ex: Férias acumuladas 2024..."
                   required
                 />
               </div>
 
-              <div>
-                <label className="text-xs font-bold text-slate-500 uppercase">Duração (Dias)</label>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Duração (Dias Corridos)</label>
                 <input
                   type="number"
                   min="1"
                   max="30"
                   value={leaveForm.days}
                   onChange={e => setLeaveForm({ ...leaveForm, days: parseInt(e.target.value) })}
-                  className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-900 dark:text-white"
+                  className="w-full px-3 py-2.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 dark:text-white text-[14px] focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all"
                 />
               </div>
 
-              <button type="submit" className="w-full bg-purple-600 text-white py-2 rounded font-bold text-sm hover:bg-purple-700 mt-2">
-                Confirmar
+              <button type="submit" className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2.5 rounded-lg font-semibold text-[14px] mt-6 shadow-md shadow-purple-500/20 transition-all active:scale-[0.98]">
+                Confirmar Registro
               </button>
             </form>
           </div>

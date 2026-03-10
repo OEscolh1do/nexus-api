@@ -119,6 +119,37 @@ const OpsController = {
         } catch (error) {
             next(error);
         }
+    },
+
+    async getCalendarEvents(req, res, next) {
+        try {
+            const { month, year } = req.query;
+            const tenantContext = req.user.tenantId || req.user.orgUnitId || 'default-tenant-001';
+            const events = await OpsService.getCalendarEvents(tenantContext, month, year);
+            res.json({ success: true, data: events });
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    async getTeamHierarchy(req, res, next) {
+        try {
+            const tenantContext = req.user.tenantId || req.user.orgUnitId || 'default-tenant-001';
+            const hierarchy = await OpsService.getTeamHierarchy(tenantContext);
+            res.json({ success: true, data: hierarchy });
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    async createLeave(req, res, next) {
+        try {
+            const tenantContext = req.user.tenantId || req.user.orgUnitId || 'default-tenant-001';
+            const leave = await OpsService.createLeave(req.body, req.user.id, tenantContext);
+            res.status(201).json({ success: true, data: leave });
+        } catch (error) {
+            next(error);
+        }
     }
 };
 

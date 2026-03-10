@@ -34,25 +34,25 @@ export function ExecutiveDashboard() {
             <div className="space-y-6">
                 {/* Header skeleton */}
                 <div className="space-y-2">
-                    <div className="h-7 w-64 bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 rounded-lg animate-pulse"></div>
-                    <div className="h-4 w-96 bg-slate-100 rounded animate-pulse"></div>
+                    <div className="h-7 w-64 bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 dark:from-slate-800 dark:via-slate-700 dark:to-slate-800 rounded-lg animate-pulse"></div>
+                    <div className="h-4 w-96 bg-slate-100 dark:bg-slate-800 rounded animate-pulse"></div>
                 </div>
                 {/* Metric cards skeleton */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {[1, 2, 3, 4].map(i => (
-                        <div key={i} className="h-[120px] bg-gradient-to-br from-white to-slate-50 rounded-xl border border-slate-200/60 p-5 space-y-4 animate-pulse">
+                        <div key={i} className="h-[120px] bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800/50 rounded-xl border border-slate-200/60 dark:border-slate-800/60 p-5 space-y-4 animate-pulse">
                             <div className="flex justify-between">
-                                <div className="h-3 w-24 bg-slate-200 rounded"></div>
-                                <div className="h-10 w-10 bg-purple-50 rounded-xl"></div>
+                                <div className="h-3 w-24 bg-slate-200 dark:bg-slate-700 rounded"></div>
+                                <div className="h-10 w-10 bg-purple-50 dark:bg-purple-900/30 rounded-xl"></div>
                             </div>
-                            <div className="h-7 w-20 bg-slate-200 rounded"></div>
+                            <div className="h-7 w-20 bg-slate-200 dark:bg-slate-700 rounded"></div>
                         </div>
                     ))}
                 </div>
                 {/* Chart skeleton */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2 h-[380px] bg-white rounded-xl border border-slate-200/60 animate-pulse"></div>
-                    <div className="h-[380px] bg-white rounded-xl border border-slate-200/60 animate-pulse"></div>
+                    <div className="lg:col-span-2 h-[380px] bg-white dark:bg-slate-900 rounded-xl border border-slate-200/60 dark:border-slate-800/60 animate-pulse"></div>
+                    <div className="h-[380px] bg-white dark:bg-slate-900 rounded-xl border border-slate-200/60 dark:border-slate-800/60 animate-pulse"></div>
                 </div>
             </div>
         );
@@ -62,11 +62,11 @@ export function ExecutiveDashboard() {
     if (error || !metrics || !health) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[400px] text-center space-y-4">
-                <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center">
+                <div className="w-16 h-16 bg-rose-50 dark:bg-rose-950/30 text-rose-500 rounded-2xl flex items-center justify-center">
                     <AlertOctagon className="w-7 h-7" />
                 </div>
                 <div>
-                    <h3 className="text-lg font-semibold text-slate-800">Falha ao carregar dados</h3>
+                    <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">Falha ao carregar dados</h3>
                     <p className="text-sm text-slate-500 max-w-md mt-1">{error || "Dados indisponíveis no momento."}</p>
                 </div>
                 <Button variant="outline" onClick={refresh} className="gap-2 rounded-lg">
@@ -86,9 +86,9 @@ export function ExecutiveDashboard() {
                         <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
                             {getGreeting()}, Executivo
                         </h1>
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-50 rounded-full">
-                            <Gauge className="w-3 h-3 text-purple-500" />
-                            <span className="text-[11px] font-bold text-purple-600">Command Center</span>
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-50 dark:bg-purple-900/30 rounded-full">
+                            <Gauge className="w-3 h-3 text-purple-500 dark:text-purple-400" />
+                            <span className="text-[11px] font-bold text-purple-600 dark:text-purple-400">Command Center</span>
                         </div>
                     </div>
                     <p className="text-slate-500 text-[14px]">
@@ -151,11 +151,11 @@ export function ExecutiveDashboard() {
                         ]}
                     />
 
-                    <Card className="border-slate-200/60">
+                    <Card className="border-slate-200/60 dark:border-slate-800">
                         <CardContent className="p-5">
-                            <h3 className="text-[13px] font-semibold text-slate-700 mb-4 flex items-center gap-2">
-                                <div className="h-7 w-7 rounded-lg bg-slate-100 flex items-center justify-center">
-                                    <AlertOctagon className="w-3.5 h-3.5 text-slate-500" />
+                            <h3 className="text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
+                                <div className="h-7 w-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                                    <AlertOctagon className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                                 </div>
                                 Saúde do Portfólio
                             </h3>
@@ -171,7 +171,7 @@ export function ExecutiveDashboard() {
                                             <span className="text-slate-500 font-medium">{item.label}</span>
                                             <span className={`font-bold ${item.textColor}`}>{item.value}</span>
                                         </div>
-                                        <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                        <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
                                             <div
                                                 className={`${item.color} h-full rounded-full transition-all duration-700`}
                                                 style={{ width: `${item.pct}%` }}

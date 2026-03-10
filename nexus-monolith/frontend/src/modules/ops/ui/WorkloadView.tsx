@@ -122,8 +122,8 @@ const WorkloadView: React.FC = () => {
                   if (active && payload && payload.length) {
                     const d = payload[0].payload as WorkloadUser;
                     return (
-                      <div className="bg-white p-2 border rounded shadow text-sm">
-                        <p className="font-bold">{d.userName}</p>
+                      <div className="bg-white dark:bg-slate-800 p-2 border border-slate-200 dark:border-slate-700 rounded shadow text-sm dark:text-slate-200">
+                        <p className="font-bold text-slate-800 dark:text-slate-100">{d.userName}</p>
                         <p>Horas: {d.totalHours}h</p>
                         <p>Utilização: {d.utilization}%</p>
                         <p>Status: {d.status}</p>

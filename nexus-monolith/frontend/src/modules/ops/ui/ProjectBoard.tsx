@@ -13,9 +13,9 @@ const GlassCard: React.FC<{children: React.ReactNode, className?: string}> = ({c
 );
 
 const StatusBadge: React.FC<{status: string}> = ({status}) => {
-    let color = 'bg-slate-100 text-slate-600';
-    if(status === 'ATIVO') color = 'bg-emerald-100 text-emerald-700';
-    if(status === 'ATRASADO') color = 'bg-red-100 text-red-700';
+    let color = 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400';
+    if(status === 'ATIVO') color = 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400';
+    if(status === 'ATRASADO') color = 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400';
     return <span className={`px-2 py-1 rounded text-[10px] uppercase font-bold tracking-wider ${color}`}>{status}</span>;
 }
 

@@ -73,21 +73,21 @@ export function ProjectCockpit() {
     <div className="flex flex-col h-full space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Cockpit de Projetos 🏗️</h1>
-          <p className="text-muted-foreground">Gestão de Obras e Instalações</p>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Cockpit de Projetos 🏗️</h1>
+          <p className="text-slate-500 dark:text-slate-400">Gestão de Obras e Instalações</p>
         </div>
         <Button>Novo Projeto</Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 h-[600px]">
         {/* SIDEBAR: PROJECT LIST */}
-        <div className="md:col-span-1 border-r pr-4 space-y-2 overflow-y-auto">
-          <h3 className="font-semibold mb-4">Projetos Ativos</h3>
+        <div className="md:col-span-1 border-r border-slate-200 dark:border-slate-800 pr-4 space-y-2 overflow-y-auto">
+          <h3 className="font-semibold mb-4 text-slate-800 dark:text-white">Projetos Ativos</h3>
           {projects.map(p => (
             <div
               key={p.id}
               onClick={() => selectProject(p.id)}
-              className={`p-3 rounded-lg cursor-pointer transition-colors border ${selectedProject?.id === p.id ? 'bg-primary/10 border-primary' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+              className={`p-3 rounded-lg cursor-pointer transition-colors border ${selectedProject?.id === p.id ? 'bg-primary/10 border-primary text-primary' : 'hover:bg-slate-100 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300'}`}
             >
               <div className="font-medium truncate">{p.title}</div>
               <div className="flex justify-between mt-1">
@@ -104,15 +104,15 @@ export function ProjectCockpit() {
             <>
               <div className="flex justify-between items-start mb-6">
                 <div>
-                  <h2 className="text-2xl font-bold">{selectedProject.title}</h2>
+                  <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{selectedProject.title}</h2>
                   <div className="flex gap-2 mt-2">
                     <Badge>{selectedProject.type}</Badge>
                     <Badge variant={selectedProject.status === 'CONCLUIDO' ? 'default' : 'outline'}>{selectedProject.status}</Badge>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-medium text-muted-foreground">Progresso Global</p>
-                  <p className="text-2xl font-bold">{selectedProject.progressPercentage}%</p>
+                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Progresso Global</p>
+                  <p className="text-2xl font-bold text-slate-900 dark:text-white">{selectedProject.progressPercentage}%</p>
                 </div>
               </div>
 
@@ -134,7 +134,7 @@ export function ProjectCockpit() {
                   {/* TASK LIST */}
                   <div className="space-y-2 flex-1 overflow-y-auto">
                     {selectedProject.tasks?.map((task: OperationalTask) => (
-                      <Card key={task.id} className="flex items-center p-3 justify-between hover:shadow-sm transition-shadow">
+                      <Card key={task.id} className="flex items-center p-3 justify-between hover:shadow-sm transition-shadow bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
                         {/* UI_DEEP_FIX: Container flex items-center gap-x-3 for mathematical alignment */}
                         <div className="flex items-center gap-x-3">
                           <div className={`p-1 rounded-full flex items-center justify-center shrink-0 ${task.status === 'DONE' ? 'text-green-500' : 'text-slate-300'}`}>
@@ -143,13 +143,13 @@ export function ProjectCockpit() {
                           </div>
                           <div>
                             {/* UI_DEEP_FIX: Label leading-none to center optically */}
-                            <p className={`font-medium leading-none ${task.status === 'DONE' ? 'line-through text-muted-foreground' : ''}`}>{task.title}</p>
-                            <p className="text-xs text-muted-foreground mt-1">ID: {task.id.slice(-4)}</p>
+                            <p className={`font-medium leading-none ${task.status === 'DONE' ? 'line-through text-slate-500 dark:text-slate-400' : 'text-slate-800 dark:text-slate-200'}`}>{task.title}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">ID: {task.id.slice(-4)}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-x-4">
                           {task.dueDate && (
-                            <div className="flex items-center gap-x-2 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
+                            <div className="flex items-center gap-x-2 text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-1 rounded">
                               {/* UI_DEEP_FIX: Icon and Label alignment */}
                               <Clock className="w-3 h-3 shrink-0" />
                               <span className="leading-none pt-0.5">{new Date(task.dueDate).toLocaleDateString()}</span>
@@ -170,7 +170,7 @@ export function ProjectCockpit() {
               </Tabs>
             </>
           ) : (
-            <div className="h-full flex items-center justify-center text-muted-foreground bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-200">
+            <div className="h-full flex items-center justify-center text-muted-foreground bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
               Selecione um projeto para ver o cockpit
             </div>
           )}

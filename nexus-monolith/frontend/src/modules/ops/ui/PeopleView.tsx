@@ -36,35 +36,39 @@ export const PeopleView: React.FC = () => {
   return (
     <div className="space-y-6 flex flex-col h-full max-w-7xl mx-auto pb-10">
       {/* Header & Controls */}
-      <div className="flex flex-col md:flex-row justify-between items-end gap-6 shrink-0 border-b border-slate-200 dark:border-slate-800 pb-6">
+      <div className="flex flex-col lg:flex-row justify-between lg:items-end gap-6 shrink-0 border-b border-slate-200/80 dark:border-slate-800 pb-6">
         <div>
-          <h2 className="text-3xl font-bold text-slate-800 dark:text-white flex items-center gap-3">
-            <Users className="text-purple-600 dark:text-purple-400" />
-            Hub de Pessoas
-          </h2>
-          <p className="text-slate-500 dark:text-slate-400 mt-2 text-lg">
-            Pulso da equipe, disponibilidade e estrutura organizacional.
+          <div className="flex items-center gap-3 mb-1.5">
+            <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center shadow-md shadow-purple-500/20">
+                <Users className="text-white w-4 h-4" />
+            </div>
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+              Hub de Pessoas
+            </h2>
+          </div>
+          <p className="text-slate-500 text-[14px]">
+            Gestão operacional de equipes, capacidade (workload), férias e organograma.
           </p>
         </div>
 
-        <div className="flex bg-slate-100 dark:bg-slate-900 p-1.5 rounded-xl shadow-inner border border-slate-200 dark:border-slate-800">
+        <div className="flex bg-slate-100/50 dark:bg-slate-900/50 p-1.5 rounded-xl border border-slate-200/60 dark:border-slate-800 w-full sm:w-auto overflow-x-auto custom-scrollbar">
           <button
             onClick={() => setActiveTab('ANALYTICS')}
-            className={`flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-lg transition-all ${activeTab === 'ANALYTICS' ? 'bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-md ring-1 ring-black/5 dark:ring-white/10' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+            className={`flex items-center justify-center gap-2 px-5 py-2.5 text-[13px] font-semibold rounded-lg transition-all min-w-fit ${activeTab === 'ANALYTICS' ? 'bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-sm ring-1 ring-slate-200/50 dark:ring-white/10' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-200/30 dark:hover:bg-slate-800/50'}`}
           >
-            <BarChart size={16} /> Pulso & Carga
+            <BarChart className="w-4 h-4" /> Pulso & Carga
           </button>
           <button
             onClick={() => setActiveTab('CALENDAR')}
-            className={`flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-lg transition-all ${activeTab === 'CALENDAR' ? 'bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-md ring-1 ring-black/5 dark:ring-white/10' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+            className={`flex items-center justify-center gap-2 px-5 py-2.5 text-[13px] font-semibold rounded-lg transition-all min-w-fit ${activeTab === 'CALENDAR' ? 'bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-sm ring-1 ring-slate-200/50 dark:ring-white/10' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-200/30 dark:hover:bg-slate-800/50'}`}
           >
-            <CalendarDays size={16} /> Calendário
+            <CalendarDays className="w-4 h-4" /> Calendário
           </button>
           <button
             onClick={() => setActiveTab('ORG')}
-            className={`flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-lg transition-all ${activeTab === 'ORG' ? 'bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-md ring-1 ring-black/5 dark:ring-white/10' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+            className={`flex items-center justify-center gap-2 px-5 py-2.5 text-[13px] font-semibold rounded-lg transition-all min-w-fit ${activeTab === 'ORG' ? 'bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-sm ring-1 ring-slate-200/50 dark:ring-white/10' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-200/30 dark:hover:bg-slate-800/50'}`}
           >
-            <GitFork size={16} /> Organograma
+            <GitFork className="w-4 h-4" /> Organograma
           </button>
         </div>
       </div>

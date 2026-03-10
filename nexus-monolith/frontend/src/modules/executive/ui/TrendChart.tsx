@@ -28,11 +28,11 @@ export function TrendChart({
     height = 300
 }: TrendChartProps) {
     return (
-        <Card className="flex flex-col h-full border-slate-200/60 overflow-hidden">
+        <Card className="flex flex-col h-full border-slate-200/60 dark:border-slate-800/60 overflow-hidden">
             <CardHeader className="pb-2 px-6 pt-5">
                 <div className="flex items-center justify-between">
-                    <CardTitle className="text-[13px] font-semibold text-slate-600 flex items-center gap-2">
-                        <div className="h-7 w-7 rounded-lg bg-purple-50 flex items-center justify-center">
+                    <CardTitle className="text-[13px] font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-2">
+                        <div className="h-7 w-7 rounded-lg bg-purple-50 dark:bg-purple-500/10 flex items-center justify-center">
                             <TrendingUp className="w-3.5 h-3.5 text-purple-500" />
                         </div>
                         {title}
@@ -53,7 +53,7 @@ export function TrendChart({
                                 <stop offset="100%" stopColor={color} stopOpacity={0} />
                             </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-slate-100 dark:text-slate-800/50" />
                         <XAxis
                             dataKey={xAxisKey}
                             axisLine={false}
