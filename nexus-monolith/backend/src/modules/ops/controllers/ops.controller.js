@@ -86,7 +86,7 @@ const OpsController = {
     async getWorkload(req, res, next) {
         try {
             // 1. Zod Validation for Query Params
-            const { getWorkloadSchema } = require("../../validators/ops");
+            const { getWorkloadSchema } = require("../schemas/ops.schema");
             const validation = getWorkloadSchema.safeParse({ query: req.query });
 
             if (!validation.success) {

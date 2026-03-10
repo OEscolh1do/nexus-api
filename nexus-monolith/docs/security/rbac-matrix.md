@@ -9,6 +9,8 @@ O Neonorte | Nexus utiliza RBAC hierárquico. Permissões aplicadas via `auth.mi
 | Role | Descrição | Escopo de Dados |
 | :--- | :--- | :--- |
 | **ADMIN** | Superusuário | Acesso irrestrito (R/W) em todos os módulos. Gerencia usuários e Tenants. |
+| **C_LEVEL** | Conselho Executivo | Dashboards consolidados (BI / Capacity / Finanças de muito alto nível). |
+| **DIRECTOR** | Diretor Corporativo | Visão expandida de dashboards executivos e performance. |
 | **MANAGER** | Gestor de Área | Acesso total ao seu módulo. Leitura em correlatos. |
 | **COORDENACAO** | Coordenador de Projetos | R/W em todos os projetos do Tenant. Sem permissão de Delete. |
 | **VENDEDOR** | Vendedor Comercial | R/W apenas em projetos/leads próprios. |

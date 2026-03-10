@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/mock-components";
 import clsx from "clsx";
 
@@ -9,33 +9,39 @@ export function OpsLayout() {
     const location = useLocation();
     const { groups: menuGroups, isLoading } = useNavigation('OPS');
 
-    // Helper to find current active label for the header
-    // Safe navigation check
     const allItems = menuGroups ? menuGroups.flatMap(g => g.items) : [];
     const currentLabel = allItems.find(m => location.pathname.startsWith(m.path))?.label || 'Projetos';
 
     return (
         <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
-            <aside className="w-64 bg-slate-900 text-white shrink-0 hidden md:flex flex-col border-r border-slate-800 sticky top-0 h-screen">
+            {/* ── Sidebar Premium ── */}
+            <aside className="w-64 shrink-0 hidden md:flex h-screen sticky top-0 flex-col border-r border-slate-800 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 text-white">
+                {/* Brand Header with Orange Glow */}
                 <div className="p-6">
-                    <div className="flex items-center gap-x-3 mb-4">
-                        <div className="h-8 w-8 bg-orange-600 rounded-lg flex items-center justify-center font-bold shrink-0">OP</div>
+                    <div className="flex items-center gap-x-3 mb-2">
+                        <div className="relative">
+                            <div className="h-9 w-9 bg-gradient-to-br from-orange-500 to-orange-700 rounded-lg flex items-center justify-center font-bold text-sm shrink-0 shadow-lg shadow-orange-500/25">
+                                <Sparkles className="h-4 w-4" />
+                            </div>
+                            <div className="absolute -inset-0.5 bg-orange-500/20 rounded-lg blur-sm -z-10"></div>
+                        </div>
                         <div>
                             <h1 className="text-sm font-bold tracking-wider leading-none">Neonorte | Nexus</h1>
-                            <p className="text-xs text-slate-400 mt-1">Módulo Operações</p>
+                            <p className="text-[11px] text-orange-300/70 mt-1 font-medium tracking-wide">Módulo Operações</p>
                         </div>
                     </div>
                 </div>
 
-                <nav className="flex-1 px-4 space-y-6 overflow-y-auto custom-scrollbar">
+                {/* Navigation Groups */}
+                <nav className="flex-1 px-3 space-y-5 overflow-y-auto custom-scrollbar">
                     {isLoading ? (
-                        <div className="space-y-6 animate-pulse">
+                        <div className="space-y-5">
                             {[1, 2, 3].map(i => (
-                                <div key={i}>
-                                    <div className="h-3 w-24 bg-slate-800 rounded mb-3"></div>
-                                    <div className="space-y-2">
-                                        <div className="h-8 bg-slate-800 rounded"></div>
-                                        <div className="h-8 bg-slate-800 rounded"></div>
+                                <div key={i} className="animate-pulse">
+                                    <div className="h-2.5 w-24 bg-slate-800 rounded mb-3 mx-3"></div>
+                                    <div className="space-y-1.5">
+                                        <div className="h-9 bg-slate-800/60 rounded-lg"></div>
+                                        <div className="h-9 bg-slate-800/40 rounded-lg"></div>
                                     </div>
                                 </div>
                             ))}
@@ -43,10 +49,10 @@ export function OpsLayout() {
                     ) : (
                         menuGroups.map((group, groupIndex) => (
                             <div key={groupIndex}>
-                                <p className="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                                <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-[0.15em] mb-2">
                                     {group.title}
                                 </p>
-                                <div className="space-y-1">
+                                <div className="space-y-0.5">
                                     {group.items.map(item => {
                                         const isActive = location.pathname.startsWith(item.path);
                                         return (
@@ -54,19 +60,22 @@ export function OpsLayout() {
                                                 <Button
                                                     variant="ghost"
                                                     className={clsx(
-                                                        "w-full justify-start flex items-center gap-x-3",
+                                                        "w-full justify-start flex items-center gap-x-3 h-9 rounded-lg transition-all duration-200",
                                                         isActive
-                                                            // COMPLIANCE_NEXUS_STANDARD: Orange Theme for Ops
-                                                            ? 'bg-orange-900/50 text-orange-200 border-r-2 border-orange-500 rounded-none'
-                                                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                                                            ? 'bg-orange-500/15 text-orange-200 shadow-sm shadow-orange-500/5 border border-orange-500/20'
+                                                            : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
                                                     )}
                                                 >
-                                                    {/* COMPLIANCE_NEXUS_STANDARD: Icon fixed size w-5 container */}
-                                                    <span className="w-5 flex justify-center shrink-0">
+                                                    <span className={clsx(
+                                                        "w-5 flex justify-center shrink-0 transition-colors duration-200",
+                                                        isActive && "text-orange-400"
+                                                    )}>
                                                         <item.icon className="h-4 w-4" />
                                                     </span>
-                                                    {/* COMPLIANCE_NEXUS_STANDARD: Text alignment */}
-                                                    <span className="leading-none">{item.label}</span>
+                                                    <span className="leading-none text-[13px] font-medium">{item.label}</span>
+                                                    {isActive && (
+                                                        <span className="ml-auto w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse"></span>
+                                                    )}
                                                 </Button>
                                             </Link>
                                         )
@@ -77,26 +86,34 @@ export function OpsLayout() {
                     )}
                 </nav>
 
-                {/* COMPLIANCE_NEXUS_STANDARD: Footer pinned to bottom */}
-                <div className="p-4 border-t border-slate-800 mt-auto">
+                {/* Footer */}
+                <div className="p-3 border-t border-slate-800/50 mt-auto">
                     <Link to="/">
-                        <Button variant="ghost" className="w-full justify-start flex items-center gap-x-3 text-slate-400 hover:text-white group">
+                        <Button variant="ghost" className="w-full justify-start flex items-center gap-x-3 h-9 rounded-lg text-slate-500 hover:text-white hover:bg-white/5 transition-all duration-200 group">
                             <span className="w-5 flex justify-center shrink-0">
-                                <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+                                <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform duration-200" />
                             </span>
-                            <span className="leading-none">Trocar Módulo</span>
+                            <span className="leading-none text-[13px] font-medium">Trocar Módulo</span>
                         </Button>
                     </Link>
                 </div>
             </aside>
 
+            {/* ── Main Content ── */}
             <main className="flex-1 overflow-auto">
-                <header className="h-16 border-b bg-white dark:bg-slate-900 flex items-center justify-between px-6 sticky top-0 z-10 border-b-orange-500/20">
-                    <h2 className="text-lg font-medium text-slate-800 dark:text-slate-200 leading-none">
-                        {currentLabel}
-                    </h2>
+                {/* Glassmorphism Header */}
+                <header className="h-14 border-b border-slate-200/80 dark:border-slate-800 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 flex items-center justify-between px-6 sticky top-0 z-10">
+                    <div className="flex items-center gap-3">
+                        <div className="w-1 h-5 bg-gradient-to-b from-orange-500 to-orange-700 rounded-full"></div>
+                        <h2 className="text-[15px] font-semibold text-slate-800 dark:text-slate-200 tracking-tight">
+                            {currentLabel}
+                        </h2>
+                    </div>
                     <div className="flex items-center gap-x-4">
-                        <div className="px-3 py-1 bg-orange-100 text-orange-800 text-xs rounded-full font-bold">Área de Engenharia</div>
+                        <div className="flex items-center gap-1.5 px-3 py-1 bg-orange-50 rounded-full">
+                            <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+                            <span className="text-[11px] font-bold text-orange-700">Área de Engenharia</span>
+                        </div>
                     </div>
                 </header>
                 <div className="p-6">

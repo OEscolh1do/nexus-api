@@ -1,109 +1,133 @@
-import { useState } from "react";
+import { useAuditTrail } from "@/modules/executive/hooks/useAuditTrail";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/mock-components";
-import { ShieldAlert, Database, User } from "lucide-react";
-
-// Mock data until API is wired up for Phase 1
-const mockAuditLogs = [
-    {
-        id: "log_1",
-        userId: "usr_ceo",
-        action: "update",
-        entity: "Project",
-        resourceId: "prj_solar_north",
-        details: "Limite orçamentário aumentado",
-        timestamp: new Date().toISOString(),
-        ipAddress: "192.168.1.10",
-    },
-    {
-        id: "log_2",
-        userId: "usr_finance",
-        action: "create",
-        entity: "Transaction",
-        resourceId: "txn_89234",
-        details: "Liberação de Capex aprovada",
-        timestamp: new Date(Date.now() - 3600000).toISOString(),
-        ipAddress: "10.0.0.5",
-    }
-];
+import { ShieldAlert, Database, User, RefreshCw, AlertCircle, FileText } from "lucide-react";
+import clsx from "clsx";
 
 export function AuditTrailView() {
-    const [logs] = useState(mockAuditLogs);
+    const { logs, loading, error, refresh } = useAuditTrail();
 
+    const getActionConfig = (action: string) => {
+        switch (action) {
+            case "delete": return { bg: "bg-rose-50 text-rose-700 ring-1 ring-rose-200/80", dot: "bg-rose-500" };
+            case "create": return { bg: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/80", dot: "bg-emerald-500" };
+            default: return { bg: "bg-blue-50 text-blue-700 ring-1 ring-blue-200/80", dot: "bg-blue-500" };
+        }
+    };
+
+    // --- Loading State ---
+    if (loading) {
+        return (
+            <div className="space-y-6">
+                <div className="space-y-2">
+                    <div className="h-7 w-72 bg-slate-200 rounded-lg animate-pulse"></div>
+                    <div className="h-4 w-96 bg-slate-100 rounded animate-pulse"></div>
+                </div>
+                <div className="h-[350px] bg-white rounded-xl border border-slate-200/60 animate-pulse"></div>
+            </div>
+        );
+    }
+
+    // --- Error State ---
+    if (error) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[400px] text-center space-y-4">
+                <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center">
+                    <AlertCircle className="w-7 h-7" />
+                </div>
+                <div>
+                    <h3 className="text-lg font-semibold text-slate-800">Falha ao carregar logs</h3>
+                    <p className="text-sm text-slate-500 max-w-md mt-1">{error}</p>
+                </div>
+                <Button variant="outline" onClick={refresh} className="gap-2 rounded-lg">
+                    <RefreshCw className="w-4 h-4" /> Tentar novamente
+                </Button>
+            </div>
+        );
+    }
+
+    // --- Success State ---
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex items-end justify-between">
                 <div>
-                    <h2 className="text-2xl font-bold tracking-tight">Audit Trail (Rastreio de Eventos)</h2>
-                    <p className="text-muted-foreground">
-                        Registro imutável de transações e mudanças de estado crítico (Enterprise Compliance).
+                    <div className="flex items-center gap-2.5 mb-1">
+                        <h2 className="text-2xl font-bold tracking-tight text-slate-900">Audit Trail</h2>
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-50 rounded-full">
+                            <ShieldAlert className="w-3 h-3 text-red-500" />
+                            <span className="text-[11px] font-bold text-red-600">Compliance</span>
+                        </div>
+                    </div>
+                    <p className="text-slate-500 text-[14px]">
+                        Registro imutável de transações e mudanças de estado crítico.
                     </p>
                 </div>
-                <Button variant="outline" className="gap-2">
-                    <Database className="w-4 h-4" />
+                <Button variant="outline" className="gap-2 rounded-lg text-[13px]">
+                    <Database className="w-3.5 h-3.5" />
                     Exportar Relatório
                 </Button>
             </div>
 
-            <div className="border rounded-md bg-white">
-                <div className="p-4 border-b bg-slate-50 flex items-center justify-between">
-                    <h3 className="font-semibold text-slate-700 flex items-center gap-2">
-                        <ShieldAlert className="w-5 h-5 text-red-600" />
+            {/* Timeline-style log entries */}
+            <div className="bg-white border border-slate-200/60 rounded-xl overflow-hidden">
+                <div className="px-5 py-3 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-transparent flex items-center justify-between">
+                    <h3 className="text-[13px] font-semibold text-slate-700 flex items-center gap-2">
+                        <FileText className="w-3.5 h-3.5 text-slate-400" />
                         Logs de Segurança e Mutação
                     </h3>
-                    <span className="text-sm text-slate-500">
-                        Fase 1 Foundation: Módulo ativo
-                    </span>
+                    <span className="text-[11px] text-slate-400 font-medium">{logs.length} eventos registrados</span>
                 </div>
 
-                <div className="p-0">
-                    <table className="w-full text-sm text-left">
-                        <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b">
-                            <tr>
-                                <th className="px-6 py-3">Data/Hora</th>
-                                <th className="px-6 py-3">Usuário / Ator</th>
-                                <th className="px-6 py-3">Entidade</th>
-                                <th className="px-6 py-3">Ação</th>
-                                <th className="px-6 py-3">Detalhes</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {logs.map((log) => (
-                                <tr key={log.id} className="border-b hover:bg-slate-50">
-                                    <td className="px-6 py-4 font-mono text-xs text-slate-500">
-                                        {format(new Date(log.timestamp), "dd/MM/yyyy HH:mm:ss")}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center">
-                                                <User className="w-3 h-3 text-slate-600" />
+                <div className="divide-y divide-slate-50">
+                    {logs.map((log, index) => {
+                        const config = getActionConfig(log.action);
+                        return (
+                            <div
+                                key={log.id}
+                                className="px-5 py-4 flex items-start gap-4 hover:bg-purple-50/20 transition-colors duration-200 group"
+                            >
+                                {/* Timeline dot */}
+                                <div className="flex flex-col items-center pt-1 shrink-0">
+                                    <div className={clsx("w-2.5 h-2.5 rounded-full ring-4 ring-white", config.dot)}></div>
+                                    {index < logs.length - 1 && (
+                                        <div className="w-px h-full bg-slate-100 mt-1.5 min-h-[30px]"></div>
+                                    )}
+                                </div>
+
+                                {/* Content */}
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <div className="flex items-center gap-1.5">
+                                            <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
+                                                <User className="w-3 h-3 text-slate-500" />
                                             </div>
-                                            <span className="font-medium text-slate-700">{log.userId}</span>
+                                            <span className="text-[13px] font-semibold text-slate-700">{log.userId}</span>
                                         </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-md text-xs font-semibold">
-                                            {log.entity}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className={`px-2 py-1 rounded-md text-xs font-semibold ${log.action === 'delete' ? 'bg-red-100 text-red-700' :
-                                            log.action === 'create' ? 'bg-green-100 text-green-700' :
-                                                'bg-blue-100 text-blue-700'
-                                            }`}>
+
+                                        <span className={clsx("px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider", config.bg)}>
                                             {log.action.toUpperCase()}
                                         </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-slate-600">
-                                        {log.details}
-                                        <div className="text-xs text-slate-400 mt-1 font-mono">
+
+                                        <span className="px-1.5 py-0.5 bg-purple-50 text-purple-700 rounded text-[10px] font-semibold">
+                                            {log.entity}
+                                        </span>
+                                    </div>
+
+                                    <p className="text-[13px] text-slate-600 mt-1">{log.details}</p>
+
+                                    <div className="flex items-center gap-3 mt-1.5">
+                                        <span className="text-[11px] text-slate-400 font-mono">
+                                            {format(new Date(log.timestamp), "dd/MM/yyyy HH:mm:ss")}
+                                        </span>
+                                        <span className="text-[11px] text-slate-300">•</span>
+                                        <span className="text-[11px] text-slate-400 font-mono">
                                             Ref: {log.resourceId}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
         </div>

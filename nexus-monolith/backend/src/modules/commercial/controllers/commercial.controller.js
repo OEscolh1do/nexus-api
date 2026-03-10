@@ -2,8 +2,9 @@ const commercialService = require("../services/commercial.service");
 const {
     CreateLeadSchema,
     UpdateLeadSchema,
-    CreateQuoteSchema,
-    CreateMissionSchema
+    CreateMissionSchema,
+    CreateOpportunitySchema,
+    UpdateOpportunitySchema
 } = require("../schemas/commercial.schemas");
 const { z } = require("zod");
 
@@ -53,6 +54,28 @@ const commercialController = {
     },
 
     // ========================
+    // OPPORTUNITIES (DEALS)
+    // ========================
+
+    async createOpportunity(req, res) {
+        const data = CreateOpportunitySchema.parse(req.body);
+        const opportunity = await commercialService.createOpportunity(data, req.user.orgUnitId);
+        res.status(201).json({ success: true, data: opportunity });
+    },
+
+    async getOpportunities(req, res) {
+        const opportunities = await commercialService.getOpportunities(req.query, req.user.orgUnitId);
+        res.json({ success: true, data: opportunities });
+    },
+
+    async updateOpportunity(req, res) {
+        const { id } = req.params;
+        const data = UpdateOpportunitySchema.parse(req.body);
+        const updated = await commercialService.updateOpportunity(id, data, req.user.id);
+        res.json({ success: true, data: updated });
+    },
+
+    // ========================
     // MISSIONS
     // ========================
 
@@ -80,20 +103,6 @@ const commercialController = {
     // PROPOSALS / PIPELINE
     // ========================
 
-    async createProposal(req, res) {
-        const { leadId } = req.params;
-        // Validação parcial pois o payload do gerador solar é complexo e dinâmico (passthrough no schema)
-        // Mas garantimos que se encaixa no esperado minimamente
-        // O CreateQuoteSchema espera { leadId, solarData... } mas aqui recebemos o payload do front direto?
-        // Pelo código antigo: const { leadId } = req.params; const proposalPayload = req.body;
-
-        // Vamos tentar validar o payload se possível, ou passar direto se for confiável (Solar Wizard output)
-        // O service espera 'proposalPayload' que tem clientName, systemSize etc.
-
-        const proposal = await commercialService.createProposal(leadId, req.body);
-        res.status(201).json({ success: true, data: proposal });
-    },
-
     async getPipeline(req, res) {
         // L8 SEC-OPS PATCH: Restringe por Tenant
         const pipeline = await commercialService.getPipeline(req.user.orgUnitId);
@@ -103,6 +112,15 @@ const commercialController = {
     async getKanbanStats(req, res) {
         const stats = await commercialService.getKanbanStats();
         res.json({ success: true, data: stats });
+    },
+
+    // ========================
+    // DASHBOARD / ACTIVITIES
+    // ========================
+
+    async getActivities(req, res) {
+        const activities = await commercialService.getRecentActivities(req.user.orgUnitId);
+        res.json({ success: true, data: activities });
     }
 };
 

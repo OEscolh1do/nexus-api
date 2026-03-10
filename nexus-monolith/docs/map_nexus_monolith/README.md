@@ -1,7 +1,7 @@
 # 🗺️ Índice de Mapas de Interface - Neonorte | Nexus Monolith
 
-> **Versão:** 3.0.0  
-> **Última Atualização:** 2026-03-09
+> **Versão:** 3.1.0  
+> **Última Atualização:** 2026-03-10
 
 ---
 
@@ -42,10 +42,12 @@ Este diretório contém a documentação detalhada de todos os módulos e views 
 **Rotas:**
 
 - `/ops/cockpit` - Cockpit de Projetos
+- `/ops/portfolio` - Portfolio de Projetos
 - `/ops/kanban` - Kanban de Tarefas
 - `/ops/gantt` - Cronograma Mestre
-- `/ops/strategy` - Estratégia
-- `/ops/portfolio` - Portfólio de Projetos
+- `/ops/workload` - Gestão de Alocação / Workload
+- `/ops/strategy` - Alinhamento Estratégico
+- `/ops/approvals` - Centro de Aprovações
 
 ---
 
@@ -57,16 +59,18 @@ Este diretório contém a documentação detalhada de todos os módulos e views 
 **Principais Views:**
 
 - **Commercial Pipeline:** Kanban de vendas
+- **Mission Control:** Gamificação e gestão de missões comerciais
 - **Commercial Performance:** Metas e painel de vendas
-- **Solar Wizard:** Geração de propostas fotovoltaicas
-- **Leads Pipeline:** Triagem e qualificação
+- **Clients View:** Gestão de clientes
+- **Contracts View:** Gestão de contratos
 
 **Rotas:**
 
-- `/commercial/crm` - Pipeline de Vendas
-- `/commercial/leads` - Gestão de Leads
+- `/commercial/pipeline` - Pipeline de Vendas
+- `/commercial/missions` - Missões Comerciais
 - `/commercial/performance` - Performance Comercial
-- `/commercial/quotes` - Solar Wizard
+- `/commercial/clients` - Gestão de Clientes
+- `/commercial/contracts` - Gestão de Contratos
 
 **Novidades v2.2:**
 
@@ -92,10 +96,12 @@ Este diretório contém a documentação detalhada de todos os módulos e views 
 
 **Rotas:**
 
-- `/executive/dashboard` - Dashboard Executivo
+- `/executive/overview` - Dashboard Executivo Central
 - `/executive/strategy` - Estratégia
-- `/executive/portfolio` - Portfólio
-- `/executive/bi` - Business Intelligence
+- `/executive/people` - Time / Pessoas
+- `/executive/financial` - Dashboard Financeiro Especializado
+- `/executive/audit` - Trilha de Auditoria Institucional
+- `/executive/analytics` - Painel Master BI
 
 ---
 
@@ -113,6 +119,7 @@ Este diretório contém a documentação detalhada de todos os módulos e views 
 
 - `/extranet/client/dashboard` - Portal do Cliente
 - `/extranet/vendor/tasks` - Terminal do Empreiteiro
+- `/extranet/vendor/rdo` - Relatório Diário de Obra (Planejado)
 
 ---
 
@@ -124,6 +131,7 @@ Este diretório contém a documentação detalhada de todos os módulos e views 
 **Rotas:**
 
 - `/admin/tenant` - SSO Configuration + API Usage Metrics
+- `/admin/navigation` - Customização de Navegação e Menus
 
 ---
 
@@ -198,13 +206,13 @@ graph LR
 | Módulo | Views | Rotas | Status |
 | :--- | ---: | ---: | :--- |
 | Core | 5 | 3 | ✅ Operacional |
-| Operations | 6 | 7 | ✅ Operacional |
-| Commercial | 4 | 4 | ✅ Operacional |
-| Executive | 4 | 4 | ✅ Operacional |
-| Extranet B2B/B2P | 2 | 2 | ✅ Operacional |
-| Admin | 1 | 1 | ✅ Operacional |
-| Academy | 0 | 0 | 📋 Planejado |
-| **Total** | **22** | **21** | |
+| Operations | 9 | 9 | ✅ Operacional |
+| Commercial | 5 | 5 | ✅ Operacional |
+| Executive | 7 | 7 | ✅ Operacional |
+| Extranet B2B/B2P | 3 | 3 | ✅ Operacional |
+| Admin | 2 | 2 | ✅ Operacional |
+| Academy | 1 | 1 | 📋 Planejado |
+| **Total** | **32** | **30** | |
 
 ---
 

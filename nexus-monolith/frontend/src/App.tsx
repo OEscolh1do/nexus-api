@@ -3,20 +3,26 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { ProjectCockpit } from "@/modules/ops/ui/ProjectCockpit"
 import { ProjectBoard } from "@/modules/ops/ui/ProjectBoard"
 import { FinancialDashboard } from "@/modules/fin/ui/FinancialDashboard"
-import { AnalyticsDashboard } from "@/modules/bi/ui/AnalyticsDashboard"
+// Removed AnalyticsDashboard import
 import { LoginForm } from "@/modules/iam/ui/LoginForm"
 import { AppSwitcher } from "@/views/AppSwitcher"
 import { ExecutiveLayout } from "@/views/executive/ExecutiveLayout"
 import { OpsLayout } from "@/views/ops/OpsLayout"
 import { CommercialLayout } from "@/views/commercial/CommercialLayout"
-import CommercialPipeline from "@/views/commercial/CommercialPipeline"
-import SolarWizardView from "@/views/commercial/SolarWizardView"
+import CommercialPipeline from "@/modules/commercial/ui/CommercialPipeline"
+import { MissionControl } from "@/modules/commercial/ui/MissionControl"
 import CommercialPerformance from "@/views/commercial/CommercialPerformance"
+import ClientsView from "@/views/commercial/ClientsView"
+import { ContractsView } from "@/views/commercial/ContractsView"
 import { GanttMatrixView } from "@/modules/ops/ui/GanttMatrixView"
 import { KanbanView } from "@/modules/ops/ui/KanbanView"
 import { PeopleView } from "@/modules/ops/ui/PeopleView"
 import WorkloadView from "@/modules/ops/ui/WorkloadView"
 import { StrategyManagerView } from "@/modules/strategy/ui/StrategyManagerView"
+import { ExecutiveDashboard } from "@/views/executive/ExecutiveDashboard"
+import { PortfolioView } from "@/views/executive/PortfolioView"
+import { BIView } from "@/views/executive/BIView"
+
 import { StrategyReviewView } from "@/modules/strategy/ui/StrategyReviewView"
 import NavigationSettings from "@/views/admin/NavigationSettings"
 import TenantSettings from "@/views/admin/TenantSettings"
@@ -28,6 +34,7 @@ import { ClientPortalLayout } from "@/views/extranet/b2b/ClientPortalLayout"
 import ClientProjectDashboard from "@/views/extranet/b2b/ClientProjectDashboard"
 import { VendorPortalLayout } from "@/views/extranet/b2p/VendorPortalLayout"
 import VendorTerminalView from "@/views/extranet/b2p/VendorTerminalView"
+import { RDOCreator } from "@/views/extranet/b2p/RDOCreator"
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -59,21 +66,23 @@ function App() {
 
         {/* VIEW 1: EXECUTIVE (BI & FIN) */}
         <Route path="/executive" element={<ExecutiveLayout />}>
-          <Route path="overview" element={<AnalyticsDashboard />} />
+          <Route path="overview" element={<ExecutiveDashboard />} />
           <Route path="strategy" element={<StrategyManagerView />} />
+          <Route path="portfolio" element={<PortfolioView />} />
           <Route path="people" element={<PeopleView />} />
           <Route path="financial" element={<FinancialDashboard />} />
           <Route path="audit" element={<AuditTrailView />} />
-          <Route path="analytics" element={<div className="p-8 text-center text-slate-500">Módulo BI Avançado (Em breve)</div>} />
+          <Route path="analytics" element={<BIView />} />
           <Route index element={<Navigate to="overview" />} />
         </Route>
 
         {/* VIEW 2: COMMERCIAL */}
         <Route path="/commercial" element={<CommercialLayout />}>
           <Route path="pipeline" element={<CommercialPipeline />} />
+          <Route path="missions" element={<MissionControl />} />
           <Route path="performance" element={<CommercialPerformance />} />
-          <Route path="quotes" element={<SolarWizardView />} />
-          <Route path="contracts" element={<div className="p-8 text-center text-slate-500">Gestão de Contratos (Em breve)</div>} />
+          <Route path="clients" element={<ClientsView />} />
+          <Route path="contracts" element={<ContractsView />} />
           <Route index element={<Navigate to="pipeline" />} />
         </Route>
 
@@ -113,7 +122,7 @@ function App() {
         {/* B2P Vendor Terminal */}
         <Route path="/extranet/vendor" element={<VendorPortalLayout />}>
           <Route path="tasks" element={<VendorTerminalView />} />
-          <Route path="rdo" element={<div className="p-8 text-center text-slate-500 mt-20">Criador de Relatório Diário de Obra (Em breve)</div>} />
+          <Route path="rdo" element={<RDOCreator />} />
           <Route index element={<Navigate to="tasks" />} />
         </Route>
 

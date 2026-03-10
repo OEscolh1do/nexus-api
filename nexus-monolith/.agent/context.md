@@ -2,7 +2,7 @@
 
 > **Propósito:** Este documento é injetado automaticamente no início de cada sessão de um agente IA para dar contexto completo sobre a arquitetura, domínio, segurança e estado do sistema. Sem este contexto, o agente opera às cegas.
 >
-> **Última Atualização:** 2026-03-09
+> **Última Atualização:** 2026-03-10
 
 ---
 
@@ -53,6 +53,7 @@ Isolamento de dados por **Row-Level Security**:
 | **B2B_CLIENT** | Extranet: vê apenas projetos onde `clientId === user.id` |
 | **B2P_VENDOR** | Extranet: vê apenas tasks vinculadas ao seu `vendorId` |
 | **TECH** | Apenas suas tarefas designadas |
+| **USER** | Operacional básico, dashboards de leitura |
 
 Middleware de proteção: `requireRole(['ROLE1', 'ROLE2'])` em `auth.middleware.js`.
 
@@ -74,6 +75,7 @@ Use estes termos exatos em Classes, Tabelas e Variáveis:
 | Ops | **DailyReport** | (Planejado) RDO submetido por técnicos ou Vendors |
 | Strategy | **Objective** | O que queremos alcançar |
 | Strategy | **KeyResult** | Quantificação do objetivo |
+| Strategy | **KeyResultCheckIn** | Registro periódico de progresso de um KeyResult com valor anterior/novo e comentário |
 | Finance | **Ledger** | (Planejado) Registro imutável de transações (PostgreSQL) |
 | Finance | **LedgerEntry** | (Planejado) Entrada única no Ledger. |
 
@@ -84,11 +86,30 @@ Use estes termos exatos em Classes, Tabelas e Variáveis:
 ```
 Frontend SPA (React + Vite + Tailwind)
   └── /                          → AppSwitcher (Portal de Entrada)
-  └── /executive/*               → ExecutiveLayout (BI, Strategy, Financial)
-  └── /commercial/*              → CommercialLayout (CRM, Pipeline, Solar)
-  └── /ops/*                     → OpsLayout (Cockpit, Kanban, Gantt)
-  └── /extranet/client/*         → ClientPortalLayout (B2B Dashboard)
-  └── /extranet/vendor/*         → VendorPortalLayout (B2P Mobile Terminal)
+  └── /executive/overview        → ExecutiveDashboard
+  └── /executive/strategy        → StrategyManagerView
+  └── /executive/portfolio       → PortfolioView
+  └── /executive/people          → PeopleView
+  └── /executive/financial       → FinancialDashboard
+  └── /executive/audit           → AuditTrailView
+  └── /executive/analytics       → BIView
+  └── /commercial/pipeline       → CommercialPipeline
+  └── /commercial/missions       → MissionControl
+  └── /commercial/performance    → CommercialPerformance
+  └── /commercial/clients        → ClientsView
+  └── /commercial/contracts      → ContractsView
+  └── /ops/cockpit               → ProjectCockpit
+  └── /ops/portfolio             → ProjectBoard
+  └── /ops/kanban                → KanbanView
+  └── /ops/gantt                 → GanttMatrixView
+  └── /ops/workload              → WorkloadView
+  └── /ops/strategy              → StrategyReviewView
+  └── /ops/approvals             → ApprovalCenterView
+  └── /ops/issues                → (Em breve)
+  └── /ops/map                   → (Em breve)
+  └── /extranet/client/dashboard → ClientProjectDashboard
+  └── /extranet/vendor/tasks     → VendorTerminalView
+  └── /extranet/vendor/rdo       → RDOCreator
   └── /admin/tenant              → TenantSettings (SSO + API Quotas)
   └── /admin/navigation          → NavigationSettings
   └── /academy                   → Placeholder
@@ -102,7 +123,6 @@ Backend Monolith (Node.js + Express)
   └── /api/v2/fin/*              → Financial, Ledger, Invoices
   └── /api/v2/bi/*               → Analytics, DWH, AI Predictions
   └── /api/v2/strategy/*         → OKRs, Pillars, Check-ins
-  └── /api/v2/solar/*            → Engineering Engine
   └── /api/v2/audit/*            → Event Sourcing, Trails
   └── /api/v2/core/*             → Core & Shared Services
   └── /api/v2/:resource          → Universal CRUD (GET only, RLS-wrapped)

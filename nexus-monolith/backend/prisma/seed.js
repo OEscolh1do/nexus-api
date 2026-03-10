@@ -145,6 +145,21 @@ async function main() {
     }
   });
 
+  const hashedCeoPassword = await bcrypt.hash('neonorte2026', 10);
+
+  const ceo = await prisma.user.create({
+    data: {
+      username: 'CEO',
+      password: hashedCeoPassword,
+      fullName: 'CEO Neonorte',
+      role: 'C_LEVEL',
+      orgUnitId: neonorte.id,
+      badgeId: 'CEO-001',
+      jobTitle: 'Chief Executive Officer',
+      hierarchyLevel: 'C-LEVEL'
+    }
+  });
+
   const engineer = await prisma.user.create({
     data: {
       username: 'engenheiro',
@@ -420,7 +435,7 @@ async function main() {
   console.log('   - 4 OrgUnits criadas');
   console.log('   - 2 Programas criados');
   console.log('   - 2 Pipelines (com 8 estágios)');
-  console.log('   - 3 Usuários criados (login: tecnologianeonorte@gmail.com, senha: bud4X891fd)');
+  console.log('   - 4 Usuários criados (login: tecnologianeonorte@gmail.com, senha: bud4X891fd | login: CEO, senha: neonorte2026)');
   console.log('   - 4 Estratégias criadas (hierarquia Pilar > Objetivo > Iniciativa)');
   console.log('   - 3 Key Results criados');
   console.log('   - 2 Projetos criados');

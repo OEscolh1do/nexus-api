@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { fetchNavigation, updateNavigation } from "@/lib/navigation";
-// import { Button } from "@/components/ui/mock-components"; // Unused
 import type { NavigationGroup } from "@/types/navigation";
-import { Save, AlertTriangle, Plus, Trash } from "lucide-react";
+import { Save, AlertTriangle, Plus, Trash, Settings, CheckCircle2, GripVertical } from "lucide-react";
+import clsx from "clsx";
 
 const MODULES = ["OPS", "COMMERCIAL", "EXECUTIVE"];
 
@@ -20,19 +20,13 @@ export default function NavigationSettings() {
       const data = await fetchNavigation(selectedModule);
       setGroups(data);
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message || "Falha ao carregar");
-      } else {
-        setError("Erro desconhecido");
-      }
+      setError(err instanceof Error ? err.message : "Erro desconhecido");
     } finally {
       setLoading(false);
     }
   }, [selectedModule]);
 
-  useEffect(() => {
-    loadNavigation();
-  }, [loadNavigation]);
+  useEffect(() => { loadNavigation(); }, [loadNavigation]);
 
   async function handleSave() {
     setLoading(true);
@@ -42,11 +36,7 @@ export default function NavigationSettings() {
       await updateNavigation(selectedModule, groups);
       setSuccess("Navegação atualizada com sucesso!");
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message || "Falha ao salvar");
-      } else {
-        setError("Erro desconhecido");
-      }
+      setError(err instanceof Error ? err.message : "Erro desconhecido");
     } finally {
       setLoading(false);
     }
@@ -64,29 +54,18 @@ export default function NavigationSettings() {
     setGroups(newGroups);
   };
 
-  // Simple add/remove logic
   const addGroup = () => {
-    setGroups([...groups, {
-      title: "Novo Grupo",
-      order: groups.length + 1,
-      items: []
-    }]);
+    setGroups([...groups, { title: "Novo Grupo", order: groups.length + 1, items: [] }]);
   };
 
   const removeGroup = (index: number) => {
     if (!confirm("Excluir grupo e todos os itens?")) return;
-    const newGroups = groups.filter((_, i) => i !== index);
-    setGroups(newGroups);
+    setGroups(groups.filter((_, i) => i !== index));
   };
 
   const addItem = (gIndex: number) => {
     const newGroups = [...groups];
-    newGroups[gIndex].items.push({
-      label: "Novo Item",
-      path: "/path",
-      icon: "Target",
-      order: newGroups[gIndex].items.length + 1
-    });
+    newGroups[gIndex].items.push({ label: "Novo Item", path: "/path", icon: "Target", order: newGroups[gIndex].items.length + 1 });
     setGroups(newGroups);
   };
 
@@ -96,20 +75,30 @@ export default function NavigationSettings() {
     setGroups(newGroups);
   };
 
-
   return (
-    <div className="p-8 max-w-5xl mx-auto bg-slate-50 min-h-screen">
-      <header className="mb-8 flex justify-between items-center">
+    <div className="p-8 max-w-5xl mx-auto min-h-screen">
+      <header className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Gerenciador de Navegação</h1>
-          <p className="text-slate-500">Personalize os menus dos módulos</p>
+          <div className="flex items-center gap-2.5 mb-1">
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Gerenciador de Navegação</h1>
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 rounded-full">
+              <Settings className="w-3 h-3 text-indigo-500" />
+              <span className="text-[11px] font-bold text-indigo-600">Editor</span>
+            </div>
+          </div>
+          <p className="text-slate-500 text-[14px]">Personalize os menus dos módulos</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-1.5 bg-slate-100 p-1 rounded-xl">
           {MODULES.map(m => (
             <button
               key={m}
               onClick={() => setSelectedModule(m)}
-              className={`px-4 py-2 rounded font-medium ${selectedModule === m ? 'bg-orange-600 text-white' : 'bg-white text-slate-600 border'}`}
+              className={clsx(
+                "px-4 py-2 rounded-lg text-[13px] font-semibold transition-all duration-200",
+                selectedModule === m
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700'
+              )}
             >
               {m}
             </button>
@@ -118,87 +107,92 @@ export default function NavigationSettings() {
       </header>
 
       {error && (
-        <div className="bg-red-100 text-red-800 p-4 rounded mb-4 flex items-center gap-2">
-          <AlertTriangle size={16} /> {error}
+        <div className="mb-4 p-3.5 bg-rose-50 border border-rose-200/80 text-rose-700 rounded-xl flex items-center gap-2.5 text-[13px] font-medium">
+          <AlertTriangle size={16} className="shrink-0" /> {error}
         </div>
       )}
 
       {success && (
-        <div className="bg-green-100 text-green-800 p-4 rounded mb-4">
-          {success}
+        <div className="mb-4 p-3.5 bg-emerald-50 border border-emerald-200/80 text-emerald-700 rounded-xl flex items-center gap-2.5 text-[13px] font-medium">
+          <CheckCircle2 size={16} className="shrink-0" /> {success}
         </div>
       )}
 
-      {loading && <p>Carregando...</p>}
+      {loading && (
+        <div className="space-y-4 mb-4">
+          {[1, 2].map(i => <div key={i} className="h-48 bg-white rounded-xl border border-slate-200/60 animate-pulse"></div>)}
+        </div>
+      )}
 
-      <div className="space-y-6">
+      <div className="space-y-5">
         {groups.sort((a, b) => a.order - b.order).map((group, gIndex) => (
-          <div key={gIndex} className="bg-white p-6 rounded shadow border border-slate-200">
-            <div className="flex gap-4 mb-4 items-center bg-slate-50 p-3 rounded">
+          <div key={gIndex} className="bg-white rounded-xl border border-slate-200/60 overflow-hidden">
+            {/* Group header */}
+            <div className="flex gap-4 items-center bg-slate-50/80 p-4 border-b border-slate-100">
+              <GripVertical className="w-4 h-4 text-slate-300 shrink-0 cursor-grab" />
               <div className="flex-1">
-                <label className="text-xs font-bold text-slate-500 uppercase">Título do Grupo</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Título do Grupo</label>
                 <input
                   value={group.title}
                   onChange={e => handleGroupChange(gIndex, 'title', e.target.value)}
-                  className="w-full border p-1 rounded"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-[13px] mt-1 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-300 transition-all"
                 />
               </div>
               <div className="w-20">
-                <label className="text-xs font-bold text-slate-500 uppercase">Ordem</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ordem</label>
                 <input
                   type="number"
                   value={group.order}
                   onChange={e => handleGroupChange(gIndex, 'order', parseInt(e.target.value))}
-                  className="w-full border p-1 rounded"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-[13px] mt-1 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-300 transition-all"
                 />
               </div>
-              <div className="pt-4">
-                <button onClick={() => removeGroup(gIndex)} className="text-red-500 hover:bg-red-50 p-2 rounded">
-                  <Trash size={16} />
-                </button>
-              </div>
+              <button onClick={() => removeGroup(gIndex)} className="text-slate-400 hover:text-rose-500 hover:bg-rose-50 p-2 rounded-lg transition-all duration-200 mt-4">
+                <Trash size={14} />
+              </button>
             </div>
 
-            <div className="pl-6 border-l-2 border-slate-100 space-y-3">
+            {/* Items */}
+            <div className="p-4 pl-8 border-l-2 border-slate-100 ml-4 space-y-2">
               {group.items.sort((a, b) => a.order - b.order).map((item, iIndex) => (
-                <div key={iIndex} className="flex gap-3 items-center">
+                <div key={iIndex} className="flex gap-2.5 items-center group">
                   <input
                     value={item.label}
                     placeholder="Rótulo"
                     onChange={e => handleItemChange(gIndex, iIndex, 'label', e.target.value)}
-                    className="border p-1 rounded flex-1"
+                    className="border border-slate-200 rounded-lg px-3 py-1.5 flex-1 text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-300 transition-all"
                   />
                   <input
                     value={item.path}
                     placeholder="Caminho"
                     onChange={e => handleItemChange(gIndex, iIndex, 'path', e.target.value)}
-                    className="border p-1 rounded flex-1"
+                    className="border border-slate-200 rounded-lg px-3 py-1.5 flex-1 text-[13px] font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-300 transition-all"
                   />
                   <input
                     value={item.icon}
                     placeholder="Ícone (Lucide)"
                     onChange={e => handleItemChange(gIndex, iIndex, 'icon', e.target.value)}
-                    className="border p-1 rounded w-32"
+                    className="border border-slate-200 rounded-lg px-3 py-1.5 w-28 text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-300 transition-all"
                   />
                   <input
                     type="number"
                     value={item.order}
                     onChange={e => handleItemChange(gIndex, iIndex, 'order', parseInt(e.target.value))}
-                    className="border p-1 rounded w-16"
+                    className="border border-slate-200 rounded-lg px-3 py-1.5 w-14 text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-300 transition-all"
                   />
-                  <button onClick={() => removeItem(gIndex, iIndex)} className="text-red-400">
-                    <Trash size={14} />
+                  <button onClick={() => removeItem(gIndex, iIndex)} className="text-slate-300 hover:text-rose-500 p-1.5 rounded-lg transition-all opacity-0 group-hover:opacity-100">
+                    <Trash size={13} />
                   </button>
                 </div>
               ))}
-              <button onClick={() => addItem(gIndex)} className="text-sm text-blue-600 flex items-center gap-1 mt-2">
-                <Plus size={14} /> Adicionar Item
+              <button onClick={() => addItem(gIndex)} className="text-[12px] text-indigo-600 hover:text-indigo-700 flex items-center gap-1 mt-2 font-semibold hover:bg-indigo-50 px-2 py-1 rounded-lg transition-all">
+                <Plus size={13} /> Adicionar Item
               </button>
             </div>
           </div>
         ))}
 
-        <button onClick={addGroup} className="w-full py-4 border-2 border-dashed border-slate-300 text-slate-500 rounded hover:bg-slate-50 font-medium">
+        <button onClick={addGroup} className="w-full py-4 border-2 border-dashed border-slate-200 text-slate-400 rounded-xl hover:bg-slate-50 hover:border-slate-300 hover:text-slate-500 font-medium text-[13px] transition-all duration-200">
           + Adicionar Grupo
         </button>
       </div>
@@ -207,12 +201,11 @@ export default function NavigationSettings() {
         <button
           onClick={handleSave}
           disabled={loading}
-          className="flex items-center gap-2 bg-slate-900 text-white px-6 py-3 rounded shadow-lg hover:bg-slate-800 disabled:opacity-50"
+          className="flex items-center gap-2 bg-gradient-to-r from-slate-800 to-slate-900 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:from-slate-900 hover:to-slate-950 disabled:opacity-50 text-[13px] font-semibold transition-all duration-200"
         >
-          <Save size={18} /> Salvar Alterações
+          <Save size={16} /> Salvar Alterações
         </button>
       </div>
-
     </div>
   );
 }

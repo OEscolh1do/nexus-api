@@ -89,7 +89,6 @@ model Project {
   endDate            DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @default(now()) @updatedAt
-  proposalId         String?   @unique
   tenantId           String    @default("default-tenant-001")
   clientId           String? // B2B: B2B Client evaluating the Project
 
@@ -97,7 +96,6 @@ model Project {
   client   User?             @relation("ProjectClient", fields: [clientId], references: [id])
   tasks    OperationalTask[]
   manager  User?             @relation("ProjectManager", fields: [managerId], references: [id])
-  proposal SolarProposal?    @relation(fields: [proposalId], references: [id])
   strategy Strategy?         @relation(fields: [strategyId], references: [id])
   risks    Risk[]
   Budget   Budget?
@@ -427,7 +425,6 @@ model Lead {
   owner        User?             @relation("LeadOwner", fields: [ownerId], references: [id])
   interactions LeadInteraction[]
   Opportunity  Opportunity[]
-  proposals    SolarProposal[]
 
   @@index([tenantId])
   @@index([ownerId])
@@ -509,23 +506,7 @@ model LeadInteraction {
   @@index([leadId])
 }
 
-model SolarProposal {
-  id             String   @id @default(cuid())
-  leadId         String
-  name           String
-  status         String   @default("DRAFT")
-  totalValue     Float
-  systemSize     Float
-  paybackYears   Float
-  monthlySavings Float
-  proposalData   String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @default(now()) @updatedAt
-  project        Project?
-  lead           Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
-  @@index([leadId])
-}
 
 model HRLeave {
   id          String   @id @default(cuid())

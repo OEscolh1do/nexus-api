@@ -29,7 +29,7 @@ export const StrategyFormModal: React.FC<StrategyFormModalProps> = ({ isOpen, on
 
   React.useEffect(() => {
     // Fetch users for the owner select
-    api.get('/users').then(res => {
+    api.get('/iam/users').then(res => {
       setUsers(res.data?.data || []);
     }).catch(console.error);
   }, []);

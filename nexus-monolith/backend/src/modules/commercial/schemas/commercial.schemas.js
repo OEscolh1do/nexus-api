@@ -13,11 +13,11 @@ const CreateLeadSchema = z.object({
   phone: z.string().min(10, "Telefone inválido"),
   source: LeadSourceEnum.default("WEB"),
   notes: z.string().optional(),
-  
+
   // Endereço e Perfil
   city: z.string().optional(),
   state: z.string().length(2).optional(),
-  
+
   // Campos de Negócio/Origem
   academyOrigin: z.string().optional(),
   technicalProfile: z.string().optional(),
@@ -53,7 +53,7 @@ const QuoteStatusEnum = z.enum(["DRAFT", "SENT", "NEGOTIATION", "APPROVED", "REJ
 // Schema detalhado para dados solares
 const SolarDataSchema = z.object({
   version: z.string().default("1.0"),
-  
+
   // Dados de Entrada (InputForm)
   inputData: z.object({
     clientName: z.string().optional(),
@@ -73,7 +73,7 @@ const SolarDataSchema = z.object({
     panelModel: z.string().optional(),
     inverterModel: z.string().optional(),
   }).passthrough().optional(),
-}).passthrough(); 
+}).passthrough();
 
 const CreateQuoteSchema = z.object({
   leadId: z.string().uuid("Lead ID inválido"),
@@ -88,6 +88,31 @@ const UpdateQuoteSchema = CreateQuoteSchema.partial().extend({
   status: QuoteStatusEnum.optional(),
 });
 
+// ==========================================
+// OPPORTUNITY (DEAL) SCHEMAS
+// ==========================================
+const OpportunityStatusEnum = z.enum([
+  "LEAD_QUALIFICATION",
+  "VISIT_SCHEDULED",
+  "TECHNICAL_VISIT_DONE",
+  "PROPOSAL_GENERATED",
+  "NEGOTIATION",
+  "CONTRACT_SENT",
+  "CLOSED_WON",
+  "CLOSED_LOST"
+]);
+
+const CreateOpportunitySchema = z.object({
+  title: z.string().min(3, "Título deve ter no mínimo 3 caracteres"),
+  leadId: z.string().uuid("Lead ID inválido"),
+  missionId: z.string().uuid().optional().nullable(),
+  estimatedValue: z.number().nonnegative().default(0),
+  probability: z.number().min(0).max(100).default(10),
+  status: OpportunityStatusEnum.default("LEAD_QUALIFICATION")
+}).strict();
+
+const UpdateOpportunitySchema = CreateOpportunitySchema.partial();
+
 module.exports = {
   CreateLeadSchema,
   UpdateLeadSchema,
@@ -95,5 +120,8 @@ module.exports = {
   CreateQuoteSchema,
   UpdateQuoteSchema,
   LeadStatusEnum,
-  QuoteStatusEnum
+  QuoteStatusEnum,
+  CreateOpportunitySchema,
+  UpdateOpportunitySchema,
+  OpportunityStatusEnum
 };

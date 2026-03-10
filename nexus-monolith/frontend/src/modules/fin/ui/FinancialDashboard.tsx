@@ -152,7 +152,7 @@ export function FinancialDashboard() {
                     </div>
                 </div>
 
-                <div className="h-[400px] w-full">
+                <div className="h-[400px] min-h-[400px] w-full min-w-full">
                     <ResponsiveContainer width="100%" height="100%">
                         <AreaChart
                             data={evmData}

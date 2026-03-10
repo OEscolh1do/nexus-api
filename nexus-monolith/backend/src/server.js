@@ -6,7 +6,6 @@ const prisma = require("./lib/prisma"); // Global RLS-aware Prisma Client
 
 // 🛡️ Segurança & Validação
 const { authenticateToken, protectProject } = require("./modules/iam/middleware/auth.middleware.js");
-const { validateSolarDetails } = require("./modules/solar/schemas/solar.schemas.js");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -33,7 +32,6 @@ const { getNavigation } = require("./modules/iam/ui/navigation.controller.js");
 app.get("/api/ui/navigation", authenticateToken, getNavigation);
 
 // --- MODULAR V2 API (Strangler Pattern) ---
-const solarRouter = require("./modules/solar/solar.controller");
 const finRouter = require("./modules/fin/controllers/fin.controller");
 const biRouter = require("./modules/bi/bi.controller");
 
@@ -77,22 +75,32 @@ app.get("/api/v2/projects", authenticateToken, OpsController.getAllProjects);
 app.use("/api/v2/fin", finRouter);
 app.use("/api/v2/bi", biRouter);
 
+// --- EXECUTIVE MODULE ROUTES ---
+const executiveRouter = require("./modules/executive/controllers/executive.controller");
+app.use("/api/v2/executive", executiveRouter);
+
 // --- COMMERCIAL MODULE ROUTES (Wave 11) ---
 const commercialController = require("./modules/commercial/controllers/commercial.controller");
 
 const commercialRoutes = express.Router(); // Renamed to avoid shadowing
+commercialRoutes.get("/activities", commercialController.getActivities);
 commercialRoutes.get("/pipeline", commercialController.getPipeline);
 commercialRoutes.get("/leads/kanban-stats", commercialController.getKanbanStats);
 commercialRoutes.post("/leads", commercialController.createLead);
 commercialRoutes.get("/leads", commercialController.getLeads);
 commercialRoutes.get("/leads/:id", commercialController.getLeadDetails);
 commercialRoutes.put("/leads/:id", commercialController.updateLead);
-commercialRoutes.post("/leads/:leadId/proposals", commercialController.createProposal);
 commercialRoutes.post("/leads/:id/interactions", commercialController.addInteraction);
 commercialRoutes.put("/leads/:id/assign-mission", commercialController.assignMission);
 
 commercialRoutes.get("/missions", commercialController.getMissions);
 commercialRoutes.post("/missions", commercialController.createMission);
+
+// Opportunities (Deals)
+commercialRoutes.get("/opportunities/stats", commercialController.getKanbanStats);
+commercialRoutes.post("/opportunities", commercialController.createOpportunity);
+commercialRoutes.get("/opportunities", commercialController.getOpportunities);
+commercialRoutes.put("/opportunities/:id", commercialController.updateOpportunity);
 
 app.use("/api/v2/commercial", authenticateToken, commercialRoutes);
 
@@ -153,17 +161,6 @@ const getModel = (resource) => {
 
   return key ? prisma[key] : null;
 };
-
-// --- STRATEGY CONTROLLER (Explicit & Validated) ---
-// StrategyController imported at top
-
-
-app.get("/api/v2/strategies", authenticateToken, StrategyController.getAll);
-app.post("/api/v2/strategies", authenticateToken, StrategyController.create);
-// app.get("/api/v2/strategies/:id", authenticateToken, StrategyController.getById); // Override generic manually if needed
-// app.put("/api/v2/strategies/:id", authenticateToken, StrategyController.update);
-// app.delete("/api/v2/strategies/:id", authenticateToken, StrategyController.delete);
-
 
 // READ ALL
 app.get("/api/v2/:resource", authenticateToken, async (req, res) => {

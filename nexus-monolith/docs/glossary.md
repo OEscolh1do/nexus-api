@@ -1,6 +1,6 @@
 # Glossário de Domínio (Ubiquitous Language)
 
-> **Atualizado:** 2026-03-09
+> **Atualizado:** 2026-03-10
 
 Este documento define os termos onipresentes no código e no negócio. A consistência destes nomes é vital.
 
@@ -20,11 +20,15 @@ Este documento define os termos onipresentes no código e no negócio. A consist
 - **Blueprint (Modelo):** Um conjunto pré-definido de tarefas para tipos de obra.
 - **ApprovalGate:** Ponto de governança que bloqueia progressão até aprovação por alçada (vinculado a Invoices e ChangeOrders).
 - **Risk:** Mapeamento formal de risco operacional num projeto com impacto e mitigação.
+- **DailyReport:** Relatório Diário de Obra (RDO) submetido apontando progresso, clima e ocorrências.
+- **Program:** Agrupamento de nível macro que agrega múltiplos Projects para visão executiva de portfólio.
+- **WorkflowRule:** Automagias do sistema baseadas em event-driven architecture (triggers para criação de tasks).
 
 ## 🟣 Strategy (Estratégia)
 
 - **Objective (Objetivo):** O que queremos alcançar (ex: "Aumentar Faturamento").
 - **KeyResult (Meta):** A quantificação do objetivo (ex: "R$ 10M em 2026").
+- **KeyResultCheckIn:** Registro periódico de progresso de um KeyResult. Contém valor anterior, novo valor e comentário opcional. Vinculado ao usuário que fez o check-in.
 - **Driver:** Um fator externo ou interno que influencia a estratégia.
 
 ## 🟠 Finance (Financeiro)
@@ -33,6 +37,7 @@ Este documento define os termos onipresentes no código e no negócio. A consist
 - **Budget:** Orçamento vinculado a um Project. Controla baseline de custos (Previsto vs Realizado).
 - **CostCenter / WBS:** Segmentação de custos por centro ou Work Breakdown Structure.
 - **Invoice:** Fatura ou Nota Fiscal submetida por um Vendor contra um Contract/Project.
+- **Transaction:** Registro de movimentação financeira (contas a pagar/receber) associada a um CostCenter ou Budget.
 
 ## 🏢 Enterprise (SaaS Multi-Tenant)
 
