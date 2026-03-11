@@ -123,12 +123,12 @@
         .kpi-value {
             font-size: 36px; font-weight: 900; letter-spacing: -0.03em;
             background: linear-gradient(135deg, #fff 30%, var(--text-dim));
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent;
             line-height: 1;
         }
-        .kpi-value.green { background: linear-gradient(135deg, var(--green), #73EB82); -webkit-background-clip: text; }
-        .kpi-value.amber { background: linear-gradient(135deg, var(--amber), #fbbf24); -webkit-background-clip: text; }
-        .kpi-value.red { background: linear-gradient(135deg, var(--red), #f87171); -webkit-background-clip: text; }
+        .kpi-value.green { background: linear-gradient(135deg, var(--green), #73EB82); -webkit-background-clip: text; background-clip: text; }
+        .kpi-value.amber { background: linear-gradient(135deg, var(--amber), #fbbf24); -webkit-background-clip: text; background-clip: text; }
+        .kpi-value.red { background: linear-gradient(135deg, var(--red), #f87171); -webkit-background-clip: text; background-clip: text; }
         .kpi-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 8px; font-weight: 600; }
         .kpi-sub { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
 
