@@ -1,0 +1,3 @@
+- **Performance:** Form-heavy UX/UI (Uso massivo de Hook Forms Zod).
+- **Tratamento Offline:** Lidar com formulários ou cache (Service Workers) preferencialmente para evitar perda de RDO em obras com internet ruim.
+- **Tema:** Light Mode Utilitário (Branco e tons de cinza com inputs bem limpos).

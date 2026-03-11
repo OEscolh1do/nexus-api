@@ -1,0 +1,2 @@
+- **Permissões:** Assumir severa desconfiança do cliente. Dados devem ser limitados no Frontend. Chamadas API sempre exigem filtro do \	enant_id\ e verificação de propriedade de projeto.
+- **Estética:** Manter fundo claro (\g-slate-50\) e aderir estritamente à brand guideline Neonorte B2B.

@@ -1,0 +1,3 @@
+- **Tipagem:** TypeScript rigoroso obrigatório.
+- **UX/UI:** Base clara ou noturna amigável para aprendizado (foco no conteúdo em vídeo/texto).
+- **Sem Login Nativo:** Capturar Token de Sessão via SSO Bridge na inicialização (\App.tsx\).

@@ -1,0 +1,3 @@
+- **Framework:** React Sênior (Hooks isolados, componentes funcionais puros).
+- **Styling:** TailwindCSS estrito. Proibido CSS in-line. Padrão estético 'Premium Glassmorphism' (Dark Mode).
+- **Data Fetching:** Abstraído em Services. Chamadas Axios devem apontar para a variável de ambiente de API injetada pelo Hub.
