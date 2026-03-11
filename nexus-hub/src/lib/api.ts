@@ -1,7 +1,17 @@
 import axios from "axios";
 
+// Garante que o /api/v2 seja anexado caso a URL de ambiente venha "limpa" (ex: https://fly.dev)
+const getBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl) {
+    // Se quem cadastrou a .env esqueceu o /api/v2 no final, nós colocamos
+    return envUrl.endsWith('/api/v2') ? envUrl : `${envUrl}/api/v2`;
+  }
+  return "http://localhost:3001/api/v2"; // Fallback Local
+};
+
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3001/api/v2", // Aponta para o Backend Mestre do Nexus
+  baseURL: getBaseUrl(),
 });
 
 // Interceptor para adicionar o token JWT
