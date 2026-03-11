@@ -12,6 +12,7 @@ const getBaseUrl = () => {
 
 export const api = axios.create({
   baseURL: getBaseUrl(),
+  withCredentials: true,
 });
 
 // Interceptor para adicionar o token JWT

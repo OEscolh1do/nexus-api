@@ -1,5 +1,6 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
+import { api } from "@/lib/api"
 import { ProjectCockpit } from "@/modules/ops/ui/ProjectCockpit"
 import { ProjectBoard } from "@/modules/ops/ui/ProjectBoard"
 import { FinancialDashboard } from "@/modules/fin/ui/FinancialDashboard"
@@ -31,32 +32,48 @@ import { ApprovalCenterView } from "@/views/executive/ApprovalCenterView"
 // Funções e Wrappers Legados de APPs e Extranets foram removidas para Micro-frontends.
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    // URL JWT Trapping (SSO Pass-Through)
-    const params = new URLSearchParams(window.location.search);
-    const sessionToken = params.get("session");
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
-    if (sessionToken) {
-      localStorage.setItem("token", sessionToken);
-      // Clean the URL so the token doesn't stay visible
-      window.history.replaceState({}, document.title, window.location.pathname);
-      return true;
-    }
+  useEffect(() => {
+    const initSilentAuth = async () => {
+      // 1. Tenta Auth via Storage herdado (Compatibilidade Temporal)
+      const token = localStorage.getItem("token");
+      if (token) {
+        setIsAuthenticated(true);
+        return;
+      }
 
-    const token = localStorage.getItem("token");
-    return !!token;
-  });
+      // 2. 🛡️ SSO Auth Bridge (Fase 13): "Recuperação Cega"
+      // Se não há token, pede ao server para verificar se há Cookie válido
+      try {
+        await api.get("/iam/me");
+        setIsAuthenticated(true);
+      } catch (error) {
+        // Redireciona o usuário rejeitado direto para o Hub Central
+        window.location.href = import.meta.env.VITE_HUB_URL || "http://localhost:5175";
+      }
+    };
+
+    initSilentAuth();
+  }, []);
 
   const logout = () => {
     localStorage.removeItem("token");
     setIsAuthenticated(false);
+    window.location.href = import.meta.env.VITE_HUB_URL || "http://localhost:5175";
+  };
+
+  // Tela preta rápida de transição do SSO para evitar Flashes
+  if (isAuthenticated === null) {
+      return (
+        <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#050510]">
+            <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p className="text-slate-500 text-xs tracking-widest uppercase font-semibold">Validando Sessão Segura...</p>
+        </div>
+      );
   }
 
-  if (!isAuthenticated) {
-    // Redireciona usuários deslogados do ERP direto para o Hub Central
-    window.location.href = import.meta.env.VITE_HUB_URL || "http://localhost:5175";
-    return null;
-  }
+  if (!isAuthenticated) return null;
 
   return (
     <BrowserRouter>

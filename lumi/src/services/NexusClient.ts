@@ -46,7 +46,8 @@ export class NexusClient {
     try {
       const response = await fetch(`${API_URL}/clients`, {
         method: 'GET',
-        headers: this.getHeaders()
+        headers: this.getHeaders(),
+        credentials: 'include'
       });
 
       if (!response.ok) {
@@ -69,6 +70,7 @@ export class NexusClient {
       const response = await fetch(`${API_URL}/proposals`, {
         method: 'POST',
         headers: this.getHeaders(),
+        credentials: 'include',
         body: JSON.stringify(payload)
       });
 

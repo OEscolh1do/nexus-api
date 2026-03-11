@@ -101,7 +101,6 @@ const appGroups = [
 ];
 
 export function AppSwitcher({ onLogout }: { onLogout: () => void }) {
-    const getToken = () => localStorage.getItem("token") || "";
 
     const getRedirectUrl = (modId: string, path: string) => {
         let targetBase = import.meta.env.VITE_ERP_URL || "http://localhost:5173"; // ERP 
@@ -109,9 +108,9 @@ export function AppSwitcher({ onLogout }: { onLogout: () => void }) {
         if (modId === 'lumi') targetBase = import.meta.env.VITE_LUMI_URL || "http://localhost:5174"; // Lumi
         if (modId === 'academy') targetBase = import.meta.env.VITE_ACADEMY_URL || "http://localhost:5176"; // Academy
 
-        const token = getToken();
-        // Append session token to URL parameters
-        return `${targetBase}${path}?session=${token}`;
+        // 🛡️ B2P/SSO Phase 13: O AuthBridge via Cookie dispensa tokens na URL
+        // A segurança está delegada ao Secure HttpOnly Cookie lido pelo servidor
+        return `${targetBase}${path}`;
     };
 
     return (
