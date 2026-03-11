@@ -4,12 +4,16 @@ Neonorte | Nexus 2.0 é um ecossistema modular para orquestração de negócios,
 
 ---
 
-## 🏗️ Estrutura do Projeto
+## 🏗️ Estrutura do Ecossistema (Hub & Spoke)
 
-O sistema está organizado em sub-pacotes dentro do diretório `nexus-core/`:
+O sistema foi desmonolitizado em pacotes e sub-portais independentes:
 
-- **Neonorte | Nexus Backend:** API Express com Prisma ORM (Porta 3001).
-- **Neonorte | Nexus Frontend:** Aplicação React 19 + Vite (Porta 3000).
+- 🚪 **Portal Central SSO (`nexus-hub`):** Gateway Universal e AppSwitcher.
+- 🏢 **Nexus ERP (`nexus-erp`):** O Core de Gestão e Operações. (Porta 3000)
+- ⚙️ **Nexus Backend (`nexus-api`):** API Express + Prisma. (Porta 3001)
+- ☀️ **Calculadora Lumi (`lumi`):** App Satélite de Engenharia Solar.
+- 🎓 **Nexus Academy (`neonorte-academy`):** Hub de Ensino corporativo.
+- 🤝 **Portais Extranet:** `nexus-client-portal` (B2B) e `nexus-vendor-portal` (B2P).
 - **Docker Stack:** MySQL 8.0 orquestrado via Docker Compose.
 
 ---
@@ -37,21 +41,27 @@ A forma recomendada de rodar o Neonorte | Nexus é via Docker Compose.
 
 ## 🛠️ Desenvolvimento Local (npm)
 
-Se preferir rodar sem containers (exceto o banco):
-
-### 1. Backend
+### 1. Backend (`nexus-api`)
 
 ```bash
-cd nexus-core/backend
+cd nexus-api
 npm install
 npx prisma generate
 npm run dev
 ```
 
-### 2. Frontend
+### 2. Frontend ERP (`nexus-erp`)
 
 ```bash
-cd nexus-core/frontend
+cd nexus-erp
+npm install
+npm run dev
+```
+
+### 3. Portal Hub (SSO Gateway)
+
+```bash
+cd nexus-hub
 npm install
 npm run dev
 ```

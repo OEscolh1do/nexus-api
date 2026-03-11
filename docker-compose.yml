@@ -16,7 +16,7 @@ services:
       - nexus_mysql_data:/var/lib/mysql
 
   backend:
-    build: ./nexus-core/backend
+    build: ./nexus-api
     container_name: nexus_backend
     ports:
       - "3001:3001"
@@ -27,11 +27,11 @@ services:
     depends_on:
       - mysql
     volumes:
-      - ./nexus-core/backend:/app
+      - ./nexus-api:/app
       - /app/node_modules
 
   frontend:
-    build: ./nexus-core/frontend
+    build: ./nexus-erp
     container_name: nexus_frontend
     ports:
       - "3000:3000"
@@ -40,7 +40,7 @@ services:
     depends_on:
       - backend
     volumes:
-      - ./nexus-core/frontend:/app
+      - ./nexus-erp:/app
       - /app/node_modules
 
 volumes:

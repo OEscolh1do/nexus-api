@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { ClientLogin } from './views/ClientLogin';
 import { LayoutDashboard, LogOut, CheckCircle2, Factory } from 'lucide-react';
@@ -7,29 +7,36 @@ function ClientDashboard({ onLogout, tenantId }: { onLogout: () => void, tenantI
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Header */}
-      <header className="bg-blue-600 text-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <LayoutDashboard className="w-6 h-6 text-white" />
-            <span className="font-bold text-lg tracking-wide">Nexus B2B <span className="text-blue-200 font-normal">| Portal do Cliente</span></span>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-blue-200 font-mono hidden sm:inline-block">Auth: {tenantId}</span>
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans relative overflow-hidden">
+      {/* Background Orbs Claro */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[100px]" />
+          <div className="absolute bottom-[20%] right-[-10%] w-[400px] h-[400px] bg-indigo-500/10 rounded-full blur-[120px]" />
+      </div>
+
+      {/* Header Glassmorphism Light */}
+      <header className="h-16 border-b border-slate-200/60 backdrop-blur-xl bg-white/70 flex items-center justify-between px-6 shrink-0 sticky top-0 z-10 w-full shadow-sm shadow-slate-200/30">
+        <div className="flex items-center gap-3">
+            <div className="w-1 h-5 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full"></div>
+            <h2 className="text-[16px] font-bold tracking-tight text-slate-800 flex items-center gap-2">
+                <LayoutDashboard className="w-5 h-5 text-blue-600" />
+                Nexus B2B <span className="text-slate-400 font-medium">| Portal do Cliente</span>
+            </h2>
+        </div>
+        <div className="flex items-center gap-4">
+            <span className="text-[12px] font-mono text-slate-400 font-medium bg-slate-100 px-2 py-1 rounded-md hidden sm:block">Auth: {tenantId}</span>
             <button
               onClick={onLogout}
-              className="flex items-center gap-2 text-sm text-blue-100 hover:text-white transition-colors"
+              className="flex items-center gap-2 text-[13px] font-bold text-slate-500 hover:text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-full transition-colors uppercase tracking-wider"
             >
               <LogOut className="w-4 h-4" /> Sair
             </button>
-          </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-2xl font-bold text-slate-900 mb-6">Meus Projetos</h1>
+      <main className="relative z-10 flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+        <h1 className="text-2xl font-bold text-slate-900 mb-6 drop-shadow-sm">Meus Projetos</h1>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
@@ -72,7 +79,21 @@ function ClientDashboard({ onLogout, tenantId }: { onLogout: () => void, tenantI
 
 function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('client_token'));
-  const [tenantId, setTenantId] = useState<string | null>(localStorage.getItem('client_tenant_id'));
+  const [tenantId, setTenantId] = useState<string | null>(localStorage.getItem('client_tenant_id') || "external-guest");
+
+  useEffect(() => {
+    // URL JWT Trapping (SSO) do Hub Central
+    const params = new URLSearchParams(window.location.search);
+    const sessionToken = params.get("session");
+    
+    // Portal de cliente ainda usa o formato ?session= para token
+    if (sessionToken) {
+      localStorage.setItem("client_token", sessionToken);
+      setToken(sessionToken);
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   const handleLogin = (jwt: string, tId: string) => {
     localStorage.setItem('client_token', jwt);
@@ -84,8 +105,9 @@ function App() {
   const handleLogout = () => {
     localStorage.removeItem('client_token');
     localStorage.removeItem('client_tenant_id');
-    setToken(null);
     setTenantId(null);
+    // Redirecionamento forçado para o Hub em caso de Logout
+    window.location.href = import.meta.env.VITE_HUB_URL || "http://localhost:5175";
   };
 
   if (!token) {
