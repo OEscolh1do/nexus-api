@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neonorte Strategic Command Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        neonorte: {
+                            purple: '#64147D',
+                            darkPurple: '#050510',
+                            panel: '#0a0a16',
+                            green: '#05CD46',
+                            amber: '#f59e0b',
+                            red: '#ef4444'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #050510;
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+
+        /* Ambient Glows */
+        .glow-core {
+            box-shadow: 0 0 80px 20px rgba(5, 205, 70, 0.2);
+        }
+        .glow-panel {
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.8);
+        }
+
+        /* Glassmorphism */
+        .glass {
+            background: rgba(10, 10, 22, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* SVG Paths Animation */
+        .data-stream {
+            stroke-dasharray: 10;
+            animation: dash 20s linear infinite;
+        }
+        @keyframes dash {
+            to { stroke-dashoffset: -1000; }
+        }
+
+        /* Circular Progress (Rings) */
+        .circular-chart { display: block; margin: 0 auto; max-width: 80%; max-height: 250px; }
+        .circle-bg { fill: none; stroke: rgba(255,255,255,0.05); stroke-width: 2.5; }
+        .circle { 
+            fill: none; stroke-width: 2.5; stroke-linecap: round;
+            animation: progress 2s ease-out forwards;
+        }
+        @keyframes progress {
+            0% { stroke-dasharray: 0 100; }
+        }
+
+        /* TRL Colors */
+        .trl-8, .trl-7 { stroke: #05CD46; filter: drop-shadow(0 0 4px rgba(5,205,70,0.5)); }
+        .trl-4 { stroke: #f59e0b; filter: drop-shadow(0 0 4px rgba(245,158,11,0.5)); }
+
+        .text-trl-high { color: #05CD46; text-shadow: 0 0 10px rgba(5,205,70,0.3); }
+        .text-trl-mid { color: #f59e0b; text-shadow: 0 0 10px rgba(245,158,11,0.3); }
+
+        .hex-bg {
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0l25.98 15v30L30 60 4.02 45V15z' fill-opacity='0.02' fill='%23ffffff' fill-rule='evenodd'/%3E%3C/svg%3E");
+        }
+    </style>
+</head>
+<body class="hex-bg pb-20">
+
+    <!-- Hero / Header Section -->
+    <nav class="glass sticky top-0 z-50 px-8 py-4 flex items-center justify-between border-b-0 border-white/5 shadow-2xl">
+        <div class="flex items-center gap-3">
+            <i data-lucide="shield" class="text-neonorte-green w-8 h-8 drop-shadow-[0_0_8px_rgba(5,205,70,0.5)]"></i>
+            <div>
+                <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                    NEONORTE STRATEGIC COMMAND HUB
+                </h1>
+                <p class="text-xs text-slate-400 uppercase tracking-widest">Architecture TRL Observatory</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-4 text-sm font-medium">
+            <span class="flex items-center gap-2 text-slate-300">
+                <span class="w-2 h-2 rounded-full border border-neonorte-green bg-neonorte-green/50 animate-pulse"></span>
+                System Live
+            </span>
+            <span class="text-slate-500 bg-white/5 py-1 px-3 rounded-full border border-white/10">Março/2026</span>
+        </div>
+    </nav>
+
+    <main class="max-w-[1400px] mx-auto px-6 mt-12 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        <!-- INFOGRÁFICO 1: THE NEXUS CORE (Hub & Spoke Topology) -->
+        <section class="lg:col-span-12 glass rounded-3xl p-8 relative overflow-hidden glow-panel border border-white/10">
+            <div class="absolute inset-0 bg-gradient-to-br from-neonorte-purple/10 to-transparent pointer-events-none"></div>
+            
+            <div class="mb-8 relative z-10 text-center">
+                <h2 class="text-3xl font-bold tracking-tight mb-2 drop-shadow-md text-transparent bg-clip-text bg-gradient-to-r from-slate-100 to-slate-400">The Nexus Core</h2>
+                <p class="text-slate-400 font-light">Uma infraestrutura em nuvem, descentralizada e resiliente orientada pela API Central.</p>
+            </div>
+
+            <div class="relative w-full h-[400px] flex items-center justify-center mt-4">
+                <!-- SVG Network Lines -->
+                <svg class="absolute inset-0 w-full h-full pointer-events-none" style="z-index:1;">
+                    <g stroke="rgba(5, 205, 70, 0.4)" stroke-width="2" fill="none" class="data-stream">
+                        <path d="M 50% 50% Q 25% 25% 20% 15%"></path>
+                        <path d="M 50% 50% Q 50% 20% 50% 10%"></path>
+                        <path d="M 50% 50% Q 75% 25% 80% 15%"></path>
+                        <path d="M 50% 50% Q 25% 75% 20% 85%"></path>
+                        <path d="M 50% 50% Q 50% 80% 50% 90%"></path>
+                        <path d="M 50% 50% Q 75% 75% 80% 85%"></path>
+                    </g>
+                </svg>
+
+                <!-- Center Core (API) -->
+                <div class="relative z-10 w-32 h-32 bg-[#022A12] border border-neonorte-green rounded-full flex flex-col items-center justify-center glow-core animate-[pulse_4s_ease-in-out_infinite]">
+                    <i data-lucide="database" class="text-neonorte-green w-8 h-8 mb-1"></i>
+                    <span class="font-bold text-sm text-neonorte-green">Nexus API</span>
+                    <span class="text-[10px] text-neonorte-green/70">TRL 8</span>
+                </div>
+
+                <!-- Orbiting Nodes (Spokes) -->
+                <!-- Top Left: ERP -->
+                <div class="absolute top-[10%] left-[15%] z-10 glass px-6 py-4 rounded-2xl flex flex-col items-center border-t-2 border-t-neonorte-green w-40 text-center transition-transform hover:-translate-y-2">
+                    <i data-lucide="layout-dashboard" class="w-6 h-6 text-neonorte-green mb-2"></i>
+                    <span class="font-bold text-sm">Nexus ERP</span>
+                    <span class="text-xs text-neonorte-green font-medium">TRL 7</span>
+                </div>
+                <!-- Top Center: HUB -->
+                <div class="absolute top-[0%] left-1/2 -translate-x-1/2 z-10 glass px-6 py-4 rounded-2xl flex flex-col items-center border-t-2 border-t-neonorte-green w-40 text-center transition-transform hover:-translate-y-2">
+                    <i data-lucide="door-open" class="w-6 h-6 text-neonorte-green mb-2"></i>
+                    <span class="font-bold text-sm">Nexus Hub</span>
+                    <span class="text-xs text-neonorte-green font-medium">TRL 7</span>
+                </div>
+                <!-- Top Right: Lumi -->
+                <div class="absolute top-[10%] right-[15%] z-10 glass px-6 py-4 rounded-2xl flex flex-col items-center border-t-2 border-t-neonorte-green w-40 text-center transition-transform hover:-translate-y-2">
+                    <i data-lucide="sun" class="w-6 h-6 text-neonorte-green mb-2"></i>
+                    <span class="font-bold text-sm">Lumi Solar</span>
+                    <span class="text-xs text-neonorte-green font-medium">TRL 7</span>
+                </div>
+                <!-- Bottom Left: Academy -->
+                <div class="absolute bottom-[10%] left-[15%] z-10 glass px-6 py-4 rounded-2xl flex flex-col items-center border-t-2 border-t-neonorte-amber w-40 text-center opacity-80 transition-transform hover:-translate-y-2">
+                    <i data-lucide="graduation-cap" class="w-6 h-6 text-neonorte-amber mb-2"></i>
+                    <span class="font-bold text-sm">Academy</span>
+                    <span class="text-xs text-neonorte-amber font-medium">TRL 4</span>
+                </div>
+                <!-- Bottom Center: Client Portal -->
+                <div class="absolute bottom-[0%] left-1/2 -translate-x-1/2 z-10 glass px-6 py-4 rounded-2xl flex flex-col items-center border-t-2 border-t-neonorte-amber w-40 text-center opacity-80 transition-transform hover:-translate-y-2">
+                    <i data-lucide="users" class="w-6 h-6 text-neonorte-amber mb-2"></i>
+                    <span class="font-bold text-sm text-slate-200">B2B Portal</span>
+                    <span class="text-xs text-neonorte-amber font-medium">TRL 4</span>
+                </div>
+                <!-- Bottom Right: Vendor Portal -->
+                <div class="absolute bottom-[10%] right-[15%] z-10 glass px-6 py-4 rounded-2xl flex flex-col items-center border-t-2 border-t-neonorte-amber w-40 text-center opacity-80 transition-transform hover:-translate-y-2">
+                    <i data-lucide="truck" class="w-6 h-6 text-neonorte-amber mb-2"></i>
+                    <span class="font-bold text-sm text-slate-200">Vendor Extranet</span>
+                    <span class="text-xs text-neonorte-amber font-medium">TRL 4</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- EIXO CENTRAL: Convergence & Progress -->
+        <section class="lg:col-span-8 flex flex-col gap-8">
+            
+            <!-- INFOGRÁFICO 3: THE PARALLEL SPOKE VISION -->
+            <div class="glass rounded-3xl p-8 border border-white/10 glow-panel">
+                <div class="flex items-center justify-between mb-8">
+                    <div>
+                        <h3 class="text-xl font-bold flex items-center gap-2">
+                            <i data-lucide="activity" class="text-neonorte-purple"></i>
+                            The Parallel Spoke Vision
+                        </h3>
+                        <p class="text-sm text-slate-400 mt-1">Nível de Maturidade Tecnológica (TRL) Desacoplada</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 md:grid-cols-6 gap-4 text-center">
+                    <!-- Spoke Item -->
+                    <div class="flex flex-col items-center">
+                        <svg viewBox="0 0 36 36" class="circular-chart mb-3 w-16 h-16">
+                            <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <path class="circle trl-8" stroke-dasharray="88, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <text x="18" y="22.5" class="text-[10px] font-bold fill-white" text-anchor="middle">8</text>
+                        </svg>
+                        <span class="text-xs font-semibold text-slate-200">API</span>
+                        <span class="text-[10px] text-neonorte-green">Operacional</span>
+                    </div>
+                    <!-- Spoke Item -->
+                    <div class="flex flex-col items-center">
+                        <svg viewBox="0 0 36 36" class="circular-chart mb-3 w-16 h-16">
+                            <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <path class="circle trl-7" stroke-dasharray="77, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <text x="18" y="22.5" class="text-[10px] font-bold fill-white" text-anchor="middle">7</text>
+                        </svg>
+                        <span class="text-xs font-semibold text-slate-200">Hub</span>
+                        <span class="text-[10px] text-neonorte-green">Beta Cloud</span>
+                    </div>
+                    <!-- Spoke Item -->
+                    <div class="flex flex-col items-center">
+                        <svg viewBox="0 0 36 36" class="circular-chart mb-3 w-16 h-16">
+                            <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <path class="circle trl-7" stroke-dasharray="77, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <text x="18" y="22.5" class="text-[10px] font-bold fill-white" text-anchor="middle">7</text>
+                        </svg>
+                        <span class="text-xs font-semibold text-slate-200">ERP</span>
+                        <span class="text-[10px] text-neonorte-green">Beta Cloud</span>
+                    </div>
+                    <!-- Spoke Item -->
+                    <div class="flex flex-col items-center">
+                        <svg viewBox="0 0 36 36" class="circular-chart mb-3 w-16 h-16">
+                            <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <path class="circle trl-7" stroke-dasharray="77, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <text x="18" y="22.5" class="text-[10px] font-bold fill-white" text-anchor="middle">7</text>
+                        </svg>
+                        <span class="text-xs font-semibold text-slate-200">Lumi</span>
+                        <span class="text-[10px] text-neonorte-green">Beta Cloud</span>
+                    </div>
+                    <!-- Spoke Item -->
+                    <div class="flex flex-col items-center">
+                        <svg viewBox="0 0 36 36" class="circular-chart mb-3 w-16 h-16">
+                            <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <path class="circle trl-4" stroke-dasharray="44, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <text x="18" y="22.5" class="text-[10px] font-bold fill-white" text-anchor="middle">4</text>
+                        </svg>
+                        <span class="text-xs font-semibold text-slate-200">Academy</span>
+                        <span class="text-[10px] text-neonorte-amber">Mockup</span>
+                    </div>
+                    <!-- Spoke Item -->
+                    <div class="flex flex-col items-center">
+                        <svg viewBox="0 0 36 36" class="circular-chart mb-3 w-16 h-16">
+                            <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <path class="circle trl-4" stroke-dasharray="44, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <text x="18" y="22.5" class="text-[10px] font-bold fill-white" text-anchor="middle">4</text>
+                        </svg>
+                        <span class="text-xs font-semibold text-slate-200">B2B/B2P</span>
+                        <span class="text-[10px] text-neonorte-amber">Lab</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GARGALO CRÍTICO -->
+            <div class="glass rounded-3xl p-8 border border-red-500/20 bg-red-500/5 relative overflow-hidden">
+                <div class="absolute right-0 top-0 w-32 h-32 bg-red-500/10 rounded-full blur-[50px]"></div>
+                
+                <div class="flex items-start gap-4">
+                    <div class="p-3 bg-red-500/10 rounded-xl border border-red-500/20 text-red-400">
+                        <i data-lucide="triangle-alert" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-100 flex items-center gap-2 mb-1">
+                            Risco Operacional Crítico (Gargalo Zero)
+                        </h3>
+                        <p class="text-sm text-slate-300 leading-relaxed max-w-2xl mb-4">
+                            O mecanismo de <strong>Single Sign-On (Auth Bridge)</strong> do `nexus-hub` em união com a API central. Se o Token JWT não transitar de forma impenetrável do Domínio de Login para os Spokes (ex: `erp` e `lumi`) usando protocolos resilientes cross-domain, a maturação dos módulos nativos trava em <strong>TRL 7 (Beta) indefinidamente</strong>.
+                        </p>
+                        
+                        <div class="inline-flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-400">
+                            <i data-lucide="lock" class="w-3.5 h-3.5"></i>
+                            Ação Requerida: Implementar Secure HttpOnly Flow
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- LATERAL DIREITA: Lumi Spotlight -->
+        <section class="lg:col-span-4 flex flex-col gap-8">
+            
+            <!-- INFOGRÁFICO 2: LUMI ENGINE -->
+            <div class="glass rounded-3xl p-1 relative overflow-hidden h-full flex flex-col group hover:shadow-[0_0_40px_rgba(5,205,70,0.15)] transition-all duration-500 border border-white/5">
+                <div class="absolute inset-0 bg-gradient-to-b from-transparent via-[#051510] to-[#022A12] pointer-events-none opacity-80 z-0"></div>
+                
+                <!-- Arte Abstrata (CSS) -->
+                <div class="relative z-10 h-48 w-full rounded-2xl overflow-hidden bg-[#030805] flex items-center justify-center p-6 border border-white/5">
+                    <div class="absolute inset-0 bg-gradient-to-r from-neonorte-green/5 to-transparent"></div>
+                    <!-- Data nodes -->
+                    <div class="w-full flex items-center justify-between">
+                        <div class="w-16 h-16 rounded-xl border border-neonorte-green/30 bg-neonorte-green/10 flex items-center justify-center relative">
+                            <i data-lucide="sun" class="w-8 h-8 text-neonorte-green opacity-80 backdrop-blur-sm"></i>
+                            <div class="absolute top-1/2 -right-8 w-8 h-px bg-neonorte-green/50 border-dashed border-b border-neonorte-green font-mono text-[8px] text-neonorte-green -translate-y-4">52kWp</div>
+                        </div>
+                        <div class="flex-1 h-px bg-gradient-to-r from-neonorte-green/50 to-emerald-400/50 mx-4 relative overflow-hidden">
+                            <div class="absolute inset-y-0 left-0 w-8 bg-white/40 blur-sm translate-x-[-100%] animate-[slide_2s_ease-in-out_infinite]"></div>
+                        </div>
+                        <div class="w-16 h-16 rounded-xl border border-emerald-400/30 bg-emerald-400/10 flex items-center justify-center relative">
+                            <i data-lucide="zap" class="w-8 h-8 text-emerald-400 drop-shadow-[0_0_5px_rgba(52,211,153,0.5)]"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="relative z-10 p-6 flex flex-col justify-between flex-1">
+                    <div>
+                        <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-neonorte-green/10 text-neonorte-green border border-neonorte-green/20 mb-3">
+                            TRL 7 • Spotlight
+                        </div>
+                        <h3 class="text-xl font-bold tracking-tight mb-2 text-white">Lumi Solar Engine</h3>
+                        <p class="text-sm text-slate-400 font-light max-w-[280px]">
+                            Operando como o primeiro "Spoke Perfeito" do ecossistema. Design System refatorado, cálculo matemático pesado injetado, 100% autônomo.
+                        </p>
+                    </div>
+                    
+                    <div class="mt-6 pt-6 border-t border-white/5 space-y-3">
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-slate-500">Isolamento Front-end</span>
+                            <span class="text-slate-200">Concluído</span>
+                        </div>
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-slate-500">Conexão API Base</span>
+                            <span class="text-neonorte-amber">Em Testes</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <script>
+        lucide.createIcons();
+    </script>
+    <style>
+        @keyframes slide {
+            100% { transform: translateX(300px); }
+        }
+    </style>
+</body>
+</html>
