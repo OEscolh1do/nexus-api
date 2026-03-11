@@ -21,7 +21,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Simulate User Session to bypass LoginView
       setUser({ id: "nexus-sso-user", email: "sso@neonorte", app_metadata: {}, user_metadata: {}, aud: "authenticated", created_at: "" } as User);
-      setUserRole('admin'); // Defaulting role to admin for SSO users temporarily for Dev
+      setUserRole('ADMIN'); // Defaulting role to admin for SSO users temporarily for Dev
       setLoading(false);
       return;
     }

@@ -1,4 +1,3 @@
-import React from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/mock-components";
 import { Briefcase, HardHat, GraduationCap, LayoutDashboard, LogOut, Blocks, Globe, BookOpen, Settings } from "lucide-react";

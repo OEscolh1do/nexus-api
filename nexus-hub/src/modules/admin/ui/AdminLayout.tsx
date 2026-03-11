@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { Settings, Users, ArrowLeft, ShieldCheck } from "lucide-react";
+import { Settings, ArrowLeft, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/mock-components";
 
 export function AdminLayout() {
