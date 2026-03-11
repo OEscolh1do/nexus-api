@@ -1,5 +1,5 @@
 ---
-current_trl: 7
+current_trl: 8
 last_updated: 2026-03-11
 module_role: Core Business Interno (Gestão Executiva, Comercial, Operações/Obras).
 ---
@@ -10,9 +10,10 @@ module_role: Core Business Interno (Gestão Executiva, Comercial, Operações/Ob
 - [x] Refatoração do Layout Global concluída (Navegação Excel-Like em abas).
 - [x] Comunicação Front/Back garantida via Client Abstractions (`api.ts`).
 - [x] Deploy operacional via Cloudflare Pages.
+- [x] "Silent Auth" configurado via Axios (Sessão herdada via Cookie seguro interceptado).
 
 ## Gargalos Atuais (Blockers)
-- O ERP baseava-se em estado interno de Auth; Agora que depende do `nexus-hub`, testes intensos de Q/A (Quality Assurance) fim a fim e injeção do token JWT simulado no novo fluxo são obrigatórios.
+- (Gargalo de Sessão Compartilhada Sanado). O bloqueio ao TRL 9 restringe-se a suítes de usabilidade (UAT) com Testes End-to-End E2E.
 
 ## Próximo Gate
-- **Ação Técnica:** Homologação completa dos fluxos de Criação de Leitura e Escrita de Entidades (Leads, Faturas) cruzando a nova infra de ambiente via Fly.io para atingir TRL 8.
+- **Ação Técnica:** Homologação completa dos fluxos de Criação, Leitura e Escrita de Entidades em massa em QA/Staging cruzando as instâncias para fixar Produção TRL 9.
