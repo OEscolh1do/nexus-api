@@ -1,348 +1,681 @@
 <!DOCTYPE html>
-<html lang="pt-BR" class="dark">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Neonorte Strategic Command Hub</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons -->
+    <title>Neonorte Centro de Comando Estratégico</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        neonorte: {
-                            purple: '#64147D',
-                            darkPurple: '#050510',
-                            panel: '#0a0a16',
-                            green: '#05CD46',
-                            amber: '#f59e0b',
-                            red: '#ef4444'
-                        }
-                    },
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    }
-                }
-            }
-        }
-    </script>
     <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --green: #05CD46;
+            --green-dim: rgba(5, 205, 70, 0.15);
+            --green-glow: rgba(5, 205, 70, 0.4);
+            --amber: #f59e0b;
+            --amber-dim: rgba(245, 158, 11, 0.15);
+            --red: #ef4444;
+            --purple: #64147D;
+            --purple-dim: rgba(100, 20, 125, 0.15);
+            --bg: #030308;
+            --panel: rgba(8, 8, 18, 0.75);
+            --border: rgba(255, 255, 255, 0.07);
+            --border-hover: rgba(255, 255, 255, 0.14);
+            --text: #e2e8f0;
+            --text-dim: #64748b;
+            --text-muted: #475569;
+            --radius: 20px;
+        }
+
         body {
-            background-color: #050510;
-            color: #ffffff;
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
             overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
         }
 
-        /* Ambient Glows */
-        .glow-core {
-            box-shadow: 0 0 80px 20px rgba(5, 205, 70, 0.2);
+        /* ── Ambient Background ── */
+        .ambient {
+            position: fixed; inset: 0; pointer-events: none; z-index: 0;
         }
-        .glow-panel {
-            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.8);
+        .ambient .orb {
+            position: absolute; border-radius: 50%; filter: blur(120px); opacity: 0.4;
+            animation: float 20s ease-in-out infinite alternate;
+        }
+        .ambient .orb-1 { width: 600px; height: 600px; background: var(--purple); top: -20%; left: -10%; animation-delay: 0s; }
+        .ambient .orb-2 { width: 500px; height: 500px; background: #0f172a; bottom: -15%; right: -5%; animation-delay: -7s; }
+        .ambient .orb-3 { width: 300px; height: 300px; background: var(--green); top: 40%; right: 10%; opacity: 0.08; animation-delay: -14s; }
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(30px, -40px) scale(1.1); }
         }
 
-        /* Glassmorphism */
+        /* ── Hex Grid Texture ── */
+        body::before {
+            content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0l25.98 15v30L30 60 4.02 45V15z' fill='none' stroke='%23ffffff' stroke-width='0.5'/%3E%3C/svg%3E");
+        }
+
+        /* ── Glass ── */
         .glass {
-            background: rgba(10, 10, 22, 0.7);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: var(--panel);
+            backdrop-filter: blur(24px) saturate(1.2);
+            -webkit-backdrop-filter: blur(24px) saturate(1.2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            transition: border-color 0.4s, box-shadow 0.4s;
+        }
+        .glass:hover {
+            border-color: var(--border-hover);
+            box-shadow: 0 8px 40px -12px rgba(0,0,0,0.6);
         }
 
-        /* SVG Paths Animation */
-        .data-stream {
-            stroke-dasharray: 10;
-            animation: dash 20s linear infinite;
+        /* ── Layout ── */
+        .page { position: relative; z-index: 1; max-width: 1440px; margin: 0 auto; padding: 0 24px 80px; }
+
+        /* ── Nav ── */
+        .nav {
+            position: sticky; top: 0; z-index: 50;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 16px 28px;
+            background: rgba(3, 3, 8, 0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
         }
-        @keyframes dash {
-            to { stroke-dashoffset: -1000; }
+        .nav-brand { display: flex; align-items: center; gap: 14px; }
+        .nav-brand .icon-wrap {
+            width: 40px; height: 40px; border-radius: 12px;
+            background: var(--green-dim); border: 1px solid rgba(5,205,70,0.25);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .nav-brand h1 { font-size: 15px; font-weight: 800; letter-spacing: -0.02em; color: #fff; }
+        .nav-brand p { font-size: 10px; color: var(--text-dim); letter-spacing: 0.12em; text-transform: uppercase; margin-top: 2px; }
+        .nav-right { display: flex; align-items: center; gap: 16px; font-size: 12px; }
+        .badge-live {
+            display: flex; align-items: center; gap: 6px; color: var(--text-dim);
+        }
+        .badge-live .dot {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: var(--green); box-shadow: 0 0 8px var(--green-glow);
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.8); }
+        }
+        .badge-date {
+            padding: 4px 14px; border-radius: 100px;
+            background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+            color: var(--text-muted); font-weight: 500;
         }
 
-        /* Circular Progress (Rings) */
-        .circular-chart { display: block; margin: 0 auto; max-width: 80%; max-height: 250px; }
-        .circle-bg { fill: none; stroke: rgba(255,255,255,0.05); stroke-width: 2.5; }
-        .circle { 
-            fill: none; stroke-width: 2.5; stroke-linecap: round;
-            animation: progress 2s ease-out forwards;
+        /* ── KPI Strip ── */
+        .kpi-strip {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+            margin-top: 32px;
         }
-        @keyframes progress {
-            0% { stroke-dasharray: 0 100; }
+        .kpi {
+            padding: 24px; text-align: center;
+        }
+        .kpi-value {
+            font-size: 36px; font-weight: 900; letter-spacing: -0.03em;
+            background: linear-gradient(135deg, #fff 30%, var(--text-dim));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            line-height: 1;
+        }
+        .kpi-value.green { background: linear-gradient(135deg, var(--green), #73EB82); -webkit-background-clip: text; }
+        .kpi-value.amber { background: linear-gradient(135deg, var(--amber), #fbbf24); -webkit-background-clip: text; }
+        .kpi-value.red { background: linear-gradient(135deg, var(--red), #f87171); -webkit-background-clip: text; }
+        .kpi-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 8px; font-weight: 600; }
+        .kpi-sub { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+
+        /* ── Section Title ── */
+        .section-head { margin: 48px 0 20px; display: flex; align-items: center; gap: 12px; }
+        .section-head .num {
+            font-size: 10px; font-weight: 800; color: var(--green);
+            background: var(--green-dim); border: 1px solid rgba(5,205,70,0.2);
+            padding: 3px 10px; border-radius: 100px; letter-spacing: 0.1em;
+        }
+        .section-head h2 { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+        .section-head .sub { font-size: 12px; color: var(--text-dim); margin-left: auto; }
+
+        /* ── Topology ── */
+        .topo-wrap {
+            padding: 48px 32px; position: relative; overflow: hidden;
+        }
+        .topo-svg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
+        .topo-grid {
+            position: relative; z-index: 2;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: auto 1fr auto;
+            gap: 20px;
+            min-height: 360px;
+            align-items: center;
+        }
+        .topo-node {
+            display: flex; flex-direction: column; align-items: center; text-align: center;
+            padding: 20px 12px; border-radius: 16px;
+            background: rgba(10, 10, 22, 0.8); border: 1px solid var(--border);
+            backdrop-filter: blur(12px);
+            transition: all 0.4s cubic-bezier(.4,0,.2,1);
+            cursor: default;
+        }
+        .topo-node:hover {
+            transform: translateY(-6px);
+            border-color: var(--border-hover);
+            box-shadow: 0 20px 40px -15px rgba(0,0,0,0.7);
+        }
+        .topo-node.high { border-top: 2px solid var(--green); }
+        .topo-node.mid { border-top: 2px solid var(--amber); opacity: 0.85; }
+        .topo-node .node-icon {
+            width: 44px; height: 44px; border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 12px;
+        }
+        .topo-node.high .node-icon { background: var(--green-dim); border: 1px solid rgba(5,205,70,0.2); color: var(--green); }
+        .topo-node.mid .node-icon { background: var(--amber-dim); border: 1px solid rgba(245,158,11,0.2); color: var(--amber); }
+        .topo-node .node-name { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 2px; }
+        .topo-node .node-role { font-size: 10px; color: var(--text-dim); margin-bottom: 8px; line-height: 1.4; }
+        .topo-node .node-trl {
+            font-size: 10px; font-weight: 700; padding: 2px 10px; border-radius: 100px;
+            letter-spacing: 0.05em;
+        }
+        .topo-node.high .node-trl { background: var(--green-dim); color: var(--green); }
+        .topo-node.mid .node-trl { background: var(--amber-dim); color: var(--amber); }
+
+        /* Center core */
+        .core-cell {
+            grid-column: 2; grid-row: 2;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .core {
+            width: 140px; height: 140px; border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, rgba(5,205,70,0.15), rgba(5,205,70,0.03));
+            border: 2px solid rgba(5,205,70,0.4);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            box-shadow: 0 0 60px 15px rgba(5,205,70,0.12), inset 0 0 30px rgba(5,205,70,0.05);
+            animation: core-breathe 4s ease-in-out infinite;
+        }
+        @keyframes core-breathe {
+            0%, 100% { box-shadow: 0 0 60px 15px rgba(5,205,70,0.12), inset 0 0 30px rgba(5,205,70,0.05); }
+            50% { box-shadow: 0 0 80px 25px rgba(5,205,70,0.2), inset 0 0 40px rgba(5,205,70,0.08); }
+        }
+        .core i { color: var(--green); margin-bottom: 4px; }
+        .core .core-name { font-size: 13px; font-weight: 800; color: var(--green); }
+        .core .core-trl { font-size: 10px; color: rgba(5,205,70,0.7); }
+
+        /* ── Two Column ── */
+        .two-col { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-top: 20px; }
+
+        /* ── TRL Bar Chart ── */
+        .bar-chart { padding: 32px; }
+        .bar-row {
+            display: grid; grid-template-columns: 100px 1fr 40px; align-items: center; gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+        }
+        .bar-row:last-child { border-bottom: none; }
+        .bar-label { font-size: 12px; font-weight: 600; color: var(--text); }
+        .bar-track {
+            height: 10px; border-radius: 100px;
+            background: rgba(255,255,255,0.04);
+            overflow: hidden; position: relative;
+        }
+        .bar-fill {
+            height: 100%; border-radius: 100px;
+            transition: width 1.5s cubic-bezier(.4,0,.2,1);
+            position: relative;
+        }
+        .bar-fill::after {
+            content: ''; position: absolute; right: 0; top: 0; width: 20px; height: 100%;
+            background: linear-gradient(to right, transparent, rgba(255,255,255,0.3));
+            border-radius: 0 100px 100px 0;
+        }
+        .bar-fill.green { background: linear-gradient(90deg, rgba(5,205,70,0.3), var(--green)); }
+        .bar-fill.amber { background: linear-gradient(90deg, rgba(245,158,11,0.3), var(--amber)); }
+        .bar-num { font-size: 20px; font-weight: 800; text-align: right; }
+        .bar-num.green { color: var(--green); }
+        .bar-num.amber { color: var(--amber); }
+
+        /* ── Risk Panel ── */
+        .risk-panel {
+            padding: 32px; border-color: rgba(239, 68, 68, 0.15) !important;
+            background: linear-gradient(135deg, rgba(239,68,68,0.04), var(--panel)) !important;
+            position: relative; overflow: hidden;
+        }
+        .risk-panel::before {
+            content: ''; position: absolute; top: -40px; right: -40px;
+            width: 160px; height: 160px; border-radius: 50%;
+            background: rgba(239,68,68,0.08); filter: blur(40px);
+        }
+        .risk-icon {
+            width: 48px; height: 48px; border-radius: 14px;
+            background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2);
+            display: flex; align-items: center; justify-content: center;
+            color: var(--red); margin-bottom: 16px;
+        }
+        .risk-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+        .risk-desc { font-size: 13px; color: var(--text-dim); line-height: 1.7; margin-bottom: 16px; }
+        .risk-action {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 6px 14px; border-radius: 10px;
+            background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+            font-size: 11px; font-weight: 600; color: var(--text-dim);
         }
 
-        /* TRL Colors */
-        .trl-8, .trl-7 { stroke: #05CD46; filter: drop-shadow(0 0 4px rgba(5,205,70,0.5)); }
-        .trl-4 { stroke: #f59e0b; filter: drop-shadow(0 0 4px rgba(245,158,11,0.5)); }
+        /* ── Lumi Card ── */
+        .lumi-card { position: relative; overflow: hidden; display: flex; flex-direction: column; }
+        .lumi-card .lumi-vis {
+            height: 200px; position: relative; overflow: hidden;
+            background: linear-gradient(135deg, #020805, #051510);
+            border-radius: var(--radius) var(--radius) 0 0;
+            display: flex; align-items: center; justify-content: center; padding: 24px;
+        }
+        .lumi-card .lumi-vis::after {
+            content: ''; position: absolute; inset: 0;
+            background: radial-gradient(ellipse at bottom center, rgba(5,205,70,0.1) 0%, transparent 70%);
+        }
+        .lumi-pipe { display: flex; align-items: center; width: 100%; position: relative; z-index: 2; }
+        .lumi-node {
+            width: 56px; height: 56px; border-radius: 14px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .lumi-node.src { background: var(--green-dim); border: 1px solid rgba(5,205,70,0.25); color: var(--green); }
+        .lumi-node.dst { background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.2); color: #34d399; }
+        .lumi-line {
+            flex: 1; height: 2px; position: relative; overflow: hidden;
+            background: linear-gradient(90deg, rgba(5,205,70,0.2), rgba(52,211,153,0.2));
+            margin: 0 16px;
+        }
+        .lumi-line .particle {
+            position: absolute; top: -2px; left: -20px;
+            width: 20px; height: 6px; border-radius: 3px;
+            background: var(--green); opacity: 0.7; filter: blur(2px);
+            animation: particle-move 2s linear infinite;
+        }
+        @keyframes particle-move { 0% { left: -20px; } 100% { left: 100%; } }
 
-        .text-trl-high { color: #05CD46; text-shadow: 0 0 10px rgba(5,205,70,0.3); }
-        .text-trl-mid { color: #f59e0b; text-shadow: 0 0 10px rgba(245,158,11,0.3); }
+        .lumi-body { padding: 24px; flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
+        .lumi-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 3px 10px; border-radius: 6px;
+            background: var(--green-dim); border: 1px solid rgba(5,205,70,0.2);
+            font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em;
+            color: var(--green); margin-bottom: 12px; width: fit-content;
+        }
+        .lumi-title { font-size: 18px; font-weight: 800; margin-bottom: 6px; letter-spacing: -0.02em; }
+        .lumi-desc { font-size: 12px; color: var(--text-dim); line-height: 1.6; }
+        .lumi-stats { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+        .lumi-stat {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 11px; padding: 6px 0;
+        }
+        .lumi-stat .label { color: var(--text-muted); }
+        .lumi-stat .val { font-weight: 600; }
+        .lumi-stat .val.done { color: var(--green); }
+        .lumi-stat .val.wip { color: var(--amber); }
 
-        .hex-bg {
-            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0l25.98 15v30L30 60 4.02 45V15z' fill-opacity='0.02' fill='%23ffffff' fill-rule='evenodd'/%3E%3C/svg%3E");
+        /* ── TRL Table ── */
+        .trl-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .trl-table th {
+            font-size: 10px; font-weight: 700; color: var(--text-dim);
+            text-transform: uppercase; letter-spacing: 0.08em;
+            padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border);
+        }
+        .trl-table td {
+            font-size: 12px; padding: 14px 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            vertical-align: middle;
+        }
+        .trl-table tr:last-child td { border-bottom: none; }
+        .trl-table tr:hover td { background: rgba(255,255,255,0.02); }
+        .trl-table .mod-name { font-weight: 700; color: #fff; }
+        .trl-table .status-badge {
+            display: inline-flex; padding: 2px 10px; border-radius: 100px;
+            font-size: 10px; font-weight: 700;
+        }
+        .trl-table .status-badge.op { background: var(--green-dim); color: var(--green); }
+        .trl-table .status-badge.beta { background: rgba(59,130,246,0.1); color: #3b82f6; }
+        .trl-table .status-badge.lab { background: var(--amber-dim); color: var(--amber); }
+
+        /* ── Footer ── */
+        .footer { margin-top: 64px; text-align: center; padding: 24px; }
+        .footer p { font-size: 10px; color: var(--text-muted); letter-spacing: 0.06em; }
+
+        /* ── Responsive ── */
+        @media (max-width: 1024px) {
+            .two-col { grid-template-columns: 1fr; }
+            .topo-grid { grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+            .kpi-strip { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 640px) {
+            .kpi-strip { grid-template-columns: 1fr 1fr; }
+            .topo-grid { grid-template-columns: 1fr; }
+            .core-cell { grid-column: 1; grid-row: auto; }
+            .nav { flex-direction: column; gap: 8px; }
         }
     </style>
 </head>
-<body class="hex-bg pb-20">
+<body>
 
-    <!-- Hero / Header Section -->
-    <nav class="glass sticky top-0 z-50 px-8 py-4 flex items-center justify-between border-b-0 border-white/5 shadow-2xl">
-        <div class="flex items-center gap-3">
-            <i data-lucide="shield" class="text-neonorte-green w-8 h-8 drop-shadow-[0_0_8px_rgba(5,205,70,0.5)]"></i>
-            <div>
-                <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-                    NEONORTE STRATEGIC COMMAND HUB
-                </h1>
-                <p class="text-xs text-slate-400 uppercase tracking-widest">Architecture TRL Observatory</p>
+<div class="ambient">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+</div>
+
+<!-- ═══ NAV ═══ -->
+<nav class="nav">
+    <div class="nav-brand">
+        <div class="icon-wrap">
+            <i data-lucide="shield-check" style="width:20px;height:20px;color:var(--green)"></i>
+        </div>
+        <div>
+            <h1>NEONORTE CENTRO DE COMANDO</h1>
+            <p>Observatório TRL da Arquitetura</p>
+        </div>
+    </div>
+    <div class="nav-right">
+        <span class="badge-live"><span class="dot"></span> Sistema Ativo</span>
+        <span class="badge-date">Março 2026</span>
+    </div>
+</nav>
+
+<div class="page">
+
+    <!-- ═══ KPI STRIP ═══ -->
+    <div class="kpi-strip">
+        <div class="kpi glass">
+            <div class="kpi-value">7</div>
+            <div class="kpi-label">Módulos Ativos</div>
+            <div class="kpi-sub">Topologia Hub & Spoke</div>
+        </div>
+        <div class="kpi glass">
+            <div class="kpi-value green">6.1</div>
+            <div class="kpi-label">TRL Médio Global</div>
+            <div class="kpi-sub">Meta: 8.0 até 3º Trim. 2026</div>
+        </div>
+        <div class="kpi glass">
+            <div class="kpi-value amber">3</div>
+            <div class="kpi-label">Em Laboratório</div>
+            <div class="kpi-sub">Academy, Portal B2B, Portal B2P</div>
+        </div>
+        <div class="kpi glass">
+            <div class="kpi-value red">1</div>
+            <div class="kpi-label">Gargalo Crítico</div>
+            <div class="kpi-sub">SSO Auth Bridge (Ponte de Sessão)</div>
+        </div>
+    </div>
+
+    <!-- ═══ SECTION 1: TOPOLOGY ═══ -->
+    <div class="section-head">
+        <span class="num">01</span>
+        <h2>O Núcleo Nexus</h2>
+        <span class="sub">Arquitetura Hub & Spoke em Nuvem Descentralizada</span>
+    </div>
+
+    <div class="glass topo-wrap">
+        <!-- Real SVG lines connecting nodes to center -->
+        <svg class="topo-svg" viewBox="0 0 1000 400" preserveAspectRatio="xMidYMid meet">
+            <defs>
+                <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="rgba(5,205,70,0.05)" />
+                    <stop offset="50%" stop-color="rgba(5,205,70,0.3)" />
+                    <stop offset="100%" stop-color="rgba(5,205,70,0.05)" />
+                </linearGradient>
+                <linearGradient id="lineGradAmber" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="rgba(245,158,11,0.05)" />
+                    <stop offset="50%" stop-color="rgba(245,158,11,0.2)" />
+                    <stop offset="100%" stop-color="rgba(245,158,11,0.05)" />
+                </linearGradient>
+            </defs>
+            <!-- Lines from center (500,200) to top row -->
+            <line x1="500" y1="200" x2="167" y2="70" stroke="url(#lineGrad)" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.6">
+                <animate attributeName="stroke-dashoffset" from="0" to="-100" dur="8s" repeatCount="indefinite"/>
+            </line>
+            <line x1="500" y1="200" x2="500" y2="60" stroke="url(#lineGrad)" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.6">
+                <animate attributeName="stroke-dashoffset" from="0" to="-100" dur="8s" repeatCount="indefinite"/>
+            </line>
+            <line x1="500" y1="200" x2="833" y2="70" stroke="url(#lineGrad)" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.6">
+                <animate attributeName="stroke-dashoffset" from="0" to="-100" dur="8s" repeatCount="indefinite"/>
+            </line>
+            <!-- Lines from center to bottom row -->
+            <line x1="500" y1="200" x2="167" y2="340" stroke="url(#lineGradAmber)" stroke-width="1" stroke-dasharray="4 6" opacity="0.4">
+                <animate attributeName="stroke-dashoffset" from="0" to="-100" dur="12s" repeatCount="indefinite"/>
+            </line>
+            <line x1="500" y1="200" x2="500" y2="350" stroke="url(#lineGradAmber)" stroke-width="1" stroke-dasharray="4 6" opacity="0.4">
+                <animate attributeName="stroke-dashoffset" from="0" to="-100" dur="12s" repeatCount="indefinite"/>
+            </line>
+            <line x1="500" y1="200" x2="833" y2="340" stroke="url(#lineGradAmber)" stroke-width="1" stroke-dasharray="4 6" opacity="0.4">
+                <animate attributeName="stroke-dashoffset" from="0" to="-100" dur="12s" repeatCount="indefinite"/>
+            </line>
+        </svg>
+
+        <div class="topo-grid">
+            <!-- Row 1: High TRL Spokes -->
+            <div class="topo-node high">
+                <div class="node-icon"><i data-lucide="layout-dashboard" style="width:22px;height:22px"></i></div>
+                <div class="node-name">Nexus ERP</div>
+                <div class="node-role">Gestão, Comercial e Fábrica</div>
+                <div class="node-trl">TRL 7</div>
+            </div>
+            <div class="topo-node high">
+                <div class="node-icon"><i data-lucide="door-open" style="width:22px;height:22px"></i></div>
+                <div class="node-name">Nexus Hub</div>
+                <div class="node-role">Login SSO e Painel de Apps</div>
+                <div class="node-trl">TRL 7</div>
+            </div>
+            <div class="topo-node high">
+                <div class="node-icon"><i data-lucide="sun" style="width:22px;height:22px"></i></div>
+                <div class="node-name">Lumi Solar</div>
+                <div class="node-role">Engenharia Fotovoltaica</div>
+                <div class="node-trl">TRL 7</div>
+            </div>
+
+            <!-- Row 2: Center Core + Empty Cells -->
+            <div></div>
+            <div class="core-cell">
+                <div class="core">
+                    <i data-lucide="database" style="width:28px;height:28px"></i>
+                    <span class="core-name">Nexus API</span>
+                    <span class="core-trl">TRL 8 · Fly.io</span>
+                </div>
+            </div>
+            <div></div>
+
+            <!-- Row 3: Lab Spokes -->
+            <div class="topo-node mid">
+                <div class="node-icon"><i data-lucide="graduation-cap" style="width:22px;height:22px"></i></div>
+                <div class="node-name">Academy</div>
+                <div class="node-role">Treinamentos e NRs</div>
+                <div class="node-trl">TRL 4</div>
+            </div>
+            <div class="topo-node mid">
+                <div class="node-icon"><i data-lucide="users" style="width:22px;height:22px"></i></div>
+                <div class="node-name">Portal B2B</div>
+                <div class="node-role">Visibilidade para o Cliente</div>
+                <div class="node-trl">TRL 4</div>
+            </div>
+            <div class="topo-node mid">
+                <div class="node-icon"><i data-lucide="hard-hat" style="width:22px;height:22px"></i></div>
+                <div class="node-name">Extranet B2P</div>
+                <div class="node-role">RDOs e Fornecedores</div>
+                <div class="node-trl">TRL 4</div>
             </div>
         </div>
-        <div class="flex items-center gap-4 text-sm font-medium">
-            <span class="flex items-center gap-2 text-slate-300">
-                <span class="w-2 h-2 rounded-full border border-neonorte-green bg-neonorte-green/50 animate-pulse"></span>
-                System Live
-            </span>
-            <span class="text-slate-500 bg-white/5 py-1 px-3 rounded-full border border-white/10">Março/2026</span>
+    </div>
+
+    <!-- ═══ SECTION 2: TRL PROGRESS + LUMI ═══ -->
+    <div class="section-head">
+        <span class="num">02</span>
+        <h2>Visão Paralela dos Satélites</h2>
+        <span class="sub">Nível de Maturidade Tecnológica Desacoplada</span>
+    </div>
+
+    <div class="two-col">
+        <div class="glass bar-chart">
+            <div class="bar-row">
+                <span class="bar-label">API Central</span>
+                <div class="bar-track"><div class="bar-fill green" style="width:88%"></div></div>
+                <span class="bar-num green">8</span>
+            </div>
+            <div class="bar-row">
+                <span class="bar-label">Nexus Hub</span>
+                <div class="bar-track"><div class="bar-fill green" style="width:77%"></div></div>
+                <span class="bar-num green">7</span>
+            </div>
+            <div class="bar-row">
+                <span class="bar-label">Nexus ERP</span>
+                <div class="bar-track"><div class="bar-fill green" style="width:77%"></div></div>
+                <span class="bar-num green">7</span>
+            </div>
+            <div class="bar-row">
+                <span class="bar-label">Lumi Solar</span>
+                <div class="bar-track"><div class="bar-fill green" style="width:77%"></div></div>
+                <span class="bar-num green">7</span>
+            </div>
+            <div class="bar-row">
+                <span class="bar-label">Academy</span>
+                <div class="bar-track"><div class="bar-fill amber" style="width:44%"></div></div>
+                <span class="bar-num amber">4</span>
+            </div>
+            <div class="bar-row">
+                <span class="bar-label">Client Portal</span>
+                <div class="bar-track"><div class="bar-fill amber" style="width:44%"></div></div>
+                <span class="bar-num amber">4</span>
+            </div>
+            <div class="bar-row">
+                <span class="bar-label">Vendor Portal</span>
+                <div class="bar-track"><div class="bar-fill amber" style="width:44%"></div></div>
+                <span class="bar-num amber">4</span>
+            </div>
         </div>
-    </nav>
 
-    <main class="max-w-[1400px] mx-auto px-6 mt-12 grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
-        <!-- INFOGRÁFICO 1: THE NEXUS CORE (Hub & Spoke Topology) -->
-        <section class="lg:col-span-12 glass rounded-3xl p-8 relative overflow-hidden glow-panel border border-white/10">
-            <div class="absolute inset-0 bg-gradient-to-br from-neonorte-purple/10 to-transparent pointer-events-none"></div>
-            
-            <div class="mb-8 relative z-10 text-center">
-                <h2 class="text-3xl font-bold tracking-tight mb-2 drop-shadow-md text-transparent bg-clip-text bg-gradient-to-r from-slate-100 to-slate-400">The Nexus Core</h2>
-                <p class="text-slate-400 font-light">Uma infraestrutura em nuvem, descentralizada e resiliente orientada pela API Central.</p>
-            </div>
-
-            <div class="relative w-full h-[400px] flex items-center justify-center mt-4">
-                <!-- SVG Network Lines -->
-                <svg class="absolute inset-0 w-full h-full pointer-events-none" style="z-index:1;">
-                    <g stroke="rgba(5, 205, 70, 0.4)" stroke-width="2" fill="none" class="data-stream">
-                        <path d="M 50% 50% Q 25% 25% 20% 15%"></path>
-                        <path d="M 50% 50% Q 50% 20% 50% 10%"></path>
-                        <path d="M 50% 50% Q 75% 25% 80% 15%"></path>
-                        <path d="M 50% 50% Q 25% 75% 20% 85%"></path>
-                        <path d="M 50% 50% Q 50% 80% 50% 90%"></path>
-                        <path d="M 50% 50% Q 75% 75% 80% 85%"></path>
-                    </g>
-                </svg>
-
-                <!-- Center Core (API) -->
-                <div class="relative z-10 w-32 h-32 bg-[#022A12] border border-neonorte-green rounded-full flex flex-col items-center justify-center glow-core animate-[pulse_4s_ease-in-out_infinite]">
-                    <i data-lucide="database" class="text-neonorte-green w-8 h-8 mb-1"></i>
-                    <span class="font-bold text-sm text-neonorte-green">Nexus API</span>
-                    <span class="text-[10px] text-neonorte-green/70">TRL 8</span>
-                </div>
-
-                <!-- Orbiting Nodes (Spokes) -->
-                <!-- Top Left: ERP -->
-                <div class="absolute top-[10%] left-[15%] z-10 glass px-6 py-4 rounded-2xl flex flex-col items-center border-t-2 border-t-neonorte-green w-40 text-center transition-transform hover:-translate-y-2">
-                    <i data-lucide="layout-dashboard" class="w-6 h-6 text-neonorte-green mb-2"></i>
-                    <span class="font-bold text-sm">Nexus ERP</span>
-                    <span class="text-xs text-neonorte-green font-medium">TRL 7</span>
-                </div>
-                <!-- Top Center: HUB -->
-                <div class="absolute top-[0%] left-1/2 -translate-x-1/2 z-10 glass px-6 py-4 rounded-2xl flex flex-col items-center border-t-2 border-t-neonorte-green w-40 text-center transition-transform hover:-translate-y-2">
-                    <i data-lucide="door-open" class="w-6 h-6 text-neonorte-green mb-2"></i>
-                    <span class="font-bold text-sm">Nexus Hub</span>
-                    <span class="text-xs text-neonorte-green font-medium">TRL 7</span>
-                </div>
-                <!-- Top Right: Lumi -->
-                <div class="absolute top-[10%] right-[15%] z-10 glass px-6 py-4 rounded-2xl flex flex-col items-center border-t-2 border-t-neonorte-green w-40 text-center transition-transform hover:-translate-y-2">
-                    <i data-lucide="sun" class="w-6 h-6 text-neonorte-green mb-2"></i>
-                    <span class="font-bold text-sm">Lumi Solar</span>
-                    <span class="text-xs text-neonorte-green font-medium">TRL 7</span>
-                </div>
-                <!-- Bottom Left: Academy -->
-                <div class="absolute bottom-[10%] left-[15%] z-10 glass px-6 py-4 rounded-2xl flex flex-col items-center border-t-2 border-t-neonorte-amber w-40 text-center opacity-80 transition-transform hover:-translate-y-2">
-                    <i data-lucide="graduation-cap" class="w-6 h-6 text-neonorte-amber mb-2"></i>
-                    <span class="font-bold text-sm">Academy</span>
-                    <span class="text-xs text-neonorte-amber font-medium">TRL 4</span>
-                </div>
-                <!-- Bottom Center: Client Portal -->
-                <div class="absolute bottom-[0%] left-1/2 -translate-x-1/2 z-10 glass px-6 py-4 rounded-2xl flex flex-col items-center border-t-2 border-t-neonorte-amber w-40 text-center opacity-80 transition-transform hover:-translate-y-2">
-                    <i data-lucide="users" class="w-6 h-6 text-neonorte-amber mb-2"></i>
-                    <span class="font-bold text-sm text-slate-200">B2B Portal</span>
-                    <span class="text-xs text-neonorte-amber font-medium">TRL 4</span>
-                </div>
-                <!-- Bottom Right: Vendor Portal -->
-                <div class="absolute bottom-[10%] right-[15%] z-10 glass px-6 py-4 rounded-2xl flex flex-col items-center border-t-2 border-t-neonorte-amber w-40 text-center opacity-80 transition-transform hover:-translate-y-2">
-                    <i data-lucide="truck" class="w-6 h-6 text-neonorte-amber mb-2"></i>
-                    <span class="font-bold text-sm text-slate-200">Vendor Extranet</span>
-                    <span class="text-xs text-neonorte-amber font-medium">TRL 4</span>
+        <!-- Lumi Spotlight -->
+        <div class="glass lumi-card">
+            <div class="lumi-vis">
+                <div class="lumi-pipe">
+                    <div class="lumi-node src"><i data-lucide="sun" style="width:24px;height:24px"></i></div>
+                    <div class="lumi-line">
+                        <div class="particle"></div>
+                        <div class="particle" style="animation-delay:0.8s"></div>
+                    </div>
+                    <div class="lumi-node dst"><i data-lucide="zap" style="width:24px;height:24px"></i></div>
                 </div>
             </div>
-        </section>
-
-        <!-- EIXO CENTRAL: Convergence & Progress -->
-        <section class="lg:col-span-8 flex flex-col gap-8">
-            
-            <!-- INFOGRÁFICO 3: THE PARALLEL SPOKE VISION -->
-            <div class="glass rounded-3xl p-8 border border-white/10 glow-panel">
-                <div class="flex items-center justify-between mb-8">
-                    <div>
-                        <h3 class="text-xl font-bold flex items-center gap-2">
-                            <i data-lucide="activity" class="text-neonorte-purple"></i>
-                            The Parallel Spoke Vision
-                        </h3>
-                        <p class="text-sm text-slate-400 mt-1">Nível de Maturidade Tecnológica (TRL) Desacoplada</p>
-                    </div>
+            <div class="lumi-body">
+                <div>
+                    <div class="lumi-badge">TRL 7 · Spotlight</div>
+                    <div class="lumi-title">Motor Solar Lumi</div>
+                    <div class="lumi-desc">Primeiro Satélite Perfeito do ecossistema. Design refatorado, cálculo pesado e 100% autônomo.</div>
                 </div>
-
-                <div class="grid grid-cols-3 md:grid-cols-6 gap-4 text-center">
-                    <!-- Spoke Item -->
-                    <div class="flex flex-col items-center">
-                        <svg viewBox="0 0 36 36" class="circular-chart mb-3 w-16 h-16">
-                            <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                            <path class="circle trl-8" stroke-dasharray="88, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                            <text x="18" y="22.5" class="text-[10px] font-bold fill-white" text-anchor="middle">8</text>
-                        </svg>
-                        <span class="text-xs font-semibold text-slate-200">API</span>
-                        <span class="text-[10px] text-neonorte-green">Operacional</span>
-                    </div>
-                    <!-- Spoke Item -->
-                    <div class="flex flex-col items-center">
-                        <svg viewBox="0 0 36 36" class="circular-chart mb-3 w-16 h-16">
-                            <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                            <path class="circle trl-7" stroke-dasharray="77, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                            <text x="18" y="22.5" class="text-[10px] font-bold fill-white" text-anchor="middle">7</text>
-                        </svg>
-                        <span class="text-xs font-semibold text-slate-200">Hub</span>
-                        <span class="text-[10px] text-neonorte-green">Beta Cloud</span>
-                    </div>
-                    <!-- Spoke Item -->
-                    <div class="flex flex-col items-center">
-                        <svg viewBox="0 0 36 36" class="circular-chart mb-3 w-16 h-16">
-                            <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                            <path class="circle trl-7" stroke-dasharray="77, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                            <text x="18" y="22.5" class="text-[10px] font-bold fill-white" text-anchor="middle">7</text>
-                        </svg>
-                        <span class="text-xs font-semibold text-slate-200">ERP</span>
-                        <span class="text-[10px] text-neonorte-green">Beta Cloud</span>
-                    </div>
-                    <!-- Spoke Item -->
-                    <div class="flex flex-col items-center">
-                        <svg viewBox="0 0 36 36" class="circular-chart mb-3 w-16 h-16">
-                            <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                            <path class="circle trl-7" stroke-dasharray="77, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                            <text x="18" y="22.5" class="text-[10px] font-bold fill-white" text-anchor="middle">7</text>
-                        </svg>
-                        <span class="text-xs font-semibold text-slate-200">Lumi</span>
-                        <span class="text-[10px] text-neonorte-green">Beta Cloud</span>
-                    </div>
-                    <!-- Spoke Item -->
-                    <div class="flex flex-col items-center">
-                        <svg viewBox="0 0 36 36" class="circular-chart mb-3 w-16 h-16">
-                            <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                            <path class="circle trl-4" stroke-dasharray="44, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                            <text x="18" y="22.5" class="text-[10px] font-bold fill-white" text-anchor="middle">4</text>
-                        </svg>
-                        <span class="text-xs font-semibold text-slate-200">Academy</span>
-                        <span class="text-[10px] text-neonorte-amber">Mockup</span>
-                    </div>
-                    <!-- Spoke Item -->
-                    <div class="flex flex-col items-center">
-                        <svg viewBox="0 0 36 36" class="circular-chart mb-3 w-16 h-16">
-                            <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                            <path class="circle trl-4" stroke-dasharray="44, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                            <text x="18" y="22.5" class="text-[10px] font-bold fill-white" text-anchor="middle">4</text>
-                        </svg>
-                        <span class="text-xs font-semibold text-slate-200">B2B/B2P</span>
-                        <span class="text-[10px] text-neonorte-amber">Lab</span>
-                    </div>
+                <div class="lumi-stats">
+                    <div class="lumi-stat"><span class="label">Front-end Isolado</span><span class="val done">Concluído</span></div>
+                    <div class="lumi-stat"><span class="label">Conexão com API</span><span class="val wip">Em Testes</span></div>
+                    <div class="lumi-stat"><span class="label">PWA Offline</span><span class="val" style="color:var(--text-muted)">Planejado</span></div>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <!-- GARGALO CRÍTICO -->
-            <div class="glass rounded-3xl p-8 border border-red-500/20 bg-red-500/5 relative overflow-hidden">
-                <div class="absolute right-0 top-0 w-32 h-32 bg-red-500/10 rounded-full blur-[50px]"></div>
-                
-                <div class="flex items-start gap-4">
-                    <div class="p-3 bg-red-500/10 rounded-xl border border-red-500/20 text-red-400">
-                        <i data-lucide="triangle-alert" class="w-6 h-6"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-lg font-bold text-slate-100 flex items-center gap-2 mb-1">
-                            Risco Operacional Crítico (Gargalo Zero)
-                        </h3>
-                        <p class="text-sm text-slate-300 leading-relaxed max-w-2xl mb-4">
-                            O mecanismo de <strong>Single Sign-On (Auth Bridge)</strong> do `nexus-hub` em união com a API central. Se o Token JWT não transitar de forma impenetrável do Domínio de Login para os Spokes (ex: `erp` e `lumi`) usando protocolos resilientes cross-domain, a maturação dos módulos nativos trava em <strong>TRL 7 (Beta) indefinidamente</strong>.
-                        </p>
-                        
-                        <div class="inline-flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-400">
-                            <i data-lucide="lock" class="w-3.5 h-3.5"></i>
-                            Ação Requerida: Implementar Secure HttpOnly Flow
-                        </div>
-                    </div>
+    <!-- ═══ SECTION 3: GARGALO + TABLE ═══ -->
+    <div class="section-head">
+        <span class="num">03</span>
+        <h2>Riscos e Convergência</h2>
+        <span class="sub">Gargalos Arquiteturais e Tabela de Maturidade</span>
+    </div>
+
+    <div class="two-col">
+        <div class="glass" style="padding:0;overflow:hidden">
+            <table class="trl-table">
+                <thead>
+                    <tr>
+                        <th>Módulo</th>
+                        <th>TRL</th>
+                        <th>Fase</th>
+                        <th>Gargalo / Próximo Portão</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="mod-name">Nexus API</td>
+                        <td><span class="bar-num green" style="font-size:14px">8</span></td>
+                        <td><span class="status-badge op">Produção</span></td>
+                        <td style="color:var(--text-dim);font-size:11px">Teste de Carga + Blindagem RBAC</td>
+                    </tr>
+                    <tr>
+                        <td class="mod-name">Nexus Hub</td>
+                        <td><span class="bar-num green" style="font-size:14px">7</span></td>
+                        <td><span class="status-badge beta">Beta Cloud</span></td>
+                        <td style="color:var(--text-dim);font-size:11px">Ponte SSO Cross-Domain</td>
+                    </tr>
+                    <tr>
+                        <td class="mod-name">Nexus ERP</td>
+                        <td><span class="bar-num green" style="font-size:14px">7</span></td>
+                        <td><span class="status-badge beta">Beta Cloud</span></td>
+                        <td style="color:var(--text-dim);font-size:11px">Teste E2E via Hub SSO</td>
+                    </tr>
+                    <tr>
+                        <td class="mod-name">Lumi Solar</td>
+                        <td><span class="bar-num green" style="font-size:14px">7</span></td>
+                        <td><span class="status-badge beta">Beta Cloud</span></td>
+                        <td style="color:var(--text-dim);font-size:11px">Payload E2E (Proposta → Obra)</td>
+                    </tr>
+                    <tr>
+                        <td class="mod-name">Academy</td>
+                        <td><span class="bar-num amber" style="font-size:14px">4</span></td>
+                        <td><span class="status-badge lab">Laboratório</span></td>
+                        <td style="color:var(--text-dim);font-size:11px">Player de Vídeo + Gestão de Conteúdo</td>
+                    </tr>
+                    <tr>
+                        <td class="mod-name">Client Portal</td>
+                        <td><span class="bar-num amber" style="font-size:14px">4</span></td>
+                        <td><span class="status-badge lab">Laboratório</span></td>
+                        <td style="color:var(--text-dim);font-size:11px">Mascaramento RLS + Identidade Visual</td>
+                    </tr>
+                    <tr>
+                        <td class="mod-name">Vendor Portal</td>
+                        <td><span class="bar-num amber" style="font-size:14px">4</span></td>
+                        <td><span class="status-badge lab">Laboratório</span></td>
+                        <td style="color:var(--text-dim);font-size:11px">PWA Offline + Service Workers</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Risk Panel -->
+        <div class="glass risk-panel">
+            <div class="risk-icon"><i data-lucide="triangle-alert" style="width:22px;height:22px"></i></div>
+            <div class="risk-title" style="color:#fca5a5">Gargalo Zero</div>
+            <div class="risk-desc">
+                O mecanismo de <strong style="color:#e2e8f0">Single Sign-On (Auth Bridge)</strong> do Hub em união com a API central é o bloqueio sistêmico. O Token JWT precisa transitar entre domínios na Cloudflare de forma impenetrável para destravar Hub, ERP e Lumi para <strong style="color:#e2e8f0">TRL 8</strong>.
+            </div>
+            <div class="risk-action">
+                <i data-lucide="lock" style="width:14px;height:14px"></i>
+                Implementar Fluxo Secure HttpOnly
+            </div>
+            <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+                <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:8px">Módulos Impactados</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap">
+                    <span style="padding:2px 10px;border-radius:100px;font-size:10px;font-weight:600;background:rgba(59,130,246,0.1);color:#3b82f6">Hub</span>
+                    <span style="padding:2px 10px;border-radius:100px;font-size:10px;font-weight:600;background:rgba(59,130,246,0.1);color:#3b82f6">ERP</span>
+                    <span style="padding:2px 10px;border-radius:100px;font-size:10px;font-weight:600;background:rgba(59,130,246,0.1);color:#3b82f6">Lumi</span>
                 </div>
             </div>
+        </div>
+    </div>
 
-        </section>
+    <!-- ═══ FOOTER ═══ -->
+    <div class="footer">
+        <p>NEONORTE CENTRO DE COMANDO ESTRATÉGICO · PLATAFORMA NEXUS · OBSERVATÓRIO TRL · CONFIDENCIAL</p>
+    </div>
 
-        <!-- LATERAL DIREITA: Lumi Spotlight -->
-        <section class="lg:col-span-4 flex flex-col gap-8">
-            
-            <!-- INFOGRÁFICO 2: LUMI ENGINE -->
-            <div class="glass rounded-3xl p-1 relative overflow-hidden h-full flex flex-col group hover:shadow-[0_0_40px_rgba(5,205,70,0.15)] transition-all duration-500 border border-white/5">
-                <div class="absolute inset-0 bg-gradient-to-b from-transparent via-[#051510] to-[#022A12] pointer-events-none opacity-80 z-0"></div>
-                
-                <!-- Arte Abstrata (CSS) -->
-                <div class="relative z-10 h-48 w-full rounded-2xl overflow-hidden bg-[#030805] flex items-center justify-center p-6 border border-white/5">
-                    <div class="absolute inset-0 bg-gradient-to-r from-neonorte-green/5 to-transparent"></div>
-                    <!-- Data nodes -->
-                    <div class="w-full flex items-center justify-between">
-                        <div class="w-16 h-16 rounded-xl border border-neonorte-green/30 bg-neonorte-green/10 flex items-center justify-center relative">
-                            <i data-lucide="sun" class="w-8 h-8 text-neonorte-green opacity-80 backdrop-blur-sm"></i>
-                            <div class="absolute top-1/2 -right-8 w-8 h-px bg-neonorte-green/50 border-dashed border-b border-neonorte-green font-mono text-[8px] text-neonorte-green -translate-y-4">52kWp</div>
-                        </div>
-                        <div class="flex-1 h-px bg-gradient-to-r from-neonorte-green/50 to-emerald-400/50 mx-4 relative overflow-hidden">
-                            <div class="absolute inset-y-0 left-0 w-8 bg-white/40 blur-sm translate-x-[-100%] animate-[slide_2s_ease-in-out_infinite]"></div>
-                        </div>
-                        <div class="w-16 h-16 rounded-xl border border-emerald-400/30 bg-emerald-400/10 flex items-center justify-center relative">
-                            <i data-lucide="zap" class="w-8 h-8 text-emerald-400 drop-shadow-[0_0_5px_rgba(52,211,153,0.5)]"></i>
-                        </div>
-                    </div>
-                </div>
+</div>
 
-                <div class="relative z-10 p-6 flex flex-col justify-between flex-1">
-                    <div>
-                        <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-neonorte-green/10 text-neonorte-green border border-neonorte-green/20 mb-3">
-                            TRL 7 • Spotlight
-                        </div>
-                        <h3 class="text-xl font-bold tracking-tight mb-2 text-white">Lumi Solar Engine</h3>
-                        <p class="text-sm text-slate-400 font-light max-w-[280px]">
-                            Operando como o primeiro "Spoke Perfeito" do ecossistema. Design System refatorado, cálculo matemático pesado injetado, 100% autônomo.
-                        </p>
-                    </div>
-                    
-                    <div class="mt-6 pt-6 border-t border-white/5 space-y-3">
-                        <div class="flex justify-between items-center text-xs">
-                            <span class="text-slate-500">Isolamento Front-end</span>
-                            <span class="text-slate-200">Concluído</span>
-                        </div>
-                        <div class="flex justify-between items-center text-xs">
-                            <span class="text-slate-500">Conexão API Base</span>
-                            <span class="text-neonorte-amber">Em Testes</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-        </section>
-
-    </main>
-
-    <script>
-        lucide.createIcons();
-    </script>
-    <style>
-        @keyframes slide {
-            100% { transform: translateX(300px); }
-        }
-    </style>
+<script>lucide.createIcons();</script>
 </body>
 </html>
