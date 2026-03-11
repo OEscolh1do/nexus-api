@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 const { initSlaCronJobs } = require('./jobs/sla.cron');
 const { initJitCronJobs } = require('./jobs/jit.cron');
 const prisma = require("./lib/prisma"); // Global RLS-aware Prisma Client
@@ -37,6 +38,7 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+app.use(cookieParser());
 
 // --- AUTHENTICATION ---
 const iamRouter = require("./modules/iam/controllers/iam.controller");

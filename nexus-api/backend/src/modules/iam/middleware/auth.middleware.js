@@ -32,7 +32,13 @@ const { asyncLocalStorage } = require('../../../lib/asyncContext');
  */
 async function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // "Bearer TOKEN"
+  let token = authHeader && authHeader.split(' ')[1]; // "Bearer TOKEN"
+
+  // 🛡️ B2P/SSO Phase 13: Se o Authorization normal estiver vazio, resgata o token escondido nos Cookies
+  if (!token && req.cookies && req.cookies.nexus_session) {
+    token = req.cookies.nexus_session;
+    // console.log(`[AUTH DEBUG] Token sourced from Secure Cookie (SSO Bridge)`);
+  }
 
   if (!token) {
     return res.status(401).json({

@@ -31,7 +31,11 @@ const IamService = require('../modules/iam/services/iam.service');
  */
 async function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // "Bearer TOKEN"
+  let token = authHeader && authHeader.split(' ')[1]; // "Bearer TOKEN"
+
+  if (!token && req.cookies && req.cookies.nexus_session) {
+    token = req.cookies.nexus_session;
+  }
 
   if (!token) {
     return res.status(401).json({

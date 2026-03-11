@@ -61,6 +61,14 @@ router.post('/login', loginRateLimiter, validate(LoginSchema), async (req, res, 
 
         const result = await IamService.login(username, password);
 
+        // 🛡️ B2P/SSO Phase 13: Emitir token via Cookie Seguro e Cego
+        res.cookie('nexus_session', result.token, {
+            httpOnly: true, // O JS do frontend não consegue acessar isso
+            secure: process.env.NODE_ENV === 'production', // Apenas HTTPS em Produção
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // Aceito cross-origin (fly.io vs cloudflare)
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 dias
+        });
+
         console.log(`[IAM] Success: ${username}`);
         res.json({ success: true, data: result });
     } catch (error) {
