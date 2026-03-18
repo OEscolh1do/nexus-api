@@ -1,201 +1,356 @@
-# Neonorte | Nexus Monolith — Agent Context (Session Bootstrap)
+# CONTEXT.md - Sistema NEONORTE NEXUS
 
-> **Propósito:** Este documento é injetado automaticamente no início de cada sessão de um agente IA para dar contexto completo sobre a arquitetura, domínio, segurança e estado do sistema. Sem este contexto, o agente opera às cegas.
->
-> **Última Atualização:** 2026-03-10
+> **Última Atualização:** 2026-01-26
+> **Arquiteto:** Antigravity AI
+> **Versão do Sistema:** 2.2.0 (Neonorte | Nexus SQL - Commercial Expansion)
 
 ---
 
-## 1. Arquitetura: Monólito Modular (ADR-001)
+## 📋 VISÃO GERAL
 
-**Status:** Aceito
+**NEXUS** é um ecossistema **ERP/Gestão** robusto projetado para o setor de energia solar, focado na orquestração de estratégia, tática e operacional. O sistema foi otimizado para eliminar complexidade acidental, mantendo foco estrito na execução de projetos e estratégias.
 
-O código está organizado em **Módulos de Domínio** auto-contidos dentro de `src/modules/`:
+### Domínio de Negócio
 
+- **Setor:** Energia Solar & Gestão Estratégica
+- **Usuários:** Colaboradores, Gestores (COORD), e Administradores (ADMIN).
+- **Missão:** Transformar estratégias macro em ações táticas (projetos) e operações detalhadas (tarefas/checklists).
+
+---
+
+## 🏗️ ARQUITETURA DO SISTEMA (NEXUS 2.2)
+
+### Stack Tecnológico
+
+#### **Backend**
+
+- **Runtime:** Node.js 18/20
+- **Framework:** Express.js (Universal Controller Pattern)
+- **ORM:** Prisma 5.10+
+- **Database:** MySQL 8.0 (Dockerizado ou Hospedagem Hostinger)
+- **Segurança:** Autenticação via `/auth/login` e validação Zod.
+
+#### **Frontend**
+
+- **Framework:** React 19.2 / Vite
+- **Linguagem:** TypeScript (Strict Mode)
+- **Estilização:** TailwindCSS
+- **Bibliotecas Especializadas:**
+  - Leaflet 1.9.4 (mapas - módulo Solar)
+  - @geoman-io/leaflet-geoman-free (desenho de polígonos)
+  - Frappe Gantt (timelines)
+  - Recharts (gráficos)
+  - jspdf + html2canvas (geração de PDF)
+
+#### **Infraestrutura**
+
+- Docker (desenvolvimento e produção)
+- MySQL 8.0
+- Hostinger (produção)
+
+---
+
+## 🧩 MÓDULOS INTEGRADOS
+
+### 🌞 Solar (INTEGRADO - 2026-01-20)
+
+**Localização:** `nexus-monolith/frontend/src/modules/solar/`
+
+**Descrição:** Sistema completo de propostas fotovoltaicas com wizard de 6 etapas, mapeamento via Leaflet, cálculos de dimensionamento, seleção de equipamentos e geração de PDF.
+
+**Persistência:** `SolarProposal.proposalData` (JSON com validação Zod obrigatória)
+
+**Segurança:**
+
+- ✅ Validação Zod
+- ✅ RBAC (controle por papel)
+- ✅ Auditoria (AuditLog registra todas as mudanças)
+- ✅ Proteção CVE-2025-55182 (serialização segura)
+
+**Status:** ✅ Operacional em produção
+
+### 💼 Commercial (EXPANDIDO - 2026-01-26)
+
+**Localização:** `nexus-monolith/frontend/src/views/commercial/`
+
+**Descrição:** Sistema completo de CRM com gestão de leads, oportunidades, missões comerciais e propostas técnicas.
+
+**Entidades Principais:**
+
+- **Lead:** Contatos de pré-venda com scoring e qualificação
+- **Mission:** Campanhas regionais com metas e gamificação
+- **Opportunity:** Funil de vendas com 8 estágios
+- **TechnicalProposal:** Propostas técnicas validadas por engenharia
+- **SolarProposal:** Propostas fotovoltaicas completas
+
+**Features:**
+
+- Pipeline Kanban drag-and-drop
+- Mission Control (metas e gamificação)
+- Solar Wizard (geração de propostas)
+- Lead scoring automático
+- Validação "Sem Jeitinho" (guardrails de qualidade)
+
+**Status:** ✅ Operacional em produção
+
+### ⚙️ Operations (CORE - 2026-01-23)
+
+**Localização:** `nexus-monolith/frontend/src/modules/ops/`
+
+**Descrição:** Gestão completa do ciclo de vida de projetos, desde planejamento estratégico até execução tática.
+
+**Features:**
+
+- Project Cockpit (visão micro)
+- Kanban Board (execução diária)
+- Gantt Matrix (cronograma mestre)
+- Strategy Review (alinhamento OKRs)
+
+**Status:** ✅ Operacional em produção
+
+### 🎯 Strategy (CORE - 2026-01-20)
+
+**Localização:** `nexus-monolith/frontend/src/modules/strategy/`
+
+**Descrição:** Gestão de estratégias organizacionais (OKRs, PPAs) com hierarquia e key results.
+
+**Status:** ✅ Operacional em produção
+
+### 🎓 Academy (PLANEJADO)
+
+**Localização:** `nexus-monolith/frontend/src/views/academy/`
+
+**Descrição:** Plataforma de treinamento e capacitação interna.
+
+**Status:** 🚧 Em desenvolvimento
+
+### 👥 IAM (Identity & Access Management)
+
+**Localização:** `nexus-monolith/backend/src/modules/iam/`
+
+**Descrição:** Gestão de usuários, permissões e hierarquia organizacional.
+
+**Status:** ✅ Operacional
+
+---
+
+## 🗄️ SCHEMA DE BANCO DE DADOS (PRISMA)
+
+### Entidades Core
+
+#### **1. User & Hierarchy**
+
+Gerencia autenticação e subordinação direta.
+
+- **Roles:** `ADMIN`, `COORDENACAO`, `VENDEDOR`, etc.
+- **Atributos:** `username`, `password`, `role`, `supervisorId`, `orgUnitId`
+- **Relações:** `supervisor`, `subordinates`, `leadsOwned`, `missionsCoordinated`
+
+#### **2. Strategy (PPA)**
+
+O "Cérebro" do sistema. Define objetivos macro.
+
+- **Atributos:** `code`, `title`, `colorCode`, `startDate`, `endDate`, `type`
+- **Hierarquia:** Suporta estratégias aninhadas via `parentId`
+- **Filhos:** `KeyResult` (Métricas quantitativas), `Project` (Táticas)
+
+#### **3. Project (Tático)**
+
+Container de trabalho vinculado a uma estratégia.
+
+- **Tipos:** `GENERIC`, `SOLAR`, `INFRASTRUCTURE`
+- **Atributos:** `title`, `status`, `progressPercentage`, `details` (JSON)
+- **Relações:** `strategy`, `manager`, `tasks`, `risks`, `proposal`
+
+#### **4. OperationalTask (Operacional)**
+
+Unidade mínima de trabalho com suporte a recorrência e dependências.
+
+- **Atributos:** `title`, `status`, `assignedTo`, `completionPercent`, `isMilestone`
+- **Features:** Recorrência, dependências (FS/SS), checklists, tags
+- **Relações:** `project`, `assignee`, `predecessors`, `successors`, `checklists`
+
+#### **5. Lead (Comercial)**
+
+Contatos de pré-venda com scoring e qualificação.
+
+- **Atributos:** `name`, `email`, `phone`, `status`, `source`, `engagementScore`
+- **Enriquecimento:** `city`, `state`, `academyScore`, `technicalProfile`
+- **Relações:** `owner`, `mission`, `proposals`, `opportunities`, `interactions`
+
+#### **6. Mission (Comercial)**
+
+Campanhas regionais com metas e gamificação.
+
+- **Atributos:** `name`, `region`, `regionPolygon`, `startDate`, `endDate`, `status`
+- **Relações:** `coordinator`, `leads`, `opportunities`
+
+#### **7. Opportunity (Comercial)**
+
+Funil de vendas com 8 estágios.
+
+- **Status:** `LEAD_QUALIFICATION` → `VISIT_SCHEDULED` → `TECHNICAL_VISIT_DONE` → `PROPOSAL_GENERATED` → `NEGOTIATION` → `CONTRACT_SENT` → `CLOSED_WON`/`CLOSED_LOST`
+- **Atributos:** `title`, `estimatedValue`, `probability`
+- **Relações:** `lead`, `mission`, `technicalProposal`
+
+#### **8. TechnicalProposal (Comercial)**
+
+Propostas técnicas validadas por engenharia.
+
+- **Atributos:** `kitData`, `consumptionAvg`, `infrastructurePhotos`, `paybackData`, `validatedByEng`
+- **Relações:** `opportunity`
+
+#### **9. SolarProposal (Solar)**
+
+Propostas fotovoltaicas completas.
+
+- **Atributos:** `name`, `status`, `totalValue`, `systemSize`, `paybackYears`, `monthlySavings`
+- **Persistência:** `proposalData` (JSON com dossiê técnico completo)
+- **Relações:** `lead`, `project`
+
+---
+
+## 🛣️ ROTAS DA API
+
+O Neonorte | Nexus 2.2 utiliza um **Universal CRUD Controller** para a maioria dos recursos, permitindo escalabilidade rápida.
+
+### Autenticação
+
+- `POST /auth/login` - Login de usuário
+
+### Universal CRUD
+
+- `[GET|POST|PUT|DELETE] /api/:resource` - CRUD genérico
+  - `:resource` mapeia dinamicamente para modelos Prisma
+  - Exemplos: `users`, `projects`, `strategies`, `leads`, `opportunities`
+
+### Módulos Especializados
+
+#### Commercial
+
+- `GET /api/commercial/missions` - Listar missões
+- `POST /api/commercial/missions` - Criar missão
+- `GET /api/commercial/leads` - Listar leads
+- `PATCH /api/commercial/leads/:id/score` - Atualizar scoring
+- `GET /api/commercial/opportunities` - Listar oportunidades
+- `PATCH /api/commercial/opportunities/:id/stage` - Mover estágio
+
+#### Solar
+
+- `POST /api/solar/proposals` - Criar proposta
+- `GET /api/solar/proposals/:id` - Buscar proposta
+- `PATCH /api/solar/proposals/:id` - Atualizar proposta
+- `POST /api/solar/proposals/:id/generate-pdf` - Gerar PDF
+
+#### Operations
+
+- `GET /api/ops/projects` - Listar projetos
+- `GET /api/ops/projects/:id` - Buscar projeto
+- `POST /api/ops/tasks` - Criar tarefa
+- `PATCH /api/ops/tasks/:id` - Atualizar tarefa
+- `POST /api/ops/tasks/:id/dependencies` - Criar dependência
+
+---
+
+## 🔐 SEGURANÇA & SEGREDOS
+
+### Princípios de Segurança
+
+1. **Validação Zod Mandatória:** Toda entrada de dados deve ser validada na fronteira do protocolo
+2. **Proteção CVE-2025-55182:** Serialização segura em Server Actions (React 19)
+3. **RBAC:** Controle de acesso baseado em papéis
+4. **Auditoria:** Registro completo de ações via `AuditLog`
+5. **Multi-Tenancy:** Isolamento de dados via `tenantId`
+
+### Gestão de Segredos
+
+- **Desenvolvimento:** Arquivos `.env` (não versionados)
+- **Produção:** Docker Environment Variables
+- **Senhas:** Hashing via `bcrypt`
+- **Tokens:** JWT com expiração configurável
+
+---
+
+## 🚀 AMBIENTE DOCKER
+
+Neonorte | Nexus 2.2 é totalmente containerizado para desenvolvimento e produção:
+
+- **`nexus_db`:** MySQL 8.0
+- **`nexus_backend`:** Node API (Express)
+- **`nexus_frontend`:** React Dev Server (Vite)
+
+> [!IMPORTANT]
+> A URL de conexão interna no Docker entre Backend e MySQL utiliza o hostname `mysql` definido no `docker-compose.yml`.
+
+---
+
+## 📊 PADRÕES ARQUITETURAIS
+
+### Fluxo de Dados
+
+```mermaid
+graph TD
+    Client[Frontend: React 19] -- REST API --> Server[Backend: Express]
+    Server -- Prisma ORM --> DB[MySQL 8.0]
+
+    subgraph "Core Data Context"
+        Strategy -- Has Many --> Project
+        Project -- Has Many --> Task
+        Task -- Has Many --> Checklist
+        User -- Manages --> Project
+    end
+
+    subgraph "Commercial Context"
+        Mission -- Has Many --> Lead
+        Lead -- Has Many --> Opportunity
+        Opportunity -- Has One --> TechnicalProposal
+        Lead -- Has Many --> SolarProposal
+        SolarProposal -- Creates --> Project
+    end
 ```
-src/modules/{domain}/
-├── controllers/       # Lógica de recebimento HTTP
-├── services/          # Regras de Negócio (Prisma)
-├── schemas/           # Validação Zod
-├── middleware/        # Auth específico do módulo
-└── ui/                # (Frontend) Views exclusivas
-```
 
-**Regra de Ouro:** Qualquer nova funcionalidade DEVE nascer dentro de `src/modules/`. Pastas globais (`src/lib`) são apenas para infraestrutura genérica.
+### Event-Driven Architecture
 
----
+O sistema utiliza eventos para orquestrar ações entre módulos:
 
-## 2. Multi-Tenancy e RLS (ADR-003)
-
-**Status:** Implementado universalmente (7 ciclos de auditoria SEC-OPS)
-
-Isolamento de dados por **Row-Level Security**:
-
-- Toda tabela principal tem coluna `tenantId` (String)
-- **Proibido:** `prisma.lead.findMany({})` — retorna dados de todos os tenants
-- **Obrigatório:** Usar `withTenant(tenantId, async (tx) => { ... })` que injeta `tenantId` automaticamente via `asyncLocalStorage`
-- O `auth.middleware.js` propaga `tenantId` + `userId` no contexto assíncrono
-- CRONs devem extrair `tenantId` dos registros que processam (não existe contexto HTTP)
-- Locking distribuído via `cron-lock.js` com `lockSignature` para release idempotente
+- **Deal Won:** Cria projeto automaticamente em Operations
+- **Lead Scored:** Atualiza prioridade no pipeline
+- **Task Completed:** Recalcula progresso do projeto
+- **Proposal Approved:** Dispara criação de oportunidade
 
 ---
 
-## 3. RBAC — Controle de Acesso por Papel
+## 📚 DOCUMENTAÇÃO ADICIONAL
 
-| Role | Escopo |
-|---|---|
-| **ADMIN** | Acesso irrestrito |
-| **C_LEVEL** | Visão executiva de alto nível (BI, Finanças, Estratégia) |
-| **DIRECTOR** | Diretor de área com acesso a BI e portfólios cruzados |
-| **MANAGER** | Acesso total ao seu módulo, leitura em correlatos |
-| **COORDENACAO** | Read/Write todos projetos, sem Delete |
-| **VENDEDOR** | Read/Write apenas projetos próprios |
-| **B2B_CLIENT** | Extranet: vê apenas projetos onde `clientId === user.id` |
-| **B2P_VENDOR** | Extranet: vê apenas tasks vinculadas ao seu `vendorId` |
-| **TECH** | Apenas suas tarefas designadas |
-| **USER** | Operacional básico, dashboards de leitura |
+Para informações detalhadas sobre arquitetura, decisões técnicas e guias de desenvolvimento, consulte:
 
-Middleware de proteção: `requireRole(['ROLE1', 'ROLE2'])` em `auth.middleware.js`.
+- **ADRs:** `nexus-monolith/docs/adr/`
+- **Mapas de Interface:** `nexus-monolith/docs/map_nexus_monolith/`
+- **Guias:** `nexus-monolith/docs/guides/`
+- **Segurança:** `nexus-monolith/docs/security/`
 
 ---
 
-## 4. Glossário de Domínio (DDD — Linguagem Ubíqua)
+## 🔄 CHANGELOG
 
-Use estes termos exatos em Classes, Tabelas e Variáveis:
+### v2.2.0 (2026-01-26)
 
-| Domínio | Termo | Definição |
-|---|---|---|
-| Commercial | **Lead** | Potencial cliente sem proposta |
-| Commercial | **Deal/Opportunity** | Lead em negociação com valor monetário |
-| Commercial | **TechnicalProposal** | Documento técnico gerado pelo Solar Engine, antes chamado de SolarProposal |
-| Commercial | **Pipeline / Stage** | Estruturas de funil de conversão para Leads e Opportunities |
-| Ops | **Project (Obra)** | Execução vendida. Nasce quando Deal é "Closed Won" |
-| Ops | **Program** | Agrupamento macro de Projetos para gestão de portfólio executivo |
-| Ops | **OperationalTask** | Menor unidade de trabalho (Milestone ou Standard) |
-| Ops | **DailyReport** | Relatório Diário de Obra submetido por técnicos ou Vendors (Implementado) |
-| Strategy | **Objective** | O que queremos alcançar |
-| Strategy | **KeyResult** | Quantificação do objetivo |
-| Strategy | **KeyResultCheckIn** | Registro periódico de progresso de um KeyResult com valor anterior/novo e comentário |
-| Finance | **Ledger** | Registro imutável de transações (PostgreSQL) |
-| Finance | **LedgerEntry** | Entrada única no Ledger. |
-| Ops | **HRLeave** | Solicitação e aprovação de ausências (férias, atestado, licenças) |
-| Ops | **Event** | Evento global de calendário na plataforma |
+- ✅ Expansão do módulo Commercial (Mission, Opportunity, TechnicalProposal)
+- ✅ Implementação de Lead Scoring
+- ✅ Validação "Sem Jeitinho" (guardrails de qualidade)
+- ✅ Mission Control com gamificação
+- ✅ Navegação dinâmica (NavigationGroup, NavigationItem)
 
----
+### v2.1.0 (2026-01-23)
 
-## 5. Módulos Ativos e Rotas
+- ✅ Migração para TypeScript Strict Mode
+- ✅ Refatoração de Layouts (Neonorte | Nexus View Standard 2.0)
+- ✅ Otimização de queries do banco de dados
+- ✅ Auditoria de lógica de negócio
 
-```
-Frontend SPA (React + Vite + Tailwind)
-  └── /                          → AppSwitcher (Portal de Entrada)
-  └── /executive/overview        → ExecutiveDashboard
-  └── /executive/strategy        → StrategyManagerView
-  └── /executive/portfolio       → PortfolioView
-  └── /executive/people          → PeopleView
-  └── /executive/financial       → FinancialDashboard
-  └── /executive/audit           → AuditTrailView
-  └── /executive/analytics       → BIView
-  └── /commercial/pipeline       → CommercialPipeline
-  └── /commercial/missions       → MissionControl
-  └── /commercial/performance    → CommercialPerformance
-  └── /commercial/clients        → ClientsView
-  └── /commercial/contracts      → ContractsView
-  └── /ops/cockpit               → ProjectCockpit
-  └── /ops/portfolio             → ProjectBoard
-  └── /ops/kanban                → KanbanView
-  └── /ops/gantt                 → GanttMatrixView
-  └── /ops/workload              → WorkloadView
-  └── /ops/strategy              → StrategyReviewView
-  └── /ops/approvals             → ApprovalCenterView
-  └── /ops/issues                → (Em breve)
-  └── /ops/map                   → (Em breve)
+### v2.0.0 (2026-01-20)
 
-### Ecossistema Externo & Apps
-1. **Portal do Cliente (B2B)** (`/extranet/client/dashboard`): Dashboard de transparência para clientes acompanharem obras e contratos.
-2. **Terminal Extranet (B2P)** (`/extranet/vendor/tasks`): RDOs, ocorrências e faturamento para fornecedores e parceiros.
-3. **Portal Academy** (`/academy`): Plataforma de treinamento, capacitação e comunidade.
-4. **Lumi (App Externo)**: Ferramenta independente para dimensionamento fotovoltaico, integrada visualmente ao portal hub.
-5. **RDOCreator** (`/extranet/vendor/rdo`): Criação de Relatórios Diários de Obra.
-
-  └── /admin/tenant              → TenantSettings (SSO + API Quotas)
-  └── /admin/navigation          → NavigationSettings
-  └── /academy                   → Placeholder
-
-Backend Monolith (Node.js + Express)
-  └── /api/v2/iam/*              → Auth, Login, SSO Callback
-  └── /api/v2/ops/*              → Projects, Tasks, CRUD
-  └── /api/v2/commercial/*       → Leads, Pipeline, Interactions
-  └── /api/v2/extranet/*         → B2B/B2P Isolated APIs
-  └── /api/v2/gateway/*          → API Monetization (API Key auth)
-  └── /api/v2/fin/*              → Financial, Ledger, Invoices
-  └── /api/v2/bi/*               → Analytics, DWH, AI Predictions
-  └── /api/v2/strategy/*         → OKRs, Pillars, Check-ins
-  └── /api/v2/audit/*            → Event Sourcing, Trails
-  └── /api/v2/core/*             → Core & Shared Services
-  └── /api/v2/:resource          → Universal CRUD (GET only, RLS-wrapped)
-```
-
----
-
-## 7. Infraestrutura de Deploy
-
-## 6. Stack Tecnológica
-
-| Camada | Tecnologia | Versão Principal |
-|---|---|---|
-| Runtime | Node.js | v24+ |
-| Backend | Express + Prisma | Prisma v5.10.x |
-| Frontend | React + Vite + TypeScript | React 19, Vite 7, TS 5.9 |
-| Estilização | TailwindCSS | v4.1.x |
-
----
-
-## 7. Infraestrutura de Deploy
-
-| Camada | Provedor | Região |
-|---|---|---|
-| Frontend | Cloudflare Pages | Edge Global |
-| Backend API | Fly.io | GRU (São Paulo) |
-| Database | Supabase PostgreSQL | São Paulo |
-
-**Variáveis críticas:** `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, `NODE_ENV`
-
----
-
-## 8. Enterprise Roadmap — Estado Atual
-
-| Fase | Status |
-|---|---|
-| **Fase 1:** Fundação Corporativa (RLS, Audit, DDoS, Ledger) | ✅ Concluído |
-| **Fase 2:** Extranets B2B/B2P (Client Portal, Vendor Terminal) | ✅ Concluído |
-| **Fase 3:** API Monetization + Enterprise SSO (SAML/OIDC) | ✅ Concluído |
-
-**Pendente (futuro):** Migração de Auth para Supabase IdaaS, certificados SAML reais de clientes.
-
----
-
-## 9. Convenção para Novo Módulo
-
-Ao criar qualquer novo módulo:
-
-1. Criar pasta em `src/modules/{nome}/` com a estrutura padrão
-2. Definir Schema Zod ANTES de escrever o Controller
-3. **Toda query Prisma** deve filtrar por `tenantId` (usar `withTenant`)
-4. Emitir eventos relevantes para outros módulos (`events.emit`)
-5. Registrar rotas em `server.js` com `authenticateToken`
-
-**Checklist obrigatório:**
-- [ ] Queries Prisma filtram por `tenantId`?
-- [ ] Schema Zod valida inputs?
-- [ ] Permissões RBAC aplicadas?
-- [ ] Eventos emitidos para mudanças de estado?
-
----
-
-## 📍 Documentação Complementar (Carregar sob demanda)
-
-Para apontar intervenções em módulos específicos, consulte:
-- `docs/map_nexus_monolith/` — Mapas de Interface por módulo (rotas, componentes, fluxos)
-- `docs/progress_tracking/` — Changelog, TRL, Migration Plan
-- `docs/enterprise_roadmap/` — PHASE_1/2/3 detalhados
-- `docs/adr/` — Decisões arquiteturais específicas (004–008)
+- ✅ Integração do módulo Solar
+- ✅ Implementação de Universal CRUD Controller
+- ✅ Migração para Prisma ORM
+- ✅ Containerização completa via Docker

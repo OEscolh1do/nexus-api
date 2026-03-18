@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { ShieldAlert, X } from 'lucide-react';
+import type { Risk } from '../types';
 
 interface RiskModalProps {
   isOpen: boolean;
   strategyId: string;
   onClose: () => void;
-  onSave: (strategyId: string, data: any) => Promise<void>;
+  onSave: (strategyId: string, data: Partial<Risk>) => Promise<void>;
 }
 
 export const RiskModal: React.FC<RiskModalProps> = ({ isOpen, strategyId, onClose, onSave }) => {
@@ -13,8 +14,8 @@ export const RiskModal: React.FC<RiskModalProps> = ({ isOpen, strategyId, onClos
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    probability: 'MEDIUM',
-    impact: 'MEDIUM',
+    probability: 'MEDIUM' as 'MEDIUM' | 'LOW' | 'HIGH',
+    impact: 'MEDIUM' as 'MEDIUM' | 'LOW' | 'HIGH',
     mitigation: ''
   });
 
@@ -87,7 +88,7 @@ export const RiskModal: React.FC<RiskModalProps> = ({ isOpen, strategyId, onClos
                    <label className="text-[12px] font-bold text-slate-500 uppercase tracking-wider block">Probabilidade</label>
                    <select
                      value={formData.probability}
-                     onChange={e => setFormData({...formData, probability: e.target.value})}
+                     onChange={e => setFormData({...formData, probability: e.target.value as 'MEDIUM' | 'LOW' | 'HIGH'})}
                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all outline-none"
                    >
                       <option value="LOW">Baixa</option>
@@ -99,7 +100,7 @@ export const RiskModal: React.FC<RiskModalProps> = ({ isOpen, strategyId, onClos
                    <label className="text-[12px] font-bold text-slate-500 uppercase tracking-wider block">Impacto</label>
                    <select
                      value={formData.impact}
-                     onChange={e => setFormData({...formData, impact: e.target.value})}
+                     onChange={e => setFormData({...formData, impact: e.target.value as 'MEDIUM' | 'LOW' | 'HIGH'})}
                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all outline-none"
                    >
                       <option value="LOW">Baixo</option>

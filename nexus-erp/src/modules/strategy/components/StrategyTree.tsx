@@ -6,9 +6,9 @@ interface StrategyTreeProps {
   strategies: Strategy[];
   onEdit?: (strategy: Strategy) => void;
   onDelete?: (strategyId: string) => void;
-  onAddKeyResult?: (strategyId: string, data: any) => Promise<void>;
+  onAddKeyResult?: (strategyId: string) => void;
   onCheckIn?: (kr: KeyResult) => void;
-  onAddRisk?: (strategyId: string, data: any) => Promise<void>;
+  onAddRisk?: (strategyId: string) => void;
 }
 
 const PerspectiveIcon = ({ type }: { type?: string }) => {
@@ -44,9 +44,9 @@ const StrategyNode = memo<{
   level: number; 
   onEdit?: (strategy: Strategy) => void;
   onDelete?: (strategyId: string) => void;
-  onAddKeyResult?: (strategyId: string, data: any) => Promise<void>;
+  onAddKeyResult?: (strategyId: string) => void;
   onCheckIn?: (kr: KeyResult) => void;
-  onAddRisk?: (strategyId: string, data: any) => Promise<void>;
+  onAddRisk?: (strategyId: string) => void;
 }>(({ strategy, level, onEdit, onDelete, onAddKeyResult, onCheckIn, onAddRisk }) => {
   const [expanded, setExpanded] = useState(true); 
   
@@ -104,7 +104,7 @@ const StrategyNode = memo<{
              <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                {onAddRisk && (
                  <button
-                   onClick={(e) => { e.stopPropagation(); onAddRisk(strategy.id, {}); }}
+                   onClick={(e) => { e.stopPropagation(); onAddRisk(strategy.id); }}
                    className="p-1.5 rounded-md hover:bg-amber-50 dark:hover:bg-amber-900/40 text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
                    title="Mapear Risco"
                  >
@@ -113,7 +113,7 @@ const StrategyNode = memo<{
                )}
                {onAddKeyResult && (
                  <button
-                   onClick={(e) => { e.stopPropagation(); onAddKeyResult(strategy.id, {}); }}
+                   onClick={(e) => { e.stopPropagation(); onAddKeyResult(strategy.id); }}
                    className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
                    title="Adicionar Key Result"
                  >

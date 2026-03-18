@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Target, X } from 'lucide-react';
+import type { KeyResult } from '../types';
 
 interface KeyResultModalProps {
   isOpen: boolean;
   strategyId: string;
   onClose: () => void;
-  onSave: (strategyId: string, data: any) => Promise<void>;
+  onSave: (strategyId: string, data: Partial<KeyResult>) => Promise<void>;
 }
 
 export const KeyResultModal: React.FC<KeyResultModalProps> = ({ isOpen, strategyId, onClose, onSave }) => {

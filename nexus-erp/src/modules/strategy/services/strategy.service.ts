@@ -1,5 +1,5 @@
 import { api } from "../../../lib/api";
-import type { Strategy } from "../types";
+import type { Strategy, KeyResult, Risk } from "../types";
 
 const BASE_PATH = '/strategies';
 
@@ -23,12 +23,12 @@ export const StrategyService = {
     await api.delete(`${BASE_PATH}/${id}`);
   },
 
-  async addKeyResult(strategyId: string, data: any) {
+  async addKeyResult(strategyId: string, data: Partial<KeyResult>) {
     const res = await api.post(`${BASE_PATH}/${strategyId}/key-results`, data);
     return res.data.data;
   },
 
-  async addRisk(strategyId: string, data: any) {
+  async addRisk(strategyId: string, data: Partial<Risk>) {
     const res = await api.post(`${BASE_PATH}/${strategyId}/risks`, data);
     return res.data.data;
   },

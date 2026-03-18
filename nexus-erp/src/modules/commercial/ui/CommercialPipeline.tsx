@@ -122,8 +122,7 @@ export default function CommercialPipeline() {
   const openDrawer = (opp: Opportunity) => {
     // LeadDrawer was built for Lead type, we pass the expanded Lead from Opportunity
     if (opp.lead) {
-      // @ts-ignore - Temporary cast to bypass strict props
-      setSelectedLead({ ...opp.lead, id: opp.leadId });
+      setSelectedLead({ ...opp.lead, id: opp.leadId } as Lead);
       setIsDrawerOpen(true);
     }
   };
