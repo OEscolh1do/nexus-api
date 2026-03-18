@@ -15,7 +15,6 @@ import React from 'react';
 import { ProfileOrchestrator } from './layout/ProfileOrchestrator';
 import { AuthProvider } from './core/auth/AuthProvider';
 import { useAuth } from './core/auth/useAuth';
-import { LoginView } from './modules/auth/LoginView';
 import { Loader2 } from 'lucide-react';
 
 // =============================================================================
@@ -23,7 +22,7 @@ import { Loader2 } from 'lucide-react';
 // =============================================================================
 
 const AuthGuard: React.FC = () => {
-  const { user, loading } = useAuth();
+  const { loading } = useAuth();
 
   if (loading) {
     return (
@@ -31,10 +30,6 @@ const AuthGuard: React.FC = () => {
         <Loader2 size={32} className="animate-spin text-neonorte-green" />
       </div>
     );
-  }
-
-  if (!user) {
-    return <LoginView />;
   }
 
   return <ProfileOrchestrator />;

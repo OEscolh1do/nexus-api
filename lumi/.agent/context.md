@@ -28,7 +28,7 @@
 - **Framework:** Express.js (Universal Controller Pattern)
 - **ORM:** Prisma 5.10+
 - **Database:** MySQL 8.0 (Dockerizado ou Hospedagem Hostinger)
-- **Segurança:** Autenticação via `/auth/login` e validação Zod.
+- **Segurança:** Autenticação SSO e validação Zod.
 
 #### **Frontend**
 
@@ -213,10 +213,6 @@ Propostas fotovoltaicas completas.
 ## 🛣️ ROTAS DA API
 
 O Neonorte | Nexus 2.2 utiliza um **Universal CRUD Controller** para a maioria dos recursos, permitindo escalabilidade rápida.
-
-### Autenticação
-
-- `POST /auth/login` - Login de usuário
 
 ### Universal CRUD
 
