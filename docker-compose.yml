@@ -1,47 +1,126 @@
-version: '3.8'
+# =============================================================
+# Neonorte Workspace — Docker Compose (Operação Guardiões)
+# 4 Contentores: API Gateway, Iaçã, Kurupira, MySQL
+# =============================================================
 
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: nexus_db
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: neonorte123
-      MYSQL_DATABASE: neonorte
-      MYSQL_USER: neonorte
-      MYSQL_PASSWORD: neonorte123
-    ports:
-      - "3307:3306"
-    volumes:
-      - nexus_mysql_data:/var/lib/mysql
 
-  backend:
-    build: ./nexus-api
-    container_name: nexus_backend
+  # ==========================================================
+  # API GATEWAY — Ponto único de entrada público
+  # ==========================================================
+  api-gateway:
+    image: nginx:alpine
+    container_name: neonorte_gateway
+    restart: unless-stopped
     ports:
-      - "3001:3001"
+      - "80:80"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      iaca-backend:
+        condition: service_healthy
+      kurupira-backend:
+        condition: service_healthy
+    networks:
+      - neonorte_net
+
+  # ==========================================================
+  # IAÇÃ — O Cérebro de Gestão (I/O-Bound)
+  # CRM, Finanças, Ops, Strategy, IAM
+  # ==========================================================
+  iaca-backend:
+    build:
+      context: ./iaca-erp/backend
+      dockerfile: Dockerfile
+    container_name: neonorte_iaca
+    restart: unless-stopped
     environment:
-      DATABASE_URL: mysql://neonorte:neonorte123@mysql:3306/neonorte
+      DATABASE_URL: "mysql://user_iaca:iaca_S3cur3_2026!@nexus-db:3306/db_iaca"
+      JWT_SECRET: "nexus_dev_secret_2026"
+      M2M_SERVICE_TOKEN: "m2m_guardioes_secret_2026!"
       PORT: 3001
       NODE_ENV: development
     depends_on:
-      - mysql
-    volumes:
-      - ./nexus-api:/app
-      - /app/node_modules
+      nexus-db:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - neonorte_net
 
-  frontend:
-    build: ./nexus-erp
-    container_name: nexus_frontend
-    ports:
-      - "3000:3000"
+  # ==========================================================
+  # KURUPIRA — O Músculo de Engenharia (CPU/Memory-Bound)
+  # Simulação solar, GIS, PDFs, dimensionamento elétrico
+  # ==========================================================
+  kurupira-backend:
+    build:
+      context: ./kurupira/backend
+      dockerfile: Dockerfile
+    container_name: neonorte_kurupira
+    restart: unless-stopped
     environment:
-      VITE_API_URL: http://localhost:3001
+      DATABASE_URL: "mysql://user_kurupira:kuru_S3cur3_2026!@nexus-db:3306/db_kurupira"
+      JWT_SECRET: "nexus_dev_secret_2026"
+      M2M_SERVICE_TOKEN: "m2m_guardioes_secret_2026!"
+      IACA_INTERNAL_URL: "http://iaca-backend:3001"
+      PORT: 3002
+      NODE_ENV: development
     depends_on:
-      - backend
+      nexus-db:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3002/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - neonorte_net
+
+  # ==========================================================
+  # NEXUS-DB — Fortaleza de Dados (MySQL 8.0)
+  # Schemas lógicos: db_iaca + db_kurupira
+  # ==========================================================
+  nexus-db:
+    image: mysql:8.0
+    container_name: neonorte_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: neonorte_root_2026!
     volumes:
-      - ./nexus-erp:/app
-      - /app/node_modules
+      - nexus_mysql_data:/var/lib/mysql
+      - ./infra/mysql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pneonorte_root_2026!"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - neonorte_net
+
+# ==========================================================
+# REDE PRIVADA — Nenhuma porta interna exposta ao host
+# ==========================================================
+networks:
+  neonorte_net:
+    driver: bridge
 
 volumes:
   nexus_mysql_data:

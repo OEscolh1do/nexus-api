@@ -1,83 +1,96 @@
-# NEONORTE NEXUS 2.0 - Gestão Estratégica e Solar
+# NEONORTE — Workspace Multi-Serviço
 
-Neonorte | Nexus 2.0 é um ecossistema modular para orquestração de negócios, focado na transposição de Estratégias Macro em Operações Táticas.
+Ecossistema modular para energia solar, composto por dois domínios autônomos conectados via API M2M e deep links.
 
----
-
-## 🏗️ Estrutura do Ecossistema (Hub & Spoke)
-
-O sistema foi desmonolitizado em pacotes e sub-portais independentes:
-
-- 🚪 **Portal Central SSO (`nexus-hub`):** Gateway Universal e AppSwitcher.
-- 🏢 **Nexus ERP (`nexus-erp`):** O Core de Gestão e Operações. (Porta 3000)
-- ⚙️ **Nexus Backend (`nexus-api`):** API Express + Prisma. (Porta 3001)
-- ☀️ **Calculadora Lumi (`lumi`):** App Satélite de Engenharia Solar.
-- 🎓 **Nexus Academy (`neonorte-academy`):** Hub de Ensino corporativo.
-- 🤝 **Portais Extranet:** `nexus-client-portal` (B2B) e `nexus-vendor-portal` (B2P).
-- **Docker Stack:** MySQL 8.0 orquestrado via Docker Compose.
+| Domínio | Codinome | Função |
+|---------|----------|--------|
+| Gestão & CRM | **Iaçã** | ERP, Leads, Pipeline, Strategy, Operations |
+| Engenharia Solar | **Kurupira** | Dimensionamento, Elétrico, Proposta, Simulação |
 
 ---
 
 ## 🚀 Setup Rápido (Docker)
 
-A forma recomendada de rodar o Neonorte | Nexus é via Docker Compose.
+```bash
+# 1. Subir os 4 contentores (MySQL + Iaçã + Kurupira + Gateway)
+docker-compose up --build -d
 
-1. **Certifique-se de que o Docker Desktop está rodando.**
-2. **Execute o comando na raiz:**
-   ```bash
-   docker-compose up --build -d
-   ```
-3. **Inicialize o Banco de Dados:**
+# 2. Inicializar os schemas
+docker exec neonorte_iaca npx prisma db push
+docker exec neonorte_kurupira npx prisma db push
 
-   ```bash
-   # Criar tabelas
-   docker exec nexus_backend npx prisma db push
+# 3. Semear admin (admin/123)
+docker exec neonorte_iaca node seed_admin_fix.js
+```
 
-   # Resetar admin (admin/123) e semear estratégias
-   docker exec nexus_backend node seed_admin_fix.js
-   ```
+## 🛠️ Desenvolvimento Local (sem Docker)
 
----
-
-## 🛠️ Desenvolvimento Local (npm)
-
-### 1. Backend (`nexus-api`)
+### Iaçã Backend (porta 3001)
 
 ```bash
-cd nexus-api
+cd iaca-erp/backend
 npm install
 npx prisma generate
 npm run dev
 ```
 
-### 2. Frontend ERP (`nexus-erp`)
+### Iaçã Frontend (porta 3000)
 
 ```bash
-cd nexus-erp
+cd iaca-erp/frontend
 npm install
 npm run dev
 ```
 
-### 3. Portal Hub (SSO Gateway)
+### Kurupira Backend (porta 3002)
 
 ```bash
-cd nexus-hub
+cd kurupira/backend
+npm install
+npx prisma generate
+npm run dev
+```
+
+### Kurupira Frontend (porta 5173)
+
+```bash
+cd kurupira/frontend
 npm install
 npm run dev
 ```
 
 ---
 
-## 📚 Documentação Adicional
+## 📂 Estrutura do Workspace
 
-- [CONTEXT.md](file:///c:/Users/Neonorte%20Tecnologia/Documents/Meus%20Projetos/Neonorte/Neonorte/CONTEXT.md): Visão técnica, Stack e Schema.
-- [MAPA_SISTEMA.md](file:///c:/Users/Neonorte%20Tecnologia/Documents/Meus%20Projetos/Neonorte/Neonorte/MAPA_SISTEMA.md): Guia de navegação de arquivos e UI.
-- [DFD.md](file:///c:/Users/Neonorte%20Tecnologia/Documents/Meus%20Projetos/Neonorte/Neonorte/DFD.md): Fluxogramas e Diagramas Mermaid.
+```
+neonorte/
+├── iaca-erp/
+│   ├── frontend/         (React 19, Vite, TailwindCSS, Axios)
+│   └── backend/          (Express, Prisma → db_iaca)
+├── kurupira/
+│   ├── frontend/         (React 19, Vite, Zustand, Workspace dark)
+│   └── backend/          (Express, Prisma → db_kurupira)
+├── infra/
+│   ├── mysql/init.sql    (GRANTs e schemas)
+│   └── nginx/nginx.conf  (API Gateway)
+├── docker-compose.yml    (4 contentores)
+├── CONTEXT.md            (Documentação técnica completa)
+└── README.md             (este ficheiro)
+```
 
 ---
 
-## 🔑 Acesso Padrão
+## 📚 Documentação
 
-- **URL:** [http://localhost:3000](http://localhost:3000)
-- **Login:** `admin`
-- **Senha:** `123`
+- [CONTEXT.md](./CONTEXT.md) — Arquitetura, schemas, módulos e rotas de API
+- [docker-compose.yml](./docker-compose.yml) — Orquestração de contentores
+
+---
+
+## 🔑 Acesso Padrão (Dev)
+
+| App | URL | Login | Senha |
+|-----|-----|-------|-------|
+| Iaçã ERP | http://localhost:3000 | `admin` | `123` |
+| Kurupira Workspace | http://localhost:5173 | — (mock bypass) | — |

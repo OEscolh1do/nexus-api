@@ -1,2 +1,0 @@
-- **Linguagem Principal:** Relatórios em Markdown Corporativo, Tabelas Sintéticas, YAML e JSON de Configuração.
-- **Integração:** Os dados aqui inseridos emitem sentenças cruzadas sobre múltiplos módulos. Qualquer alteração aqui deve ser previamente informada nas pastas `.agent/trl/` locais de cada microsserviço (Sincronia Mestre-Detalhe).

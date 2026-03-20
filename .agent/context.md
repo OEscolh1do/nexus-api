@@ -1,356 +1,172 @@
-# CONTEXT.md - Sistema NEONORTE NEXUS
+# CONTEXT.md — Sistema NEONORTE
 
-> **Última Atualização:** 2026-01-26
+> **Última Atualização:** 2026-03-20
 > **Arquiteto:** Antigravity AI
-> **Versão do Sistema:** 2.2.0 (Neonorte | Nexus SQL - Commercial Expansion)
+> **Versão do Sistema:** 3.0.0 (Neonorte Workspace — Cisão Arquitetural "Operação Guardiões")
 
 ---
 
 ## 📋 VISÃO GERAL
 
-**NEXUS** é um ecossistema **ERP/Gestão** robusto projetado para o setor de energia solar, focado na orquestração de estratégia, tática e operacional. O sistema foi otimizado para eliminar complexidade acidental, mantendo foco estrito na execução de projetos e estratégias.
+**Neonorte** é um ecossistema **multi-serviço** para o setor de energia solar. O antigo monólito "Nexus" foi cisado em dois domínios autônomos, cada um com frontend + backend + schema MySQL dedicado, orquestrados por Docker Compose.
 
-### Domínio de Negócio
+| Domínio | Codinome | Responsabilidade |
+|---------|----------|-----------------|
+| **Gestão & CRM** | **Iaçã** | ERP, Leads, Pipeline, Finanças, Strategy, Operations, IAM |
+| **Engenharia Solar** | **Kurupira** | Dimensionamento, Elétrico, Documentação, Proposta, Simulação |
 
-- **Setor:** Energia Solar & Gestão Estratégica
-- **Usuários:** Colaboradores, Gestores (COORD), e Administradores (ADMIN).
-- **Missão:** Transformar estratégias macro em ações táticas (projetos) e operações detalhadas (tarefas/checklists).
+### Comunicação entre Domínios
+
+- **Iaçã → Kurupira:** Deep links com query params (`?leadId=X&name=...`)
+- **Kurupira → Iaçã:** API M2M com `M2M_SERVICE_TOKEN` (busca contexto do Lead)
+- **Sem duplicação de dados comerciais** — Kurupira guarda apenas `iacaLeadId` como FK virtual
 
 ---
 
-## 🏗️ ARQUITETURA DO SISTEMA (NEXUS 2.2)
+## 🏗️ ARQUITETURA (v3.0)
 
 ### Stack Tecnológico
 
-#### **Backend**
+| Camada | Iaçã | Kurupira |
+|--------|------|----------|
+| **Frontend** | React 19.2, Vite, TailwindCSS, Axios | React 19.2, Vite, TailwindCSS CDN, Zustand |
+| **Backend** | Express.js, Prisma, MySQL | Express.js, Prisma, MySQL |
+| **Porta (dev)** | `3000` (frontend), `3001` (backend) | `5173` (frontend), `3002` (backend) |
+| **Docker Image** | `node:20-slim` | `node:20-slim` |
 
-- **Runtime:** Node.js 18/20
-- **Framework:** Express.js (Universal Controller Pattern)
-- **ORM:** Prisma 5.10+
-- **Database:** MySQL 8.0 (Dockerizado ou Hospedagem Hostinger)
-- **Segurança:** Autenticação via `/auth/login` e validação Zod.
+### Infraestrutura Docker (4 Contentores)
 
-#### **Frontend**
-
-- **Framework:** React 19.2 / Vite
-- **Linguagem:** TypeScript (Strict Mode)
-- **Estilização:** TailwindCSS
-- **Bibliotecas Especializadas:**
-  - Leaflet 1.9.4 (mapas - módulo Solar)
-  - @geoman-io/leaflet-geoman-free (desenho de polígonos)
-  - Frappe Gantt (timelines)
-  - Recharts (gráficos)
-  - jspdf + html2canvas (geração de PDF)
-
-#### **Infraestrutura**
-
-- Docker (desenvolvimento e produção)
-- MySQL 8.0
-- Hostinger (produção)
+| Contentor | Hostname | Memória |
+|-----------|----------|---------|
+| `neonorte_gateway` | API Gateway (Nginx) | — |
+| `neonorte_iaca` | Iaçã Backend (Express) | 1 GB |
+| `neonorte_kurupira` | Kurupira Backend (Express) | 4 GB |
+| `neonorte_db` | MySQL 8.0 (schemas `db_iaca` + `db_kurupira`) | 1 GB |
 
 ---
 
-## 🧩 MÓDULOS INTEGRADOS
+## 🧩 MÓDULOS POR DOMÍNIO
 
-### 🌞 Solar (INTEGRADO - 2026-01-20)
+### Iaçã (Gestão & CRM) — `iaca-erp/`
 
-**Localização:** `nexus-monolith/frontend/src/modules/solar/`
+| Módulo | Localização | Status |
+|--------|------------|--------|
+| Commercial (CRM, Leads, Pipeline) | `frontend/src/views/commercial/` | ✅ Operacional |
+| Operations (Projetos, Tarefas, Gantt) | `frontend/src/modules/ops/` | ✅ Operacional |
+| Strategy (OKRs, PPAs) | `frontend/src/modules/strategy/` | ✅ Operacional |
+| IAM (Users, Roles, Hierarchy) | `backend/src/modules/iam/` | ✅ Operacional |
+| Academy (Treinamento) | `frontend/src/views/academy/` | 🚧 Planejado |
 
-**Descrição:** Sistema completo de propostas fotovoltaicas com wizard de 6 etapas, mapeamento via Leaflet, cálculos de dimensionamento, seleção de equipamentos e geração de PDF.
+### Kurupira (Engenharia Solar) — `kurupira/`
 
-**Persistência:** `SolarProposal.proposalData` (JSON com validação Zod obrigatória)
-
-**Segurança:**
-
-- ✅ Validação Zod
-- ✅ RBAC (controle por papel)
-- ✅ Auditoria (AuditLog registra todas as mudanças)
-- ✅ Proteção CVE-2025-55182 (serialização segura)
-
-**Status:** ✅ Operacional em produção
-
-### 💼 Commercial (EXPANDIDO - 2026-01-26)
-
-**Localização:** `nexus-monolith/frontend/src/views/commercial/`
-
-**Descrição:** Sistema completo de CRM com gestão de leads, oportunidades, missões comerciais e propostas técnicas.
-
-**Entidades Principais:**
-
-- **Lead:** Contatos de pré-venda com scoring e qualificação
-- **Mission:** Campanhas regionais com metas e gamificação
-- **Opportunity:** Funil de vendas com 8 estágios
-- **TechnicalProposal:** Propostas técnicas validadas por engenharia
-- **SolarProposal:** Propostas fotovoltaicas completas
-
-**Features:**
-
-- Pipeline Kanban drag-and-drop
-- Mission Control (metas e gamificação)
-- Solar Wizard (geração de propostas)
-- Lead scoring automático
-- Validação "Sem Jeitinho" (guardrails de qualidade)
-
-**Status:** ✅ Operacional em produção
-
-### ⚙️ Operations (CORE - 2026-01-23)
-
-**Localização:** `nexus-monolith/frontend/src/modules/ops/`
-
-**Descrição:** Gestão completa do ciclo de vida de projetos, desde planejamento estratégico até execução tática.
-
-**Features:**
-
-- Project Cockpit (visão micro)
-- Kanban Board (execução diária)
-- Gantt Matrix (cronograma mestre)
-- Strategy Review (alinhamento OKRs)
-
-**Status:** ✅ Operacional em produção
-
-### 🎯 Strategy (CORE - 2026-01-20)
-
-**Localização:** `nexus-monolith/frontend/src/modules/strategy/`
-
-**Descrição:** Gestão de estratégias organizacionais (OKRs, PPAs) com hierarquia e key results.
-
-**Status:** ✅ Operacional em produção
-
-### 🎓 Academy (PLANEJADO)
-
-**Localização:** `nexus-monolith/frontend/src/views/academy/`
-
-**Descrição:** Plataforma de treinamento e capacitação interna.
-
-**Status:** 🚧 Em desenvolvimento
-
-### 👥 IAM (Identity & Access Management)
-
-**Localização:** `nexus-monolith/backend/src/modules/iam/`
-
-**Descrição:** Gestão de usuários, permissões e hierarquia organizacional.
-
-**Status:** ✅ Operacional
+| Módulo | Localização | Status |
+|--------|------------|--------|
+| Dimensionamento (PV Array, Inversores) | `frontend/src/modules/engineering/` | ✅ Operacional |
+| Elétrico & BOS (Cabos, Proteções) | `frontend/src/modules/electrical/` | ✅ Operacional |
+| Documentação (Memorial, ART) | `frontend/src/modules/documentation/` | ✅ Operacional |
+| Proposta (Pricing, PDF) | `frontend/src/modules/proposal/` | ✅ Operacional |
+| Premissas (Settings Globais) | `frontend/src/modules/settings/` | ✅ Operacional |
 
 ---
 
-## 🗄️ SCHEMA DE BANCO DE DADOS (PRISMA)
+## 🗄️ SCHEMAS DE BANCO DE DADOS (PRISMA)
 
-### Entidades Core
+### db_iaca (Iaçã — ~40 models)
 
-#### **1. User & Hierarchy**
+Entidades principais: `User`, `Strategy`, `KeyResult`, `Project`, `OperationalTask`, `Lead`, `Mission`, `Opportunity`, `TechnicalProposal`, `Vendor`, `Contract`, `Budget`, `Invoice`, `PurchaseOrder`, `Material`, `ApprovalGate`, `Tenant`, `AuditLog`, `Pipeline`, `Stage`.
 
-Gerencia autenticação e subordinação direta.
+### db_kurupira (Kurupira — 6 models)
 
-- **Roles:** `ADMIN`, `COORDENACAO`, `VENDEDOR`, etc.
-- **Atributos:** `username`, `password`, `role`, `supervisorId`, `orgUnitId`
-- **Relações:** `supervisor`, `subordinates`, `leadsOwned`, `missionsCoordinated`
-
-#### **2. Strategy (PPA)**
-
-O "Cérebro" do sistema. Define objetivos macro.
-
-- **Atributos:** `code`, `title`, `colorCode`, `startDate`, `endDate`, `type`
-- **Hierarquia:** Suporta estratégias aninhadas via `parentId`
-- **Filhos:** `KeyResult` (Métricas quantitativas), `Project` (Táticas)
-
-#### **3. Project (Tático)**
-
-Container de trabalho vinculado a uma estratégia.
-
-- **Tipos:** `GENERIC`, `SOLAR`, `INFRASTRUCTURE`
-- **Atributos:** `title`, `status`, `progressPercentage`, `details` (JSON)
-- **Relações:** `strategy`, `manager`, `tasks`, `risks`, `proposal`
-
-#### **4. OperationalTask (Operacional)**
-
-Unidade mínima de trabalho com suporte a recorrência e dependências.
-
-- **Atributos:** `title`, `status`, `assignedTo`, `completionPercent`, `isMilestone`
-- **Features:** Recorrência, dependências (FS/SS), checklists, tags
-- **Relações:** `project`, `assignee`, `predecessors`, `successors`, `checklists`
-
-#### **5. Lead (Comercial)**
-
-Contatos de pré-venda com scoring e qualificação.
-
-- **Atributos:** `name`, `email`, `phone`, `status`, `source`, `engagementScore`
-- **Enriquecimento:** `city`, `state`, `academyScore`, `technicalProfile`
-- **Relações:** `owner`, `mission`, `proposals`, `opportunities`, `interactions`
-
-#### **6. Mission (Comercial)**
-
-Campanhas regionais com metas e gamificação.
-
-- **Atributos:** `name`, `region`, `regionPolygon`, `startDate`, `endDate`, `status`
-- **Relações:** `coordinator`, `leads`, `opportunities`
-
-#### **7. Opportunity (Comercial)**
-
-Funil de vendas com 8 estágios.
-
-- **Status:** `LEAD_QUALIFICATION` → `VISIT_SCHEDULED` → `TECHNICAL_VISIT_DONE` → `PROPOSAL_GENERATED` → `NEGOTIATION` → `CONTRACT_SENT` → `CLOSED_WON`/`CLOSED_LOST`
-- **Atributos:** `title`, `estimatedValue`, `probability`
-- **Relações:** `lead`, `mission`, `technicalProposal`
-
-#### **8. TechnicalProposal (Comercial)**
-
-Propostas técnicas validadas por engenharia.
-
-- **Atributos:** `kitData`, `consumptionAvg`, `infrastructurePhotos`, `paybackData`, `validatedByEng`
-- **Relações:** `opportunity`
-
-#### **9. SolarProposal (Solar)**
-
-Propostas fotovoltaicas completas.
-
-- **Atributos:** `name`, `status`, `totalValue`, `systemSize`, `paybackYears`, `monthlySavings`
-- **Persistência:** `proposalData` (JSON com dossiê técnico completo)
-- **Relações:** `lead`, `project`
+| Model | Descrição |
+|-------|-----------|
+| `TechnicalDesign` | Projeto técnico (FK virtual `iacaLeadId` → Lead do Iaçã) |
+| `RoofSection` | Polígono GeoJSON de seção de telhado |
+| `PVArray` | Configuração de strings + módulos + inversores |
+| `Simulation` | Resultados de cálculos (geração, perdas, payback) |
+| `ModuleCatalog` | Catálogo de módulos fotovoltaicos |
+| `InverterCatalog` | Catálogo de inversores |
 
 ---
 
 ## 🛣️ ROTAS DA API
 
-O Neonorte | Nexus 2.2 utiliza um **Universal CRUD Controller** para a maioria dos recursos, permitindo escalabilidade rápida.
+### Iaçã Backend (`:3001`)
 
-### Autenticação
+- `POST /auth/login` — Autenticação JWT
+- `[CRUD] /api/:resource` — Universal CRUD Controller
+- `GET/POST /api/commercial/missions` — Missões
+- `PATCH /api/commercial/leads/:id/score` — Scoring
+- `PATCH /api/commercial/opportunities/:id/stage` — Pipeline
 
-- `POST /auth/login` - Login de usuário
+### Kurupira Backend (`:3002`)
 
-### Universal CRUD
-
-- `[GET|POST|PUT|DELETE] /api/:resource` - CRUD genérico
-  - `:resource` mapeia dinamicamente para modelos Prisma
-  - Exemplos: `users`, `projects`, `strategies`, `leads`, `opportunities`
-
-### Módulos Especializados
-
-#### Commercial
-
-- `GET /api/commercial/missions` - Listar missões
-- `POST /api/commercial/missions` - Criar missão
-- `GET /api/commercial/leads` - Listar leads
-- `PATCH /api/commercial/leads/:id/score` - Atualizar scoring
-- `GET /api/commercial/opportunities` - Listar oportunidades
-- `PATCH /api/commercial/opportunities/:id/stage` - Mover estágio
-
-#### Solar
-
-- `POST /api/solar/proposals` - Criar proposta
-- `GET /api/solar/proposals/:id` - Buscar proposta
-- `PATCH /api/solar/proposals/:id` - Atualizar proposta
-- `POST /api/solar/proposals/:id/generate-pdf` - Gerar PDF
-
-#### Operations
-
-- `GET /api/ops/projects` - Listar projetos
-- `GET /api/ops/projects/:id` - Buscar projeto
-- `POST /api/ops/tasks` - Criar tarefa
-- `PATCH /api/ops/tasks/:id` - Atualizar tarefa
-- `POST /api/ops/tasks/:id/dependencies` - Criar dependência
+- `GET /health` — Health check
+- `[CRUD] /api/v1/designs` — Projetos técnicos
+- `[CRUD] /api/v1/catalog/modules` — Catálogo de módulos
+- `[CRUD] /api/v1/catalog/inverters` — Catálogo de inversores
 
 ---
 
-## 🔐 SEGURANÇA & SEGREDOS
+## 🔐 SEGURANÇA
 
-### Princípios de Segurança
-
-1. **Validação Zod Mandatória:** Toda entrada de dados deve ser validada na fronteira do protocolo
-2. **Proteção CVE-2025-55182:** Serialização segura em Server Actions (React 19)
-3. **RBAC:** Controle de acesso baseado em papéis
-4. **Auditoria:** Registro completo de ações via `AuditLog`
-5. **Multi-Tenancy:** Isolamento de dados via `tenantId`
-
-### Gestão de Segredos
-
-- **Desenvolvimento:** Arquivos `.env` (não versionados)
-- **Produção:** Docker Environment Variables
-- **Senhas:** Hashing via `bcrypt`
-- **Tokens:** JWT com expiração configurável
+- **JWT compartilhado** entre Iaçã e Kurupira (`JWT_SECRET` comum)
+- **M2M Service Token** para comunicação inter-serviço
+- **Validação Zod** na fronteira de dados
+- **RBAC** com roles: `ADMIN`, `COORDENACAO`, `VENDEDOR`, `ENGINEER`
+- **Multi-Tenancy** via `tenantId` (Iaçã)
 
 ---
 
-## 🚀 AMBIENTE DOCKER
+## 📂 ESTRUTURA DO WORKSPACE
 
-Neonorte | Nexus 2.2 é totalmente containerizado para desenvolvimento e produção:
-
-- **`nexus_db`:** MySQL 8.0
-- **`nexus_backend`:** Node API (Express)
-- **`nexus_frontend`:** React Dev Server (Vite)
-
-> [!IMPORTANT]
-> A URL de conexão interna no Docker entre Backend e MySQL utiliza o hostname `mysql` definido no `docker-compose.yml`.
-
----
-
-## 📊 PADRÕES ARQUITETURAIS
-
-### Fluxo de Dados
-
-```mermaid
-graph TD
-    Client[Frontend: React 19] -- REST API --> Server[Backend: Express]
-    Server -- Prisma ORM --> DB[MySQL 8.0]
-
-    subgraph "Core Data Context"
-        Strategy -- Has Many --> Project
-        Project -- Has Many --> Task
-        Task -- Has Many --> Checklist
-        User -- Manages --> Project
-    end
-
-    subgraph "Commercial Context"
-        Mission -- Has Many --> Lead
-        Lead -- Has Many --> Opportunity
-        Opportunity -- Has One --> TechnicalProposal
-        Lead -- Has Many --> SolarProposal
-        SolarProposal -- Creates --> Project
-    end
+```
+neonorte/
+├── iaca-erp/
+│   ├── frontend/     (React 19, Vite, Axios → iaca-backend:3001)
+│   │   └── Deep links: LeadDrawer + Pipeline → Kurupira
+│   └── backend/      (Express → db_iaca MySQL, M2M internos)
+├── kurupira/
+│   ├── frontend/     (React 19, Vite, Workspace dark, Zustand)
+│   └── backend/      (Express → db_kurupira MySQL, M2M client)
+├── packages/shared-core/  (vazio — futuro)
+├── infra/
+│   ├── mysql/init.sql     (GRANTs isolados por schema)
+│   └── nginx/nginx.conf   (API Gateway routing)
+├── docker-compose.yml     (4 contentores)
+└── CONTEXT.md             (este ficheiro)
 ```
 
-### Event-Driven Architecture
-
-O sistema utiliza eventos para orquestrar ações entre módulos:
-
-- **Deal Won:** Cria projeto automaticamente em Operations
-- **Lead Scored:** Atualiza prioridade no pipeline
-- **Task Completed:** Recalcula progresso do projeto
-- **Proposal Approved:** Dispara criação de oportunidade
-
 ---
 
-## 📚 DOCUMENTAÇÃO ADICIONAL
+## 🚨 DÍVIDA TÉCNICA CONHECIDA
 
-Para informações detalhadas sobre arquitetura, decisões técnicas e guias de desenvolvimento, consulte:
-
-- **ADRs:** `nexus-monolith/docs/adr/`
-- **Mapas de Interface:** `nexus-monolith/docs/map_nexus_monolith/`
-- **Guias:** `nexus-monolith/docs/guides/`
-- **Segurança:** `nexus-monolith/docs/security/`
+| Item | Status | Nota |
+|------|--------|------|
+| Kurupira `AuthProvider` | ⚠️ Mock JWT bypass | Bypass p/ dev — implementar JWT real do Kurupira backend |
+| `ProjectService` / `SettingsService` | ⚠️ Stub | Supabase removido, aguarda integração com `KurupiraClient` |
+| `useProposalCalculator` | ✅ Corrigido | `FinanceSlice` removido, mockado localmente |
+| `EquipmentDatabaseManager` | ✅ Removido | Funcionalidade movida para Iaçã ERP |
+| Equipamento CRM stores | ✅ Mockados | `useEquipmentStore` substituídos por mocks locais |
 
 ---
 
 ## 🔄 CHANGELOG
 
+### v3.0.0 (2026-03-20) — Operação Guardiões
+
+- ✅ Cisão do monólito em Iaçã (Gestão) + Kurupira (Engenharia)
+- ✅ Docker Compose com 4 contentores + API Gateway Nginx
+- ✅ Schemas MySQL isolados (`db_iaca` + `db_kurupira`)
+- ✅ Workspace UI dark com sidebar (ProfileOrchestrator → Workspace)
+- ✅ Deep links Iaçã → Kurupira (LeadDrawer + Pipeline)
+- ✅ Remoção completa de Supabase (Auth, ProjectService, SettingsService)
+- ✅ Resolução do ESM deadlock (`selectFinanceResults` órfão)
+
 ### v2.2.0 (2026-01-26)
 
-- ✅ Expansão do módulo Commercial (Mission, Opportunity, TechnicalProposal)
-- ✅ Implementação de Lead Scoring
-- ✅ Validação "Sem Jeitinho" (guardrails de qualidade)
-- ✅ Mission Control com gamificação
-- ✅ Navegação dinâmica (NavigationGroup, NavigationItem)
-
-### v2.1.0 (2026-01-23)
-
-- ✅ Migração para TypeScript Strict Mode
-- ✅ Refatoração de Layouts (Neonorte | Nexus View Standard 2.0)
-- ✅ Otimização de queries do banco de dados
-- ✅ Auditoria de lógica de negócio
+- Expansão do módulo Commercial (Mission, Opportunity, TechnicalProposal)
+- Lead Scoring, Mission Control, Pipeline Kanban
 
 ### v2.0.0 (2026-01-20)
 
-- ✅ Integração do módulo Solar
-- ✅ Implementação de Universal CRUD Controller
-- ✅ Migração para Prisma ORM
-- ✅ Containerização completa via Docker
+- Integração do módulo Solar, Universal CRUD Controller, Prisma ORM, Docker
