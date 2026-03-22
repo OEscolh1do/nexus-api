@@ -19,40 +19,18 @@ import { ElectricalModule } from '@/modules/electrical/ElectricalModule';
 import { DocumentationModule } from '@/modules/documentation/DocumentationModule';
 import { ProposalModule } from '@/modules/proposal/ProposalModule';
 import { SettingsModule } from '@/modules/settings/SettingsModule';
-import { LeadContextPanel, LeadContext } from '@/components/LeadContextPanel';
-import { DASHBOARD_TABS, TabId, TAB_COLOR_CLASSES } from '@/config/navigation';
+import { ProjectExplorer } from '@/modules/engineering/ui/ProjectExplorer';
+import { SiteContextModal, getSiteContext, SiteContext } from '@/modules/engineering/ui/SiteContextModal';
+import { DASHBOARD_TABS, TabId, TAB_COLOR_CLASSES, getTabIndex } from '@/config/navigation';
 import {
   Lock, ShieldCheck, ShieldAlert,
   PanelLeftClose, PanelLeftOpen,
-  FolderOpen, Plus, Maximize2, Minimize2,
-  Zap
+  Maximize2, Minimize2, Zap, Check,
+  LayoutDashboard, Download, MapPin,
+  Battery
 } from 'lucide-react';
 
-// =============================================================================
-// MOCK DATA (substituir por dados reais via API na integração)
-// =============================================================================
 
-const MOCK_PROJECTS = [
-  { id: '1', name: 'Supermercado Central', status: 'IN_PROGRESS', iacaLeadId: 'lead-001' },
-  { id: '2', name: 'Residência Silva', status: 'DRAFT', iacaLeadId: 'lead-002' },
-  { id: '3', name: 'Galpão Industrial Norte', status: 'REVIEW', iacaLeadId: 'lead-003' },
-];
-
-const MOCK_LEAD_CONTEXT: LeadContext = {
-  id: 'lead-001',
-  name: 'Supermercado Central LTDA',
-  phone: '(92) 99123-4567',
-  city: 'Manaus',
-  state: 'AM',
-  energyBillUrl: '#',
-};
-
-const STATUS_BADGES: Record<string, { label: string; color: string }> = {
-  DRAFT: { label: 'Rascunho', color: 'bg-slate-500' },
-  IN_PROGRESS: { label: 'Em Progresso', color: 'bg-blue-500' },
-  REVIEW: { label: 'Em Revisão', color: 'bg-amber-500' },
-  APPROVED: { label: 'Aprovado', color: 'bg-emerald-500' },
-};
 
 // =============================================================================
 // WORKSPACE ORCHESTRATOR
@@ -60,19 +38,19 @@ const STATUS_BADGES: Record<string, { label: string; color: string }> = {
 
 export const ProfileOrchestrator: React.FC = () => {
   const { activeModule, setActiveModule, userRole } = useSolarStore();
+  const clientData = useSolarStore(state => state.clientData);
   const { user, signOut } = useAuth();
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [fullscreen, setFullscreen] = useState(false);
-  const [activeProject, setActiveProject] = useState(MOCK_PROJECTS[0]);
-  const [leadContext] = useState<LeadContext>(MOCK_LEAD_CONTEXT);
 
   // Ensure activeModule is a valid TabId
-  const currentModule = (['engineering', 'electrical', 'documentation', 'proposal', 'settings'].includes(activeModule)
+  const currentModule = (['hub', 'engineering', 'electrical', 'documentation', 'proposal', 'settings'].includes(activeModule)
     ? activeModule
-    : 'engineering') as TabId;
+    : 'hub') as TabId;
 
   const MODULE_ROLES: Record<TabId, string[]> = {
+    'hub': ['SALES', 'ENGINEER', 'ADMIN'],
     'engineering': ['ENGINEER', 'ADMIN'],
     'electrical': ['ENGINEER', 'ADMIN'],
     'documentation': ['ENGINEER', 'ADMIN'],
@@ -80,13 +58,15 @@ export const ProfileOrchestrator: React.FC = () => {
     'settings': ['ENGINEER', 'ADMIN'],
   };
 
+  // Site Context Modal state (Phase 2)
+  const [siteContext, setSiteContext] = useState<SiteContext | null>(null);
+  const [showContextModal, setShowContextModal] = useState(false);
+
   const allowedTabs = DASHBOARD_TABS.filter(tab =>
     MODULE_ROLES[tab.id]?.includes(userRole)
   );
 
   const hasAccess = (moduleId: TabId) => MODULE_ROLES[moduleId]?.includes(userRole);
-
-  const statusBadge = STATUS_BADGES[activeProject.status] || STATUS_BADGES.DRAFT;
 
   // Handle fullscreen toggle
   const toggleFullscreen = () => {
@@ -96,6 +76,20 @@ export const ProfileOrchestrator: React.FC = () => {
       document.exitFullscreen?.();
     }
     setFullscreen(!fullscreen);
+  };
+
+  // Handle project selection from ProjectExplorer (Phase 1 -> Phase 2)
+  const handleSelectProject = (projectId: string) => {
+    const context = getSiteContext(projectId);
+    setSiteContext(context);
+    setShowContextModal(true);
+  };
+
+  // Handle 'Dimensionar Projeto' from SiteContextModal (Phase 2 -> Phase 3)
+  const handleDimensionar = (_projectId: string) => {
+    setShowContextModal(false);
+    setActiveModule('engineering');
+    // TODO: Carregar dados do projeto no store (setActiveProjectId)
   };
 
   return (
@@ -131,12 +125,9 @@ export const ProfileOrchestrator: React.FC = () => {
 
           {/* Active Project Badge */}
           <div className="flex items-center gap-2 bg-slate-700/50 rounded-lg px-3 py-1">
-            <FolderOpen size={13} className="text-emerald-400" />
+            <Zap size={13} className="text-emerald-400" />
             <span className="text-xs font-semibold text-white truncate max-w-[200px]">
-              {activeProject.name}
-            </span>
-            <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold text-white ${statusBadge.color}`}>
-              {statusBadge.label}
+              {clientData.clientName || 'Novo Projeto'}
             </span>
           </div>
 
@@ -202,61 +193,128 @@ export const ProfileOrchestrator: React.FC = () => {
       {/* ================================================================ */}
       <div className="flex-1 flex overflow-hidden">
 
-        {/* SIDEBAR — Project Explorer + Lead Context */}
-        {sidebarOpen && (
-          <aside className="w-64 bg-slate-850 border-r border-slate-700/50 flex flex-col shrink-0"
-                 style={{ backgroundColor: '#1a1f2e' }}>
+        {/* SIDEBAR — Workflow Stepper + Mini-Context + Quick Actions */}
+        {sidebarOpen && currentModule !== 'hub' && (
+          <aside className="w-56 bg-slate-950 border-r border-slate-800/50 flex flex-col shrink-0">
 
-            {/* Project Explorer */}
-            <div className="p-3 border-b border-slate-700/30">
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Projetos</h2>
-                <button
-                  className="p-1 rounded hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 transition-colors"
-                  title="Novo Projeto"
-                >
-                  <Plus size={14} />
-                </button>
-              </div>
-
-              <div className="space-y-1">
-                {MOCK_PROJECTS.map(project => {
-                  const badge = STATUS_BADGES[project.status] || STATUS_BADGES.DRAFT;
-                  const isSelected = activeProject.id === project.id;
+            {/* Workflow Stepper */}
+            <div className="p-3 flex-1 overflow-y-auto">
+              <h2 className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-3">Workflow</h2>
+              <nav className="space-y-0.5">
+                {DASHBOARD_TABS.filter(tab => tab.id !== 'hub' && tab.id !== 'settings').map((tab, index) => {
+                  const colorClasses = TAB_COLOR_CLASSES[tab.color];
+                  const isActive = currentModule === tab.id;
+                  const currentIdx = getTabIndex(currentModule);
+                  const tabIdx = getTabIndex(tab.id);
+                  const isCompleted = tabIdx < currentIdx && tabIdx > 0;
+                  const isAllowed = MODULE_ROLES[tab.id]?.includes(userRole);
 
                   return (
                     <button
-                      key={project.id}
-                      onClick={() => setActiveProject(project)}
+                      key={tab.id}
+                      onClick={() => isAllowed && setActiveModule(tab.id)}
+                      disabled={!isAllowed}
                       className={`
-                        w-full text-left px-2.5 py-2 rounded-lg text-xs transition-all
-                        ${isSelected
-                          ? 'bg-emerald-500/10 border border-emerald-500/30 text-white'
-                          : 'text-slate-400 hover:bg-slate-700/50 hover:text-white border border-transparent'}
+                        w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition-all group
+                        ${isActive
+                          ? 'bg-white/5 text-white'
+                          : isCompleted
+                            ? 'text-emerald-500/70 hover:text-emerald-400 hover:bg-white/5'
+                            : isAllowed
+                              ? 'text-slate-600 hover:text-slate-400 hover:bg-white/5'
+                              : 'text-slate-800 cursor-not-allowed'
+                        }
                       `}
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium truncate">{project.name}</span>
-                        <span className={`w-2 h-2 rounded-full ${badge.color}`} />
+                      {/* Step indicator */}
+                      <div className={`
+                        w-6 h-6 rounded-md flex items-center justify-center shrink-0 text-[9px] font-black transition-all
+                        ${isActive
+                          ? colorClasses.active
+                          : isCompleted
+                            ? 'bg-emerald-500/15 text-emerald-400'
+                            : 'bg-slate-900 text-slate-700 border border-slate-800'
+                        }
+                      `}>
+                        {isCompleted ? <Check size={11} strokeWidth={3} /> : index + 1}
                       </div>
+
+                      {/* Label + Description */}
+                      <div className="flex-1 min-w-0">
+                        <span className={`text-[10px] font-bold block truncate ${
+                          isActive ? 'text-white' : ''
+                        }`}>
+                          {tab.label}
+                        </span>
+                        <span className="text-[8px] text-slate-700 block truncate">
+                          {tab.description}
+                        </span>
+                      </div>
+
+                      {/* Active indicator */}
+                      {isActive && (
+                        <div className="w-1 h-4 rounded-full bg-emerald-400 shrink-0" />
+                      )}
                     </button>
                   );
                 })}
+              </nav>
+            </div>
+
+            {/* Mini-Context (Projeto Ativo) */}
+            <div className="shrink-0 border-t border-slate-800/50 p-3">
+              <h2 className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-2">Projeto Ativo</h2>
+              <div className="bg-slate-900/50 rounded-lg border border-slate-800 p-2.5 space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                  <Zap size={10} className="text-emerald-400 shrink-0" />
+                  <span className="text-[10px] font-bold text-white truncate">
+                    {clientData.clientName || 'Sem projeto'}
+                  </span>
+                </div>
+                {clientData.city && (
+                  <div className="flex items-center gap-1.5">
+                    <MapPin size={9} className="text-slate-600 shrink-0" />
+                    <span className="text-[9px] text-slate-500 truncate">
+                      {clientData.city}, {clientData.state}
+                    </span>
+                  </div>
+                )}
+                {(clientData.averageConsumption ?? 0) > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <Battery size={9} className="text-slate-600 shrink-0" />
+                    <span className="text-[9px] text-slate-500">
+                      {(clientData.averageConsumption ?? 0).toLocaleString('pt-BR')} kWh/mês
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Lead Context Panel */}
-            <div className="p-3 flex-1 overflow-y-auto">
-              <h2 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-                Contexto Comercial
-              </h2>
-              <LeadContextPanel leadContext={leadContext} />
+            {/* Quick Actions */}
+            <div className="shrink-0 border-t border-slate-800/50 p-2 space-y-0.5">
+              <button
+                onClick={() => setActiveModule('hub')}
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[10px] font-semibold text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/5 transition-all"
+              >
+                <LayoutDashboard size={12} />
+                Voltar ao Hub
+              </button>
+              <button
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[10px] font-semibold text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-all"
+              >
+                <Download size={12} />
+                Exportar PDF
+              </button>
             </div>
           </aside>
         )}
 
         {/* CANVAS — Área Imersiva dos Módulos */}
         <main className="flex-1 overflow-hidden bg-slate-900">
+          {currentModule === 'hub' && (
+            hasAccess('hub') ? <ProjectExplorer onSelectProject={handleSelectProject} /> : <AccessDenied />
+          )}
+
           {currentModule === 'engineering' && (
             hasAccess('engineering') ? <TechModule /> : <AccessDenied />
           )}
@@ -276,6 +334,16 @@ export const ProfileOrchestrator: React.FC = () => {
           )}
         </main>
       </div>
+
+      {/* SITE CONTEXT MODAL (Phase 2 Overlay) */}
+      {siteContext && (
+        <SiteContextModal
+          context={siteContext}
+          isOpen={showContextModal}
+          onClose={() => setShowContextModal(false)}
+          onDimensionar={handleDimensionar}
+        />
+      )}
     </div>
   );
 };

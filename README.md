@@ -84,6 +84,8 @@ neonorte/
 ## 📚 Documentação
 
 - [CONTEXT.md](./CONTEXT.md) — Arquitetura, schemas, módulos e rotas de API
+- [As-Built Visual](./docs/as-built/as_built_visual.md) — Galeria de mudanças na interface Kurupira
+- [Relatório de Execução Docker](./docs/as-built/relatorio_execucao_dockerizacao.md) — Detalhes da migração infra original
 - [docker-compose.yml](./docker-compose.yml) — Orquestração de contentores
 
 ---

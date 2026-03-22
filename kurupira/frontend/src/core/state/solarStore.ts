@@ -71,7 +71,7 @@ const createUISlice: StateCreator<
   UIState
 > = (set) => ({
   userRole: 'SALES', // Default: perfil de vendas
-  activeModule: 'crm', // Default: primeira aba do workflow
+  activeModule: 'hub', // Default: Project Explorer (UX-001 entry point)
   activeProjectId: null,
   setUserRole: (role) => set({ userRole: role }),
   setActiveModule: (module) => set({ activeModule: module }),

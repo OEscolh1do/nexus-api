@@ -3,10 +3,10 @@
  * Paradigma Workspace: Dimensionamento → Elétrico → Documentação → Proposta → Premissas
  */
 
-import { LucideIcon, SunMedium, Zap, ClipboardCheck, FileText, Settings2 } from 'lucide-react';
+import { LucideIcon, LayoutGrid, SunMedium, Zap, ClipboardCheck, FileText, Settings2 } from 'lucide-react';
 
 // Tipos
-export type TabId = 'engineering' | 'electrical' | 'documentation' | 'proposal' | 'settings';
+export type TabId = 'hub' | 'engineering' | 'electrical' | 'documentation' | 'proposal' | 'settings';
 
 export interface TabConfig {
   id: TabId;
@@ -19,6 +19,14 @@ export interface TabConfig {
 
 // Configuração das Abas (workflow de engenharia puro)
 export const DASHBOARD_TABS: readonly TabConfig[] = [
+  {
+    id: 'hub',
+    label: 'Projetos',
+    icon: LayoutGrid,
+    description: 'Explorador de projetos e contexto técnico',
+    color: 'green',
+    order: 0,
+  },
   {
     id: 'engineering',
     label: 'Dimensionamento',
