@@ -1,33 +1,35 @@
 /**
  * =============================================================================
- * RIGHT INSPECTOR — Motor Polimórfico (UX-001 Fase 3)
+ * RIGHT INSPECTOR — Motor Polimórfico (P0-4)
  * =============================================================================
  *
  * O coração da reintegração CRM no workspace.
  * Painel POLIMÓRFICO que metamorfoseia suas propriedades:
  *
  * - Se NADA selecionado → Exibe Contexto Comercial (CRM Técnico)
- *   Nome do cliente, clima, consumo, gráfico de barras dos últimos 12 meses.
+ * - Se MÓDULO selecionado → Lookup por ID, exibe params + edição inline
+ * - Se INVERSOR selecionado → Lookup por ID, exibe params + MPPT configs
+ * - Se STRING selecionado → Exibe configuração da string/MPPT
  *
- * - Se MÓDULO selecionado → Exibe parâmetros do módulo
- *   Modelo, potência, azimute, inclinação, perdas.
- *
- * - Se INVERSOR selecionado → Exibe parâmetros do inversor
- *   Modelo, tensão, correntes, strings.
- *
- * Degradação Graciosa: Se a chamada M2M falhar, exibe aviso contido
- * no painel sem bloquear o Canvas central.
- *
+ * P0-4: Entity-by-ID lookup em vez de modules[0] / inverters[0].
+ *       Campos editáveis via PropRowEditable (quantidade).
  * =============================================================================
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   User, MapPin, BarChart3, Thermometer, Zap,
-  Sun, Cpu, Cable, Info, CloudOff
+  Info, CloudOff, RotateCcw, Activity, Hexagon,
+  ArrowUpRight, ArrowDownRight, CheckCircle2, AlertTriangle, Sun
 } from 'lucide-react';
-import type { SelectedEntity } from '../layout/WorkspaceLayout';
-import { useSolarStore } from '@/core/state/solarStore';
+
+import { useSolarStore, selectModules } from '@/core/state/solarStore';
+import { useTechStore, type LossProfile } from '../../store/useTechStore';
+import { useTechKPIs } from '../../hooks/useTechKPIs';
+import { LOSS_CONFIG } from '../../constants/lossConfig';
+import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { SectionHeader, PropRow, PropRowEditable } from './properties/shared';
+import { CRESESB_DB } from '@/data/irradiation/cresesbData';
 
 // =============================================================================
 // MONTHS
@@ -39,15 +41,12 @@ const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', '
 // PROPS
 // =============================================================================
 
-interface RightInspectorProps {
-  selectedEntity: SelectedEntity;
-}
 
 // =============================================================================
 // COMPONENT
 // =============================================================================
 
-export const RightInspector: React.FC<RightInspectorProps> = ({ selectedEntity }) => {
+export const RightInspector: React.FC = () => {
   return (
     <div className="h-full bg-slate-950 flex flex-col overflow-hidden">
       {/* Header */}
@@ -60,12 +59,9 @@ export const RightInspector: React.FC<RightInspectorProps> = ({ selectedEntity }
         </div>
       </div>
 
-      {/* Content — Polymorphic rendering based on selection */}
+      {/* Content — Always CRM Context */}
       <div className="flex-1 overflow-y-auto">
-        {selectedEntity.type === 'none' && <CommercialContextView />}
-        {selectedEntity.type === 'module' && <ModuleInspector entity={selectedEntity} />}
-        {selectedEntity.type === 'inverter' && <InverterInspector entity={selectedEntity} />}
-        {selectedEntity.type === 'string' && <StringInspector entity={selectedEntity} />}
+        <CommercialContextView />
       </div>
     </div>
   );
@@ -78,19 +74,6 @@ export const RightInspector: React.FC<RightInspectorProps> = ({ selectedEntity }
 const CommercialContextView: React.FC = () => {
   const clientData = useSolarStore(state => state.clientData);
   const weatherData = useSolarStore(state => state.weatherData);
-
-  // Mock consumption data quando o store está vazio
-  const monthlyConsumption = useMemo(() => {
-    const invoices = clientData.invoices;
-    if (invoices && invoices.length > 0 && invoices[0].monthlyHistory) {
-      return invoices[0].monthlyHistory;
-    }
-    // Mock data for visual
-    return [400, 420, 480, 500, 490, 410, 380, 390, 450, 520, 540, 480];
-  }, [clientData.invoices]);
-
-  const maxConsumption = Math.max(...monthlyConsumption, 1);
-  const avgConsumption = Math.round(monthlyConsumption.reduce((a, b) => a + b, 0) / 12);
 
   const hasClientData = !!clientData.clientName;
 
@@ -143,153 +126,375 @@ const CommercialContextView: React.FC = () => {
         </div>
       </section>
 
-      {/* Consumption Chart (Mini) */}
-      <section>
-        <SectionHeader icon={<BarChart3 size={10} />} label="Perfil de Carga" />
-        <div className="mt-2 bg-slate-900 rounded-lg border border-slate-800 p-3">
-          {/* Bar chart */}
-          <div className="flex items-end gap-0.5 h-16 mb-2">
-            {monthlyConsumption.map((val, i) => {
-              const height = (val / maxConsumption) * 100;
-              return (
-                <div
-                  key={i}
-                  className="flex-1 bg-gradient-to-t from-emerald-600/50 to-emerald-400/50 rounded-t-sm hover:from-emerald-500 hover:to-emerald-300 transition-all cursor-default"
-                  style={{ height: `${Math.max(height, 4)}%` }}
-                  title={`${MONTHS[i]}: ${val} kWh`}
-                />
-              );
-            })}
-          </div>
-          <div className="flex gap-0.5">
-            {MONTHS.map(m => (
-              <span key={m} className="flex-1 text-[7px] text-slate-600 text-center">{m}</span>
-            ))}
-          </div>
+      {/* Generation vs Consumption (P2-1) */}
+      <SimulationMetricsSection />
 
-          {/* Stats row */}
-          <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-800">
-            <span className="text-[9px] text-slate-500">Média mensal</span>
-            <span className="text-xs font-bold text-emerald-400">{avgConsumption.toLocaleString('pt-BR')} kWh</span>
-          </div>
-        </div>
+      {/* Energia (Consumo e Tarifa) */}
+      <section>
+        <SectionHeader icon={<Zap size={10} />} label="Energia (Consumo)" />
+        <MonthlyConsumptionGrid />
       </section>
 
-      {/* Tariff */}
-      <section>
-        <SectionHeader icon={<Zap size={10} />} label="Tarifa" />
-        <div className="mt-2">
-          <PropRow label="R$/kWh" value={clientData.tariffRate ? `R$ ${clientData.tariffRate.toFixed(2)}` : '—'} accent />
+      {/* Irradiação (HSP) */}
+      <section className="mt-4">
+        <div className="flex items-center justify-between mb-2">
+           <SectionHeader icon={<Sun size={10} />} label="Irradiação CRESESB (HSP)" />
         </div>
+        <MonthlyIrradiationGrid />
       </section>
+
+      {/* System Losses (P1-1) */}
+      <SystemLossesSection />
     </div>
   );
 };
 
 // =============================================================================
-// VIEW: MODULE INSPECTOR (quando um módulo FV está selecionado)
+// GRID: CONSUMO MENSAL (P7 Extra)
 // =============================================================================
 
-const ModuleInspector: React.FC<{ entity: SelectedEntity }> = ({ entity }) => {
-  const modules = useSolarStore(state => state.modules);
-  const engineering = useSolarStore(state => state.engineeringData);
-
-  const primaryModule = modules[0];
+const MonthlyConsumptionGrid: React.FC = () => {
+  const clientData = useSolarStore(state => state.clientData);
+  const updateMonthly = useSolarStore(state => state.updateMonthlyConsumption);
+  
+  const history = clientData.invoices?.[0]?.monthlyHistory || Array(12).fill(clientData.averageConsumption || 0);
 
   return (
-    <div className="p-3 space-y-3">
-      <div className="px-2 py-1.5 rounded-lg bg-emerald-500/5 border border-emerald-500/20 flex items-center gap-2 mb-2">
-        <Sun size={12} className="text-emerald-400" />
-        <span className="text-[10px] font-bold text-emerald-400 truncate">{entity.label}</span>
+    <div className="mt-2 space-y-2">
+      <div className="grid grid-cols-2 gap-x-2 gap-y-1 p-2 bg-slate-900/50 rounded-lg border border-slate-800">
+        {MONTHS.map((month, idx) => (
+          <PropRowEditable
+            key={`cons-${month}`}
+            label={month}
+            value={String(history[idx])}
+            type="number"
+            onCommit={(val) => {
+              const num = parseFloat(val);
+              if (!isNaN(num) && num >= 0) {
+                updateMonthly(idx, num);
+                return true;
+              }
+              return false;
+            }}
+          />
+        ))}
       </div>
-
-      <section>
-        <SectionHeader icon={<Sun size={10} />} label="Parâmetros do Módulo" />
-        <div className="mt-2 space-y-1.5">
-          <PropRow label="Fabricante" value={primaryModule?.manufacturer || '—'} />
-          <PropRow label="Potência" value={primaryModule ? `${primaryModule.power}W` : '—'} />
-          <PropRow label="Azimute" value={engineering?.azimuth != null ? `${engineering.azimuth}°` : '—'} />
-          <PropRow label="Inclinação" value={engineering?.tilt != null ? `${engineering.tilt}°` : '—'} />
-          <PropRow label="Orientação" value={engineering?.orientation || '—'} />
-        </div>
-      </section>
-
-      <section>
-        <SectionHeader icon={<Zap size={10} />} label="Perdas Estimadas" />
-        <div className="mt-2 space-y-1.5">
-          <PropRow label="Sujidade" value="2.0%" />
-          <PropRow label="Temperatura" value="3.5%" />
-          <PropRow label="Sombreamento" value="1.0%" />
-        </div>
-      </section>
-    </div>
-  );
-};
-
-// =============================================================================
-// VIEW: INVERTER INSPECTOR (quando um inversor está selecionado)
-// =============================================================================
-
-const InverterInspector: React.FC<{ entity: SelectedEntity }> = ({ entity }) => {
-  const inverters = useSolarStore(state => state.inverters);
-  const primaryInverter = inverters[0];
-
-  return (
-    <div className="p-3 space-y-3">
-      <div className="px-2 py-1.5 rounded-lg bg-blue-500/5 border border-blue-500/20 flex items-center gap-2 mb-2">
-        <Cpu size={12} className="text-blue-400" />
-        <span className="text-[10px] font-bold text-blue-400 truncate">{entity.label}</span>
-      </div>
-
-      <section>
-        <SectionHeader icon={<Cpu size={10} />} label="Parâmetros do Inversor" />
-        <div className="mt-2 space-y-1.5">
-          <PropRow label="Fabricante" value={primaryInverter?.manufacturer || '—'} />
-          <PropRow label="Potência" value={primaryInverter ? `${primaryInverter.power}W` : '—'} />
-          <PropRow label="MPPT" value={primaryInverter?.mpptCount ? `${primaryInverter.mpptCount}` : '—'} />
-          <PropRow label="Vmax MPPT" value={primaryInverter?.maxVoltage ? `${primaryInverter.maxVoltage}V` : '—'} />
-        </div>
-      </section>
-    </div>
-  );
-};
-
-// =============================================================================
-// VIEW: STRING INSPECTOR (quando uma string está selecionada)
-// =============================================================================
-
-const StringInspector: React.FC<{ entity: SelectedEntity }> = ({ entity }) => (
-  <div className="p-3 space-y-3">
-    <div className="px-2 py-1.5 rounded-lg bg-purple-500/5 border border-purple-500/20 flex items-center gap-2 mb-2">
-      <Cable size={12} className="text-purple-400" />
-      <span className="text-[10px] font-bold text-purple-400 truncate">{entity.label}</span>
-    </div>
-
-    <section>
-      <SectionHeader icon={<Cable size={10} />} label="Parâmetros da String" />
       <div className="mt-2 space-y-1.5">
-        <PropRow label="Módulos" value="12" />
-        <PropRow label="Tensão Total" value="—" />
-        <PropRow label="Corrente" value="—" />
+         <PropRow label="Consumo Calculado" value={`${clientData.averageConsumption?.toFixed(0) || 0} kWh (Média)`} />
+         <PropRow label="Tarifa R$/kWh" value={clientData.tariffRate ? `R$ ${clientData.tariffRate.toFixed(2)}` : '—'} accent />
+      </div>
+    </div>
+  );
+};
+
+// =============================================================================
+// GRID: IRRADIAÇÃO MENSAL (CRESESB / HSP)
+// =============================================================================
+
+const MonthlyIrradiationGrid: React.FC = () => {
+  const clientData = useSolarStore(state => state.clientData);
+  const setIrradiationData = useSolarStore(state => state.setIrradiationData);
+  const weatherData = useSolarStore(state => state.weatherData);
+  
+  const hspArray = (clientData.monthlyIrradiation && clientData.monthlyIrradiation.length === 12 && clientData.monthlyIrradiation.some(v => v > 0))
+    ? clientData.monthlyIrradiation
+    : Array(12).fill(4.5);
+    
+  // A média exibida 
+  const avgHsp = hspArray.reduce((acc, curr) => acc + curr, 0) / 12;
+  const sourceLabel = clientData.irradiationCity || weatherData?.irradiation_source || 'Média Genérica';
+
+  // Parauapebas como default se não houver cidade definida
+  React.useEffect(() => {
+    if (!clientData.irradiationCity) {
+      const defaultCityKey = "PARAUAPEBAS - PA";
+      setIrradiationData(CRESESB_DB[defaultCityKey].hsp_monthly, defaultCityKey);
+    }
+  }, [clientData.irradiationCity, setIrradiationData]);
+
+  // Lista de cidades ativas no CRESESB
+  const cityOptions = Object.keys(CRESESB_DB);
+
+  return (
+    <div className="mt-2 space-y-2">
+      {/* Seletor de Cidade (CRESESB) */}
+      <div className="flex flex-col gap-1">
+        <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider px-1">
+          Selecione a Cidade:
+        </label>
+        <select 
+          className="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-[10px] text-slate-300 outline-none focus:border-emerald-500/50"
+          value={clientData.irradiationCity || ''}
+          onChange={(e) => {
+             const key = e.target.value;
+             if (CRESESB_DB[key]) {
+               setIrradiationData(CRESESB_DB[key].hsp_monthly, key);
+             }
+          }}
+        >
+          <option value="" disabled>Selecione uma cidade do CRESESB</option>
+          {cityOptions.map(cityKey => (
+            <option key={cityKey} value={cityKey}>{cityKey}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="grid grid-cols-2 gap-x-2 gap-y-1 p-2 bg-slate-900/50 rounded-lg border border-emerald-900/40">
+        {MONTHS.map((month, idx) => (
+          <PropRow
+            key={`hsp-${month}`}
+            label={month}
+            value={String(hspArray[idx].toFixed(2))}
+          />
+        ))}
+      </div>
+      <div className="mt-2 space-y-1.5">
+         <PropRow label="Média Anual" value={`${avgHsp.toFixed(2)} kWh/m²/dia`} accent />
+         <PropRow label="Fonte" value={sourceLabel} />
+      </div>
+    </div>
+  );
+};
+
+// =============================================================================
+// VIEW: SIMULATION METRICS SECTION (P2-1)
+// =============================================================================
+
+const SimulationMetricsSection: React.FC = () => {
+  const clientData = useSolarStore(state => state.clientData);
+  const modules = useSolarStore(selectModules);
+  const { getPerformanceRatio } = useTechStore();
+  const { kpi } = useTechKPIs();
+
+  const data = useMemo(() => {
+    const totalPowerKw = modules.reduce((acc, m) => acc + (m.power * m.quantity), 0) / 1000;
+    const pr = getPerformanceRatio();
+
+    // Tries to get historical consumption or user-defined average
+    const defaultAvg = 400;
+    const avgConsumptionSafe = clientData.averageConsumption || 0;
+    const consumptionInvoices = clientData.invoices?.[0]?.monthlyHistory;
+    
+    const avgCons = avgConsumptionSafe > 0 
+        ? avgConsumptionSafe 
+        : (consumptionInvoices ? (consumptionInvoices.reduce((a,b)=>a+b,0)/12) : defaultAvg);
+
+    const consumptionHistory = (consumptionInvoices?.length === 12 && avgConsumptionSafe === 0)
+        ? consumptionInvoices
+        : Array(12).fill(avgCons);
+
+    // Weather Data (HSP)
+    const irradiationData = (clientData.monthlyIrradiation && clientData.monthlyIrradiation.length === 12 && clientData.monthlyIrradiation.some(v => v > 0))
+        ? clientData.monthlyIrradiation
+        : Array(12).fill(4.5); 
+
+    let totalGenYear = 0;
+    let totalConsYear = 0;
+
+    const chartData = MONTHS.map((month, idx) => {
+        const hsp = irradiationData[idx];
+        const consumption = consumptionHistory[idx] || avgCons;
+        const generation = totalPowerKw * hsp * 30 * pr;
+
+        totalGenYear += generation;
+        totalConsYear += consumption;
+
+        return { name: month, consumo: Math.round(consumption), geracao: Math.round(generation) };
+    });
+
+    const averageGen = totalGenYear / 12;
+    const averageCons = totalConsYear / 12;
+    const coverage = totalConsYear > 0 ? (totalGenYear / totalConsYear) : 0;
+    
+    return { chartData, averageGen, averageCons, coverage };
+  }, [modules, clientData, getPerformanceRatio]);
+
+  const isPositive = data.averageGen >= data.averageCons;
+  const hasEquipment = modules.length > 0;
+
+  // FDI Evaluation
+  const fdiPercent = kpi.dcAcRatio * 100;
+  const isFdiLow = fdiPercent < 75;
+  const isFdiHigh = fdiPercent > 130;
+  
+  return (
+    <section className="space-y-3">
+      {/* ── CHART ── */}
+      <div className="bg-slate-900 rounded-lg border border-slate-800 p-3 relative h-[140px] flex flex-col pt-1">
+         <div className="flex items-center justify-between z-10 relative mb-1">
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+              <BarChart3 size={11} className="text-teal-400" />
+              <span>Geração vs Consumo</span>
+            </div>
+            
+            <div className={`flex items-center gap-1 text-[10px] font-bold ${isPositive ? 'text-emerald-400' : 'text-amber-400'}`}>
+              {isPositive ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+              {(data.coverage * 100).toFixed(0)}%
+            </div>
+         </div>
+
+         {!hasEquipment && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+              <span className="text-[10px] uppercase font-bold text-slate-600 bg-slate-900/80 px-2 py-1 rounded">Sem módulos</span>
+            </div>
+         )}
+         
+         <div className={`flex-1 min-h-0 w-full -ml-3 ${!hasEquipment ? 'opacity-20' : ''}`}>
+             <ResponsiveContainer width="100%" height="100%">
+                 <BarChart data={data.chartData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }} barGap={0}>
+                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 7, fill: '#64748b' }} interval="preserveStartEnd" />
+                     <Tooltip 
+                        cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', fontSize: '10px', borderRadius: '6px' }}
+                        itemStyle={{ padding: 0 }}
+                      />
+                     <Bar dataKey="consumo" fill="#fb923c" radius={[2, 2, 0, 0]} barSize={6} animationDuration={500} />
+                     <Bar dataKey="geracao" fill="#2dd4bf" radius={[2, 2, 0, 0]} barSize={6} animationDuration={500} />
+                 </BarChart>
+             </ResponsiveContainer>
+         </div>
+
+         <div className="flex items-center justify-between mt-1 pt-1.5 border-t border-slate-800">
+             <div className="flex flex-col">
+                 <span className="text-[8px] text-slate-500 uppercase font-bold">Consumo Médio</span>
+                 <span className="text-[10px] font-bold text-orange-400">{data.averageCons.toFixed(0)} kWh</span>
+             </div>
+             <div className="flex flex-col text-right">
+                 <span className="text-[8px] text-slate-500 uppercase font-bold">Geração Est.</span>
+                 <span className="text-[10px] font-bold text-teal-400">{data.averageGen.toFixed(0)} kWh</span>
+             </div>
+         </div>
+      </div>
+
+      {/* ── FDI MICRO-DASHBOARD ── */}
+      {hasEquipment && (
+        <div className="bg-slate-900 rounded-lg border border-slate-800 p-2.5 flex items-center justify-between">
+            <div className="flex flex-col">
+                <span className="text-[9px] text-slate-500 uppercase font-bold tracking-wider">FDI (DC/AC)</span>
+                <span className={`text-base font-black leading-none mt-0.5 ${isFdiHigh ? 'text-red-400' : isFdiLow ? 'text-amber-400' : 'text-emerald-400'}`}>
+                    {fdiPercent.toFixed(1)}%
+                </span>
+            </div>
+            <div className="flex flex-col items-end text-right justify-center">
+                <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border ${isFdiHigh ? 'border-red-900/50 bg-red-900/20' : isFdiLow ? 'border-amber-900/50 bg-amber-900/20' : 'border-emerald-900/50 bg-emerald-900/20'}`}>
+                    {isFdiHigh ? <Activity size={10} className="text-red-400" /> : isFdiLow ? <AlertTriangle size={10} className="text-amber-400" /> : <CheckCircle2 size={10} className="text-emerald-400" />}
+                    <span className={`text-[9px] font-bold ${isFdiHigh ? 'text-red-400' : isFdiLow ? 'text-amber-400' : 'text-emerald-400'}`}>
+                        {isFdiHigh ? 'Clipping Anual' : isFdiLow ? 'Oversized AC' : 'Ideal'}
+                    </span>
+                </div>
+            </div>
+        </div>
+      )}
+    </section>
+  );
+};
+
+// =============================================================================
+// VIEW: SYSTEM LOSSES SECTION (P1-1)
+// =============================================================================
+
+const SystemLossesSection: React.FC = () => {
+  const { lossProfile, updateLoss, resetLosses, getPerformanceRatio } = useTechStore();
+  
+  // Local state to update UI fluidly without hitting store/throttle on every pixel drag
+  const [localLosses, setLocalLosses] = useState<LossProfile>(lossProfile);
+
+  // Sync back when store changes (like via undo/redo or reset)
+  React.useEffect(() => {
+    setLocalLosses(lossProfile);
+  }, [lossProfile]);
+
+  const prDecimal = getPerformanceRatio();
+  const prPercentage = (prDecimal * 100).toFixed(1);
+  const prValue = parseFloat(prPercentage);
+
+  const getPrStatus = (pr: number) => {
+    if (pr >= 80) return { bg: "bg-emerald-500/10", text: "text-emerald-400" };
+    if (pr >= 75) return { bg: "bg-blue-500/10", text: "text-blue-400" };
+    return { bg: "bg-amber-500/10", text: "text-amber-400" };
+  };
+
+  const status = getPrStatus(prValue);
+
+  const handleSliderChange = (key: keyof LossProfile, e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocalLosses(prev => ({ ...prev, [key]: parseFloat(e.target.value) }));
+  };
+
+  const handleSliderCommit = (key: keyof LossProfile, e: React.PointerEvent<HTMLInputElement>) => {
+    updateLoss(key, parseFloat(e.currentTarget.value));
+  };
+
+  return (
+    <section className="mt-4 pt-4 border-t border-slate-800">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+          <Activity size={12} className="text-indigo-400" />
+          <span>Perdas do Sistema</span>
+        </div>
+        <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded ${status.bg} border border-slate-700/50`}>
+          <Hexagon size={10} className={status.text} />
+          <span className={`text-[10px] font-bold tabular-nums leading-none ${status.text}`}>
+            PR: {prPercentage}%
+          </span>
+        </div>
+      </div>
+
+      <div className="space-y-3 bg-slate-900 rounded-lg p-3 border border-slate-800 relative">
+        <button 
+          onClick={resetLosses}
+          className="absolute top-2.5 right-2.5 p-1 rounded-md text-slate-500 hover:text-white hover:bg-slate-800 transition-colors"
+          title="Resetar para Padrões"
+        >
+          <RotateCcw size={12} />
+        </button>
+
+        <div className="pr-6 space-y-4">
+          {LOSS_CONFIG.map((config) => {
+            const Icon = config.icon;
+            const val = localLosses[config.key] ?? 0;
+            const isEff = config.type === 'efficiency';
+
+            return (
+              <div key={config.key} className="flex flex-col gap-1.5" title={config.description}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Icon size={10} className={isEff ? "text-indigo-400" : "text-slate-500"} />
+                    <span className="text-[10px] font-medium text-slate-400 leading-none">{config.label}</span>
+                  </div>
+                  <div className="flex items-center gap-0.5">
+                    <input
+                      type="number"
+                      value={val}
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      onChange={(e) => handleSliderChange(config.key, e as any)}
+                      onBlur={() => updateLoss(config.key, val)}
+                      className="w-12 text-right bg-transparent border-b border-transparent hover:border-slate-700 focus:border-indigo-500 focus:outline-none text-[10px] font-mono text-slate-300 tabular-nums transition-colors"
+                    />
+                    <span className="text-[10px] font-mono text-slate-500">%</span>
+                  </div>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={val}
+                  onChange={(e) => handleSliderChange(config.key, e)}
+                  onPointerUp={(e) => handleSliderCommit(config.key, e)}
+                  style={{
+                    backgroundColor: 'rgba(30, 41, 59, 1)',
+                    height: '4px',
+                  }}
+                  className="w-full rounded-lg appearance-none cursor-pointer accent-indigo-500 hover:accent-indigo-400 focus:outline-none"
+                />
+              </div>
+            );
+          })}
+        </div>
       </div>
     </section>
-  </div>
-);
+  );
+};
 
-// =============================================================================
-// SHARED SUB-COMPONENTS
-// =============================================================================
-
-const SectionHeader: React.FC<{ icon: React.ReactNode; label: string }> = ({ icon, label }) => (
-  <div className="flex items-center gap-1.5">
-    <span className="text-slate-600">{icon}</span>
-    <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">{label}</h4>
-  </div>
-);
-
-const PropRow: React.FC<{ label: string; value: string; accent?: boolean }> = ({ label, value, accent }) => (
-  <div className="flex items-center justify-between px-2 py-1 rounded bg-slate-900/50">
-    <span className="text-[10px] text-slate-500">{label}</span>
-    <span className={`text-[10px] font-bold ${accent ? 'text-emerald-400' : 'text-slate-300'}`}>{value}</span>
-  </div>
-);

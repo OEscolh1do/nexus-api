@@ -1,8 +1,22 @@
 import { z } from "zod";
 
+export {
+  ModuleCatalogItemSchema,
+  ModuleElectricalSchema,
+  ModulePhysicalSchema,
+  ModuleAssetSchema,
+  type ModuleCatalogItem,
+} from './moduleSchema';
+
+// ═══════════════════════════════════════════════════════════════
+// P4-6 (Correção): ModuleSpecs restaurado para o Domínio de Inventário
+// Consumidores (techSlice, TopRibbon, etc.) precisam de dados transacionais
+// (quantity, price) e usam formato achatado.
+// ═══════════════════════════════════════════════════════════════
+
 export const ModuleSpecsSchema = z.object({
   id: z.string(),
-  quantity: z.number().int().positive(),
+  quantity: z.number().int().nonnegative(),
   supplier: z.string().min(1),
   manufacturer: z.string().min(1),
   model: z.string().min(1),
@@ -23,9 +37,15 @@ export const ModuleSpecsSchema = z.object({
   annualDepreciation: z.number().min(0).max(0.05),
 });
 
+export type ModuleSpecs = z.infer<typeof ModuleSpecsSchema>;
+
+// ═══════════════════════════════════════════════════════════════
+// InverterSpecs — sem alteração nesta fase.
+// ═══════════════════════════════════════════════════════════════
+
 export const InverterSpecsSchema = z.object({
   id: z.string(),
-  quantity: z.number().int().positive(),
+  quantity: z.number().int().nonnegative(),
   manufacturer: z.string().min(1),
   model: z.string().min(1),
   maxInputVoltage: z.number().positive().max(1500),
@@ -34,11 +54,10 @@ export const InverterSpecsSchema = z.object({
   outputVoltage: z.number().positive(),
   outputFrequency: z.number().positive(),
   maxOutputCurrent: z.number().positive(),
-  nominalPower: z.number().positive().max(500),
+  nominalPower: z.number().positive(),
   maxEfficiency: z.number().positive().max(100),
   weight: z.number().positive(),
   connectionType: z.string(),
 });
 
-export type ModuleSpecs = z.infer<typeof ModuleSpecsSchema>;
 export type InverterSpecs = z.infer<typeof InverterSpecsSchema>;

@@ -13,7 +13,6 @@ export const ContractPreviewTab: React.FC = () => {
     
     const calculator = useProposalCalculator();
     const { metrics, pricing } = calculator;
-    const financeParams = useSolarStore(state => state.financeParams);
 
     // Initialize if null (first access)
     React.useEffect(() => {
@@ -65,7 +64,6 @@ export const ContractPreviewTab: React.FC = () => {
             },
             systemSize: metrics.totalPowerkWp,
             price: pricing.finalPrice,
-            financeParams,
             legal: currentLegal
         });
     };
@@ -174,12 +172,6 @@ export const ContractPreviewTab: React.FC = () => {
                                 <span>Valor Total:</span>
                                 <span className="font-semibold text-green-700">
                                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pricing.finalPrice)}
-                                </span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Condição:</span>
-                                <span className="font-semibold text-blue-700">
-                                    {financeParams.financingMode === 'financed' ? 'Financiamento Bancário' : 'Pagamento Próprio'}
                                 </span>
                             </div>
                         </div>

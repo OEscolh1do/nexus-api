@@ -1,29 +1,45 @@
 import React, { useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { useTechStore } from '../store/useTechStore';
-import { useSolarStore } from '@/core/state/solarStore';
+import { useSolarStore, selectModules } from '@/core/state/solarStore';
+import { toArray } from '@/core/types/normalized.types';
 import { INVERTER_CATALOG } from '../constants/inverters';
 import { Zap, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { calculateStringMetrics } from '../utils/electricalMath';
 
-export const VoltageRangeChart: React.FC<{ className?: string }> = ({ className }) => {
-    const { inverters, selectedModuleId } = useTechStore();
-    const modules = useSolarStore(state => state.modules);
+export const VoltageRangeChart: React.FC<{ className?: string, entityId?: string }> = ({ className, entityId }) => {
+    const { inverters: invertersNormalized, selectedModuleId } = useTechStore();
+    const inverters = toArray(invertersNormalized);
+    const modules = useSolarStore(selectModules);
+    const settings = useSolarStore(state => state.settings);
     
+    // Fallback to first module if none selected
     const selectedModule = modules.find(m => m.id === selectedModuleId) || modules[0];
 
     const chartData = useMemo(() => {
-        if (!selectedModule || inverters.length === 0) return [];
+        if (!selectedModule || inverters.length === 0 || !entityId) return [];
 
         const data: any[] = [];
+        const parts = entityId.split('-mppt-');
+        const targetInverterId = parts[0];
+        const targetMpptId = parts.length === 2 ? parseInt(parts[1], 10) : null;
+
+        // Use project settings for min temp (Ação 2a); max cell temp stays 70°C (IEC 61215)
+        const minAmbientTemp = settings?.minHistoricalTemp ?? 0;
+        const maxCellTemp = 70;
 
         inverters.forEach(inv => {
+            // If an entityId is provided, filter out unrelated inverters
+            if (targetInverterId && inv.id !== targetInverterId && inv.catalogId !== targetInverterId) return;
+
             const spec = INVERTER_CATALOG.find(i => i.id === inv.catalogId);
             if (!spec) return;
 
             inv.mpptConfigs.forEach(mppt => {
                 if (mppt.modulesPerString === 0) return;
+                // If an entityId explicitly targets an MPPT, filter out the others
+                if (targetMpptId !== null && mppt.mpptId !== targetMpptId) return;
 
                 // Robust Calculation Logic usage
                 const metrics = calculateStringMetrics(
@@ -32,18 +48,22 @@ export const VoltageRangeChart: React.FC<{ className?: string }> = ({ className 
                         vmp: selectedModule.vmp,
                         isc: selectedModule.isc,
                         tempCoeffVoc: selectedModule.tempCoeff || -0.29,
-                        // If selectedModule has specific Pmax coeff, use it, else undefined
                     },
                     mppt.modulesPerString,
-                    0,  // Min Temp (Project Default?)
-                    70  // Max Temp
+                    minAmbientTemp,
+                    maxCellTemp
                 );
 
+                const mpptSpec = spec.mppts?.find(m => m.mpptId === mppt.mpptId) || spec.mppts?.[0];
+                const minMpptVoltage = mpptSpec?.minMpptVoltage || 80;
+                const maxMpptVoltage = mpptSpec?.maxMpptVoltage || 550;
+                const maxInputVoltage = mpptSpec?.maxInputVoltage || 600;
+
                 data.push({
-                    name: `${spec.model.slice(0, 10)}.. MPPT ${mppt.mpptId}`,
-                    minMppt: spec.minMpptVoltage,
-                    maxMppt: spec.maxMpptVoltage,
-                    maxInput: spec.maxInputVoltage,
+                    name: `MPPT ${mppt.mpptId} (${spec.model.slice(0, 10)})`,
+                    minMppt: minMpptVoltage,
+                    maxMppt: maxMpptVoltage,
+                    maxInput: maxInputVoltage,
                     
                     // Operating Window
                     vmpMin: metrics.vmpMin, // @ 70°C
@@ -52,41 +72,36 @@ export const VoltageRangeChart: React.FC<{ className?: string }> = ({ className 
                     
                     // Safety check
                     vocMax: metrics.vocMax, // @ 0°C
-                    isSafe: metrics.vocMax <= spec.maxInputVoltage,
-                    isMpptOk: metrics.vmpMin >= spec.minMpptVoltage && metrics.vmpMax <= spec.maxMpptVoltage
+                    isSafe: metrics.vocMax <= maxInputVoltage,
+                    isMpptOk: metrics.vmpMin >= minMpptVoltage && metrics.vmpMax <= maxMpptVoltage
                 });
             });
         });
 
         return data;
 
-    }, [inverters, selectedModule]);
+    }, [inverters, selectedModule, settings]);
 
     if (chartData.length === 0) {
-        return (
-             <Card className={cn("h-56 bg-white border-slate-200 flex flex-col items-center justify-center text-slate-400", className)}>
-                <Zap className="mb-2 opacity-20" size={32} />
-                <span className="text-xs">Configure strings para visualizar tensões.</span>
-            </Card>
-        );
+        return null; // Do not render if there's no selected string or no data
     }
 
     return (
-        <Card className={cn("h-56 bg-white border-slate-200 flex flex-col overflow-hidden relative", className)}>
+        <Card className={cn("h-auto min-h-[50px] bg-slate-900/90 backdrop-blur-md border-slate-800 flex flex-col overflow-hidden relative shadow-2xl", className)}>
              <div className="absolute top-2 left-3 z-10 flex flex-col">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
-                    <Zap size={10} className="text-amber-500" />
+                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                    <Zap size={10} className="text-emerald-400" />
                     Janela Operacional MPPT
                 </span>
              </div>
 
              {/* Custom HTML Visualization Overlay - precise control */}
-             <div className="absolute inset-0 top-8 px-4 pb-2 overflow-y-auto space-y-2 bg-white/50 backdrop-blur-[1px]">
+             <div className="pt-8 px-3 pb-3 space-y-2">
                  {chartData.map((d, i) => (
                      <div key={i} className="flex items-center gap-2 text-xs">
-                         <div className="w-24 shrink-0 text-right truncate text-[10px] font-medium text-slate-600" title={d.name}>{d.name}</div>
+                         <div className="w-24 shrink-0 text-right truncate text-[9px] font-bold text-slate-400" title={d.name}>{d.name}</div>
                          
-                         <div className="flex-1 h-5 bg-slate-100 rounded-sm relative border border-slate-200 mt-0.5">
+                         <div className="flex-1 h-3 bg-slate-950/50 rounded-sm relative border border-slate-800/50 mt-0.5">
                              
                              {/* 1. MPPT Range (Safe Zone) - Green Zone */}
                              <div 
@@ -121,7 +136,7 @@ export const VoltageRangeChart: React.FC<{ className?: string }> = ({ className 
                          </div>
 
                          {/* Value Label */}
-                         <div className="w-16 shrink-0 text-[10px] font-mono text-slate-500 flex justify-end">
+                         <div className="w-12 shrink-0 text-[10px] font-mono font-bold text-slate-300 flex justify-end">
                             {!d.isSafe && <AlertTriangle size={10} className="text-red-500 mr-1" />}
                             {d.vmpNominal.toFixed(0)}V
                          </div>

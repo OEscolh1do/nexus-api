@@ -1,23 +1,31 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import { 
     Dialog
 } from '@/components/ui/simple-dialog';
 import { InverterFilterPanel, InverterFilters, INITIAL_FILTERS } from './InverterFilterPanel';
 import { InverterInventoryItem } from './InverterInventoryItem';
-
-import { useTechStore } from '@/modules/engineering/store/useTechStore';
+import { useSolarStore } from '@/core/state/solarStore';
 
 interface InverterCatalogDialogProps {
     isOpen: boolean;
     onClose: () => void;
+    onAddInverter: (inverter: any) => void;
 }
 
-export const InverterCatalogDialog: React.FC<InverterCatalogDialogProps> = ({ isOpen, onClose }) => {
-    // Store mock - to be wired up to KurupiraClient 
-    const catalogInverters: any[] = [];
-    const isLoading = false;
-    const { addInverter } = useTechStore();
+export const InverterCatalogDialog: React.FC<InverterCatalogDialogProps> = ({ isOpen, onClose, onAddInverter }) => {
+    // P4-5: Consume catalog from store (loaded via InMemoryEquipmentRepo)
+    const catalogInverters = useSolarStore(state => state.catalogInverters);
+    const isCatalogLoaded = useSolarStore(state => state.isCatalogLoaded);
+    const loadCatalog = useSolarStore(state => state.loadCatalog);
+    const isLoading = !isCatalogLoaded;
+
+    // Load catalog data on first open
+    useEffect(() => {
+        if (isOpen && !isCatalogLoaded) {
+            loadCatalog();
+        }
+    }, [isOpen, isCatalogLoaded, loadCatalog]);
 
     // Local Filter State
     const [filters, setFilters] = useState<InverterFilters>(INITIAL_FILTERS);
@@ -47,8 +55,9 @@ export const InverterCatalogDialog: React.FC<InverterCatalogDialogProps> = ({ is
             // D. Phase (Exact)
             if (filters.phase && item.connectionType !== filters.phase) return false;
 
-            // E. MPPTs (Min)
-            if (filters.minMppts && (item.mppts || 1) < parseInt(filters.minMppts)) return false;
+            // E. MPPTs — campo não disponível no InverterSpecs atual, filtro desabilitado
+            // TODO P4-future: adicionar mppts ao InverterSpecs quando INVERTER_DB for migrado
+            // if (filters.minMppts && (item.mppts || 1) < parseInt(filters.minMppts)) return false;
 
             return true;
         });
@@ -57,8 +66,9 @@ export const InverterCatalogDialog: React.FC<InverterCatalogDialogProps> = ({ is
     // Handle Add & Close (Optional UX: maintain open to add multiple? or close on add?)
     // Decision: Keep open to allow adding multiple, maybe show toast? 
     // For now, simple add. User can close manually.
+    // For now, simple add. User can close manually or it closes automatically depending on parent.
     const handleAdd = (item: any) => {
-        addInverter(item);
+        onAddInverter(item);
     };
 
     return (

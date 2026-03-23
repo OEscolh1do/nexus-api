@@ -3,11 +3,12 @@ import React, { useMemo } from 'react';
 import { BarChart3, CloudSun } from 'lucide-react';
 import { DenseCard } from '@/components/ui/dense-form';
 import { GenerationChart } from '@/components/ui/SolarCharts';
-import { useSolarStore } from '@/core/state/solarStore';
+import { useSolarStore, selectModules, selectInverters } from '@/core/state/solarStore';
+import { useSimulationWorker } from '../hooks/useSimulationWorker';
 
 export const SimulationPreview: React.FC = () => {
-    const modules = useSolarStore(state => state.modules);
-    const inverters = useSolarStore(state => state.inverters);
+    const modules = useSolarStore(selectModules);
+    const inverters = useSolarStore(selectInverters);
     const clientData = useSolarStore(state => state.clientData);
     const techSettings = useSolarStore(state => state.settings);
 
@@ -17,31 +18,31 @@ export const SimulationPreview: React.FC = () => {
     // Total System Power
     const systemPower = modules.reduce((acc, m) => acc + (m.power * m.quantity), 0) / 1000;
 
+    // Worker Payload
+    const consumption = clientData.invoices[0]?.monthlyHistory || Array(12).fill(0);
+    const performanceRatio = techSettings.performanceRatio || 0.75;
+    
+    const payload = useMemo(() => ({
+        systemPowerKWp: systemPower,
+        performanceRatio,
+        clientConsumption: consumption
+    }), [systemPower, performanceRatio, consumption]);
+
+    // Spin up Worker
+    const { result, isCalculating } = useSimulationWorker(payload);
+
     const chartData = useMemo(() => {
-        // Mock simple simulation curve based on HSP (assuming Avg HSP 4.5 for now if no weather data)
+        if (!result) return [];
         const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-        // Curve factor for Brazil (Lower in winter - Jun/Jul)
-        const seasonalFactors = [1.1, 1.05, 1.0, 0.95, 0.9, 0.85, 0.9, 0.95, 1.0, 1.05, 1.1, 1.15];
-        
-        const consumption = clientData.invoices[0]?.monthlyHistory || Array(12).fill(0);
-        const performanceRatio = techSettings.performanceRatio || 0.75; // Use valid property from schema
+        return months.map((month, idx) => ({
+            month,
+            consumption: result.monthlyConsumption[idx] || 0,
+            generation: result.monthlyGeneration[idx] || 0
+        }));
+    }, [result]);
 
-        return months.map((month, index) => {
-            const days = 30;
-            const hsp = 4.5;
-            const factor = seasonalFactors[index] || 1;
-            const generation = systemPower * days * hsp * factor * performanceRatio;
-
-            return {
-                month,
-                consumption: consumption[index] || 0,
-                generation: generation
-            };
-        });
-    }, [systemPower, clientData, techSettings]);
-
-    const totalGeneration = chartData.reduce((a, b) => a + b.generation, 0);
-    const totalConsumption = chartData.reduce((a, b) => a + b.consumption, 0);
+    const totalGeneration = result?.totalAnnualGeneration || 0;
+    const totalConsumption = result?.totalAnnualConsumption || 0;
     const coverRatio = totalConsumption > 0 ? (totalGeneration / totalConsumption) : 0;
 
     return (
@@ -49,7 +50,7 @@ export const SimulationPreview: React.FC = () => {
              <div className="flex items-center justify-between mb-2 z-10 relative">
                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
                      <BarChart3 size={12} className="text-purple-500" />
-                     Simulação de Geração
+                     Simulação de Geração {isCalculating && <span className="text-[9px] lowercase text-emerald-500 font-normal animate-pulse">(calculando...)</span>}
                  </h4>
                  <div className="flex gap-4">
                      <div className="text-right">
@@ -65,8 +66,8 @@ export const SimulationPreview: React.FC = () => {
                  </div>
              </div>
 
-             <div className="flex-1 w-full min-h-0 relative z-10">
-                 {hasEquipment ? (
+             <div className="flex-1 w-full min-h-0 relative z-10 transition-opacity duration-300" style={{ opacity: isCalculating ? 0.5 : 1 }}>
+                 {hasEquipment && chartData.length > 0 ? (
                      <GenerationChart data={chartData} />
                  ) : (
                      <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-300 bg-slate-50/50 rounded-lg border-2 border-dashed border-slate-100">

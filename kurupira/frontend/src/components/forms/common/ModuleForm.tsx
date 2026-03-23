@@ -17,13 +17,13 @@ export const ModuleForm: React.FC<Props> = ({ initialData, onConfirm }) => {
 
   // Derived Lists
   const uniqueMakes = useMemo(() => {
-    const makes = new Set(MODULE_DB.map(m => m.Fabricante));
+    const makes = new Set(MODULE_DB.map(m => m.manufacturer));
     return Array.from(makes).sort();
   }, []);
 
   const availableModels = useMemo(() => {
     if (!selectedMake) return [];
-    return MODULE_DB.filter(m => m.Fabricante === selectedMake).map(m => m.Modelo).sort();
+    return MODULE_DB.filter(m => m.manufacturer === selectedMake).map(m => m.model).sort();
   }, [selectedMake]);
 
   // Calculate Aggregates
@@ -34,30 +34,30 @@ export const ModuleForm: React.FC<Props> = ({ initialData, onConfirm }) => {
   const handleAddFromDb = () => {
     if (!selectedMake || !selectedModel) return;
 
-    const dbEntry = MODULE_DB.find(m => m.Fabricante === selectedMake && m.Modelo === selectedModel);
+    const dbEntry = MODULE_DB.find(m => m.manufacturer === selectedMake && m.model === selectedModel);
     if (!dbEntry) return;
 
     const newMod: ModuleSpecs = {
       id: Math.random().toString(36).substr(2, 9),
       quantity: 1, // Default start
-      supplier: dbEntry.Fornecedor,
-      manufacturer: dbEntry.Fabricante,
-      model: dbEntry.Modelo,
-      type: dbEntry.Tipo,
-      power: dbEntry["Potência"],
-      efficiency: Number((dbEntry["ƞ Módulo"] * 100).toFixed(2)), // Convert 0.21 -> 21.00
-      cells: dbEntry["Número de células"],
-      imp: dbEntry["Imáx"],
-      vmp: dbEntry["Vmáx"],
-      isc: dbEntry["Isc/Icc"],
-      voc: dbEntry["Voc/Vca"],
-      weight: dbEntry.Peso,
-      area: dbEntry["Área (m²)"],
-      dimensions: dbEntry["Dimensões (mm)"],
-      inmetroId: dbEntry.Inmetro,
-      maxFuseRating: dbEntry["Máx. Corr. Fusível (série)"],
-      tempCoeff: dbEntry["Coef. Temperatura/°C"],
-      annualDepreciation: Number((dbEntry["Depreciação a.a."] * 100).toFixed(2)) // Convert 0.008 -> 0.8
+      supplier: dbEntry.manufacturer, // Temporary fallback since supplier was removed
+      manufacturer: dbEntry.manufacturer,
+      model: dbEntry.model,
+      type: 'Mono PERC', // Type is missing from schema, hardcoding default for now
+      power: dbEntry.electrical.pmax,
+      efficiency: Number(((dbEntry.electrical.efficiency || 0.2) * 100).toFixed(2)),
+      cells: dbEntry.physical.cells || 144,
+      imp: dbEntry.electrical.imp,
+      vmp: dbEntry.electrical.vmp,
+      isc: dbEntry.electrical.isc,
+      voc: dbEntry.electrical.voc,
+      weight: dbEntry.physical.weightKg,
+      area: (dbEntry.physical.widthMm * dbEntry.physical.heightMm) / 1000000,
+      dimensions: `${dbEntry.physical.heightMm}x${dbEntry.physical.widthMm}x${dbEntry.physical.depthMm}`,
+      inmetroId: 'Aprovado',
+      maxFuseRating: dbEntry.electrical.maxFuseRating || 20,
+      tempCoeff: dbEntry.electrical.tempCoeffVoc,
+      annualDepreciation: 0.8
     };
 
     setModules([...modules, newMod]);

@@ -152,6 +152,14 @@ neonorte/
 
 ## 🔄 CHANGELOG
 
+### v3.1.0 (2026-03-23) — Engenharia Funcional, WebGL & Biblioteca Visual
+
+- ✅ **Contexto Comercial Permanente e Painel de Propriedades:** Refatoração do `WorkspaceLayout` para grid de 4 colunas. Extração das `tabs` de entidades (Módulos, Inversores, Strings) do `RightInspector` para um novo `PropertiesDrawer` central e colapsável. O `RightInspector` agora serve permanentemente como um painel de "Contexto Comercial", provendo os dados unificados do Iaçã (Consumo Mensal) e CRESESB (Geração Mensal editável por fonte) em visões lado a lado.
+- ✅ **Biblioteca Visual de Componentes:** Conclusão das Fases P0 a P4 da HUD do Kurupira. Implementação central do `solarStore` (Zustand) com histórico (Zundo), migração de todos os consumidores, reparo do repositório InMemory e separação estrita de domínios (Catálogo vs Inventário).
+- ✅ **Dimensionamento Funcional:** Formulários reativos (clamping, validação Zod), Atribuição física-lógica de Strings para Módulos 3D (Shift+Click), e Motor de Limites Térmicos integrados (VocMax compensado pela Temperatura Mínima Histórica vs Limites do Inversor) emitindo Alertas nos HealthChecks da HUD.
+- ✅ **Integração Gráfica WebGL/Leaflet:** Estabelecimento da infraestrutura híbrida (MapView + Canvas). Criação do `projectSlice` e `uiStore`, sincronização Outliner ↔ Canvas (`flyTo`), renderização sob-demanda (0% CPU idle) e Feedback visual através de Cores Dinâmicas InstancedMesh (representando Strings conectadas) a 60fps.
+- ✅ **Dockerização & Reestruturação:** Homologação final da cisão em infraestrutura containerizada persistente.
+
 ### v3.0.0 (2026-03-20) — Operação Guardiões
 
 - ✅ Cisão do monólito em Iaçã (Gestão) + Kurupira (Engenharia)

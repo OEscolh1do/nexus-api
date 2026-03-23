@@ -2,10 +2,14 @@ import { useSolarStore } from '@/core/state/solarStore';
 import { useProposalCalculator } from '../../hooks/useProposalCalculator';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { DenseRow } from '../../components/ui/DenseRow';
+import { generateB2BReport } from '../../utils/generateB2BReport';
+import { selectClientData } from '@/core/state/solarStore';
 
 export const PricingResultsPanel = () => {
-    const { costs, pricing, financials } = useProposalCalculator();
+    const calculator = useProposalCalculator();
+    const { costs, pricing, financials } = calculator;
     const settings = useSolarStore(state => state.settings);
+    const clientData = useSolarStore(selectClientData);
 
     // Pie Chart Data
     const pieData = [
@@ -97,6 +101,17 @@ export const PricingResultsPanel = () => {
                         <span className="text-sm font-mono font-bold text-slate-700">={(financials.paybackYears).toFixed(1)} anos</span>
                     </div>
                 </div>
+            </div>
+
+            {/* 5. B2B Report Action */}
+            <div className="mt-4 pt-4 border-t border-slate-200 flex justify-center">
+                <button
+                    onClick={() => generateB2BReport(calculator, clientData.clientName || 'Cliente', 'Projeto Otimizado')}
+                    className="w-full flex justify-center items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white py-2.5 rounded-lg text-xs font-bold transition-all shadow-sm"
+                >
+                    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                    Exportar BOM B2B (Custos)
+                </button>
             </div>
 
         </div>

@@ -1,12 +1,11 @@
 import React from 'react';
 import { CalendarDays, TrendingDown, PiggyBank } from 'lucide-react';
-import { FinanceParams, FinanceResults } from '../../finance/store/financeSchema';
 import { DenseCard } from '@/components/ui/dense-form';
-
+import { ProposalCalculations } from '../types';
 interface FinancingOptionsCardProps {
-    pricing: { finalPrice: number };
-    financials: FinanceResults;
-    financeParams: FinanceParams;
+    pricing: ProposalCalculations['pricing'];
+    financials: ProposalCalculations['financials'];
+    financeParams?: { financingMode: string; downPayment: number; loanTerm: number } | any;
 }
 
 export const FinancingOptionsCard: React.FC<FinancingOptionsCardProps> = ({

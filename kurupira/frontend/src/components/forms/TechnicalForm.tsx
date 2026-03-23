@@ -10,7 +10,7 @@ import {
   CheckCircle, Minus, BarChart3, TrendingUp
 } from 'lucide-react';
 import { MODULE_DB } from '@/data/equipment/modules';
-import { INVERTER_DB } from '@/data/equipment/inverters';
+import { INVERTER_CATALOG, Inverter } from '@/modules/engineering/constants/inverters';
 import { calculateSimpleGeneration } from '@/services/solarEngine';
 import { GenerationChart } from '@/components/ui/SolarCharts';
 import {
@@ -71,10 +71,10 @@ export const TechnicalForm: React.FC<Props> = ({
   const isOverloadCritical = overloadRatio > 1.50;
 
   // Listas de equipamentos
-  const moduleMakes = useMemo(() => Array.from(new Set(MODULE_DB.map(m => m.Fabricante))).sort(), []);
-  const moduleModels = useMemo(() => modMake ? MODULE_DB.filter(m => m.Fabricante === modMake).map(m => m.Modelo).sort() : [], [modMake]);
-  const inverterMakes = useMemo(() => Array.from(new Set(INVERTER_DB.map(i => i.Fabricante))).sort(), []);
-  const inverterModels = useMemo(() => invMake ? INVERTER_DB.filter(i => i.Fabricante === invMake).map(i => i.Modelo).sort() : [], [invMake]);
+  const moduleMakes = useMemo(() => Array.from(new Set(MODULE_DB.map((m: any) => m.manufacturer))).sort(), []);
+  const moduleModels = useMemo(() => modMake ? MODULE_DB.filter((m: any) => m.manufacturer === modMake).map((m: any) => m.model).sort() : [], [modMake]);
+  const inverterMakes = useMemo(() => Array.from(new Set(INVERTER_CATALOG.map((i: Inverter) => i.manufacturer))).sort(), []);
+  const inverterModels = useMemo(() => invMake ? INVERTER_CATALOG.filter((i: Inverter) => i.manufacturer === invMake).map((i: Inverter) => i.model).sort() : [], [invMake]);
 
   // Calculo de geracao reativo
   const monthlyGeneration = useMemo(() => {
@@ -98,51 +98,51 @@ export const TechnicalForm: React.FC<Props> = ({
 
   // Handlers
   const handleAddModule = () => {
-    const db = MODULE_DB.find(m => m.Modelo === modModel);
+    const db = MODULE_DB.find(m => m.model === modModel);
     if (!db) return;
     setModules([...modules, {
       id: Math.random().toString(36).substr(2, 9),
       quantity: 1,
-      supplier: db.Fornecedor,
-      manufacturer: db.Fabricante,
-      model: db.Modelo,
-      type: db.Tipo,
-      power: db["Potência"],
-      efficiency: Number((db["ƞ Módulo"] * 100).toFixed(2)),
-      cells: db["Número de células"],
-      imp: db["Imáx"],
-      vmp: db["Vmáx"],
-      isc: db["Isc/Icc"],
-      voc: db["Voc/Vca"],
-      weight: db.Peso,
-      area: db["Área (m²)"],
-      dimensions: db["Dimensões (mm)"],
-      inmetroId: db.Inmetro,
-      maxFuseRating: db["Máx. Corr. Fusível (série)"],
-      tempCoeff: db["Coef. Temperatura/°C"],
-      annualDepreciation: Number((db["Depreciação a.a."] * 100).toFixed(2))
+      supplier: db.manufacturer,
+      manufacturer: db.manufacturer,
+      model: db.model,
+      type: 'Mono PERC',
+      power: db.electrical.pmax,
+      efficiency: Number(((db.electrical.efficiency || 0.2) * 100).toFixed(2)),
+      cells: db.physical.cells || 144,
+      imp: db.electrical.imp,
+      vmp: db.electrical.vmp,
+      isc: db.electrical.isc,
+      voc: db.electrical.voc,
+      weight: db.physical.weightKg,
+      area: (db.physical.widthMm * db.physical.heightMm) / 1000000,
+      dimensions: `${db.physical.heightMm}x${db.physical.widthMm}x${db.physical.depthMm}`,
+      inmetroId: 'Aprovado',
+      maxFuseRating: db.electrical.maxFuseRating || 20,
+      tempCoeff: db.electrical.tempCoeffVoc,
+      annualDepreciation: 0.8
     }]);
     setModModel('');
   };
 
   const handleAddInverter = (modelName: string) => {
-    const db = INVERTER_DB.find(i => i.Modelo === modelName);
+    const db = INVERTER_CATALOG.find((i: Inverter) => i.model === modelName);
     if (!db) return;
     setInverters([...inverters, {
       id: Math.random().toString(36).substr(2, 9),
       quantity: 1,
-      manufacturer: db.Fabricante,
-      model: db.Modelo,
-      maxInputVoltage: db["Tensão máxima de entrada"],
-      minInputVoltage: db["Tensão mínima de entrada"],
-      maxInputCurrent: db["Corrente Máxima de entrada"],
-      outputVoltage: db["Tensão de saída"],
-      outputFrequency: db["Frequência de saída"],
-      maxOutputCurrent: db["Corrente Máxima de Saída"],
-      nominalPower: db["Potência Nominal"] / 1000,
-      maxEfficiency: db["Eficiência Máxima"] > 1 ? db["Eficiência Máxima"] : db["Eficiência Máxima"] * 100,
-      weight: db.Peso,
-      connectionType: db["Ligação"]
+      manufacturer: db.manufacturer,
+      model: db.model,
+      maxInputVoltage: db.mppts?.[0]?.maxInputVoltage || 600,
+      minInputVoltage: db.mppts?.[0]?.minMpptVoltage || 80,
+      maxInputCurrent: db.mppts?.[0]?.maxCurrentPerMPPT || 15,
+      outputVoltage: 220,
+      outputFrequency: 60,
+      maxOutputCurrent: (db.nominalPowerW / 220),
+      nominalPower: db.nominalPowerW / 1000,
+      maxEfficiency: db.efficiency?.euro || 97.5,
+      weight: 20,
+      connectionType: 'Monofásico 220V'
     }]);
   };
 

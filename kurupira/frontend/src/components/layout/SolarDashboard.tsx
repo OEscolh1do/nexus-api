@@ -32,7 +32,7 @@ export const SolarDashboard: FC<Props> = ({
   onSettingsChange 
 }) => {
   // UI STATE
-  const [activeTab, setActiveTab] = useState<TabId>('crm');
+  const [activeTab, setActiveTab] = useState<TabId>('crm' as TabId);
   const [crmStep, setCrmStep] = useState<'input' | 'energy'>('input'); // Sub-step for CRM tab
   // const [showSettings, setShowSettings] = useState(false); // Removed modal state, using tab now
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -248,7 +248,7 @@ export const SolarDashboard: FC<Props> = ({
           <div className="p-4 lg:p-6 max-w-7xl mx-auto">
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
               
-              {activeTab === 'crm' && (
+              {activeTab === ('crm' as TabId) && (
                 <>
                   {crmStep === 'input' && (
                     <InputForm initialData={inputData} onSubmit={handleInputSubmit} />
@@ -270,7 +270,7 @@ export const SolarDashboard: FC<Props> = ({
                   settings={settings}
                   monthlyConsumption={monthlyConsumption}
                   hspMonthly={hspMonthly}
-                  onBack={() => setActiveTab('crm')}
+                  onBack={() => setActiveTab('crm' as TabId)}
                   onConfirm={handleTechnicalConfirm}
                 />
               )}
@@ -295,7 +295,7 @@ export const SolarDashboard: FC<Props> = ({
                   <DocumentationModule />
                   <div className="flex justify-center mt-6">
                     <button 
-                      onClick={() => setActiveTab('finance')}
+                      onClick={() => setActiveTab('finance' as TabId)}
                       className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300"
                     >
                       Próximo: Viabilidade (Dev)
@@ -304,7 +304,7 @@ export const SolarDashboard: FC<Props> = ({
                 </>
               )}
 
-              {activeTab === 'finance' && (
+              {activeTab === ('finance' as TabId) && (
                 <div className="text-center py-20">
                     <h2 className="text-2xl font-bold text-slate-700 mb-2">Análise de Viabilidade</h2>
                     <p className="text-slate-500">Módulo em desenvolvimento. Análise de ROI, Payback e Fluxo de Caixa.</p>
@@ -321,7 +321,7 @@ export const SolarDashboard: FC<Props> = ({
               {activeTab === 'proposal' && (
                 <ServiceCompositionPhase 
                    data={proposalData}
-                   onBack={() => setActiveTab('finance')}
+                   onBack={() => setActiveTab('finance' as TabId)}
                    onConfirm={handleProposalConfirm}
                 />
               )}
@@ -374,7 +374,7 @@ export const SolarDashboard: FC<Props> = ({
       <SettingsPanel 
         settings={settings}
         isOpen={activeTab === 'settings'} // Auto-open if tab is settings?
-        onClose={() => setActiveTab('crm')} // Close goes back to home?
+        onClose={() => setActiveTab('crm' as TabId)} // Close goes back to home?
         onSave={(newSettings) => {
           onSettingsChange(newSettings);
           // Don't close tab, just save

@@ -5,10 +5,12 @@ import {
     CardContent 
 } from '@/components/ui/card';
 import { useTechStore } from '@/modules/engineering/store/useTechStore';
+import { toArray } from '@/core/types/normalized.types';
 
 import { cn } from '@/lib/utils';
 import { InverterInventoryItem } from './InverterInventoryItem';
 import { InverterCatalogDialog } from './InverterCatalogDialog';
+import { useSolarStore } from '@/core/state/solarStore';
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle, Loader2 } from 'lucide-react';
@@ -20,13 +22,22 @@ interface InverterInventoryProps {
 
 export const InverterInventory: React.FC<InverterInventoryProps> = ({ className }) => {
     // Store
-    const { inverters: selectedInverters, removeInverter, updateInverterQuantity } = useTechStore();
+    const addProjectInverter = useSolarStore(state => state.addInverter);
+    const { inverters: invertersNormalized, removeInverter, updateInverterQuantity, addInverter: addTechInverter } = useTechStore();
+    const selectedInverters = toArray(invertersNormalized);
     const catalogInverters: any[] = [];
     const isLoading = false;
     const error = null;
     
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
+
+    const handleAddInverter = (item: any) => {
+        const newId = Math.random().toString(36).substr(2, 9);
+        addProjectInverter({ ...item, id: newId, quantity: 1 });
+        addTechInverter(item, newId);
+        setIsModalOpen(false);
+    };
 
     return (
         <Card className={cn("flex flex-col h-full overflow-hidden bg-white border-slate-200", className)}>
@@ -121,6 +132,7 @@ export const InverterInventory: React.FC<InverterInventoryProps> = ({ className 
             <InverterCatalogDialog 
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
+                onAddInverter={handleAddInverter}
             />
         </Card>
     );

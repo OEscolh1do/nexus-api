@@ -1,11 +1,11 @@
 import React from 'react';
 import { Plus, Minus, Trash2, Zap, Ruler, SlidersHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { PVModule } from '@/modules/crm/constants/pvModules';
+import type { ModuleCatalogItem } from '@/core/schemas/moduleSchema';
 import { Badge } from '@/components/ui/badge';
 
 interface ModuleInventoryItemProps {
-    module: PVModule;
+    module: ModuleCatalogItem;
     mode?: 'catalog' | 'inventory';
     isSelected?: boolean;
     quantity?: number;
@@ -29,12 +29,20 @@ export const ModuleInventoryItem: React.FC<ModuleInventoryItemProps> = ({
     onRemove
 }) => {
     
-    // Determine Cell Type Color/Label (Monocrystalline vs Polycrystalline)
-    const isMono = module.type.toLowerCase().includes('mono');
+    // Determine Cell Type from model name (ModuleCatalogItem doesn't have a 'type' field)
+    const modelLower = module.model.toLowerCase();
+    const isMono = modelLower.includes('mono') || modelLower.includes('m10') || modelLower.includes('m12') || modelLower.includes('p-type');
     const typeLabel = isMono ? 'MONO' : 'POLY';
     const typeColor = isMono 
         ? 'bg-slate-800 text-slate-100 border-slate-700' 
         : 'bg-blue-100 text-blue-700 border-blue-200';
+
+    // Compute area from physical dimensions (mm → m²)
+    const areaM2 = ((module.physical.widthMm * module.physical.heightMm) / 1_000_000).toFixed(2);
+    // Display efficiency: prefer electrical.efficiency (fraction), fallback to N/A
+    const efficiencyDisplay = module.electrical.efficiency 
+        ? (module.electrical.efficiency * 100).toFixed(1) 
+        : ((module.electrical.pmax / (module.physical.widthMm * module.physical.heightMm / 1_000_000) / 10).toFixed(1));
 
     return (
         <div 
@@ -74,7 +82,7 @@ export const ModuleInventoryItem: React.FC<ModuleInventoryItemProps> = ({
                 {/* Visual Accent: Efficiency Badge */}
                 <div className="flex items-center gap-1 mt-1.5 bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-full border border-emerald-100">
                     <Zap size={8} className="fill-emerald-600 stroke-none" />
-                    <span className="text-[8px] font-bold">{module.electrical.efficiency}% Eficiência</span>
+                    <span className="text-[8px] font-bold">{efficiencyDisplay}% Eficiência</span>
                 </div>
             </div>
 
@@ -83,13 +91,13 @@ export const ModuleInventoryItem: React.FC<ModuleInventoryItemProps> = ({
                 <div className="flex items-center justify-center gap-1 py-1.5" title="Dimensões">
                     <Ruler size={10} className="text-slate-400" />
                     <span className="text-[9px] font-semibold text-slate-600">
-                        {module.area} <span className="font-normal text-slate-400">m²</span>
+                        {areaM2} <span className="font-normal text-slate-400">m²</span>
                     </span>
                 </div>
                 <div className="flex items-center justify-center gap-1 py-1.5" title="Células">
                     <SlidersHorizontal size={10} className="text-slate-400" />
                     <span className="text-[9px] font-semibold text-slate-600">
-                         {module.cells} <span className="font-normal text-slate-400">Cél.</span>
+                         {module.physical.cells || 144} <span className="font-normal text-slate-400">Cél.</span>
                     </span>
                 </div>
             </div>

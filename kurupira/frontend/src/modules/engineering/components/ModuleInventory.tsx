@@ -5,14 +5,14 @@ import {
     CardContent 
 } from '@/components/ui/card';
 import { DenseButton } from '@/components/ui/dense-form';
-import { useSolarStore } from '@/core/state/solarStore';
+import { useSolarStore, selectModules } from '@/core/state/solarStore';
 
 import { useTechStore } from '../store/useTechStore';
 import { cn } from '@/lib/utils';
 import { ModuleInventoryItem } from './ModuleInventoryItem';
 import { ModuleCatalogDialog } from './ModuleCatalogDialog'; // New Dialog
-export interface PVModule { id?: string; manufacturer: string; model: string; powerWp?: number; [key: string]: any; }
-
+import type { ModuleCatalogItem } from '@/core/schemas/moduleSchema';
+import { mapCatalogToSpecs } from '../utils/catalogMappers';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle, Loader2 } from 'lucide-react';
 
@@ -22,12 +22,12 @@ interface ModuleInventoryProps {
 
 export const ModuleInventory: React.FC<ModuleInventoryProps> = ({ className }) => {
     // Store mock
-    const availableModules: PVModule[] = [];
+    const availableModules: ModuleCatalogItem[] = [];
     const isLoading = false;
     const error = null;
     
     // Store - Project (Selected Equipment)
-    const modules = useSolarStore(state => state.modules);
+    const modules = useSolarStore(selectModules);
     const addModule = useSolarStore(state => state.addModule);
     const removeModule = useSolarStore(state => state.removeModule);
     const updateModuleQty = useSolarStore(state => state.updateModuleQty);
@@ -42,31 +42,14 @@ export const ModuleInventory: React.FC<ModuleInventoryProps> = ({ className }) =
     // Refs for Scroll Handling
     const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
-    const handleAdd = (catalogItem: PVModule) => {
+    const handleAdd = (catalogItem: ModuleCatalogItem) => {
         const newId = Math.random().toString(36).substr(2, 9);
+        const mappedItem = mapCatalogToSpecs(catalogItem);
 
-        // Add to project state
+        // Add to project state overriding ID with local unique ID
         addModule({
+            ...mappedItem,
             id: newId,
-            quantity: 1,
-            supplier: catalogItem.supplier || '',
-            manufacturer: catalogItem.manufacturer,
-            model: catalogItem.model,
-            type: catalogItem.type,
-            power: catalogItem.electrical.pmax,
-            efficiency: catalogItem.electrical.efficiency,
-            cells: catalogItem.cells,
-            imp: catalogItem.electrical.imp,
-            vmp: catalogItem.electrical.vmp,
-            isc: catalogItem.electrical.isc,
-            voc: catalogItem.electrical.voc,
-            weight: catalogItem.weight,
-            area: catalogItem.area,
-            dimensions: `${catalogItem.dimensions.length}x${catalogItem.dimensions.width}x${catalogItem.dimensions.thickness}`,
-            inmetroId: '', 
-            maxFuseRating: catalogItem.electrical.maxFuse,
-            tempCoeff: catalogItem.temperature.coeffPmax, 
-            annualDepreciation: catalogItem.warranty?.annualDegradation || 0.7
         });
         
         setSelectedModuleId(newId);

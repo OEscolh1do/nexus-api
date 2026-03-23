@@ -8,7 +8,7 @@ export interface ProjectMetadata {
 }
 
 export const ProjectService = {
-    async saveCurrentProject(status: string = 'DRAFT') {
+    async saveCurrentProject(_status: string = 'DRAFT') {
         console.warn("ProjectService.saveCurrentProject: Supabase removido.");
         return null;
     },
@@ -18,15 +18,15 @@ export const ProjectService = {
         return [];
     },
 
-    async loadProjectAndHydrate(projectId: string) {
+    async loadProjectAndHydrate(_projectId: string) {
         console.warn(`ProjectService.loadProjectAndHydrate: Supabase removido.`);
     },
 
-    async deleteProject(projectId: string) {
+    async deleteProject(_projectId: string) {
         console.warn(`ProjectService.deleteProject: Supabase removido.`);
     },
 
-    async duplicateProject(projectId: string) {
+    async duplicateProject(_projectId: string) {
         console.warn(`ProjectService.duplicateProject: Supabase removido.`);
         return null;
     }

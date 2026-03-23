@@ -7,10 +7,13 @@ import {
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { useProposalCalculator } from '../hooks/useProposalCalculator';
+import { useSolarStore } from '@/core/state/solarStore';
 
 export const ProposalStatusBar: React.FC = () => {
     // 1. Consume Data
     const { metrics, pricing, financials } = useProposalCalculator();
+    const projectStatus = useSolarStore(state => state.project.projectStatus);
+    const approveProject = useSolarStore(state => state.approveProject);
 
     return (
         <div className="flex items-center justify-between px-4 h-14 bg-white border-b border-slate-200 shrink-0 shadow-sm z-10 transition-all animate-in slide-in-from-top-2">
@@ -79,6 +82,24 @@ export const ProposalStatusBar: React.FC = () => {
                         <span className="text-sm font-medium text-slate-400 mr-1">R$</span>
                         {pricing.finalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
+                </div>
+
+                <Separator orientation="vertical" className="h-8 bg-slate-100 ml-4" />
+
+                <div className="ml-2">
+                    {projectStatus === 'draft' ? (
+                        <button
+                            onClick={approveProject}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-lg text-sm font-bold shadow-sm shadow-emerald-500/20 transition-all flex items-center gap-2"
+                        >
+                            <span className="animate-pulse w-2 h-2 rounded-full bg-white/60"></span>
+                            Aprovar Projeto
+                        </button>
+                    ) : (
+                        <div className="bg-slate-100 text-slate-400 px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 border border-slate-200 cursor-not-allowed">
+                            ✓ Projeto Aprovado (Read-Only)
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

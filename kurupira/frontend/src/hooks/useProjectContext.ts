@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useSolarStore } from "@/core/state/solarStore";
+import { useSolarStore, selectSimulatedItems } from "@/core/state/solarStore";
 
 /**
  * useProjectContext
@@ -42,7 +42,7 @@ export const useProjectContext = (): ProjectContext => {
   // Seletores diretos para otimização
   const clientData = useSolarStore((state) => state.clientData);
   const weatherData = useSolarStore((state) => state.weatherData);
-  const simulatedItems = useSolarStore((state) => state.simulatedItems);
+  const simulatedItems = useSolarStore(selectSimulatedItems);
 
   // 1. Derivação de Constraints (Restrições Físicas/Elétricas)
   const constraints = useMemo<ProjectConstraints>(() => {
@@ -122,10 +122,10 @@ export const useProjectContext = (): ProjectContext => {
     };
   }, [clientData.averageConsumption, clientData.invoices, simulatedItems]);
 
-  return {
+  return useMemo(() => ({
     constraints,
     climate,
     energyGoal,
     hasClientData: !!clientData.clientName,
-  };
+  }), [constraints, climate, energyGoal, clientData.clientName]);
 };

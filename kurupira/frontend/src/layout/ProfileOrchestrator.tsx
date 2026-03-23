@@ -14,6 +14,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/core/auth/useAuth';
 import { useSolarStore } from '@/core/state/solarStore';
+import { useUIStore } from '@/core/state/uiStore';
 import { TechModule } from '@/modules/engineering/TechModule';
 import { ElectricalModule } from '@/modules/electrical/ElectricalModule';
 import { DocumentationModule } from '@/modules/documentation/DocumentationModule';
@@ -21,13 +22,10 @@ import { ProposalModule } from '@/modules/proposal/ProposalModule';
 import { SettingsModule } from '@/modules/settings/SettingsModule';
 import { ProjectExplorer } from '@/modules/engineering/ui/ProjectExplorer';
 import { SiteContextModal, getSiteContext, SiteContext } from '@/modules/engineering/ui/SiteContextModal';
-import { DASHBOARD_TABS, TabId, TAB_COLOR_CLASSES, getTabIndex } from '@/config/navigation';
+import { DASHBOARD_TABS, TabId, TAB_COLOR_CLASSES } from '@/config/navigation';
 import {
   Lock, ShieldCheck, ShieldAlert,
-  PanelLeftClose, PanelLeftOpen,
-  Maximize2, Minimize2, Zap, Check,
-  LayoutDashboard, Download, MapPin,
-  Battery
+  Maximize2, Minimize2, Zap
 } from 'lucide-react';
 
 
@@ -39,9 +37,9 @@ import {
 export const ProfileOrchestrator: React.FC = () => {
   const { activeModule, setActiveModule, userRole } = useSolarStore();
   const clientData = useSolarStore(state => state.clientData);
-  const { user, signOut } = useAuth();
+  const { signOut } = useAuth();
 
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+
   const [fullscreen, setFullscreen] = useState(false);
 
   // Ensure activeModule is a valid TabId
@@ -92,6 +90,24 @@ export const ProfileOrchestrator: React.FC = () => {
     // TODO: Carregar dados do projeto no store (setActiveProjectId)
   };
 
+  const handleTabChange = async (targetTab: TabId) => {
+    // P7-1 Snapshot Interception
+    if (targetTab === 'proposal' && currentModule === 'engineering') {
+      const el = document.getElementById('engineering-viewport');
+      if (el) {
+        try {
+          const html2canvas = (await import('html2canvas')).default;
+          // Temporarily hide Leaflet controls for clean screenshot if needed, but R3F + Leaflet standard is fine.
+          const canvas = await html2canvas(el, { useCORS: true });
+          useUIStore.getState().setViewportSnapshot(canvas.toDataURL('image/png'));
+        } catch (e) {
+          console.error("Failed to snapshot engineering viewport", e);
+        }
+      }
+    }
+    setActiveModule(targetTab);
+  };
+
   return (
     <div className="w-full h-screen bg-slate-900 flex flex-col font-sans overflow-hidden">
 
@@ -114,14 +130,7 @@ export const ProfileOrchestrator: React.FC = () => {
 
           <div className="h-5 w-px bg-slate-700 mx-1" />
 
-          {/* Sidebar Toggle */}
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-1.5 rounded-md hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
-            title={sidebarOpen ? 'Recolher sidebar' : 'Expandir sidebar'}
-          >
-            {sidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
-          </button>
+
 
           {/* Active Project Badge */}
           <div className="flex items-center gap-2 bg-slate-700/50 rounded-lg px-3 py-1">
@@ -143,7 +152,7 @@ export const ProfileOrchestrator: React.FC = () => {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveModule(tab.id)}
+                  onClick={() => handleTabChange(tab.id)}
                   title={tab.description}
                   className={`
                     flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold transition-all whitespace-nowrap
@@ -193,121 +202,7 @@ export const ProfileOrchestrator: React.FC = () => {
       {/* ================================================================ */}
       <div className="flex-1 flex overflow-hidden">
 
-        {/* SIDEBAR — Workflow Stepper + Mini-Context + Quick Actions */}
-        {sidebarOpen && currentModule !== 'hub' && (
-          <aside className="w-56 bg-slate-950 border-r border-slate-800/50 flex flex-col shrink-0">
 
-            {/* Workflow Stepper */}
-            <div className="p-3 flex-1 overflow-y-auto">
-              <h2 className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-3">Workflow</h2>
-              <nav className="space-y-0.5">
-                {DASHBOARD_TABS.filter(tab => tab.id !== 'hub' && tab.id !== 'settings').map((tab, index) => {
-                  const colorClasses = TAB_COLOR_CLASSES[tab.color];
-                  const isActive = currentModule === tab.id;
-                  const currentIdx = getTabIndex(currentModule);
-                  const tabIdx = getTabIndex(tab.id);
-                  const isCompleted = tabIdx < currentIdx && tabIdx > 0;
-                  const isAllowed = MODULE_ROLES[tab.id]?.includes(userRole);
-
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => isAllowed && setActiveModule(tab.id)}
-                      disabled={!isAllowed}
-                      className={`
-                        w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition-all group
-                        ${isActive
-                          ? 'bg-white/5 text-white'
-                          : isCompleted
-                            ? 'text-emerald-500/70 hover:text-emerald-400 hover:bg-white/5'
-                            : isAllowed
-                              ? 'text-slate-600 hover:text-slate-400 hover:bg-white/5'
-                              : 'text-slate-800 cursor-not-allowed'
-                        }
-                      `}
-                    >
-                      {/* Step indicator */}
-                      <div className={`
-                        w-6 h-6 rounded-md flex items-center justify-center shrink-0 text-[9px] font-black transition-all
-                        ${isActive
-                          ? colorClasses.active
-                          : isCompleted
-                            ? 'bg-emerald-500/15 text-emerald-400'
-                            : 'bg-slate-900 text-slate-700 border border-slate-800'
-                        }
-                      `}>
-                        {isCompleted ? <Check size={11} strokeWidth={3} /> : index + 1}
-                      </div>
-
-                      {/* Label + Description */}
-                      <div className="flex-1 min-w-0">
-                        <span className={`text-[10px] font-bold block truncate ${
-                          isActive ? 'text-white' : ''
-                        }`}>
-                          {tab.label}
-                        </span>
-                        <span className="text-[8px] text-slate-700 block truncate">
-                          {tab.description}
-                        </span>
-                      </div>
-
-                      {/* Active indicator */}
-                      {isActive && (
-                        <div className="w-1 h-4 rounded-full bg-emerald-400 shrink-0" />
-                      )}
-                    </button>
-                  );
-                })}
-              </nav>
-            </div>
-
-            {/* Mini-Context (Projeto Ativo) */}
-            <div className="shrink-0 border-t border-slate-800/50 p-3">
-              <h2 className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-2">Projeto Ativo</h2>
-              <div className="bg-slate-900/50 rounded-lg border border-slate-800 p-2.5 space-y-1.5">
-                <div className="flex items-center gap-1.5">
-                  <Zap size={10} className="text-emerald-400 shrink-0" />
-                  <span className="text-[10px] font-bold text-white truncate">
-                    {clientData.clientName || 'Sem projeto'}
-                  </span>
-                </div>
-                {clientData.city && (
-                  <div className="flex items-center gap-1.5">
-                    <MapPin size={9} className="text-slate-600 shrink-0" />
-                    <span className="text-[9px] text-slate-500 truncate">
-                      {clientData.city}, {clientData.state}
-                    </span>
-                  </div>
-                )}
-                {(clientData.averageConsumption ?? 0) > 0 && (
-                  <div className="flex items-center gap-1.5">
-                    <Battery size={9} className="text-slate-600 shrink-0" />
-                    <span className="text-[9px] text-slate-500">
-                      {(clientData.averageConsumption ?? 0).toLocaleString('pt-BR')} kWh/mês
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Quick Actions */}
-            <div className="shrink-0 border-t border-slate-800/50 p-2 space-y-0.5">
-              <button
-                onClick={() => setActiveModule('hub')}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[10px] font-semibold text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/5 transition-all"
-              >
-                <LayoutDashboard size={12} />
-                Voltar ao Hub
-              </button>
-              <button
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[10px] font-semibold text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-all"
-              >
-                <Download size={12} />
-                Exportar PDF
-              </button>
-            </div>
-          </aside>
-        )}
 
         {/* CANVAS — Área Imersiva dos Módulos */}
         <main className="flex-1 overflow-hidden bg-slate-900">

@@ -5,13 +5,17 @@ import { AccumulatedCashFlowChart } from '../components/CashFlowChart';
 import { FinancingOptionsCard } from '../components/FinancingOptionsCard';
 import { useProposalCalculator } from '../hooks/useProposalCalculator';
 import { useSolarStore, selectClientData } from '@/core/state/solarStore';
+import { useUIStore } from '@/core/state/uiStore';
 import { generateProposalPDF } from '../utils/generatePDF';
 
 export const PresentationTab: React.FC = () => {
     const calculator = useProposalCalculator();
     const { metrics, pricing, financials } = calculator;
     const clientData = useSolarStore(selectClientData);
-    const financeParams = useSolarStore(state => state.financeParams);
+    const viewportSnapshot = useUIStore(state => state.viewportSnapshot);
+    
+    // Fallback for isolated Presentation since Finance moved to ERP
+    const financeParams = { financingMode: 'cash', downPayment: 0 };
 
     const handleGeneratePDF = async () => {
         await generateProposalPDF({
@@ -19,7 +23,8 @@ export const PresentationTab: React.FC = () => {
             clientName: clientData.clientName || 'Cliente',
             systemSize: metrics.totalPowerkWp,
             price: pricing.finalPrice,
-            payback: financials.paybackYears
+            payback: financials.paybackYears,
+            viewportSnapshot
         });
     };
 
@@ -42,7 +47,7 @@ export const PresentationTab: React.FC = () => {
 
             {/* 2. FINANCIAL STORY: CASH FLOW CHART */}
             <AccumulatedCashFlowChart 
-                initialInvestment={financeParams.financingMode === 'financed' ? (financeParams.downPayment || 0) : pricing.finalPrice}
+                initialInvestment={pricing.finalPrice}
                 monthlySavings={financials.monthlySavings}
                 inflationRate={0.045} // Default assumption (could come from settings)
             />

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import { 
     Dialog
@@ -10,14 +10,14 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { ModuleInventoryItem } from './ModuleInventoryItem'; // Using the NEW component
-// Local mock for missing PVModule type
-export interface PVModule { id?: string; manufacturer: string; model: string; powerWp: number; [key: string]: any; }
+import { ModuleInventoryItem } from './ModuleInventoryItem';
+import { useSolarStore } from '@/core/state/solarStore';
+import type { ModuleCatalogItem } from '@/core/schemas/moduleSchema';
 
 interface ModuleCatalogDialogProps {
     isOpen: boolean;
     onClose: () => void;
-    onAddModule: (module: PVModule) => void;
+    onAddModule: (module: ModuleCatalogItem) => void;
 }
 
 export const ModuleCatalogDialog: React.FC<ModuleCatalogDialogProps> = ({ 
@@ -25,9 +25,18 @@ export const ModuleCatalogDialog: React.FC<ModuleCatalogDialogProps> = ({
     onClose,
     onAddModule 
 }) => {
-    // Store mock
-    const availableModules: PVModule[] = [];
-    const isLoading = false;
+    // P4-4: Consume catalog from store (loaded via InMemoryEquipmentRepo)
+    const catalogModules = useSolarStore(state => state.catalogModules);
+    const isCatalogLoaded = useSolarStore(state => state.isCatalogLoaded);
+    const loadCatalog = useSolarStore(state => state.loadCatalog);
+    const isLoading = !isCatalogLoaded;
+
+    // Load catalog data on first open
+    useEffect(() => {
+        if (isOpen && !isCatalogLoaded) {
+            loadCatalog();
+        }
+    }, [isOpen, isCatalogLoaded, loadCatalog]);
     
     // Local Filter State
     const [selectedBrand, setSelectedBrand] = useState<string>('all');
@@ -35,13 +44,13 @@ export const ModuleCatalogDialog: React.FC<ModuleCatalogDialogProps> = ({
 
     // 1. Extract Unique Brands
     const uniqueBrands = useMemo(() => {
-        const brands = new Set(availableModules.map(m => m.manufacturer));
+        const brands = new Set(catalogModules.map(m => m.manufacturer));
         return Array.from(brands).sort();
-    }, [availableModules]);
+    }, [catalogModules]);
 
     // 2. Filter Logic
     const filteredModules = useMemo(() => {
-        return availableModules.filter(item => {
+        return catalogModules.filter(item => {
             // A. Brand
             if (selectedBrand !== 'all' && item.manufacturer !== selectedBrand) return false;
             
@@ -53,13 +62,11 @@ export const ModuleCatalogDialog: React.FC<ModuleCatalogDialogProps> = ({
 
             return true;
         });
-    }, [availableModules, selectedBrand, searchQuery]);
+    }, [catalogModules, selectedBrand, searchQuery]);
 
 
-    const handleAdd = (item: PVModule) => {
+    const handleAdd = (item: ModuleCatalogItem) => {
         onAddModule(item);
-        // Optional: Close on add or keep open? 
-        // Keeping open for bulk add, user closes manually.
     };
 
     return (
@@ -126,7 +133,7 @@ export const ModuleCatalogDialog: React.FC<ModuleCatalogDialogProps> = ({
 
                     {/* 3. Catalog Grid (Scrollable) */}
                     <div className="flex-1 overflow-y-auto p-4 bg-slate-50/30">
-                        {isLoading && availableModules.length === 0 ? (
+                        {isLoading && catalogModules.length === 0 ? (
                              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                                 {[1,2,3,4,5,6,7,8].map(i => (
                                     <div key={i} className="h-40 bg-slate-200 rounded-lg animate-pulse" />
@@ -163,7 +170,7 @@ export const ModuleCatalogDialog: React.FC<ModuleCatalogDialogProps> = ({
                     {/* 4. Footer */}
                     <div className="px-6 py-3 border-t border-slate-200 bg-white shrink-0 flex items-center justify-between text-xs text-slate-500">
                          <span>
-                             Total no Banco de Dados: <b>{availableModules.length}</b>
+                             Total no Banco de Dados: <b>{catalogModules.length}</b>
                          </span>
                     </div>
 

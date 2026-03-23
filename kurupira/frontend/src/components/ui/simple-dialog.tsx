@@ -10,7 +10,7 @@ export const Dialog: React.FC<DialogProps> = ({ open, onOpenChange, children }) 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div 
         className="fixed inset-0" 
         onClick={() => onOpenChange(false)}
@@ -21,7 +21,7 @@ export const Dialog: React.FC<DialogProps> = ({ open, onOpenChange, children }) 
 };
 
 export const DialogContent: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
-  <div className={`relative z-50 w-full max-w-lg bg-white rounded-xl shadow-2xl p-6 overflow-y-auto max-h-[90vh] ${className}`}>
+  <div className={`relative z-[100] w-full max-w-lg bg-white rounded-xl shadow-2xl p-6 overflow-y-auto max-h-[90vh] ${className}`}>
     {children}
   </div>
 );

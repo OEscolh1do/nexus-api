@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { NormalizedCollection, createEmptyCollection } from '@/core/types/normalized.types';
 
 export interface LossProfile {
   orientation: number;
@@ -52,8 +53,8 @@ interface TechState {
   lossProfile: LossProfile;
   selectedModuleId: string | null;
   
-  // Inverters State
-  inverters: InverterState[];
+  // Inverters State (PRÉ-1: normalizado)
+  inverters: NormalizedCollection<InverterState>;
   
   // Actions
   updateLoss: (key: keyof LossProfile, value: number) => void;
@@ -62,7 +63,7 @@ interface TechState {
   setSelectedModuleId: (id: string | null) => void;
   
   // Inverter Actions
-  addInverter: (equipment: Inverter) => void;
+  addInverter: (equipment: any, providedId?: string) => void;
   removeInverter: (id: string) => void;
   updateInverterQuantity: (id: string, qty: number) => void;
 
@@ -105,17 +106,17 @@ const createDefaultMPPTConfig = (mppts: number): MPPTConfig[] => {
 export const useTechStore = create<TechState>((set, get) => ({
   lossProfile: { ...DEFAULT_LOSSES },
   selectedModuleId: null,
-  inverters: [],
+  inverters: createEmptyCollection<InverterState>(),
   prCalculationMode: 'additive', // Default per user request
 
   setPrCalculationMode: (mode) => set({ prCalculationMode: mode }),
 
   setSelectedModuleId: (id) => set({ selectedModuleId: id }),
 
-  addInverter: (equipment) => {
+  addInverter: (equipment, providedId) => {
       const newInverter: InverterState = {
-          id: Math.random().toString(36).substr(2, 9),
-          catalogId: equipment.id,
+          id: providedId || Math.random().toString(36).substr(2, 9),
+          catalogId: equipment.id || '',
           quantity: 1,
           mpptConfigs: createDefaultMPPTConfig(equipment.mppts || 1),
           snapshot: {
@@ -123,33 +124,56 @@ export const useTechStore = create<TechState>((set, get) => ({
               nominalPower: equipment.nominalPower,
               mppts: equipment.mppts || 1
           },
-
       };
 
-      set(state => ({ inverters: [...state.inverters, newInverter] }));
+      set(state => ({
+        inverters: {
+          ids: [...state.inverters.ids, newInverter.id],
+          entities: { ...state.inverters.entities, [newInverter.id]: newInverter },
+        },
+      }));
   },
 
-  removeInverter: (id) => set(state => ({
-      inverters: state.inverters.filter(i => i.id !== id)
-  })),
+  removeInverter: (id) => set(state => {
+      const { [id]: _, ...remaining } = state.inverters.entities;
+      return {
+        inverters: {
+          ids: state.inverters.ids.filter(existingId => existingId !== id),
+          entities: remaining,
+        },
+      };
+  }),
 
   updateInverterQuantity: (id, qty) => set(state => ({
-      inverters: state.inverters.map(i => i.id === id ? { ...i, quantity: Math.max(1, qty) } : i)
+      inverters: {
+        ...state.inverters,
+        entities: {
+          ...state.inverters.entities,
+          [id]: { ...state.inverters.entities[id], quantity: Math.max(1, qty) },
+        },
+      },
   })),
 
 
 
-  updateMPPTConfig: (inverterId, mpptId, config) => set(state => ({
-      inverters: state.inverters.map(inv => {
-          if (inv.id !== inverterId) return inv;
-          return {
+  updateMPPTConfig: (inverterId, mpptId, config) => set(state => {
+      const inv = state.inverters.entities[inverterId];
+      if (!inv) return state;
+      return {
+        inverters: {
+          ...state.inverters,
+          entities: {
+            ...state.inverters.entities,
+            [inverterId]: {
               ...inv,
-              mpptConfigs: inv.mpptConfigs.map(sc => 
-                  sc.mpptId === mpptId ? { ...sc, ...config } : sc
-              )
-          };
-      })
-  })),
+              mpptConfigs: inv.mpptConfigs.map(sc =>
+                sc.mpptId === mpptId ? { ...sc, ...config } : sc
+              ),
+            },
+          },
+        },
+      };
+  }),
 
   updateLoss: (key, value) => set((state) => ({
     lossProfile: {
@@ -162,7 +186,7 @@ export const useTechStore = create<TechState>((set, get) => ({
 
   resetProject: () => set({
       lossProfile: { ...DEFAULT_LOSSES },
-      inverters: [],
+      inverters: createEmptyCollection<InverterState>(),
       selectedModuleId: null,
       prCalculationMode: 'additive'
   }),
@@ -196,9 +220,10 @@ export const useTechStore = create<TechState>((set, get) => ({
 
   getDCACRatio: (totalModulePowerW) => {
       const { inverters } = get();
-      if (inverters.length === 0) return 0;
+      const inverterList = Object.values(inverters.entities);
+      if (inverterList.length === 0) return 0;
 
-      const totalAcPowerW = inverters.reduce((acc, inv) => {
+      const totalAcPowerW = inverterList.reduce((acc, inv) => {
           return acc + (inv.snapshot.nominalPower * inv.quantity);
       }, 0);
 

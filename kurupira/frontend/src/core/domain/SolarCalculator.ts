@@ -2,6 +2,7 @@ import pino from "pino";
 import { InputData, EngineeringSettings, SolarOutput, ServiceItem } from "../types";
 import { IIrradiationProvider } from "../ports/IIrradiationProvider";
 import { IEquipmentRepository } from "../ports/IEquipmentRepository";
+import { mapCatalogToSpecs } from "@/modules/engineering/utils/catalogMappers";
 
 const logger = pino();
 
@@ -59,10 +60,10 @@ export class SolarCalculator {
       const targetSystemSizeKwp = avgConsumption / (hspAvg * 30.4 * effectivePR);
       
       // Select module (simple logic: pick highest power or first)
-      const selectedModule = availableModules.sort((a, b) => b.power - a.power)[0]; // Highest power
-      const modulesNeeded = Math.ceil((targetSystemSizeKwp * 1000) / selectedModule.power);
+      const selectedModule = availableModules.sort((a, b) => b.electrical.pmax - a.electrical.pmax)[0]; // Highest power
+      const modulesNeeded = Math.ceil((targetSystemSizeKwp * 1000) / selectedModule.electrical.pmax);
       
-      const actualSystemSizeKwp = (modulesNeeded * selectedModule.power) / 1000;
+      const actualSystemSizeKwp = (modulesNeeded * selectedModule.electrical.pmax) / 1000;
       
       // Select inverter (match DC/AC ratio ~ 1.2 or similar, simplified here to match power)
       // Pick inverter with nominalPower closest to systemSize but >= size/1.3
@@ -155,7 +156,7 @@ export class SolarCalculator {
         moduleModel: selectedModule.model,
         inverterBrand: selectedInverter.manufacturer,
         inverterModel: selectedInverter.model,
-        modules: [{ ...selectedModule, quantity: modulesNeeded }],
+        modules: [{ ...mapCatalogToSpecs(selectedModule), quantity: modulesNeeded }],
         inverters: [{ ...selectedInverter, quantity: invertersNeeded }],
         totalInvestment: Number(totalInvestment.toFixed(2)),
         paybackYears: Number(paybackYears.toFixed(1)),

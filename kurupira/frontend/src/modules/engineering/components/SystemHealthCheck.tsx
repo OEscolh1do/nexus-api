@@ -2,11 +2,11 @@
 import React from 'react';
 import { AlertTriangle, Activity } from 'lucide-react';
 import { DenseCard, DenseStat } from '@/components/ui/dense-form';
-import { useSolarStore } from '@/core/state/solarStore';
+import { useSolarStore, selectModules, selectInverters } from '@/core/state/solarStore';
 
 export const SystemHealthCheck: React.FC = () => {
-    const modules = useSolarStore(state => state.modules);
-    const inverters = useSolarStore(state => state.inverters);
+    const modules = useSolarStore(selectModules);
+    const inverters = useSolarStore(selectInverters);
 
     // Calc Logic
     const totalModulePowerWp = modules.reduce((acc, m) => acc + (m.power * m.quantity), 0);

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useSolarStore, selectModules } from '@/core/state/solarStore';
 import { useTechStore } from '@/modules/engineering/store/useTechStore';
+import { toArray } from '@/core/types/normalized.types';
 import { EngineeringSettings } from '@/core/types';
 import { PricingService, CostBreakdown } from '../services/PricingService';
 import { ProposalCalculations } from '../types';
@@ -26,7 +27,8 @@ export const useProposalCalculator = (): ProposalCalculations & { settings: Engi
     const calculations = useMemo(() => {
         // 1. QUANTITIES (CORRECTED)
         const totalModules = modules.reduce((acc, m) => acc + m.quantity, 0);
-        const totalInverters = inverters.reduce((acc, i) => acc + i.quantity, 0); // Fixed: Sum quantity, not length
+        const invertersArray = toArray(inverters);
+        const totalInverters = invertersArray.reduce((acc, i) => acc + i.quantity, 0); // Fixed: Sum quantity, not length
         
         const totalPowerW = modules.reduce((acc, m) => acc + (m.power * m.quantity), 0);
         const totalPowerkWp = totalPowerW / 1000;

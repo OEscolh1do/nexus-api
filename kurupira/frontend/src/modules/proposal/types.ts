@@ -24,9 +24,16 @@ export interface ProposalCalculations {
         taxValue: number;
         pricePerWp: number;
     };
-    financials: import('../finance/store/financeSchema').FinanceResults & {
+    financials: {
         estimatedMonthlyGenKwh: number;
         monthlySavings: number;
         paybackYears: number;
+        payback: number;
+        roi: number;
+        npv: number;
+        irr: number;
+        monthlyInstallment?: number;
+        cashFlows?: number[];
+        cumulativeCashFlows?: number[];
     };
 }

@@ -12,6 +12,7 @@
 import { StateCreator } from 'zustand';
 import { InputData, WeatherAnalysis } from '@/core/types';
 import { LegalData } from '@/core/schemas/contract.schemas';
+import { NormalizedCollection, createEmptyCollection } from '@/core/types/normalized.types';
 
 /**
  * Interface do slice de cliente (CRM)
@@ -32,6 +33,12 @@ export interface ClientSlice {
   setWeatherData: (data: WeatherAnalysis | null) => void;
   setLoadingWeather: (loading: boolean) => void;
 
+  /** Atualiza o consumo de um mês específico no array e recalcula a média */
+  updateMonthlyConsumption: (monthIndex: number, value: number) => void;
+
+  /** Atualiza a irradiação (HSP) de um mês específico no array */
+  updateMonthlyIrradiation: (monthIndex: number, value: number) => void;
+
   /**
    * Dados para contrato (CPF/RG/Profissão)
    * Persistido para não perder o preenchimento
@@ -46,8 +53,8 @@ export interface ClientSlice {
    */
   setIrradiationData: (data: number[], city?: string) => void;
 
-  // Simulation State & Actions
-  simulatedItems: LoadItem[];
+  // Simulation State & Actions (PRÉ-1: normalizado)
+  simulatedItems: NormalizedCollection<LoadItem>;
   addLoadItem: (item: LoadItem) => void;
   updateLoadItem: (id: string, updates: Partial<LoadItem>) => void;
   removeLoadItem: (id: string) => void;
@@ -121,12 +128,67 @@ export const createClientSlice: StateCreator<
   clientData: initialClientData,
   weatherData: null,
   isLoadingWeather: false,
-  simulatedItems: [],
+  simulatedItems: createEmptyCollection<LoadItem>(),
   legalData: null,
 
-  updateClientData: (data) => set((state) => ({
-    clientData: { ...state.clientData, ...data }
-  })),
+  updateClientData: (data) => set((state) => {
+    // Se o usuário editar a média diretamente, reseta o array mensal inteiro uniformemente
+    let newInvoices = state.clientData.invoices;
+    if (data.averageConsumption !== undefined) {
+       newInvoices = [...state.clientData.invoices];
+       if (newInvoices.length === 0) {
+         newInvoices.push({
+           id: 'default', name: 'Instalação Principal', installationNumber: '', concessionaire: '',
+           rateGroup: 'B', connectionType: state.clientData.connectionType || 'monofasico', voltage: '220',
+           breakerCurrent: 50, monthlyHistory: Array(12).fill(data.averageConsumption)
+         });
+       } else {
+         newInvoices[0] = { ...newInvoices[0], monthlyHistory: Array(12).fill(data.averageConsumption) };
+       }
+    }
+    
+    return {
+      clientData: { ...state.clientData, ...data, invoices: newInvoices }
+    };
+  }),
+
+  updateMonthlyConsumption: (monthIndex, value) => set((state) => {
+    const invoices = [...state.clientData.invoices];
+    if (invoices.length === 0) {
+      invoices.push({
+        id: 'default', name: 'Instalação Principal', installationNumber: '', concessionaire: '',
+        rateGroup: 'B', connectionType: state.clientData.connectionType || 'monofasico', voltage: '220',
+        breakerCurrent: 50, monthlyHistory: Array(12).fill(state.clientData.averageConsumption || 0)
+      });
+    }
+
+    const newHistory = [...invoices[0].monthlyHistory];
+    newHistory[monthIndex] = value;
+    invoices[0] = { ...invoices[0], monthlyHistory: newHistory };
+
+    const newAvg = newHistory.reduce((a, b) => a + b, 0) / 12;
+
+    return {
+      clientData: {
+        ...state.clientData,
+        invoices,
+        averageConsumption: newAvg
+      }
+    };
+  }),
+
+  updateMonthlyIrradiation: (monthIndex, value) => set((state) => {
+    const newIrradiation = [...(state.clientData.monthlyIrradiation || Array(12).fill(0))];
+    newIrradiation[monthIndex] = value;
+    
+    return {
+      clientData: {
+        ...state.clientData,
+        monthlyIrradiation: newIrradiation,
+        irradiationCity: 'Manual (Editado)' // Se o usuário editar na mão, muda a flag de fonte
+      }
+    };
+  }),
 
   setWeatherData: (data) => set({ weatherData: data }),
 
@@ -144,22 +206,35 @@ export const createClientSlice: StateCreator<
   })),
 
   addLoadItem: (item) => set((state) => ({
-    simulatedItems: [...state.simulatedItems, item]
+    simulatedItems: {
+      ids: [...state.simulatedItems.ids, item.id],
+      entities: { ...state.simulatedItems.entities, [item.id]: item },
+    },
   })),
 
   updateLoadItem: (id, updates) => set((state) => ({
-    simulatedItems: state.simulatedItems.map(item =>
-      item.id === id ? { ...item, ...updates } : item
-    )
+    simulatedItems: {
+      ...state.simulatedItems,
+      entities: {
+        ...state.simulatedItems.entities,
+        [id]: { ...state.simulatedItems.entities[id], ...updates },
+      },
+    },
   })),
 
-  removeLoadItem: (id) => set((state) => ({
-    simulatedItems: state.simulatedItems.filter(i => i.id !== id)
-  })),
+  removeLoadItem: (id) => set((state) => {
+    const { [id]: _, ...remaining } = state.simulatedItems.entities;
+    return {
+      simulatedItems: {
+        ids: state.simulatedItems.ids.filter(existingId => existingId !== id),
+        entities: remaining,
+      },
+    };
+  }),
 
   getSimulatedTotal: () => {
-    const items = get().simulatedItems;
-    return items.reduce((acc, item) => {
+    const { simulatedItems } = get();
+    return Object.values(simulatedItems.entities).reduce((acc, item) => {
       // Engineering Formula: (Power * Duty * Hours * Days * Qty) / 1000
       const duty = item.dutyCycle ?? 1;
       const days = item.daysPerMonth ?? 30; // 30 days default

@@ -31,7 +31,7 @@ export const CRESESB_DB: Record<string, WeatherAnalysis> = {
         location_name: "Marabá, PA"
     },
     "PARAUAPEBAS - PA": {
-        hsp_monthly: [4.0, 4.1, 4.2, 4.5, 4.9, 5.3, 5.7, 5.9, 5.4, 4.9, 4.4, 4.1],
+        hsp_monthly: [4.32, 4.46, 4.58, 4.73, 4.98, 5.29, 5.34, 5.72, 5.19, 4.72, 4.32, 4.16],
         irradiation_source: "CRESESB (SunData)",
         ambient_temp_avg: 27.9,
         location_name: "Parauapebas, PA"

@@ -1,121 +1,143 @@
-export interface Inverter {
-  id: string;
-  manufacturer: string;
-  model: string;
-  powerAc: number; // Watts
-  efficiency: number; // Percentage (e.g. 98.0)
-  type: 'string' | 'micro';
-  phases: 'single' | 'three';
-  
-  // MPPT Specs
-  mppts: number;
-  maxInputVoltage: number; // V
-  startVoltage: number; // V
-  minMpptVoltage: number; // V
-  maxMpptVoltage: number; // V
-  maxIscPerMppt: number; // A (Short Circuit Current)
-  maxInputCurrent: number; // A (Operating Current)
-  
-  // Physical
-  weight: number; // kg
-  dimensions: { width: number; height: number; depth: number }; // mm
-  price: number; // BRL
-}
+import { inverterCatalogSchema, type InverterCatalogItem } from '@/core/schemas/inverterSchema';
 
-export const INVERTER_CATALOG: Inverter[] = [
+export type Inverter = InverterCatalogItem;
+
+export const INVERTER_CATALOG: Inverter[] = inverterCatalogSchema.parse([
   {
     id: 'inv-growatt-75k',
     manufacturer: 'Growatt',
     model: 'MAX 75KTL3 LV',
-    powerAc: 75000,
-    efficiency: 98.5,
-    type: 'string',
-    phases: 'three',
-    mppts: 6, // 6 MPPTs, 2 strings per MPPT usually
+    nominalPowerW: 75000,
+    maxDCPowerW: 112500,
+    efficiency: { euro: 98.5 },
     maxInputVoltage: 1100,
-    startVoltage: 250,
-    minMpptVoltage: 200,
-    maxMpptVoltage: 1000,
-    maxIscPerMppt: 40,
-    maxInputCurrent: 32,
-    weight: 64,
-    dimensions: { width: 860, height: 600, depth: 300 },
-    price: 35000
+    mppts: Array.from({ length: 6 }, (_, i) => ({
+      mpptId: i + 1,
+      minMpptVoltage: 200,
+      maxMpptVoltage: 1000,
+      maxInputVoltage: 1100,
+      maxCurrentPerMPPT: 40,
+      stringsAllowed: 2,
+    })),
   },
   {
     id: 'inv-deye-50k',
     manufacturer: 'Deye',
     model: 'SUN-50K-G03',
-    powerAc: 50000,
-    efficiency: 98.7,
-    type: 'string',
-    phases: 'three',
-    mppts: 4,
+    nominalPowerW: 50000,
+    maxDCPowerW: 75000,
+    efficiency: { euro: 98.7 },
     maxInputVoltage: 1000,
-    startVoltage: 250,
-    minMpptVoltage: 200,
-    maxMpptVoltage: 850,
-    maxIscPerMppt: 55, // High current support
-    maxInputCurrent: 40,
-    weight: 48,
-    dimensions: { width: 550, height: 800, depth: 300 },
-    price: 28000
+    mppts: Array.from({ length: 4 }, (_, i) => ({
+      mpptId: i + 1,
+      minMpptVoltage: 200,
+      maxMpptVoltage: 850,
+      maxInputVoltage: 1000,
+      maxCurrentPerMPPT: 55,
+      stringsAllowed: 2,
+    })),
   },
   {
     id: 'inv-fronius-tauro-50',
     manufacturer: 'Fronius',
     model: 'Tauro Eco 50-3-D',
-    powerAc: 50000,
-    efficiency: 98.5,
-    type: 'string',
-    phases: 'three',
-    mppts: 1, // Single large MPPT design (example)
+    nominalPowerW: 50000,
+    maxDCPowerW: 75000,
+    efficiency: { euro: 98.5 },
     maxInputVoltage: 1000,
-    startVoltage: 650,
-    minMpptVoltage: 580,
-    maxMpptVoltage: 930,
-    maxIscPerMppt: 100,
-    maxInputCurrent: 87.5,
-    weight: 74,
-    dimensions: { width: 1109, height: 755, depth: 346 },
-    price: 42000
+    mppts: [
+      {
+        mpptId: 1,
+        minMpptVoltage: 580,
+        maxMpptVoltage: 930,
+        maxInputVoltage: 1000,
+        maxCurrentPerMPPT: 100,
+        stringsAllowed: 4,
+      },
+    ],
   },
   {
     id: 'inv-sungrow-125k',
     manufacturer: 'Sungrow',
     model: 'SG125CX',
-    powerAc: 125000,
-    efficiency: 99.0,
-    type: 'string',
-    phases: 'three',
-    mppts: 12,
+    nominalPowerW: 125000,
+    maxDCPowerW: 187500,
+    efficiency: { euro: 99.0 },
     maxInputVoltage: 1100,
-    startVoltage: 250,
-    minMpptVoltage: 180,
-    maxMpptVoltage: 1000,
-    maxIscPerMppt: 35,
-    maxInputCurrent: 26,
-    weight: 89,
-    dimensions: { width: 1050, height: 655, depth: 325 },
-    price: 65000
+    mppts: Array.from({ length: 12 }, (_, i) => ({
+      mpptId: i + 1,
+      minMpptVoltage: 180,
+      maxMpptVoltage: 1000,
+      maxInputVoltage: 1100,
+      maxCurrentPerMPPT: 35,
+      stringsAllowed: 2,
+    })),
   },
   {
     id: 'inv-micro-aps-ds3',
     manufacturer: 'APSystems',
     model: 'DS3-LV',
-    powerAc: 880,
-    efficiency: 97.0,
-    type: 'micro',
-    phases: 'single',
-    mppts: 2,
+    nominalPowerW: 880,
+    maxDCPowerW: 1100,
+    efficiency: { euro: 97.0 },
     maxInputVoltage: 60,
-    startVoltage: 20,
-    minMpptVoltage: 28,
-    maxMpptVoltage: 45,
-    maxIscPerMppt: 25,
-    maxInputCurrent: 20,
-    weight: 3.5,
-    dimensions: { width: 260, height: 240, depth: 40 },
-    price: 1800
-  }
-];
+    mppts: Array.from({ length: 2 }, (_, i) => ({
+      mpptId: i + 1,
+      minMpptVoltage: 28,
+      maxMpptVoltage: 45,
+      maxInputVoltage: 60,
+      maxCurrentPerMPPT: 25,
+      stringsAllowed: 1,
+    })),
+  },
+  {
+    id: 'inv-phb-15k-mt',
+    manufacturer: 'PHB',
+    model: '15K-MT',
+    nominalPowerW: 15000,
+    maxDCPowerW: 22500,
+    efficiency: { euro: 98.2 },
+    mppts: [
+      { mpptId: 1, minMpptVoltage: 200, maxMpptVoltage: 800, maxInputVoltage: 800, maxCurrentPerMPPT: 25.0, stringsAllowed: 2 },
+      { mpptId: 2, minMpptVoltage: 200, maxMpptVoltage: 800, maxInputVoltage: 800, maxCurrentPerMPPT: 25.0, stringsAllowed: 2 },
+    ],
+  },
+  {
+    id: 'inv-phb-20k-mt',
+    manufacturer: 'PHB',
+    model: '20K-MT',
+    nominalPowerW: 20000,
+    maxDCPowerW: 30000,
+    efficiency: { euro: 98.3 },
+    mppts: [
+      { mpptId: 1, minMpptVoltage: 200, maxMpptVoltage: 800, maxInputVoltage: 800, maxCurrentPerMPPT: 25.0, stringsAllowed: 2 },
+      { mpptId: 2, minMpptVoltage: 200, maxMpptVoltage: 800, maxInputVoltage: 800, maxCurrentPerMPPT: 25.0, stringsAllowed: 2 },
+    ],
+  },
+  {
+    id: 'inv-phb-36k-mt',
+    manufacturer: 'PHB',
+    model: '36K-MT',
+    nominalPowerW: 36000,
+    maxDCPowerW: 54000,
+    efficiency: { euro: 98.4 },
+    mppts: [
+      { mpptId: 1, minMpptVoltage: 200, maxMpptVoltage: 800, maxInputVoltage: 1100, maxCurrentPerMPPT: 25.0, stringsAllowed: 2 },
+      { mpptId: 2, minMpptVoltage: 200, maxMpptVoltage: 800, maxInputVoltage: 1100, maxCurrentPerMPPT: 25.0, stringsAllowed: 2 },
+      { mpptId: 3, minMpptVoltage: 200, maxMpptVoltage: 800, maxInputVoltage: 1100, maxCurrentPerMPPT: 25.0, stringsAllowed: 2 },
+    ],
+  },
+  {
+    id: 'inv-phb-50k-mt',
+    manufacturer: 'PHB',
+    model: '50K-MT',
+    nominalPowerW: 50000,
+    maxDCPowerW: 75000,
+    efficiency: { euro: 98.4 },
+    mppts: [
+      { mpptId: 1, minMpptVoltage: 200, maxMpptVoltage: 800, maxInputVoltage: 800, maxCurrentPerMPPT: 44.0, stringsAllowed: 4 },
+      { mpptId: 2, minMpptVoltage: 200, maxMpptVoltage: 800, maxInputVoltage: 800, maxCurrentPerMPPT: 44.0, stringsAllowed: 4 },
+      { mpptId: 3, minMpptVoltage: 200, maxMpptVoltage: 800, maxInputVoltage: 800, maxCurrentPerMPPT: 44.0, stringsAllowed: 4 },
+    ],
+  },
+]);

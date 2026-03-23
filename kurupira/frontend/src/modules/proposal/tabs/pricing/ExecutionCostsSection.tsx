@@ -1,5 +1,5 @@
 import { TrendingUp } from 'lucide-react';
-import { useSolarStore } from '@/core/state/solarStore';
+import { useSolarStore, selectModules } from '@/core/state/solarStore';
 import { EngineeringSettings } from '@/core/types';
 import { SectionHeader } from '../../components/ui/SectionHeader';
 import { DenseRow } from '../../components/ui/DenseRow';
@@ -7,7 +7,7 @@ import { MoneyInput } from '../../components/ui/MoneyInput';
 
 export const ExecutionCostsSection = () => {
     // Engineering Data (Read-only context)
-    const modules = useSolarStore(state => state.modules);
+    const modules = useSolarStore(selectModules);
     const totalPowerkWp = modules.reduce((acc, m) => acc + (m.quantity * m.power), 0) / 1000;
 
     // Settings (Read/Write)

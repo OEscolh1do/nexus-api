@@ -5,6 +5,9 @@
  * Responsabilidade: Gerenciar estado de módulos solares, inversores,
  * e configurações de engenharia (PR, perdas, custos).
  * 
+ * // PRÉ-1 (22/03/2026): Estrutura normalizada { ids, entities }
+ * //   Todas as actions usam O(1) entity lookup em vez de .map() full-scan.
+ * 
  * // NOTA V2.1.0: Novos campos de settings adicionados:
  * //   - minHistoricalTemp, vocTempCoefficient (Voc por temperatura)
  * //   - soilingLoss, mismatchLoss, inverterEfficiency (PR dinâmico)
@@ -12,17 +15,20 @@
 
 import { StateCreator } from 'zustand';
 import { ModuleSpecs, InverterSpecs, EngineeringSettings } from '@/core/types';
+import { NormalizedCollection, createEmptyCollection, fromArray } from '@/core/types/normalized.types';
 
 /**
  * Interface do slice técnico
  * Expõe dados e actions para manipulação de equipamentos e settings
+ * 
+ * PRÉ-1: modules e inverters agora são NormalizedCollection<T>
  */
 export interface TechSlice {
-  /** Array de especificações de módulos selecionados */
-  modules: ModuleSpecs[];
+  /** Coleção normalizada de módulos selecionados */
+  modules: NormalizedCollection<ModuleSpecs>;
   
-  /** Array de especificações de inversores selecionados */
-  inverters: InverterSpecs[];
+  /** Coleção normalizada de inversores selecionados */
+  inverters: NormalizedCollection<InverterSpecs>;
   
   /** Configurações de engenharia (PR, perdas, custos, etc.) */
   settings: EngineeringSettings;
@@ -35,6 +41,7 @@ export interface TechSlice {
   removeModule: (id: string) => void;
   updateModuleQty: (id: string, qty: number) => void;
   updateModulePrice: (id: string, price: number) => void;
+  /** Aceita array para compatibilidade; converte internamente */
   setModules: (modules: ModuleSpecs[]) => void;
   
   // Actions - Inversores
@@ -42,6 +49,7 @@ export interface TechSlice {
   removeInverter: (id: string) => void;
   updateInverterQty: (id: string, qty: number) => void;
   updateInverterPrice: (id: string, price: number) => void;
+  /** Aceita array para compatibilidade; converte internamente */
   setInverters: (inverters: InverterSpecs[]) => void;
   
   // Actions - Settings
@@ -139,53 +147,99 @@ export const createTechSlice: StateCreator<
   [],
   TechSlice
 > = (set) => ({
-  modules: [],
-  inverters: [],
+  modules: createEmptyCollection<ModuleSpecs>(),
+  inverters: createEmptyCollection<InverterSpecs>(),
   settings: initialSettings,
   manualKitPrice: 0,
 
-  // Módulos
-  addModule: (module) => set((state) => ({ 
-    modules: [...state.modules, module] 
+  // ─── Módulos (O(1) normalized) ──────────────────────────
+
+  addModule: (module) => set((state) => ({
+    modules: {
+      ids: [...state.modules.ids, module.id],
+      entities: { ...state.modules.entities, [module.id]: module },
+    },
   })),
 
-  removeModule: (id) => set((state) => ({ 
-    modules: state.modules.filter((m) => m.id !== id) 
-  })),
+  removeModule: (id) => set((state) => {
+    const { [id]: _, ...remaining } = state.modules.entities;
+    return {
+      modules: {
+        ids: state.modules.ids.filter(existingId => existingId !== id),
+        entities: remaining,
+      },
+    };
+  }),
 
   updateModuleQty: (id, qty) => set((state) => ({
-    modules: state.modules.map((m) => m.id === id ? { ...m, quantity: qty } : m)
+    modules: {
+      ...state.modules,
+      entities: {
+        ...state.modules.entities,
+        [id]: { ...state.modules.entities[id], quantity: qty },
+      },
+    },
   })),
 
   updateModulePrice: (id, price) => set((state) => ({
-    modules: state.modules.map((m) => m.id === id ? { ...m, price } : m)
+    modules: {
+      ...state.modules,
+      entities: {
+        ...state.modules.entities,
+        [id]: { ...state.modules.entities[id], price },
+      },
+    },
   })),
 
-  setModules: (modules) => set({ modules }),
+  setModules: (modules) => set({ modules: fromArray(modules) }),
 
-  // Inversores
-  addInverter: (inverter) => set((state) => ({ 
-    inverters: [...state.inverters, inverter] 
+  // ─── Inversores (O(1) normalized) ───────────────────────
+
+  addInverter: (inverter) => set((state) => ({
+    inverters: {
+      ids: [...state.inverters.ids, inverter.id],
+      entities: { ...state.inverters.entities, [inverter.id]: inverter },
+    },
   })),
 
-  removeInverter: (id) => set((state) => ({ 
-    inverters: state.inverters.filter((i) => i.id !== id) 
-  })),
+  removeInverter: (id) => set((state) => {
+    const { [id]: _, ...remaining } = state.inverters.entities;
+    return {
+      inverters: {
+        ids: state.inverters.ids.filter(existingId => existingId !== id),
+        entities: remaining,
+      },
+    };
+  }),
 
   updateInverterQty: (id, qty) => set((state) => ({
-    inverters: state.inverters.map((i) => i.id === id ? { ...i, quantity: qty } : i)
+    inverters: {
+      ...state.inverters,
+      entities: {
+        ...state.inverters.entities,
+        [id]: { ...state.inverters.entities[id], quantity: qty },
+      },
+    },
   })),
 
   updateInverterPrice: (id, price) => set((state) => ({
-    inverters: state.inverters.map((i) => i.id === id ? { ...i, price } : i)
+    inverters: {
+      ...state.inverters,
+      entities: {
+        ...state.inverters.entities,
+        [id]: { ...state.inverters.entities[id], price },
+      },
+    },
   })),
 
-  setInverters: (inverters) => set({ inverters }),
+  setInverters: (inverters) => set({ inverters: fromArray(inverters) }),
 
-  // Settings
+  // ─── Settings (inalterado) ──────────────────────────────
+
   updateSettings: (settings) => set((state) => ({
     settings: { ...state.settings, ...settings }
   })),
 
   setManualKitPrice: (price) => set({ manualKitPrice: price }),
 });
+

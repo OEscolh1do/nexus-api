@@ -1,6 +1,5 @@
 import { jsPDF } from 'jspdf';
 import { ProposalCalculations } from '../types';
-import { FinanceParams } from '../../finance/store/financeSchema';
 
 // Interface for Legal/Civil Data not in CRM yet
 export interface LegalData {
@@ -24,7 +23,6 @@ interface ContractData extends ProposalCalculations {
     };
     systemSize: number;
     price: number;
-    financeParams?: FinanceParams;
     legal: LegalData;
 }
 
@@ -101,13 +99,14 @@ export const generateContract = async (data: ContractData) => {
         "A CONTRATADA obriga-se a realizar: \na) Elaboração do projeto técnico executivo e solicitação de acesso junto à concessionária de energia;\nb) Fornecimento e transporte dos equipamentos até o local da obra;\nc) Instalação mecânica e elétrica do sistema;\nd) Comissionamento e testes de funcionamento.");
 
     // 5. PREÇO E PAGAMENTO
-    const isFinanced = data.financeParams?.financingMode === 'financed';
+    // Mocking or omitting financed details to ERP handling
+    const isFinanced = false;
     let paymentText = "";
 
     if (isFinanced) {
-        const downPayment = data.financeParams?.downPayment || 0;
+        const downPayment = 0;
         const installment = data.financials.monthlyInstallment || 0;
-        const term = data.financeParams?.loanTerm || 60;
+        const term = 60;
         const bankName = "Instituição Bancária"; // Could be a param
 
         paymentText = `Pelo fornecimento dos bens e execução dos serviços, o CONTRATANTE pagará à CONTRATADA o valor total de ${formatCurrency(data.price)}.

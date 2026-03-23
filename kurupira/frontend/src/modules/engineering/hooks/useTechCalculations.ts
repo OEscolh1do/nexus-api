@@ -1,7 +1,12 @@
 import { useMemo } from 'react';
 import { useSolarStore } from '@/core/state/solarStore';
 import { useProjectContext } from '@/hooks/useProjectContext';
-import { PVModule } from '@/modules/crm/constants/pvModules';
+import type { ModuleSpecs } from '@/core/schemas/equipment.schemas';
+
+/**
+ * @deprecated Alias mantido para facilitar transição e não quebrar imports existentes. Use `ModuleSpecs` diretamente se possível.
+ */
+export type PVModule = ModuleSpecs;
 // Confirmed clean imports
 
 interface TechCalculationResult {
@@ -16,7 +21,7 @@ interface TechCalculationResult {
 
 const DEFAULT_PERFORMANCE_RATIO = 0.75; // 75%
 
-export const useTechCalculations = (selectedModule?: PVModule): TechCalculationResult => {
+export const useTechCalculations = (selectedModule?: ModuleSpecs): TechCalculationResult => {
     // Project Context Bridge
     const { energyGoal, climate, constraints } = useProjectContext();
     const settings = useSolarStore(state => state.settings);
@@ -39,16 +44,14 @@ export const useTechCalculations = (selectedModule?: PVModule): TechCalculationR
     const suggestedQty = useMemo(() => {
         if (!selectedModule || requiredPowerKw <= 0) return 0;
         // Module power is usually in Watts, convert requiredPower to Watts
-        return Math.ceil((requiredPowerKw * 1000) / selectedModule.electrical.pmax);
+        return Math.ceil((requiredPowerKw * 1000) / selectedModule.power);
     }, [requiredPowerKw, selectedModule]);
 
     // 3. Occupied Area
     const requiredArea = useMemo(() => {
         if (!selectedModule || suggestedQty <= 0) return 0;
-        // Area = Qty * Width * Length (mm to m conversion)
-        const areaPerModule = (selectedModule.dimensions.length * selectedModule.dimensions.width) / 1_000_000;
-        // Alternatively use pre-calculated area property if robust
-        return suggestedQty * (selectedModule.area || areaPerModule);
+        // The area is already computed in ModuleSpecs (in m²)
+        return suggestedQty * (selectedModule.area || 0);
     }, [suggestedQty, selectedModule]);
 
     // 4. Feasibility Check

@@ -22,44 +22,91 @@
  * =============================================================================
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { TopRibbon } from '../panels/TopRibbon';
 import { CenterCanvas } from '../panels/CenterCanvas';
+import { CanvasContainer } from '../panels/CanvasContainer';
 import { LeftOutliner } from '../panels/LeftOutliner';
 import { RightInspector } from '../panels/RightInspector';
-
-// =============================================================================
-// TYPES
-// =============================================================================
-
-export type ActiveTool = 'SELECT' | 'POLYGON' | 'MEASURE' | 'PLACE_MODULE';
-
-export interface SelectedEntity {
-  type: 'none' | 'module' | 'inverter' | 'string';
-  id: string | null;
-  label: string;
-}
-
-const EMPTY_SELECTION: SelectedEntity = { type: 'none', id: null, label: '' };
+import { PropertiesDrawer } from '../panels/properties/PropertiesDrawer';
+import { useSolarStore, selectModules } from '@/core/state/solarStore';
+import { useTechStore } from '../../store/useTechStore';
+import { useSelectedEntity } from '@/core/state/uiStore';
+import { MODULE_DB } from '@/data/equipment/modules';
+import { INVERTER_CATALOG } from '../../constants/inverters';
 
 // =============================================================================
 // COMPONENT
 // =============================================================================
 
 export const WorkspaceLayout: React.FC = () => {
-  // Layout state (panels visibility)
+  // Layout state (panels visibility) - Continues local
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
 
-  // Tool state (consumed by TopRibbon and CenterCanvas)
-  const [activeTool, setActiveTool] = useState<ActiveTool>('SELECT');
+  // ── Bootstrap: inject default equipment on empty project (Ação 4) ──
+  const hasBootstrapped = useRef(false);
+  const modules = useSolarStore(selectModules);
+  const addModule = useSolarStore(state => state.addModule);
 
-  // Selection state (bidirectional sync between Canvas and Outliner)
-  const [selectedEntity, setSelectedEntity] = useState<SelectedEntity>(EMPTY_SELECTION);
+  useEffect(() => {
+    const moduleCount = modules.length;
+    const inverterCount = useTechStore.getState().inverters.ids.length;
 
-  // Grid template columns — dynamic based on panel visibility
+    if (moduleCount === 0 && inverterCount === 0 && !hasBootstrapped.current) {
+      hasBootstrapped.current = true;
+
+      // Inject first module from catalog (MODULE_DB[0])
+      const cat = MODULE_DB[0];
+      if (cat) {
+        addModule({
+          id: Math.random().toString(36).substr(2, 9),
+          quantity: 1,
+          supplier: cat.manufacturer,
+          manufacturer: cat.manufacturer,
+          model: cat.model,
+          type: 'Mono PERC',
+          power: cat.electrical.pmax,
+          efficiency: Number(((cat.electrical.efficiency || 0.2) * 100).toFixed(2)),
+          cells: cat.physical.cells || 144,
+          imp: cat.electrical.imp,
+          vmp: cat.electrical.vmp,
+          isc: cat.electrical.isc,
+          voc: cat.electrical.voc,
+          weight: cat.physical.weightKg,
+          area: (cat.physical.widthMm * cat.physical.heightMm) / 1000000,
+          dimensions: `${cat.physical.heightMm}x${cat.physical.widthMm}x${cat.physical.depthMm}`,
+          inmetroId: 'Aprovado',
+          maxFuseRating: cat.electrical.maxFuseRating || 20,
+          tempCoeff: cat.electrical.tempCoeffVoc,
+          annualDepreciation: 0.8,
+        });
+      }
+
+      // Inject first inverter from catalog (INVERTER_CATALOG[0])
+      const inv = INVERTER_CATALOG[0];
+      if (inv) {
+        useTechStore.getState().addInverter({
+          id: inv.id,
+          manufacturer: inv.manufacturer,
+          model: inv.model,
+          nominalPower: inv.nominalPowerW / 1000, // W → kW
+          mppts: inv.mppts.length, // use length since addInverter expects the count, not the array
+          connectionType: 'Trifásico',
+          maxInputVoltage: inv.mppts?.[0]?.maxInputVoltage || 600,
+        });
+      }
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Detect if an entity is selected to show the Properties Drawer
+  const selectedEntity = useSelectedEntity();
+  const isDrawerOpen = selectedEntity.type !== 'none';
+
+  // Grid template columns — dynamic based on panel visibility + drawer
   const gridCols = [
     leftOpen ? '240px' : '0px',
+    isDrawerOpen ? '280px' : '0px',
     '1fr',
     rightOpen ? '300px' : '0px',
   ].join(' ');
@@ -72,16 +119,14 @@ export const WorkspaceLayout: React.FC = () => {
         gridTemplateRows: '40px 1fr',
         gridTemplateColumns: gridCols,
         gridTemplateAreas: `
-          "ribbon ribbon ribbon"
-          "outliner canvas inspector"
+          "ribbon ribbon ribbon ribbon"
+          "outliner drawer canvas inspector"
         `,
       }}
     >
       {/* ── TOP RIBBON (row 1, spans all columns) ── */}
       <div style={{ gridArea: 'ribbon' }} className="z-20">
         <TopRibbon
-          activeTool={activeTool}
-          onToolChange={setActiveTool}
           leftOpen={leftOpen}
           rightOpen={rightOpen}
           onToggleLeft={() => setLeftOpen(!leftOpen)}
@@ -95,20 +140,25 @@ export const WorkspaceLayout: React.FC = () => {
           style={{ gridArea: 'outliner' }}
           className="overflow-hidden border-r border-slate-800/50 z-10"
         >
-          <LeftOutliner
-            selectedEntity={selectedEntity}
-            onSelectEntity={setSelectedEntity}
-          />
+          <LeftOutliner />
         </div>
       )}
 
-      {/* ── CENTER CANVAS (row 2, col 2) ── */}
-      <div style={{ gridArea: 'canvas' }} className="overflow-hidden relative z-0">
-        <CenterCanvas
-          activeTool={activeTool}
-          selectedEntity={selectedEntity}
-          onSelectEntity={setSelectedEntity}
-        />
+      {/* ── PROPERTIES DRAWER (row 2, col 2 — conditional) ── */}
+      {isDrawerOpen && (
+        <div
+          style={{ gridArea: 'drawer' }}
+          className="overflow-hidden border-r border-slate-800/50 z-10"
+        >
+          <PropertiesDrawer />
+        </div>
+      )}
+
+      {/* ── CENTER CANVAS (row 2, col 3) ── */}
+      <div id="engineering-viewport" style={{ gridArea: 'canvas' }} className="overflow-hidden relative z-0">
+        <CanvasContainer>
+          <CenterCanvas />
+        </CanvasContainer>
       </div>
 
       {/* ── RIGHT INSPECTOR (row 2, col 3) ── */}
@@ -117,7 +167,7 @@ export const WorkspaceLayout: React.FC = () => {
           style={{ gridArea: 'inspector' }}
           className="overflow-hidden border-l border-slate-800/50 z-10"
         >
-          <RightInspector selectedEntity={selectedEntity} />
+          <RightInspector />
         </div>
       )}
     </div>

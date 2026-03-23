@@ -2,6 +2,7 @@ import React from 'react';
 import { useProposalCalculator } from '../hooks/useProposalCalculator';
 import { generateProposalPDF } from '../utils/generatePDF';
 import { useSolarStore, selectClientData } from '@/core/state/solarStore';
+import { useUIStore } from '@/core/state/uiStore';
 import { ProposalHero } from './ProposalHero';
 import { ProposalSpecs } from './ProposalSpecs';
 
@@ -9,6 +10,7 @@ export const ProposalSummary: React.FC = () => {
     const calculator = useProposalCalculator();
     const { metrics, pricing, financials } = calculator;
     const clientData = useSolarStore(selectClientData);
+    const viewportSnapshot = useUIStore(state => state.viewportSnapshot);
 
     const handleGeneratePDF = async () => {
         await generateProposalPDF({
@@ -16,7 +18,8 @@ export const ProposalSummary: React.FC = () => {
             clientName: clientData.clientName || 'Cliente',
             systemSize: metrics.totalPowerkWp,
             price: pricing.finalPrice,
-            payback: financials.paybackYears
+            payback: financials.paybackYears,
+            viewportSnapshot
         });
     };
 

@@ -1,16 +1,18 @@
 import React from 'react';
 import { useTechStore } from '../store/useTechStore';
-import { useSolarStore } from '@/core/state/solarStore';
+import { useSolarStore, selectModules } from '@/core/state/solarStore';
+import { toArray } from '@/core/types/normalized.types';
 import { INVERTER_CATALOG } from '../constants/inverters';
 import { Settings2, Zap, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MPPTCompactRow } from './StringConfiguratorRow';
 
 export const StringConfigurator: React.FC<{ className?: string }> = ({ className }) => {
-    const { inverters, updateMPPTConfig, selectedModuleId, updateInverterQuantity } = useTechStore();
+    const { inverters: invertersNormalized, updateMPPTConfig, selectedModuleId, updateInverterQuantity } = useTechStore();
+    const inverters = toArray(invertersNormalized);
 
     // Get Selected Module Specs
-    const projectModules = useSolarStore(state => state.modules);
+    const projectModules = useSolarStore(selectModules);
     const selectedModule = projectModules.find(m => m.id === selectedModuleId) || projectModules[0];
 
     // State for Accordion
@@ -66,7 +68,7 @@ export const StringConfigurator: React.FC<{ className?: string }> = ({ className
                                     <div className="flex gap-2 text-[9px] text-slate-400 uppercase tracking-wider font-medium">
                                         <span>{spec.manufacturer}</span>
                                         <span>•</span>
-                                        <span>{(spec.powerAc / 1000).toFixed(1)} kW</span>
+                                        <span>{(spec.nominalPowerW / 1000).toFixed(1)} kW</span>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-1 bg-white border border-slate-200 rounded px-1.5 py-0.5">

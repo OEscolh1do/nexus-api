@@ -41,18 +41,19 @@ export const useStringValidation = (
         );
 
         // 2. Validação V_MAX (Critico!)
+        const maxVoltage = inverterSpecs.mppts?.[0]?.maxInputVoltage || 600;
         const vocStatus: ValidationResult = {
             status: 'ok',
             value: vocMax,
-            limit: inverterSpecs.maxInputVoltage
+            limit: maxVoltage
         };
 
-        if (vocMax > inverterSpecs.maxInputVoltage) {
+        if (vocMax > maxVoltage) {
             vocStatus.status = 'error';
-            vocStatus.message = `Tensão Eletrolítica (${vocMax.toFixed(0)}V) excede o suportado (${inverterSpecs.maxInputVoltage}V)! Risco de dano imediato.`;
-        } else if (vocMax > inverterSpecs.maxInputVoltage * 0.95) {
+            vocStatus.message = `Tensão Eletrolítica (${vocMax.toFixed(0)}V) excede o suportado (${maxVoltage}V)! Risco de dano imediato.`;
+        } else if (vocMax > maxVoltage * 0.95) {
             vocStatus.status = 'warning';
-            vocStatus.message = `Tensão (${vocMax.toFixed(0)}V) muito próxima do limite (${inverterSpecs.maxInputVoltage}V).`;
+            vocStatus.message = `Tensão (${vocMax.toFixed(0)}V) muito próxima do limite (${maxVoltage}V).`;
         }
 
         // 3. Validação MPPT Window (Vmp)
@@ -61,34 +62,38 @@ export const useStringValidation = (
         
         // We aggregate the status into one "Range" check for UI simplicity, 
         // prioritizing the Error state.
+        const minMppt = inverterSpecs.mppts?.[0]?.minMpptVoltage || 80;
+        const maxMppt = inverterSpecs.mppts?.[0]?.maxMpptVoltage || 550;
+        
         const vmpStatus: ValidationResult = {
             status: 'ok',
             value: vmpMin, // Show the lowest (worst case for startup) as primary value, or average? Let's show range in tooltip via message
-            limit: inverterSpecs.minMpptVoltage
+            limit: minMppt
         };
 
-        if (vmpMin < inverterSpecs.minMpptVoltage) {
+        if (vmpMin < minMppt) {
             vmpStatus.status = 'error';
-            vmpStatus.message = `Tensão mínima (${vmpMin.toFixed(0)}V @ 70°C) abaixo do MPPT (${inverterSpecs.minMpptVoltage}V).`;
-        } else if (vmpMax > inverterSpecs.maxMpptVoltage) {
+            vmpStatus.message = `Tensão mínima (${vmpMin.toFixed(0)}V @ 70°C) abaixo do MPPT (${minMppt}V).`;
+        } else if (vmpMax > maxMppt) {
             // Note: Exceeding Max MPPT usually isn't fatal (clipping), but good to warn.
             vmpStatus.status = 'warning';
             vmpStatus.value = vmpMax;
-            vmpStatus.limit = inverterSpecs.maxMpptVoltage;
-            vmpStatus.message = `Tensão máxima (${vmpMax.toFixed(0)}V @ 0°C) acima da faixa MPPT (${inverterSpecs.maxMpptVoltage}V). Pode haver clipping.`;
+            vmpStatus.limit = maxMppt;
+            vmpStatus.message = `Tensão máxima (${vmpMax.toFixed(0)}V @ 0°C) acima da faixa MPPT (${maxMppt}V). Pode haver clipping.`;
         }
 
         // 4. Validação Corrente (Isc)
         const totalIsc = moduleSpecs.isc * stringsInParallel;
+        const maxIsc = inverterSpecs.mppts?.[0]?.maxCurrentPerMPPT || 15;
         const iscStatus: ValidationResult = {
             status: 'ok',
             value: totalIsc,
-            limit: inverterSpecs.maxIscPerMppt
+            limit: maxIsc
         };
 
-        if (totalIsc > inverterSpecs.maxIscPerMppt) {
+        if (totalIsc > maxIsc) {
             iscStatus.status = 'error';
-            iscStatus.message = `Corrente de curto (${totalIsc.toFixed(1)}A) excede o limite da entrada (${inverterSpecs.maxIscPerMppt}A).`;
+            iscStatus.message = `Corrente de curto (${totalIsc.toFixed(1)}A) excede o limite da entrada (${maxIsc}A).`;
         }
         
         return {

@@ -1,11 +1,12 @@
 import { useMemo } from 'react';
-import { useSolarStore } from '@/core/state/solarStore';
+import { useSolarStore, selectModules } from '@/core/state/solarStore';
 import { useTechStore } from '../store/useTechStore';
 import { useProjectContext } from '@/hooks/useProjectContext';
+import { toArray } from '@/core/types/normalized.types';
 
 export const useTechKPIs = () => {
     // 1. Consume data from stores
-    const modules = useSolarStore(state => state.modules);
+    const modules = useSolarStore(selectModules);
     const clientData = useSolarStore(state => state.clientData);
 
     const {
@@ -13,8 +14,11 @@ export const useTechKPIs = () => {
         getPerformanceRatio,
         getAdditivePerformanceRatio,
         prCalculationMode,
-        inverters: techInverters
+        inverters: techInvertersNormalized
     } = useTechStore();
+
+    // PRÉ-1: converter NormalizedCollection para array para cálculos
+    const techInverters = useMemo(() => toArray(techInvertersNormalized), [techInvertersNormalized]);
 
     const { energyGoal } = useProjectContext();
 

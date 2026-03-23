@@ -1,32 +1,18 @@
+/**
+ * P4-2: InMemoryEquipmentRepo — Adaptador de Equipamentos
+ * 
+ * Módulos: MODULE_DB já é parseado por `moduleDatabaseSchema` (Zod),
+ * retornando `ModuleCatalogItem[]` diretamente. Nenhum mapeamento necessário.
+ * 
+ * Inversores: INVERTER_DB ainda usa formato legado com chaves em português.
+ * O mapeamento via `mapInverterToSpec` é mantido até a migração do DB.
+ */
+
 import { IEquipmentRepository } from "../../core/ports/IEquipmentRepository";
-import { ModuleSpecs, InverterSpecs } from "../../core/schemas/equipment.schemas"; // Use schemas for types? Or types? Using types from schemas.
+import { ModuleCatalogItem } from "../../core/schemas/moduleSchema";
+import { InverterSpecs } from "../../core/schemas/equipment.schemas";
 import { MODULE_DB } from "../../data/equipment/modules";
 import { INVERTER_DB } from "../../data/equipment/inverters";
-
-function mapModuleToSpec(data: any): ModuleSpecs {
-  return {
-    id: data["Modelo"].replace(/\s+/g, '-').toLowerCase(),
-    quantity: 0, // Default for catalog
-    supplier: data["Fornecedor"],
-    manufacturer: data["Fabricante"],
-    model: data["Modelo"],
-    type: data["Tipo"],
-    power: Number(data["Potência"]),
-    efficiency: Number(data["ƞ Módulo"]) * 100, // fractional to percentage if needed, checking schema. Schema max(30). Data .17. So *100 = 17.
-    cells: Number(data["Número de células"]),
-    imp: Number(data["Imáx"]),
-    vmp: Number(data["Vmáx"]),
-    isc: Number(data["Isc/Icc"]),
-    voc: Number(data["Voc/Vca"]),
-    weight: Number(data["Peso"]),
-    area: Number(data["Área (m²)"]),
-    dimensions: data["Dimensões (mm)"],
-    inmetroId: data["Inmetro"],
-    maxFuseRating: Number(data["Máx. Corr. Fusível (série)"]),
-    tempCoeff: Number(data["Coef. Temperatura/°C"]),
-    annualDepreciation: Number(data["Depreciação a.a."])
-  };
-}
 
 function mapInverterToSpec(data: any): InverterSpecs {
   return {
@@ -48,9 +34,9 @@ function mapInverterToSpec(data: any): InverterSpecs {
 }
 
 export class InMemoryEquipmentRepo implements IEquipmentRepository {
-  async getModules(): Promise<ModuleSpecs[]> {
-    // Return all modules mapped
-    return MODULE_DB.map(mapModuleToSpec);
+  async getModules(): Promise<ModuleCatalogItem[]> {
+    // MODULE_DB já é ModuleCatalogItem[] validado pelo Zod (moduleDatabaseSchema.parse)
+    return MODULE_DB;
   }
 
   async getInverters(): Promise<InverterSpecs[]> {

@@ -1,7 +1,6 @@
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { ProposalCalculations } from '../types';
-import { FinanceParams } from '../../finance/store/financeSchema';
 
 // Extend jsPDF for autotable
 interface jsPDFWithAutoTable extends jsPDF {
@@ -14,7 +13,7 @@ interface ProposalData extends ProposalCalculations {
     systemSize: number;
     price: number;
     payback: number;
-    financeParams?: FinanceParams;
+    viewportSnapshot?: string | null;
 }
 
 export const generateProposalPDF = async (data: ProposalData) => {
@@ -90,7 +89,7 @@ export const generateProposalPDF = async (data: ProposalData) => {
 
     // Investment Highlight
     startY += 50;
-    const isFinanced = data.financeParams?.financingMode === 'financed';
+    const isFinanced = false;
 
     if (isFinanced) {
         doc.setFillColor(239, 246, 255); // Blue 50
@@ -102,14 +101,14 @@ export const generateProposalPDF = async (data: ProposalData) => {
         doc.text("Condição de Pagamento (Financiamento)", margin + 10, startY + 12);
 
         // Down Payment
-        const downPayment = data.financeParams?.downPayment || 0;
+        const downPayment = 0;
         doc.setFontSize(12);
         doc.setFont("helvetica", "normal");
         doc.text(`Entrada: ${formatCurrency(downPayment)}`, margin + 10, startY + 22);
 
         // Installments
         const installment = data.financials.monthlyInstallment || 0;
-        const term = data.financeParams?.loanTerm || 60;
+        const term = 60;
         doc.setFontSize(18);
         doc.setFont("helvetica", "bold");
         doc.text(`${term}x de ${formatCurrency(installment)}`, margin + 10, startY + 32);
@@ -150,6 +149,26 @@ export const generateProposalPDF = async (data: ProposalData) => {
     doc.setFont("helvetica", "normal");
     doc.text(`• ${co2Ton.toFixed(1)} toneladas de CO2 evitadas`, margin, startY + 10);
     doc.text(`• Equivalente a ${trees} árvores plantadas`, margin, startY + 16);
+
+    // --- PAGE 1.5: GEOMETRIC BLUEPRINT (Viewport Snapshot) ---
+    if (data.viewportSnapshot) {
+        doc.addPage();
+        doc.setFillColor(colors.bgLight[0], colors.bgLight[1], colors.bgLight[2]);
+        doc.rect(0, 0, pageWidth, 20, 'F');
+        doc.setTextColor(colors.textLight[0], colors.textLight[1], colors.textLight[2]);
+        doc.setFontSize(10);
+        doc.text("Mapeamento 3D do Projeto", margin, 14);
+
+        // Aspect Ratio 16:9 for the map
+        const imgWidth = pageWidth - (margin * 2);
+        const imgHeight = (imgWidth * 9) / 16;
+        
+        doc.addImage(data.viewportSnapshot, 'PNG', margin, 30, imgWidth, imgHeight);
+        
+        doc.setFontSize(8);
+        doc.setTextColor(colors.textLight[0], colors.textLight[1], colors.textLight[2]);
+        doc.text("Renderização da topologia baseada no motor de engenharia do Kurupira Workspace.", margin, 35 + imgHeight);
+    }
 
     // --- PAGE 2: TECHNICAL SPECIFICATIONS ---
     doc.addPage();
@@ -195,7 +214,7 @@ export const generateProposalPDF = async (data: ProposalData) => {
     // Generate Cash Flow Data
     const cashFlowData = [];
     // Adjust initial for financing
-    const initialInvestment = isFinanced ? (data.financeParams?.downPayment || 0) : data.pricing.finalPrice;
+    const initialInvestment = isFinanced ? 0 : data.pricing.finalPrice;
 
     let accumulated = -initialInvestment;
     let currentSavings = data.financials.monthlySavings * 12;
