@@ -3,6 +3,8 @@ import { ProposalHero } from '../components/ProposalHero';
 import { ProposalSpecs } from '../components/ProposalSpecs';
 import { AccumulatedCashFlowChart } from '../components/CashFlowChart';
 import { FinancingOptionsCard } from '../components/FinancingOptionsCard';
+import { ViewportSnapshotCard } from '../components/ViewportSnapshotCard';
+import { ProposalBOMCard } from '../components/ProposalBOMCard';
 import { useProposalCalculator } from '../hooks/useProposalCalculator';
 import { useSolarStore, selectClientData } from '@/core/state/solarStore';
 import { useUIStore } from '@/core/state/uiStore';
@@ -31,28 +33,34 @@ export const PresentationTab: React.FC = () => {
     return (
         <div className="flex flex-col gap-8 w-full max-w-6xl mx-auto pb-10">
             
-            {/* 1. HERO: VALUE PROPOSITION (Bill Comparison & ROI) */}
+            {/* 1. VIEWPORT SNAPSHOT (Eng. Handover) */}
+            <ViewportSnapshotCard dataUrl={viewportSnapshot} />
+
+            {/* 2. HERO: VALUE PROPOSITION (Bill Comparison & ROI) */}
             <ProposalHero 
                 pricing={pricing} 
                 financials={financials} 
                 onGeneratePDF={handleGeneratePDF} 
             />
             
-            {/* 1.5. FINANCING OPTIONS (If Enabled) */}
+            {/* 3. FINANCING OPTIONS */}
             <FinancingOptionsCard 
                 pricing={pricing}
                 financials={financials}
                 financeParams={financeParams}
             />
 
-            {/* 2. FINANCIAL STORY: CASH FLOW CHART */}
+            {/* 4. FINANCIAL STORY: CASH FLOW CHART */}
             <AccumulatedCashFlowChart 
                 initialInvestment={pricing.finalPrice}
                 monthlySavings={financials.monthlySavings}
-                inflationRate={0.045} // Default assumption (could come from settings)
+                inflationRate={0.045} 
             />
             
-            {/* 3. ASSURANCE: TECH SPECS & IMPACT */}
+            {/* 5. HARDWARE BOM (B2B Requirement) */}
+            <ProposalBOMCard />
+
+            {/* 6. ASSURANCE: TECH SPECS & IMPACT */}
             <ProposalSpecs 
                 metrics={metrics} 
                 pricing={pricing} 

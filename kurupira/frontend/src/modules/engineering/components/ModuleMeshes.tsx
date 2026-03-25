@@ -44,9 +44,8 @@ export const ModuleMeshes: React.FC = () => {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const prevCountRef = useRef(-1);
   const prevSelectedRef = useRef('');
-
-  // Use a hash of stringData to smartly bust the frame loop cache when assignments happen
   const prevStringHashRef = useRef('');
+  const prevGeometryHashRef = useRef('');
 
   // Geometry and Material configuration
   const geometry = useMemo(() => {
@@ -76,6 +75,8 @@ export const ModuleMeshes: React.FC = () => {
     const selectedMultiIds = useUIStore.getState().selectedEntity.multiIds;
 
     const currentStringHash = placed.map(pm => pm.stringData ? `${pm.id}-${pm.stringData.mpptId}` : '').join('|');
+    // Track geometric changes (center[0], center[1], axisAngle)
+    const currentGeometryHash = placed.map(pm => `${pm.center[0]}-${pm.center[1]}-${pm.axisAngle}`).join('|');
 
     if (!coords || placed.length === 0) {
       // Esconder todas as instâncias
@@ -87,8 +88,13 @@ export const ModuleMeshes: React.FC = () => {
     const selectedJoined = selectedMultiIds.join(',');
     const count = placed.length;
     
-    // Only update matrices and colors if count, selection, or string assignment changes
-    if (count === prevCountRef.current && prevSelectedRef.current === selectedJoined && prevStringHashRef.current === currentStringHash) {
+    // Only update matrices and colors if count, selection, string assignment OR geometry changes
+    if (
+        count === prevCountRef.current && 
+        prevSelectedRef.current === selectedJoined && 
+        prevStringHashRef.current === currentStringHash &&
+        prevGeometryHashRef.current === currentGeometryHash
+    ) {
       return;
     }
 
@@ -114,10 +120,7 @@ export const ModuleMeshes: React.FC = () => {
       
       mesh.setMatrixAt(i, tempMatrix);
 
-      // Hierarquia visual:
-      // 1. Selecionado (Azul Claro Bright)
-      // 2. Atribuído a um MPPT (Cor específica da String)
-      // 3. Padrão não-atribuído (Azul Solar Escuro)
+      // Hierarquia visual
       if (selectedMultiIds.includes(pm.id)) {
         tempColor.set(0x4fc3f7);
       } else if (pm.stringData?.mpptId) {
@@ -134,6 +137,7 @@ export const ModuleMeshes: React.FC = () => {
     prevCountRef.current = count;
     prevSelectedRef.current = selectedJoined;
     prevStringHashRef.current = currentStringHash;
+    prevGeometryHashRef.current = currentGeometryHash;
   });
 
   return (

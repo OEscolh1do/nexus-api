@@ -82,6 +82,9 @@ export const TopRibbon: React.FC<TopRibbonProps> = ({
   const canUndo = pastStates.length > 0;
   const canRedo = futureStates.length > 0;
 
+  // UI State for P7-2 Backend Persistence
+  const [isExporting, setIsExporting] = React.useState(false);
+
   // Engineering KPIs (P1-2)
   const { kpi, displayedPr } = useTechKPIs();
 
@@ -208,11 +211,51 @@ export const TopRibbon: React.FC<TopRibbonProps> = ({
         </div>
 
         <button
-          className="flex items-center gap-1.5 px-3 py-1.5 ml-1 rounded-md text-[11px] font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white transition-all border border-slate-700"
-          title="Exportar Proposta PDF"
+          onClick={async () => {
+            if (isExporting) return;
+            setIsExporting(true);
+            try {
+              console.log('[TopRibbon] Iniciando geração da proposta...');
+              const { captureViewport } = await import('@/modules/proposal/utils/captureViewport');
+              const { ProjectService } = await import('@/services/ProjectService');
+
+              const dataUrl = await captureViewport();
+              if (dataUrl) {
+                const success = await ProjectService.saveDesign(dataUrl);
+                if (success) {
+                  // Salva a foto em base64 na store de UI para que o ProposalModule possa exibi-la
+                  useUIStore.getState().setViewportSnapshot(dataUrl);
+                  
+                  // Muda a tela para a Tab de Proposta
+                  setActiveModule('proposal');
+                } else {
+                  alert('Erro ao salvar projeto no servidor. Verifique o console.');
+                }
+              } else {
+                console.error('[TopRibbon] Falha ao capturar mapa (dataUrl vazio).');
+                alert('Erro ao gerar imagem térmica do telhado.');
+              }
+            } catch (err) {
+              console.error('[TopRibbon] Erro durante exportação:', err);
+              alert('Erro fatal durante exportação da proposta.');
+            } finally {
+              setIsExporting(false);
+            }
+          }}
+          disabled={isExporting}
+          className={`flex items-center gap-1.5 px-3 py-1.5 ml-1 rounded-md text-[11px] font-bold border transition-all ${
+            isExporting 
+              ? 'text-slate-400 bg-slate-800 border-slate-700 cursor-not-allowed opacity-70' 
+              : 'text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white border-slate-700'
+          }`}
+          title="Salvar Projeto & Exportar Proposta PDF"
         >
-          <Download size={12} className="text-emerald-400" />
-          <span className="hidden xl:inline">Exportar</span>
+          {isExporting ? (
+            <div className="w-3 h-3 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <Download size={12} className="text-emerald-400" />
+          )}
+          <span className="hidden xl:inline">{isExporting ? 'Salvando...' : 'Exportar API'}</span>
         </button>
       </div>
     </div>
@@ -225,17 +268,16 @@ export const TopRibbon: React.FC<TopRibbonProps> = ({
 
 // P3-1: Fluxo de Aprovação
 const ApprovalDropdown: React.FC = () => {
-    // Local state for the UI demo. In production, this would hit the backend/useProjectContext more deeply.
-    const [status, setStatus] = React.useState<'DRAFT' | 'REVIEW' | 'APPROVED'>('DRAFT');
+    const projectStatus = useSolarStore(s => s.project.projectStatus);
+    const setProjectStatus = useSolarStore(s => s.setProjectStatus);
     const [isOpen, setIsOpen] = React.useState(false);
 
     const STATUS_MAP = {
-        DRAFT: { label: 'Rascunho', color: 'text-slate-400', bg: 'bg-slate-800', border: 'border-slate-700' },
-        REVIEW: { label: 'Em Revisão', color: 'text-amber-400', bg: 'bg-amber-900/20', border: 'border-amber-700/50' },
-        APPROVED: { label: 'Aprovado', color: 'text-emerald-400', bg: 'bg-emerald-900/20', border: 'border-emerald-700/50' },
+        draft: { label: 'Rascunho (Destravado)', color: 'text-slate-400', bg: 'bg-slate-800', border: 'border-slate-700' },
+        approved: { label: 'Aprovado (Travado)', color: 'text-emerald-400', bg: 'bg-emerald-900/20', border: 'border-emerald-700/50' },
     };
 
-    const current = STATUS_MAP[status];
+    const current = STATUS_MAP[projectStatus] || STATUS_MAP.draft;
 
     return (
         <div className="relative" onMouseLeave={() => setIsOpen(false)}>
@@ -249,15 +291,15 @@ const ApprovalDropdown: React.FC = () => {
             </button>
 
             {isOpen && (
-                <div className="absolute top-full mt-1 right-0 w-32 bg-slate-900 border border-slate-700 rounded-lg shadow-xl overflow-hidden z-50">
+                <div className="absolute top-full mt-1 right-0 w-36 bg-slate-900 border border-slate-700 rounded-lg shadow-xl overflow-hidden z-50">
                     {(Object.keys(STATUS_MAP) as Array<keyof typeof STATUS_MAP>).map(s => (
                         <button
                             key={s}
-                            onClick={() => { setStatus(s); setIsOpen(false); }}
+                            onClick={() => { setProjectStatus(s); setIsOpen(false); }}
                             className="w-full text-left px-3 py-2 text-[10px] font-bold text-slate-300 hover:bg-slate-800 flex items-center justify-between"
                         >
                             <span className={STATUS_MAP[s].color}>{STATUS_MAP[s].label}</span>
-                            {status === s && <Check size={10} className="text-slate-500" />}
+                            {projectStatus === s && <Check size={10} className="text-slate-500" />}
                         </button>
                     ))}
                 </div>

@@ -36,6 +36,7 @@ const SyncBridge: React.FC = () => {
 const WebGLOverlayInner: React.FC = () => {
   return (
     <div
+      className="webgl-overlay"
       style={{
         position: 'absolute',
         inset: 0,
@@ -43,6 +44,12 @@ const WebGLOverlayInner: React.FC = () => {
         zIndex: 500, // Abaixo dos HUD controls (z-1000) mas acima dos tiles Leaflet
       }}
     >
+      {/* 
+        CSS override: R3F v9 creates internal divs with pointer-events: auto  
+        for its raycasting system. This bleeds through the parent's 'none'.
+        We must force ALL children to inherit pointer-events: none.
+      */}
+      <style>{`.webgl-overlay * { pointer-events: none !important; }`}</style>
       <Canvas
         orthographic
         frameloop="demand"
@@ -54,7 +61,7 @@ const WebGLOverlayInner: React.FC = () => {
           far: 1000,
           zoom: 1,
         }}
-        style={{ background: 'transparent' }}
+        style={{ background: 'transparent', pointerEvents: 'none' }}
       >
         {/* Luz ambiente para visibilidade uniforme dos módulos */}
         <ambientLight intensity={0.8} />

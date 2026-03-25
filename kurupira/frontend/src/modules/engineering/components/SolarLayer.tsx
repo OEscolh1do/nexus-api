@@ -1,69 +1,33 @@
 /**
  * =============================================================================
- * SOLAR LAYER — Camada de Geometria Solar (GFX-03 + GFX-04 + GFX-05)
+ * SOLAR LAYER — Camada de Geometria Solar (P10: InstallationArea Freeform)
  * =============================================================================
  *
  * Renderiza sobre o mapa Leaflet:
- * - Polígono do telhado (roofPolygon do projectSlice)
- * - Módulos posicionados (placedModules do projectSlice) — GFX-04
- * - Interação PLACE_MODULE (click → posiciona módulo) — GFX-05
- *
- * Performance:
- * - Seletores estáveis via solarSelectors.ts
- * - Eventos de mousemove via ref mutado — sem setState
- * - Apenas click/dblclick disparam commit no store
+ * - Áreas de Instalação Freeform (via InstallationAreaBlock)
+ * - Módulos posicionados com coordenadas cacheadas O(1) WebGL
+ * - Interação PLACE_MODULE exige clique dentro da Área (Boundary Check)
  * =============================================================================
  */
 
 import React, { useCallback } from 'react';
-import { Polygon, Polyline, CircleMarker, useMapEvents } from 'react-leaflet';
+import { Polygon, useMapEvents } from 'react-leaflet';
 import L, { type LeafletMouseEvent } from 'leaflet';
 
 import { useSolarStore } from '@/core/state/solarStore';
 import { useUIStore } from '@/core/state/uiStore';
-import {
-  selectRoofPolygon,
-  selectRoofAzimuth,
-  selectModulesStable,
-} from '@/core/state/solarSelectors';
+import { selectModulesStable } from '@/core/state/solarSelectors';
 import type { LatLngTuple } from '@/core/utils/geoUtils';
 import type { PlacedModule } from '@/core/state/slices/projectSlice';
+import { ParametricRoofBlock, suppressNextMapClick } from './ParametricRoofBlock';
 
 // =============================================================================
-// TYPES
+// TYPES & STYLES
 // =============================================================================
 
 interface SolarLayerProps {
   activeTool: 'SELECT' | 'POLYGON' | 'MEASURE' | 'PLACE_MODULE';
 }
-
-// =============================================================================
-// STYLES
-// =============================================================================
-
-const ROOF_POLYGON_STYLE = {
-  color: '#10b981',      // emerald-500
-  weight: 2,
-  opacity: 0.8,
-  fillColor: '#10b981',
-  fillOpacity: 0.15,
-  dashArray: '6, 4',
-};
-
-const VERTEX_STYLE = {
-  radius: 4,
-  color: '#10b981',
-  fillColor: '#ffffff',
-  fillOpacity: 1,
-  weight: 2,
-};
-
-const DRAWING_LINE_STYLE = {
-  color: '#10b981',
-  weight: 1.5,
-  opacity: 0.6,
-  dashArray: '4, 4',
-};
 
 const MODULE_POLYGON_STYLE = {
   color: '#3b82f6',      // blue-500
@@ -71,13 +35,6 @@ const MODULE_POLYGON_STYLE = {
   opacity: 0.9,
   fillColor: '#3b82f6',
   fillOpacity: 0.35,
-};
-
-const ROOF_HOVER_STYLE = {
-  ...ROOF_POLYGON_STYLE,
-  color: '#f59e0b',      // amber-500
-  fillColor: '#f59e0b',
-  fillOpacity: 0.25,
 };
 
 const MODULE_HOVER_STYLE = {
@@ -88,42 +45,18 @@ const MODULE_HOVER_STYLE = {
 };
 
 // =============================================================================
-// HELPERS
-// =============================================================================
-
-/**
- * Derive approximate width/height from area (m²) and dimensions string.
- * ModuleSpecs has `area` (e.g. 2.26) and `dimensions` (e.g. "2094x1038x35mm").
- * Falls back to standard 60-cell panel (≈1.7m x 1.0m) if parsing fails.
- */
-function parseModuleDimensions(area: number, dimensions: string): { widthM: number; heightM: number } {
-  // Try parsing "WxHx..." format (mm)
-  const match = dimensions.match(/(\d+)\s*x\s*(\d+)/i);
-  if (match) {
-    const w = parseInt(match[1], 10) / 1000; // mm → m
-    const h = parseInt(match[2], 10) / 1000;
-    return { widthM: Math.max(w, h), heightM: Math.min(w, h) };
-  }
-
-  // Fallback: derive from area with 2:1 aspect ratio
-  const height = Math.sqrt(area / 2);
-  return { widthM: height * 2, heightM: height };
-}
-
-// =============================================================================
 // COMPONENT
 // =============================================================================
 
 export const SolarLayer: React.FC<SolarLayerProps> = ({ activeTool }) => {
-  // Roof data
-  const roofPolygon = useSolarStore(selectRoofPolygon);
-  const roofAzimuth = useSolarStore(selectRoofAzimuth);
-  const addRoofVertex = useSolarStore(s => s.addRoofVertex);
-  const closeRoofPolygon = useSolarStore(s => s.closeRoofPolygon);
+  // Area data (Freeform)
+  const installationAreas = useSolarStore(s => s.project.installationAreas);
+  const spawnArea = useSolarStore(s => s.spawnArea);
+  const deleteArea = useSolarStore(s => s.deleteArea);
+  const removePlacedModule = useSolarStore(s => s.removePlacedModule);
 
   // Module data
   const placedModules = useSolarStore(s => s.project.placedModules);
-  const placeModule = useSolarStore(s => s.placeModule);
   const moduleSpecs = useSolarStore(selectModulesStable);
 
   // UI Integration
@@ -131,55 +64,99 @@ export const SolarLayer: React.FC<SolarLayerProps> = ({ activeTool }) => {
   const toggleMultiSelection = useUIStore(s => s.toggleMultiSelection);
   const clearSelection = useUIStore(s => s.clearSelection);
 
-  // Derived state
-  const isClosed = roofAzimuth !== null;
-  const isDrawingPolygon = activeTool === 'POLYGON' && !isClosed;
-
-  // Get first module spec for dimensions (the active model for placement)
+  // Get active module specs for placement
   const activeModuleSpec = moduleSpecs.length > 0 ? moduleSpecs[0] : null;
 
   // ==========================================================================
-  // EVENT HANDLERS
+  // KEYBOARD / GLOBAL EVENTS
+  // ==========================================================================
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+
+      if (e.key === 'Escape') {
+        clearSelection();
+        useUIStore.getState().setActiveTool('SELECT');
+      }
+      
+      // Delete / Backspace: remove selected entity
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const sel = useUIStore.getState().selectedEntity;
+        if (!sel?.id) return;
+        
+        if (sel.type === 'area') {
+          deleteArea(sel.id);
+          clearSelection();
+        } else if (sel.type === 'module') {
+          removePlacedModule(sel.id);
+          clearSelection();
+        }
+      }
+
+      // Ctrl+D: Duplicate selected area
+      if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+        e.preventDefault();
+        const sel = useUIStore.getState().selectedEntity;
+        if (sel?.type === 'area' && sel.id) {
+          useSolarStore.getState().duplicateArea(sel.id);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [clearSelection, deleteArea, removePlacedModule]);
+
+  // ==========================================================================
+  // MAP CLICK EVENTS (Outside Areas)
   // ==========================================================================
 
   const handleMapClick = useCallback((e: LeafletMouseEvent) => {
+    // FIX: Check suppression flag — if a polygon click just fired, skip this map click
+    if (suppressNextMapClick.value) {
+      suppressNextMapClick.value = false;
+      return;
+    }
+
     if (activeTool === 'SELECT') {
-      clearSelection(); // Clicked on empty space
+      clearSelection(); 
       return;
     }
 
     if (activeTool === 'POLYGON') {
-      if (isClosed) return;
+      if (useSolarStore.getState().project.projectStatus === 'approved') {
+        alert("🔒 Edição Bloqueada: Este projeto consta como 'Aprovado' na proposta comercial. Desbloqueie-o para adicionar novas áreas.");
+        useUIStore.getState().setActiveTool('SELECT');
+        return;
+      }
+
       const point: LatLngTuple = [e.latlng.lat, e.latlng.lng];
-      addRoofVertex(point);
+      spawnArea(point, 10, 5, 0); 
+      
+      useUIStore.getState().setActiveTool('SELECT');
       return;
     }
 
     if (activeTool === 'PLACE_MODULE') {
-      if (!activeModuleSpec) return; // Sem módulo selecionado
-
-      const center: LatLngTuple = [e.latlng.lat, e.latlng.lng];
-      const { widthM, heightM } = parseModuleDimensions(
-        activeModuleSpec.area,
-        activeModuleSpec.dimensions,
-      );
-
-      placeModule(center, activeModuleSpec.id, widthM, heightM);
+      alert('⚠️ Módulo deve ser posicionado dentro dos limites de uma Área de Instalação.');
+      useUIStore.getState().setActiveTool('SELECT');
       return;
     }
-  }, [activeTool, isClosed, addRoofVertex, activeModuleSpec, placeModule]);
-
-  const handleMapDblClick = useCallback(() => {
-    if (activeTool !== 'POLYGON') return;
-    if (roofPolygon.length < 3) return;
-    closeRoofPolygon();
-  }, [activeTool, roofPolygon.length, closeRoofPolygon]);
+  }, [activeTool, spawnArea, clearSelection]);
 
   // Register map events
-  useMapEvents({
+  const map = useMapEvents({
     click: handleMapClick,
-    dblclick: handleMapDblClick,
   });
+
+  // Disable map dragging when using drawing tools
+  React.useEffect(() => {
+    if (activeTool === 'POLYGON' || activeTool === 'PLACE_MODULE') {
+      map.dragging.disable();
+    } else {
+      map.dragging.enable();
+    }
+    return () => { map.dragging.enable(); };
+  }, [activeTool, map]);
 
   // ==========================================================================
   // RENDER
@@ -187,48 +164,18 @@ export const SolarLayer: React.FC<SolarLayerProps> = ({ activeTool }) => {
 
   return (
     <>
-      {/* ── ROOF POLYGON ── */}
-      {/* Closed polygon */}
-      {isClosed && roofPolygon.length >= 3 && (
-        <Polygon
-          positions={roofPolygon}
-          pathOptions={ROOF_POLYGON_STYLE}
-          eventHandlers={{
-            mouseover: (e) => {
-              if (activeTool === 'SELECT') e.target.setStyle(ROOF_HOVER_STYLE);
-            },
-            mouseout: (e) => {
-              e.target.setStyle(ROOF_POLYGON_STYLE);
-            },
-            click: (e) => {
-              if (activeTool === 'SELECT') {
-                L.DomEvent.stopPropagation(e.originalEvent);
-                selectEntity('polygon', 'roof', 'Telhado Principal');
-              }
-            }
-          }}
-        />
-      )}
-
-      {/* Drawing line (while in POLYGON mode) */}
-      {isDrawingPolygon && roofPolygon.length >= 2 && (
-        <Polyline
-          positions={roofPolygon}
-          pathOptions={DRAWING_LINE_STYLE}
-        />
-      )}
-
-      {/* Roof vertices */}
-      {roofPolygon.length > 0 && roofPolygon.map((point, idx) => (
-        <CircleMarker
-          key={`rv-${idx}`}
-          center={point}
-          pathOptions={VERTEX_STYLE}
+      {/* ── INSTALLATION AREAS (Freeform CSG Blocks) ── */}
+      {(installationAreas || []).map(area => (
+        <ParametricRoofBlock 
+          key={area.id} 
+          roof={area as any} 
+          activeTool={activeTool}
+          activeModuleSpec={activeModuleSpec}
         />
       ))}
 
       {/* ── PLACED MODULES (GFX-04) ── */}
-      {placedModules.map((mod: PlacedModule) => (
+      {(placedModules || []).map((mod: PlacedModule) => (
         <Polygon
           key={mod.id}
           positions={mod.polygon}
@@ -243,6 +190,7 @@ export const SolarLayer: React.FC<SolarLayerProps> = ({ activeTool }) => {
             click: (e) => {
               if (activeTool === 'SELECT') {
                 L.DomEvent.stopPropagation(e.originalEvent);
+                suppressNextMapClick.value = true;
                 if (e.originalEvent.shiftKey) {
                   toggleMultiSelection(mod.id, 'Painéis');
                 } else {

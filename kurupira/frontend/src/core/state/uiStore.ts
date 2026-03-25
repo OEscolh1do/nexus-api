@@ -25,7 +25,7 @@ import { create } from 'zustand';
 
 export type Tool = 'SELECT' | 'POLYGON' | 'MEASURE' | 'PLACE_MODULE';
 
-export type EntityType = 'none' | 'module' | 'inverter' | 'string' | 'vertex' | 'polygon';
+export type EntityType = 'none' | 'module' | 'inverter' | 'string' | 'vertex' | 'polygon' | 'area';
 
 export interface SelectedEntity {
   type: EntityType;

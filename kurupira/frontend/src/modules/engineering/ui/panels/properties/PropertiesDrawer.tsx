@@ -16,6 +16,7 @@ import { useSelectedEntity, useUIStore } from '@/core/state/uiStore';
 import { ModuleProperties } from './ModuleProperties';
 import { InverterProperties } from './InverterProperties';
 import { StringProperties } from './StringProperties';
+import { AreaProperties } from './AreaProperties';
 
 export const PropertiesDrawer: React.FC = () => {
   const selectedEntity = useSelectedEntity();
@@ -43,10 +44,11 @@ export const PropertiesDrawer: React.FC = () => {
       </div>
 
       {/* Content — Polymorphic rendering */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto w-72">
         {selectedEntity.type === 'module' && <ModuleProperties entity={selectedEntity} />}
         {selectedEntity.type === 'inverter' && <InverterProperties entity={selectedEntity} />}
         {selectedEntity.type === 'string' && <StringProperties entity={selectedEntity} />}
+        {(selectedEntity.type === 'polygon' || selectedEntity.type === 'area') && <AreaProperties entity={selectedEntity} />}
       </div>
     </div>
   );

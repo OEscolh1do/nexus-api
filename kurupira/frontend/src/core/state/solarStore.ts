@@ -154,6 +154,59 @@ export const useSolarStore = create<SolarState>()(
         version: 1,
 
         /**
+         * Merge customizado para hidratação segura.
+         * Garante que sub-objetos como `project` recebam um Deep Merge parcial,
+         * evitando que localStorage legado sobrescreva arrays essenciais do schema atual com undefined.
+         */
+        merge: (persistedState: any, currentState: any) => {
+          // Migração P10: se o cache antigo contém roofAreas, renomeia para installationAreas
+          const legacyAreas = persistedState.project?.roofAreas;
+          const newAreas = persistedState.project?.installationAreas;
+
+          // Migrar áreas legadas: adiciona localVertices se ausente
+          let migratedAreas = (newAreas || legacyAreas || currentState.project.installationAreas || []).map((area: any) => {
+            if (!area.localVertices || area.localVertices.length === 0) {
+              // Gera vértices retangulares a partir de widthM/heightM legados
+              const hw = (area.widthM || 10) / 2;
+              const hh = (area.heightM || 5) / 2;
+              return {
+                ...area,
+                surfaceType: area.surfaceType || 'roof',
+                localVertices: [
+                  { x: -hw, y: -hh },
+                  { x:  hw, y: -hh },
+                  { x:  hw, y:  hh },
+                  { x: -hw, y:  hh },
+                ],
+              };
+            }
+            return { ...area, surfaceType: area.surfaceType || 'roof' };
+          });
+
+          // Migrar placedModules: roofId → areaId
+          const rawModules = persistedState.project?.placedModules || currentState.project.placedModules || [];
+          const migratedModules = rawModules.map((mod: any) => {
+            if (mod.roofId && !mod.areaId) {
+              return { ...mod, areaId: mod.roofId, roofId: undefined };
+            }
+            return mod;
+          });
+
+          return {
+            ...currentState,
+            ...persistedState,
+            project: {
+              ...currentState.project,
+              ...(persistedState.project || {}),
+              installationAreas: migratedAreas,
+              placedModules: migratedModules,
+              // Limpa campos legados
+              roofAreas: undefined,
+            }
+          };
+        },
+
+        /**
          * PRÉ-1: Migração automática de localStorage antigo.
          * Converte arrays para estrutura normalizada na hidratação.
          */

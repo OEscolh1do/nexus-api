@@ -72,11 +72,8 @@ export const selectSimulatedItemsStable = createMemoSelector(
 /** Coordenadas do sítio */
 export const selectCoordinates = (s: SolarState) => s.project.coordinates;
 
-/** Polígono do telhado */
-export const selectRoofPolygon = (s: SolarState) => s.project.roofPolygon;
-
-/** Azimute físico do telhado */
-export const selectRoofAzimuth = (s: SolarState) => s.project.roofAzimuth;
+/** Áreas de Instalação (Freeform) */
+export const selectInstallationAreas = (s: SolarState) => s.project.installationAreas;
 
 /** Zoom do mapa */
 export const selectZoom = (s: SolarState) => s.project.zoom;

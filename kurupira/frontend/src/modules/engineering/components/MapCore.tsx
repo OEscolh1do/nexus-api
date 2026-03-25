@@ -16,7 +16,7 @@
  * =============================================================================
  */
 
-import React, { useRef, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import type { Map as LeafletMap } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -41,6 +41,9 @@ const tileUrl = MAPBOX_TOKEN
 const tileAttribution = MAPBOX_TOKEN
   ? '© <a href="https://www.mapbox.com/">Mapbox</a>'
   : '© <a href="https://www.openstreetmap.org/">OpenStreetMap</a>';
+
+// OSM tiles only support zoom 0-19. Mapbox satellite supports up to 22.
+const MAX_ZOOM = MAPBOX_TOKEN ? 22 : 19;
 
 // =============================================================================
 // SUB-COMPONENTS
@@ -86,6 +89,21 @@ const MapViewSync: React.FC = () => {
   return null;
 };
 
+/**
+ * MapRefExposer -- Extrai a instância real do Leaflet via contexto
+ * e injeta na nossa ref global para que scripts fora do React possam usá-la.
+ */
+const MapRefExposer: React.FC = () => {
+  const map = useMap();
+  useEffect(() => {
+    globalLeafletMapRef.current = map;
+    return () => {
+      globalLeafletMapRef.current = null;
+    };
+  }, [map]);
+  return null;
+};
+
 // =============================================================================
 // MAIN COMPONENT & GLOBAL REF
 // =============================================================================
@@ -103,17 +121,8 @@ interface MapCoreProps {
 }
 
 const MapCoreInner: React.FC<MapCoreProps> = ({ activeTool }) => {
-  const mapRef = useRef<LeafletMap | null>(null);
   const coordinates = useSolarStore(selectCoordinates);
   const zoom = useSolarStore(selectZoom);
-
-  // Expor a instância do mapa para o hook WebGL assim que montar
-  useEffect(() => {
-    globalLeafletMapRef.current = mapRef.current;
-    return () => {
-      globalLeafletMapRef.current = null;
-    };
-  }, []);
 
   // Fallback central: Manaus (sede Neonorte) se coordenadas não definidas
   const center: [number, number] = coordinates
@@ -122,22 +131,25 @@ const MapCoreInner: React.FC<MapCoreProps> = ({ activeTool }) => {
 
   return (
     <MapContainer
-      ref={mapRef}
       center={center}
-      zoom={zoom}
-      maxZoom={22}
+      zoom={Math.min(zoom, MAX_ZOOM)}
+      maxZoom={MAX_ZOOM}
       minZoom={3}
       zoomControl={false}
       attributionControl={false}
       style={{ width: '100%', height: '100%' }}
     >
+      {/* Exposes the map instance gobally */}
+      <MapRefExposer />
+
       {/* Tile Layer — Mapbox satélite com fallback OSM */}
       <TileLayer
         url={tileUrl}
         attribution={tileAttribution}
-        maxZoom={22}
+        maxZoom={MAX_ZOOM}
         tileSize={MAPBOX_TOKEN ? 512 : 256}
         zoomOffset={MAPBOX_TOKEN ? -1 : 0}
+        crossOrigin={true}
       />
 
       {/* Sincronização de resize e viewport */}
