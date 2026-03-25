@@ -1,17 +1,13 @@
 /**
  * =============================================================================
- * LEFT OUTLINER — Árvore do BOS (P0-1 + P0-2 + P0-3)
+ * LEFT OUTLINER — Árvore do BOS Lógico (P6.2)
  * =============================================================================
  *
- * Lateral esquerda: Árvore hierárquica que lista todos os componentes
- * do sistema em camadas (Módulos, Inversores → MPPTs/Strings).
+ * Lateral esquerda: Árvore hierárquica focada na TOPOLOGIA ELÉTRICA.
  *
- * Sincronia bidirecional: clique num item no Outliner seleciona no
- * Inspector e vice-versa, operando por referência de ID.
- *
- * P0-1: Módulos como nós expansíveis. Botão '+' abre ModuleCatalogDialog.
- * P0-2: Inversores como nós raiz com strings como filhos.
- * P0-3: Strings exibem contagem de módulos configurados.
+ * Inversores são nós raízes. MPPTs são galhos. Lotes de Módulos são folhas.
+ * Existe um painel de "Banco de Módulos" que lista módulos do inventário
+ * ainda não atribuídos a Inversores.
  * =============================================================================
  */
 
@@ -29,6 +25,7 @@ import { InverterCatalogDialog } from '../../components/InverterCatalogDialog';
 import { mapCatalogToSpecs } from '../../utils/catalogMappers';
 import { useStringAssignment } from '../../hooks/useStringAssignment';
 import type { ModuleCatalogItem } from '@/core/schemas/moduleSchema';
+import { cn } from '@/lib/utils';
 
 // =============================================================================
 // TYPES
@@ -47,10 +44,6 @@ interface TreeNode {
 }
 
 // =============================================================================
-// NO PROPS NEEDED NATIVELY (Reads from UI Store)
-// =============================================================================
-
-// =============================================================================
 // COMPONENT
 // =============================================================================
 
@@ -59,6 +52,7 @@ export const LeftOutliner: React.FC = () => {
   const selectedEntity = useSelectedEntity();
   const selectEntity = useUIStore(s => s.selectEntity);
   const clearSelection = useUIStore(s => s.clearSelection);
+  
   // ── Store data ──
   const modules = useSolarStore(selectModules);
   const inverters = useSolarStore(selectInverters);
@@ -66,22 +60,25 @@ export const LeftOutliner: React.FC = () => {
   const installationAreas = useSolarStore(state => state.project.installationAreas);
   const removeModule = useSolarStore(state => state.removeModule);
   const removeInverter = useSolarStore(state => state.removeInverter);
-  const { inverters: techInvertersNorm, removeInverter: removeTechInverter } = useTechStore();
-  const techInverters = toArray(techInvertersNorm);
-  const { assign, availableMPPTs } = useStringAssignment();
+  const { inverters: techInvertersStore, removeInverter: removeTechInverter } = useTechStore();
+  const techInverters = toArray(techInvertersStore);
+  
+  // P6.2 Logical Hooks
+  const { assignLogical, availableMPPTs, unassignedPool } = useStringAssignment();
 
   // ── Local state ──
   const [searchFilter, setSearchFilter] = useState('');
+  
   // Catalog Dialog States (transient)
   const [moduleDialogOpen, setModuleDialogOpen] = useState(false);
   const [inverterDialogOpen, setInverterDialogOpen] = useState(false);
-  // P6-1: Multi-select for stringing
-  const [selectedPlacedIds, setSelectedPlacedIds] = useState<Set<string>>(new Set());
+  
+  // MPPT Logical Assignment State
   const [assignPopoverOpen, setAssignPopoverOpen] = useState(false);
+  const [qtyToAssign, setQtyToAssign] = useState<number | ''>('');
 
   // ── Handle add module (from ModuleCatalogDialog) ──
   const addModule = useSolarStore(state => state.addModule);
-  // Mapping domain boundary: Catalog -> Project Inventory
   const handleAddModule = useCallback((catalogItem: ModuleCatalogItem) => {
     const newId = Math.random().toString(36).substr(2, 9);
     const mappedSpecs = mapCatalogToSpecs(catalogItem);
@@ -110,20 +107,34 @@ export const LeftOutliner: React.FC = () => {
   const handleDelete = useCallback((node: TreeNode, e: React.MouseEvent) => {
     e.stopPropagation();
     if (node.type === 'module') {
-      removeModule(node.id);
+      removeModule(node.id); // Removes from Inventory
       if (selectedEntity.id === node.id) {
         clearSelection();
       }
     } else if (node.type === 'inverter') {
-      removeInverter(node.id);
-      removeTechInverter(node.id);
+      removeInverter(node.id); // Removes from Inventory
+      removeTechInverter(node.id); // Removes Logical config
       if (selectedEntity.id === node.id) {
         clearSelection();
       }
+    } else if (node.type === 'placed-module') {
+       useSolarStore.getState().removePlacedModule(node.id);
     }
   }, [removeModule, removeInverter, removeTechInverter, selectedEntity.id, clearSelection]);
 
-  // ── Build Module nodes ──
+  // ── Logical Assignment Action ──
+  const handleAssignToMPPT = useCallback((inverterId: string, mpptId: number) => {
+    const qty = typeof qtyToAssign === 'number' ? qtyToAssign : unassignedPool;
+    if (qty <= 0) return;
+    
+    assignLogical(qty, inverterId, mpptId);
+    setQtyToAssign('');
+    setAssignPopoverOpen(false);
+  }, [assignLogical, qtyToAssign, unassignedPool]);
+
+  // ── Tree Construction ──
+
+  // P6.2: Module Inventory (Root representation)
   const moduleNodes: TreeNode[] = modules.map(m => ({
     id: m.id,
     label: `${m.manufacturer} ${m.model}`,
@@ -133,22 +144,30 @@ export const LeftOutliner: React.FC = () => {
     deletable: true,
   }));
 
-  // ── Build Inverter nodes with MPPT children ──
-  const inverterNodes: TreeNode[] = inverters.map(inv => {
-    // Try to find matching tech inverter for MPPT data
+  // P6.2: Logical System Tree (Inverters -> MPPTs -> Modules)
+  const systemTreeNodes: TreeNode[] = inverters.map(inv => {
     const techInv = techInverters.find(ti => ti.catalogId === inv.id || ti.id === inv.id);
     const mpptChildren: TreeNode[] = techInv
       ? techInv.mpptConfigs.map(mppt => {
-          const assignedCount = placedModules.filter(
-            pm => pm.stringData?.inverterId === techInv.id && pm.stringData?.mpptId === mppt.mpptId
-          ).length;
+          const assignedCount = mppt.modulesPerString * mppt.stringsCount;
+          // Leaf node (Assigned modules to this MPPT)
+          const leafChildren: TreeNode[] = assignedCount > 0 && modules.length > 0 ? [{
+             id: `${inv.id}-mppt-${mppt.mpptId}-leaf`,
+             label: `${modules[0].model}`, // P6 assumes homogenous modules
+             type: 'module' as const,
+             icon: Sun,
+             badge: `x${assignedCount}`,
+             badgeColor: 'text-emerald-400 bg-emerald-500/10'
+          }] : [];
+
           return {
             id: `${inv.id}-mppt-${mppt.mpptId}`,
-            label: `MPPT ${mppt.mpptId} — ${mppt.modulesPerString}×${mppt.stringsCount}`,
+            label: `MPPT ${mppt.mpptId}`,
             type: 'string' as const,
             icon: Cable,
-            badge: assignedCount > 0 ? `${assignedCount} mod` : undefined,
-            badgeColor: assignedCount > 0 ? 'text-cyan-400 bg-cyan-500/10' : undefined,
+            badge: assignedCount > 0 ? `${assignedCount}/${mppt.modulesPerString}×${mppt.stringsCount}` : undefined,
+            badgeColor: assignedCount > 0 ? 'text-amber-400 bg-amber-500/10' : undefined,
+            children: leafChildren.length > 0 ? leafChildren : undefined
           };
         })
       : [];
@@ -164,24 +183,17 @@ export const LeftOutliner: React.FC = () => {
     };
   });
 
-  // ── P6-1: Build Placed Module nodes (grouped by Area) ──
-  const MPPT_COLORS = ['text-cyan-400', 'text-amber-400', 'text-violet-400', 'text-rose-400', 'text-lime-400'];
+  // P6.2: Placed Modules (Now purely physical representation)
   const areaNodes: TreeNode[] = useMemo(() => {
     return installationAreas.map(area => {
       const areaModules = placedModules.filter(pm => pm.areaId === area.id);
       const children: TreeNode[] = areaModules.map(pm => {
-        const mpptLabel = pm.stringData?.inverterId
-          ? `MPPT ${pm.stringData.mpptId}`
-          : 'Sem string';
-        const colorIdx = pm.stringData?.mpptId ? (pm.stringData.mpptId - 1) % MPPT_COLORS.length : -1;
         return {
           id: pm.id,
           label: `Mod ${pm.id.slice(-4).toUpperCase()}`,
           type: 'placed-module' as const,
           icon: Sun,
-          badge: mpptLabel,
-          badgeColor: colorIdx >= 0 ? `${MPPT_COLORS[colorIdx]} bg-slate-800` : 'text-slate-600 bg-slate-800/50',
-          checkable: true,
+          deletable: true
         };
       });
       return {
@@ -194,22 +206,6 @@ export const LeftOutliner: React.FC = () => {
     });
   }, [installationAreas, placedModules]);
 
-  // ── P6-1: Toggle selection ──
-  const togglePlacedSelect = useCallback((id: string) => {
-    setSelectedPlacedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  }, []);
-
-  const handleAssignToMPPT = useCallback((inverterId: string, mpptId: number) => {
-    if (selectedPlacedIds.size === 0) return;
-    assign(Array.from(selectedPlacedIds), inverterId, mpptId);
-    setSelectedPlacedIds(new Set());
-    setAssignPopoverOpen(false);
-  }, [selectedPlacedIds, assign]);
-
   // ── Stats ──
   const totalModules = modules.reduce((a, m) => a + (m.quantity || 0), 0);
 
@@ -220,7 +216,7 @@ export const LeftOutliner: React.FC = () => {
         <div className="flex items-center gap-2 mb-2">
           <Layers size={12} className="text-slate-500" />
           <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-            Componentes
+            Topologia do Sistema
           </h3>
         </div>
         <div className="relative">
@@ -237,17 +233,102 @@ export const LeftOutliner: React.FC = () => {
 
       {/* Tree */}
       <div className="flex-1 overflow-y-auto px-1 py-1">
-        {/* ── Section: Módulos ── */}
+        
+        {/* ── Section: ÁRVORE LÓGICA (Inversores no topo) ── */}
         <SectionHeader
-          label="Módulos"
-          icon={Sun}
+          label="Topologia Elétrica"
+          icon={Cpu}
+          count={inverters.length}
+          onAdd={() => setInverterDialogOpen(true)}
+        />
+        {systemTreeNodes.length === 0 ? (
+          <EmptySection
+            icon={Cpu}
+            message="Nenhum inversor"
+            actionLabel="Adicionar"
+            onAction={() => setInverterDialogOpen(true)}
+          />
+        ) : (
+          systemTreeNodes.map(node => (
+            <TreeNodeComponent
+              key={node.id}
+              node={node}
+              depth={1}
+              selectedId={selectedEntity.id}
+              searchFilter={searchFilter}
+              onSelect={(n) => selectEntity(n.type, n.id, n.label)}
+              onDelete={handleDelete}
+            />
+          ))
+        )}
+
+        {/* ── Section: Módulos (Inventário Geral) & Atribuição Lógica ── */}
+        <SectionHeader
+          label="Inventário Módulos"
+          icon={Package}
           count={totalModules}
           onAdd={() => setModuleDialogOpen(true)}
         />
+        
+        {/* Sub-painel: Desatribuídos (Pool) */}
+        {totalModules > 0 && (
+          <div className="mx-2 my-2 p-1.5 rounded bg-amber-500/5 border border-amber-500/10">
+            <div className="flex items-center justify-between mb-1.5 px-0.5">
+              <span className="text-[9px] text-amber-500/70 font-semibold uppercase">
+                Módulos Desatribuídos: {unassignedPool}
+              </span>
+              {unassignedPool > 0 && (
+                <input 
+                  type="number" 
+                  value={qtyToAssign} 
+                  onChange={e => setQtyToAssign(e.target.value === '' ? '' : parseInt(e.target.value))} 
+                  placeholder={unassignedPool.toString()}
+                  max={unassignedPool}
+                  min={1}
+                  className="w-12 h-4 text-center text-[9px] font-medium bg-slate-900 border border-amber-500/20 rounded text-amber-500 outline-none focus:border-amber-400"
+                  title="Quantidade para enviar ao inversor"
+                />
+              )}
+            </div>
+            
+            {unassignedPool > 0 && availableMPPTs.length > 0 ? (
+                <div className="relative">
+                  <button
+                    onClick={() => setAssignPopoverOpen(!assignPopoverOpen)}
+                    className="w-full h-5 flex items-center justify-center gap-1.5 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-[9px] font-bold text-emerald-500 transition-colors border border-emerald-500/20 focus:outline-none focus:border-emerald-500/50"
+                  >
+                    <Link2 size={10} />
+                    Atribuir à String
+                  </button>
+                  {assignPopoverOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-slate-900 border border-slate-700 rounded shadow-xl max-h-40 overflow-y-auto">
+                      {availableMPPTs.map(mppt => (
+                        <button
+                          key={`${mppt.inverterId}-${mppt.mpptId}`}
+                          onClick={() => handleAssignToMPPT(mppt.inverterId, mppt.mpptId)}
+                          className="w-full text-left px-2 py-1.5 text-[9px] flex items-center justify-between transition-colors text-slate-300 hover:bg-emerald-500/10 hover:text-emerald-400"
+                        >
+                          <span>{mppt.inverterModel} — MPPT {mppt.mpptId}</span>
+                          <span className="text-[8px] text-slate-500">
+                             Atuais: {mppt.assignedCount}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+            ) : unassignedPool > 0 ? (
+               <div className="text-[8px] text-amber-500/40 text-center py-0.5">
+                 Adicione um inversor acima para distribuir.
+               </div>
+            ) : null}
+          </div>
+        )}
+
         {moduleNodes.length === 0 ? (
           <EmptySection
             icon={Package}
-            message="Nenhum módulo"
+            message="Nenhum módulo importado"
             actionLabel="Adicionar"
             onAction={() => setModuleDialogOpen(true)}
           />
@@ -265,63 +346,15 @@ export const LeftOutliner: React.FC = () => {
           ))
         )}
 
-        {/* ── Section: Módulos Colocados (P6-1) ── */}
+        {/* ── Section: Layout Físico ── */}
         {areaNodes.length > 0 && (
           <>
             <SectionHeader
-              label="Módulos Colocados"
+              label="Layout Físico"
               icon={MapPin}
               count={placedModules.length}
               onAdd={() => {}}
             />
-
-            {/* P6-1: MPPT Assignment Bar */}
-            {selectedPlacedIds.size > 0 && (
-              <div className="mx-2 mb-1 p-1.5 rounded bg-emerald-500/10 border border-emerald-500/20">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[9px] text-emerald-400 font-bold">
-                    {selectedPlacedIds.size} selecionados
-                  </span>
-                  <button
-                    onClick={() => setSelectedPlacedIds(new Set())}
-                    className="text-[8px] text-slate-500 hover:text-slate-300"
-                  >
-                    Limpar
-                  </button>
-                </div>
-                <div className="relative">
-                  <button
-                    onClick={() => setAssignPopoverOpen(!assignPopoverOpen)}
-                    className="w-full flex items-center justify-center gap-1 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-[9px] font-bold text-emerald-400 transition-colors"
-                  >
-                    <Link2 size={10} />
-                    Atribuir a MPPT
-                  </button>
-                  {assignPopoverOpen && availableMPPTs.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-slate-900 border border-slate-700 rounded shadow-xl max-h-40 overflow-y-auto">
-                      {availableMPPTs.map(mppt => (
-                        <button
-                          key={`${mppt.inverterId}-${mppt.mpptId}`}
-                          onClick={() => handleAssignToMPPT(mppt.inverterId, mppt.mpptId)}
-                          disabled={mppt.isFull}
-                          className={`w-full text-left px-2 py-1.5 text-[9px] flex items-center justify-between transition-colors ${
-                            mppt.isFull
-                              ? 'text-slate-700 cursor-not-allowed'
-                              : 'text-slate-300 hover:bg-emerald-500/10 hover:text-emerald-400'
-                          }`}
-                        >
-                          <span>{mppt.inverterModel} — MPPT {mppt.mpptId}</span>
-                          <span className="text-[8px] text-slate-600">
-                            {mppt.assignedCount}/{mppt.logicalCapacity}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
             {areaNodes.map(node => (
               <TreeNodeComponent
                 key={node.id}
@@ -329,57 +362,21 @@ export const LeftOutliner: React.FC = () => {
                 depth={1}
                 selectedId={selectedEntity.id}
                 searchFilter={searchFilter}
-                onSelect={(n) => {
-                  if (n.type === 'placed-module' && n.checkable) {
-                    togglePlacedSelect(n.id);
-                  } else {
-                    selectEntity(n.type, n.id, n.label);
-                  }
-                }}
+                onSelect={(n) => selectEntity(n.type, n.id, n.label)}
                 onDelete={handleDelete}
-                checkedIds={selectedPlacedIds}
-                onToggleCheck={togglePlacedSelect}
               />
             ))}
           </>
-        )}
-
-        {/* ── Section: Inversores ── */}
-        <SectionHeader
-          label="Inversores"
-          icon={Cpu}
-          count={inverters.length}
-          onAdd={() => setInverterDialogOpen(true)}
-        />
-        {inverterNodes.length === 0 ? (
-          <EmptySection
-            icon={Cpu}
-            message="Nenhum inversor"
-            actionLabel="Adicionar"
-            onAction={() => setInverterDialogOpen(true)}
-          />
-        ) : (
-          inverterNodes.map(node => (
-            <TreeNodeComponent
-              key={node.id}
-              node={node}
-              depth={1}
-              selectedId={selectedEntity.id}
-              searchFilter={searchFilter}
-              onSelect={(n) => selectEntity(n.type, n.id, n.label)}
-              onDelete={handleDelete}
-            />
-          ))
         )}
       </div>
 
       {/* Footer stats */}
       <div className="shrink-0 px-3 py-1.5 border-t border-slate-800/50 flex items-center justify-between">
         <span className="text-[9px] text-slate-600">
-          {totalModules > 0 ? `${totalModules} módulos` : '—'}
+          {totalModules > 0 ? `${totalModules} lógicos` : '—'}
         </span>
         <span className="text-[9px] text-slate-700">
-          {inverters.length > 0 ? `${inverters.length} inv.` : ''}
+          {placedModules.length > 0 ? `${placedModules.length} físicos` : ''}
         </span>
       </div>
 
@@ -399,7 +396,7 @@ export const LeftOutliner: React.FC = () => {
 };
 
 // =============================================================================
-// SECTION HEADER (Módulos / Inversores — with + button)
+// SECTION HEADER
 // =============================================================================
 
 const SectionHeader: React.FC<{
@@ -408,12 +405,12 @@ const SectionHeader: React.FC<{
   count: number;
   onAdd: () => void;
 }> = ({ label, icon: Icon, count, onAdd }) => (
-  <div className="flex items-center justify-between px-2 py-1.5 mt-1">
+  <div className="flex items-center justify-between px-2 py-1.5 mt-2">
     <div className="flex items-center gap-1.5">
       <Icon size={11} className="text-slate-500" />
-      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">{label}</span>
+      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{label}</span>
       {count > 0 && (
-        <span className="text-[8px] font-bold text-slate-600 bg-slate-800 px-1.5 py-0.5 rounded-full">
+        <span className="text-[8px] font-bold text-slate-500 bg-slate-800 px-1.5 py-0.5 rounded-full">
           {count}
         </span>
       )}
@@ -462,10 +459,7 @@ const TreeNodeComponent: React.FC<{
   searchFilter: string;
   onSelect: (node: TreeNode) => void;
   onDelete: (node: TreeNode, e: React.MouseEvent) => void;
-  checkedIds?: Set<string>;
-  onToggleCheck?: (id: string) => void;
-}> = ({ node, depth, selectedId, searchFilter, onSelect, onDelete, checkedIds, onToggleCheck }) => {
-  const isChecked = checkedIds?.has(node.id) ?? false;
+}> = ({ node, depth, selectedId, searchFilter, onSelect, onDelete }) => {
   const [expanded, setExpanded] = useState(depth < 2);
   const [hovered, setHovered] = useState(false);
   const hasChildren = node.children && node.children.length > 0;
@@ -479,18 +473,21 @@ const TreeNodeComponent: React.FC<{
   const handleBadgeDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!node.badge) return;
-    const currentQty = node.badge.replace('x', '');
+    const currentQty = node.badge.replace(/[^0-9]/g, '');
     setQtyDraft(currentQty);
     setEditingQty(true);
   };
 
   const commitQty = () => {
     const qty = parseInt(qtyDraft, 10);
-    if (!isNaN(qty) && qty > 0) {
+    if (!isNaN(qty) && qty >= 0) {
       if (node.type === 'module') {
         useSolarStore.getState().updateModuleQty(node.id, qty);
       } else if (node.type === 'inverter') {
         useSolarStore.getState().updateInverterQty(node.id, qty);
+      } else if (node.type === 'string') {
+        // Technically mppt occupation via badge edit. Unsafe structurally unless parsed carefully.
+        // P6.2 disables manual string edit via badge for safety (leaves it to the Properties Drawer)
       }
     }
     setEditingQty(false);
@@ -521,44 +518,30 @@ const TreeNodeComponent: React.FC<{
         }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        className={`
-          w-full flex items-center gap-1 px-1.5 py-1 rounded text-left transition-all text-[10px] group
-          ${isSelected
-            ? 'bg-emerald-500/10 text-emerald-400'
-            : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
-          }
-        `}
+        className={cn("w-full flex items-center gap-1 px-1.5 py-1 rounded text-left transition-all text-[10px] group",
+          isSelected ? 'bg-emerald-500/10 text-emerald-400' : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
+        )}
         style={{ paddingLeft: `${8 + depth * 14}px` }}
       >
-        {/* P6-1: Checkbox for placed modules */}
-        {node.checkable && onToggleCheck ? (
-          <input
-            type="checkbox"
-            checked={isChecked}
-            onChange={(e) => { e.stopPropagation(); onToggleCheck(node.id); }}
-            onClick={(e) => e.stopPropagation()}
-            className="w-3 h-3 shrink-0 accent-emerald-500 cursor-pointer"
-          />
-        ) : hasChildren ? (
+        {hasChildren ? (
           expanded
             ? <ChevronDown size={10} className="shrink-0 text-slate-600" />
             : <ChevronRight size={10} className="shrink-0 text-slate-600" />
         ) : (
           <span className="w-[10px] shrink-0" />
         )}
-        <Icon size={11} className={`shrink-0 ${isSelected ? 'text-emerald-400' : 'text-slate-600'}`} />
+        
+        <Icon size={11} className={cn("shrink-0", isSelected ? 'text-emerald-400' : 'text-slate-600')} />
         <span className="truncate font-medium flex-1">{node.label}</span>
 
         {/* Badge (quantity) — double-click to edit inline */}
         {node.badge && !editingQty && (
           <span
-            className={`text-[8px] font-bold px-1 py-0.5 rounded shrink-0 transition-colors ${
-              node.badgeColor
-                ? node.badgeColor
-                : 'text-slate-600 bg-slate-800/80 cursor-text hover:text-emerald-400 hover:bg-emerald-500/10'
-            }`}
-            onDoubleClick={node.checkable ? undefined : handleBadgeDoubleClick}
-            title={node.checkable ? node.badge : 'Duplo clique para editar quantidade'}
+            className={cn("text-[8px] font-bold px-1 py-0.5 rounded shrink-0 transition-colors",
+              node.badgeColor ? node.badgeColor : 'text-slate-600 bg-slate-800/80 cursor-text hover:text-emerald-400 hover:bg-emerald-500/10'
+            )}
+            onDoubleClick={node.type !== 'string' ? handleBadgeDoubleClick : undefined}
+            title={node.type !== 'string' ? 'Duplo clique para editar quantidade' : 'Módulos Atribuídos / Capacidade Formatada'}
           >
             {node.badge}
           </span>
@@ -603,8 +586,6 @@ const TreeNodeComponent: React.FC<{
               searchFilter={searchFilter}
               onSelect={onSelect}
               onDelete={onDelete}
-              checkedIds={checkedIds}
-              onToggleCheck={onToggleCheck}
             />
           ))}
         </div>

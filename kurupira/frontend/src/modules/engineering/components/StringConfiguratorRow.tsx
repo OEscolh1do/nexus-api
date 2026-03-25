@@ -1,26 +1,16 @@
 import React from 'react';
 import { AlertCircle, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useStringValidation } from '../hooks/useStringValidation';
-import { useElectricalValidation } from '../hooks/useElectricalValidation';
 
 export const MPPTCompactRow: React.FC<{
     mpptId: number,
-    inverterId?: string,
     config: { stringsCount: number, modulesPerString: number },
     spec: any,
     moduleSpecs: any,
     onChange: (c: any) => void
-}> = ({ mpptId, inverterId, config, spec, moduleSpecs, onChange }) => {
-
-    const { validateMPPT } = useElectricalValidation();
-    const mpptValidation = inverterId ? validateMPPT(inverterId, mpptId) : null;
+}> = ({ mpptId, config, spec, moduleSpecs, onChange }) => {
 
     const validation = useStringValidation(
         moduleSpecs,
@@ -96,27 +86,6 @@ export const MPPTCompactRow: React.FC<{
                     {validation.iscMax.status === 'error' && <ErrorLine msg={validation.iscMax.message || ''} />}
                 </div>
             )}
-
-            {/* T7: Physical vs Logical Count */}
-            {mpptValidation && mpptValidation.logicalCount > 0 && (
-                <div className="mt-3 pt-1 border-t border-slate-100 flex items-center gap-2">
-                    <span className="text-[8px] font-bold text-slate-400 uppercase">Físico:</span>
-                    <span className={cn(
-                        "text-[9px] font-mono font-bold px-1.5 py-0.5 rounded",
-                        mpptValidation.isMismatch
-                            ? 'text-amber-600 bg-amber-50 border border-amber-200'
-                            : mpptValidation.physicallyAssigned > 0
-                                ? 'text-emerald-600 bg-emerald-50 border border-emerald-200'
-                                : 'text-slate-400 bg-slate-50'
-                    )}>
-                        {mpptValidation.physicallyAssigned}/{mpptValidation.logicalCount} módulos
-                    </span>
-                    {mpptValidation.isMismatch && (
-                        <span className="text-[8px] text-amber-500">⚠ Mismatch</span>
-                    )}
-                </div>
-            )}
-
         </div>
     );
 };

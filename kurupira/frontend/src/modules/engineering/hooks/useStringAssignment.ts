@@ -23,47 +23,70 @@ export interface AssignmentPreview {
 // ─── Hook ───────────────────────────────────────────
 
 /**
- * useStringAssignment
+ * useStringAssignment (P6.2)
  *
- * Encapsulates module ↔ MPPT assignment logic (T3 · P6-1).
- * - `assign()`:  assigns modules to a specific MPPT
- * - `unassign()`: clears stringData from given modules
- * - `preview()`:  returns a validation preview BEFORE committing
+ * Encapsulates logical module ↔ MPPT assignment logic.
+ * - Assignments are mathematical (modulesPerString * stringsCount)
+ * - Computes unassigned pool derived from project inventory
  */
 export function useStringAssignment() {
     const modules = useSolarStore(selectModules);
     const settings = useSolarStore(state => state.settings);
-    const placedModules = useSolarStore(state => state.project.placedModules);
-    const assignAction = useSolarStore(state => state.assignModulesToString);
-    const { inverters: techInvertersStore } = useTechStore();
+    
+    const { inverters: techInvertersStore, updateMPPTConfig } = useTechStore();
 
-    // ─── Assign Modules ─────────────────────────────
+    // ─── Assign Logical Modules ─────────────────────────────
 
-    const assign = useCallback((
-        moduleIds: string[],
+    const assignLogical = useCallback((
+        quantity: number,
         inverterId: string,
         mpptId: number
     ) => {
-        assignAction(moduleIds, inverterId, mpptId);
-    }, [assignAction]);
+        const inv = techInvertersStore.entities[inverterId];
+        if (!inv) return;
+        const mppt = inv.mpptConfigs.find(m => m.mpptId === mpptId);
+        if (!mppt) return;
+        
+        const currentTotal = mppt.modulesPerString * mppt.stringsCount;
+        const nextTotal = currentTotal + quantity;
+        
+        // By default, group in a single string unless previously split
+        // The electrical math handles validation.
+        updateMPPTConfig(inverterId, mpptId, {
+           stringsCount: mppt.stringsCount > 0 ? mppt.stringsCount : 1,
+           modulesPerString: mppt.stringsCount > 0 ? Math.floor(nextTotal / mppt.stringsCount) : nextTotal
+        });
+    }, [techInvertersStore, updateMPPTConfig]);
 
-    // ─── Unassign Modules ───────────────────────────
+    // ─── Unassign Logical Modules ───────────────────────────
 
-    const unassign = useCallback((moduleIds: string[]) => {
-        // Setting inverterId to '' and mpptId to 0 clears the assignment
-        // The projectSlice will create stringData: { inverterId: '', mpptId: 0 }
-        // UI logic should treat empty inverterId as "unassigned"
-        assignAction(moduleIds, '', 0);
-    }, [assignAction]);
+    const unassignLogical = useCallback((
+        quantity: number,
+        inverterId: string,
+        mpptId: number
+    ) => {
+        const inv = techInvertersStore.entities[inverterId];
+        if (!inv) return;
+        const mppt = inv.mpptConfigs.find(m => m.mpptId === mpptId);
+        if (!mppt) return;
+        
+        const currentTotal = mppt.modulesPerString * mppt.stringsCount;
+        const nextTotal = Math.max(0, currentTotal - quantity);
+        
+        updateMPPTConfig(inverterId, mpptId, {
+           stringsCount: mppt.stringsCount > 0 ? mppt.stringsCount : 1,
+           modulesPerString: mppt.stringsCount > 0 ? Math.floor(nextTotal / mppt.stringsCount) : nextTotal
+        });
+    }, [techInvertersStore, updateMPPTConfig]);
 
     // ─── Preview Before Assign ──────────────────────
 
     const preview = useCallback((
-        moduleIds: string[],
+        quantityToAdd: number,
         inverterId: string,
         mpptId: number
     ): AssignmentPreview | null => {
-        if (modules.length === 0 || moduleIds.length === 0) return null;
+        if (modules.length === 0 || quantityToAdd <= 0) return null;
 
         const m = modules[0]; // Assumes homogeneous system
         const techInverters = toArray(techInvertersStore);
@@ -80,9 +103,10 @@ export function useStringAssignment() {
 
         const mpptConfig = techInv.mpptConfigs.find(c => c.mpptId === mpptId);
         const stringsCount = mpptConfig?.stringsCount || 1;
+        const currentTotal = (mpptConfig?.modulesPerString || 0) * stringsCount;
 
-        // Simulate: what would the string look like after assignment?
-        const futureModulesPerString = moduleIds.length / stringsCount;
+        // Simulate new math
+        const futureModulesPerString = (currentTotal + quantityToAdd) / stringsCount;
         const minTemp = settings?.minHistoricalTemp ?? 10;
 
         const moduleSpecs: ModuleElectricalSpecs = {
@@ -114,37 +138,44 @@ export function useStringAssignment() {
         };
     }, [modules, settings, techInvertersStore]);
 
-    // ─── Computed: Available MPPTs ───────────────────
+    // ─── Computed: Available MPPTs & Pool ───────────────────
 
-    const availableMPPTs = useMemo(() => {
+    const { availableMPPTs, unassignedPool } = useMemo(() => {
         const techInverters = toArray(techInvertersStore);
-        return techInverters.flatMap(inv => {
+        let totalAssigned = 0;
+        
+        const mppts = techInverters.flatMap(inv => {
             const spec = INVERTER_CATALOG.find((c: any) => c.id === inv.catalogId);
             if (!spec) return [];
 
             return inv.mpptConfigs.map(mppt => {
                 const specMppt = spec.mppts?.find((m: any) => m.mpptId === mppt.mpptId);
-                const assignedCount = placedModules.filter(
-                    pm => pm.stringData?.inverterId === inv.id && pm.stringData?.mpptId === mppt.mpptId
-                ).length;
+                const assignedCount = mppt.modulesPerString * mppt.stringsCount;
+                totalAssigned += assignedCount;
 
                 return {
                     inverterId: inv.id,
                     inverterModel: inv.snapshot.model,
                     mpptId: mppt.mpptId,
-                    logicalCapacity: mppt.modulesPerString * mppt.stringsCount,
+                    logicalCapacity: 100, // No hard limit on structural capacity anymore, guided by electrical
                     assignedCount,
-                    isFull: assignedCount >= (mppt.modulesPerString * mppt.stringsCount),
+                    isFull: false, // In logical flow, it's never structurally "full" unless electrically blocked
                     maxVoltage: specMppt?.maxInputVoltage ?? 0,
                 };
             });
         });
-    }, [techInvertersStore, placedModules]);
+
+        const totalInventory = modules.reduce((acc, m) => acc + (m.quantity || 0), 0);
+        const unassignedPool = Math.max(0, totalInventory - totalAssigned);
+
+        return { availableMPPTs: mppts, unassignedPool };
+    }, [techInvertersStore, modules]);
 
     return {
-        assign,
-        unassign,
+        assignLogical,
+        unassignLogical,
         preview,
         availableMPPTs,
+        unassignedPool
     };
 }
