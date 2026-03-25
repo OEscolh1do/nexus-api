@@ -27,9 +27,9 @@ export const ModuleForm: React.FC<Props> = ({ initialData, onConfirm }) => {
   }, [selectedMake]);
 
   // Calculate Aggregates
-  const totalPowerKwp = modules.reduce((acc, m) => acc + (m.power * m.quantity), 0) / 1000;
-  const totalArea = modules.reduce((acc, m) => acc + (m.area * m.quantity), 0);
-  const totalCount = modules.reduce((acc, m) => acc + m.quantity, 0);
+  const totalPowerKwp = modules.reduce((acc, m) => acc + (m.power), 0) / 1000;
+  const totalArea = modules.reduce((acc, m) => acc + (m.area), 0);
+  const totalCount = modules.length;
 
   const handleAddFromDb = () => {
     if (!selectedMake || !selectedModel) return;

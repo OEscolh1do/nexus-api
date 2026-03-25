@@ -22,7 +22,7 @@ export const calculateGeneration = (
   settings: EngineeringSettings
 ): SimulationResult => {
   // 1. Calculate System Power (kWp)
-  const systemPowerKWp = modules.reduce((acc, m) => acc + (m.power * m.quantity), 0) / 1000;
+  const systemPowerKWp = modules.reduce((acc, m) => acc + (m.power), 0) / 1000;
 
   if (systemPowerKWp === 0) {
     return {

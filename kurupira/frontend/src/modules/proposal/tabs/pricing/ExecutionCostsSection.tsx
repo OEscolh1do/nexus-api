@@ -8,7 +8,7 @@ import { MoneyInput } from '../../components/ui/MoneyInput';
 export const ExecutionCostsSection = () => {
     // Engineering Data (Read-only context)
     const modules = useSolarStore(selectModules);
-    const totalPowerkWp = modules.reduce((acc, m) => acc + (m.quantity * m.power), 0) / 1000;
+    const totalPowerkWp = modules.reduce((acc, m) => acc + (m.power), 0) / 1000;
 
     // Settings (Read/Write)
     const settings = useSolarStore(state => state.settings);
@@ -56,7 +56,7 @@ export const ExecutionCostsSection = () => {
                             value={(settings.serviceUnitModule || 0) * totalPowerkWp * 1000} // Convert kWp back to Wp for display if needed
                             onChange={(val: any) => {
                                 // Reverse calculation: user edits the total, we derive the per-Module rate
-                                const newPerMod = modules.reduce((acc, m) => acc + m.quantity, 0) > 0 ? val / modules.reduce((acc, m) => acc + m.quantity, 0) : 0;
+                                const newPerMod = modules.length > 0 ? val / modules.length : 0;
                                 handleSettingsChange('serviceUnitModule' as any, newPerMod);
                             }}
                             className="w-32"

@@ -30,7 +30,7 @@ export const ProjectService = {
       const modules = toArray(solarState.modules);
       const inverters = toArray(techState.inverters);
 
-      const totalPowerWp = modules.reduce((acc, m) => acc + (m.power * m.quantity), 0);
+      const totalPowerWp = modules.reduce((acc, m) => acc + (m.power), 0);
       const totalACPowerW = inverters.reduce((acc, i: any) => acc + ((i.nominalPower || 0) * i.quantity * 1000), 0);
       const dcAcRatio = totalACPowerW > 0 ? totalPowerWp / totalACPowerW : 0;
 

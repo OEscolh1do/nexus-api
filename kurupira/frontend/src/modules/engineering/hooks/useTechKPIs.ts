@@ -25,7 +25,7 @@ export const useTechKPIs = () => {
     // 2. Memoized Main KPIs Calculations
     const kpi = useMemo(() => {
         // Total DC Power (kWp)
-        const totalDC = modules.reduce((acc, m) => acc + (m.quantity * m.power), 0) / 1000;
+        const totalDC = modules.reduce((acc, m) => acc + (m.power), 0) / 1000;
 
         // Total AC Power (kW) - Fixed: Using Snapshot (Source of Truth)
         const totalAC = techInverters.reduce((acc, inv) => {
@@ -33,7 +33,7 @@ export const useTechKPIs = () => {
         }, 0) / 1000;
 
         // Area Usage
-        const usedArea = modules.reduce((acc, m) => acc + (m.quantity * m.area), 0);
+        const usedArea = modules.reduce((acc, m) => acc + (m.area), 0);
         const availableArea = clientData.availableArea || 0;
         const areaUsagePercent = availableArea > 0 ? (usedArea / availableArea) * 100 : 0;
 

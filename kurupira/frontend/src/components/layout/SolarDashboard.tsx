@@ -64,8 +64,8 @@ export const SolarDashboard: FC<Props> = ({
 
   // COMPUTED: ProposalData Reativo
   const proposalData: ProposalData = useMemo(() => {
-    const systemSize = modules.reduce((acc, m) => acc + (m.power * m.quantity), 0) / 1000;
-    const panelCount = modules.reduce((acc, m) => acc + m.quantity, 0);
+    const systemSize = modules.reduce((acc, m) => acc + (m.power), 0) / 1000;
+    const panelCount = modules.length;
     const primaryModule = modules[0];
     const firstInvoice = inputData.invoices[0];
 

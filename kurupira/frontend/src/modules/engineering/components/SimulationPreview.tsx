@@ -16,7 +16,7 @@ export const SimulationPreview: React.FC = () => {
     const hasEquipment = modules.length > 0 && inverters.length > 0;
 
     // Total System Power
-    const systemPower = modules.reduce((acc, m) => acc + (m.power * m.quantity), 0) / 1000;
+    const systemPower = modules.reduce((acc, m) => acc + (m.power), 0) / 1000;
 
     // Worker Payload
     const consumption = clientData.invoices[0]?.monthlyHistory || Array(12).fill(0);

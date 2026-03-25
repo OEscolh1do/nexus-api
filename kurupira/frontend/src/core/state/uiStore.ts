@@ -49,6 +49,7 @@ interface UIState {
   selectedEntity: SelectedEntity;
   selectEntity: (type: EntityType, id: string, label?: string) => void;
   toggleMultiSelection: (id: string, labelPrefix?: string) => void;
+  setMultiSelection: (ids: string[], labelPrefix?: string) => void;
   clearSelection: () => void;
 
   /** Snapshot Snapshot Base64 para a Proposta (Passagem de contexto cross-module) */
@@ -72,6 +73,22 @@ export const useUIStore = create<UIState>((set) => ({
     if (newMulti.length === 0) return { selectedEntity: EMPTY_SELECTION };
     
     // O primary 'id' passa a ser o último adicionado, ou o primeiro restante
+    const newPrimary = newMulti[newMulti.length - 1];
+    const newLabel = newMulti.length > 1 ? `${newMulti.length} ${labelPrefix} Selecionados` : state.selectedEntity.label;
+    
+    return {
+      selectedEntity: {
+        ...state.selectedEntity,
+        id: newPrimary,
+        multiIds: newMulti,
+        label: newLabel
+      }
+    };
+  }),
+  setMultiSelection: (ids, labelPrefix = 'Módulos') => set((state) => {
+    if (state.selectedEntity.type === 'none' || ids.length === 0) return state;
+    
+    const newMulti = Array.from(new Set([...state.selectedEntity.multiIds, ...ids]));
     const newPrimary = newMulti[newMulti.length - 1];
     const newLabel = newMulti.length > 1 ? `${newMulti.length} ${labelPrefix} Selecionados` : state.selectedEntity.label;
     

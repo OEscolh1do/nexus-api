@@ -41,7 +41,7 @@ export const TechnicalForm: React.FC<Props> = ({
   const [inverters, setInverters] = useState<InverterSpecs[]>(initialInverters);
   
   const totalPowerKwp = useMemo(() => 
-    modules.reduce((acc, m) => acc + (m.power * m.quantity), 0) / 1000, 
+    modules.reduce((acc, m) => acc + (m.power), 0) / 1000, 
   [modules]);
   
   const [manualKitPrice, setManualKitPrice] = useState<number>(totalPowerKwp * settings.referenceKitPricePerKwp);
@@ -65,7 +65,7 @@ export const TechnicalForm: React.FC<Props> = ({
   
   // Validacao Voc (NBR 16274)
   const primaryInverter = inverters[0];
-  const vocTotal = useMemo(() => modules.reduce((acc, m) => acc + ((m.voc || 49.5) * m.quantity), 0), [modules]);
+  const vocTotal = useMemo(() => modules.reduce((acc, m) => acc + (m.voc || 49.5), 0), [modules]);
   const vocSafetyMargin = primaryInverter ? (primaryInverter.maxInputVoltage * 0.8) : 800;
   const isVocSafe = vocTotal <= vocSafetyMargin;
   const isOverloadCritical = overloadRatio > 1.50;
@@ -208,7 +208,7 @@ export const TechnicalForm: React.FC<Props> = ({
                 <Box size={12} className="text-orange-500" />
                 Modulos Fotovoltaicos
               </h4>
-              <span className="text-xs text-slate-400">{modules.reduce((a, m) => a + m.quantity, 0)} un</span>
+              <span className="text-xs text-slate-400">{modules.length} un</span>
             </div>
 
             <DenseFormGrid className="mb-3">

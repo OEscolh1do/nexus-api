@@ -249,7 +249,7 @@ export const recalculateProposal = (current: ProposalData, newModules: ModuleSpe
     // But user will test it.
     
     // I'll update at least the system size and panel count.
-    const panelCount = newModules.reduce((acc, m) => acc + m.quantity, 0);
+    const panelCount = newModules.length;
     const power = newModules.length > 0 ? newModules[0].power : 0;
     const systemSize = (panelCount * power) / 1000;
     
@@ -306,7 +306,7 @@ export const recalculateProposalWithServicePrice = (current: ProposalData, newSe
 };
 
 export const calculateSimpleGeneration = (modules: ModuleSpecs[], hspMonthly: number[], performanceRatio: number = 0.75): number[] => {
-    const totalPowerKwp = modules.reduce((acc, m) => acc + (m.power * m.quantity), 0) / 1000;
+    const totalPowerKwp = modules.reduce((acc, m) => acc + (m.power), 0) / 1000;
     const daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
     
     // Se não tiver HSP mensal (ex: fallback), usa média 5.0

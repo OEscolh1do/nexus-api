@@ -13,10 +13,10 @@ export const PVArrayStatusBar: React.FC<{ className?: string }> = ({ className }
 
     // Metrics Calculation
     const metrics = useMemo(() => {
-        const currentQty = modules.reduce((acc, m) => acc + m.quantity, 0);
-        const totalPowerKw = modules.reduce((acc, m) => acc + (m.power * m.quantity), 0) / 1000;
-        const totalAreaM2 = modules.reduce((acc, m) => acc + (m.area * m.quantity), 0);
-        const totalWeightKg = modules.reduce((acc, m) => acc + (m.weight * m.quantity), 0);
+        const currentQty = modules.length;
+        const totalPowerKw = modules.reduce((acc, m) => acc + (m.power), 0) / 1000;
+        const totalAreaM2 = modules.reduce((acc, m) => acc + (m.area), 0);
+        const totalWeightKg = modules.reduce((acc, m) => acc + (m.weight), 0);
 
         // Target Calculation
         const refPowerKw = modules.length > 0 ? modules[0].power / 1000 : 0.55; 

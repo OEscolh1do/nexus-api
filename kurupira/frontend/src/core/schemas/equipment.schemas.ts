@@ -16,7 +16,7 @@ export {
 
 export const ModuleSpecsSchema = z.object({
   id: z.string(),
-  quantity: z.number().int().nonnegative(),
+  quantity: z.number().int().nonnegative().optional(), // Tornando opcional para migração P6.4
   supplier: z.string().min(1),
   manufacturer: z.string().min(1),
   model: z.string().min(1),

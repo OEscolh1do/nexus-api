@@ -26,11 +26,11 @@ export const useProposalCalculator = (): ProposalCalculations & { settings: Engi
 
     const calculations = useMemo(() => {
         // 1. QUANTITIES (CORRECTED)
-        const totalModules = modules.reduce((acc, m) => acc + m.quantity, 0);
+        const totalModules = modules.length;
         const invertersArray = toArray(inverters);
         const totalInverters = invertersArray.reduce((acc, i) => acc + i.quantity, 0); // Fixed: Sum quantity, not length
         
-        const totalPowerW = modules.reduce((acc, m) => acc + (m.power * m.quantity), 0);
+        const totalPowerW = modules.reduce((acc, m) => acc + (m.power), 0);
         const totalPowerkWp = totalPowerW / 1000;
         
         // 2. COST AGGREGATION (Inputs for PricingService)

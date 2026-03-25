@@ -77,7 +77,7 @@ export const ModuleInventory: React.FC<ModuleInventoryProps> = ({ className }) =
                         Módulos Fotovoltaicos
                     </h3>
                     <span className="flex items-center justify-center h-5 px-2 rounded-full bg-slate-100 text-[10px] font-bold text-slate-600 shrink-0">
-                        {modules.reduce((a, m) => a + m.quantity, 0)}
+                        {modules.length}
                     </span>
                     {isLoading && <Loader2 className="w-3 h-3 text-blue-500 animate-spin" />}
                 </div>
@@ -130,35 +130,49 @@ export const ModuleInventory: React.FC<ModuleInventoryProps> = ({ className }) =
                     </div>
                 ) : (
                     <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 pb-2">
-                        {modules.map(m => {
-                            const isSelected = m.id === selectedModuleId;
-                            // Match project module to catalog item to get full specs for display
-                            const catalogItem = availableModules.find(cat => cat.model === m.model);
-                            if (!catalogItem) return null; // Handle missing catalog item
+                        {
+                            // Agrupa os itens individuais pelo modelo
+                            Object.values(modules.reduce((acc, m) => {
+                                if (!acc[m.model]) {
+                                    acc[m.model] = { baseItem: m, count: 0 };
+                                }
+                                acc[m.model].count += 1;
+                                return acc;
+                            }, {} as Record<string, { baseItem: any; count: number }>)).map(group => {
+                                const m = group.baseItem;
+                                const qty = group.count;
+                                const isSelected = m.id === selectedModuleId;
+                                const catalogItem = availableModules.find(cat => cat.model === m.model);
+                                if (!catalogItem) return null; // Handle missing catalog item
 
-                            return (
-                                <div 
-                                    key={m.id}
-                                    ref={el => {
-                                        if (el) itemRefs.current.set(m.id, el);
-                                        else itemRefs.current.delete(m.id);
-                                    }}
-                                >
-                                    <ModuleInventoryItem
-                                        module={catalogItem}
-                                        mode="inventory"
-                                        isSelected={isSelected}
-                                        quantity={m.quantity}
-                                        onSelect={() => setSelectedModuleId(m.id)}
-                                        onQuantityChange={(delta) => {
-                                            const newQty = Math.max(1, m.quantity + delta);
-                                            updateModuleQty(m.id, newQty);
+                                return (
+                                    <div 
+                                        key={m.id} // Usamos o ID do primeiro módulo como chave UI
+                                        ref={el => {
+                                            if (el) itemRefs.current.set(m.id, el);
+                                            else itemRefs.current.delete(m.id);
                                         }}
-                                        onRemove={() => removeModule(m.id)}
-                                    />
-                                </div>
-                            );
-                        })}
+                                    >
+                                        <ModuleInventoryItem
+                                            module={catalogItem}
+                                            mode="inventory"
+                                            isSelected={isSelected}
+                                            quantity={qty} // Nova contagem agregada
+                                            onSelect={() => setSelectedModuleId(m.id)}
+                                            onQuantityChange={(delta) => {
+                                                const newQty = Math.max(1, qty + delta);
+                                                updateModuleQty(m.id, newQty);
+                                            }}
+                                            onRemove={() => {
+                                                // Remove all instances of this model
+                                                updateModuleQty(m.id, 0);
+                                                // Wait, updateModuleQty(id, 0) was just modified to do this exactly!
+                                            }}
+                                        />
+                                    </div>
+                                );
+                            })
+                        }
                     </div>
                 )}
             </CardContent>

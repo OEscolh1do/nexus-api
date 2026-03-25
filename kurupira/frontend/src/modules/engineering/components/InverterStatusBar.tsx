@@ -25,7 +25,7 @@ export const InverterStatusBar: React.FC<{ className?: string }> = ({ className 
     const kpi = useMemo(() => {
         // ... (existing implementation)
         // Total DC (kWp)
-        const totalDC = modules.reduce((acc, m) => acc + (m.quantity * m.power), 0) / 1000;
+        const totalDC = modules.reduce((acc, m) => acc + (m.power), 0) / 1000;
 
         // Total AC (kW)
         const totalAC = inverters.reduce((acc, inv) => {
@@ -34,7 +34,7 @@ export const InverterStatusBar: React.FC<{ className?: string }> = ({ className 
         }, 0) / 1000;
 
         // Total Modules Count
-        const totalModCount = modules.reduce((acc, m) => acc + m.quantity, 0);
+        const totalModCount = modules.length;
 
         // Total Inverters Count
         const totalInvCount = inverters.reduce((acc, inv) => acc + inv.quantity, 0);

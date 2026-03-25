@@ -13,7 +13,7 @@ export const SystemHealthCheck: React.FC = () => {
     const inverters = useSolarStore(selectInverters);
 
     // Calc Logic
-    const totalModulePowerWp = modules.reduce((acc, m) => acc + (m.power * m.quantity), 0);
+    const totalModulePowerWp = modules.reduce((acc, m) => acc + (m.power), 0);
     const totalModulePowerKwp = totalModulePowerWp / 1000;
     // Status defaults (will be overwritten below)
     // Inverter power in DB is in Watts, but stored as kW in Store to match schema max(500)
@@ -97,8 +97,8 @@ export const SystemHealthCheck: React.FC = () => {
     }
 
     // Area Estimada (2m² por modulo avg se não tiver dados)
-    const areaEstimada = modules.reduce((acc, m) => acc + ((m.area || 2) * m.quantity), 0);
-    const pesoEstimado = modules.reduce((acc, m) => acc + ((m.weight || 25) * m.quantity), 0);
+    const areaEstimada = modules.reduce((acc, m) => acc + (m.area || 2), 0);
+    const pesoEstimado = modules.reduce((acc, m) => acc + (m.weight || 25), 0);
 
     return (
         <DenseCard className={`h-full flex flex-col justify-center bg-white border-l-4 ${borderColor}`}>

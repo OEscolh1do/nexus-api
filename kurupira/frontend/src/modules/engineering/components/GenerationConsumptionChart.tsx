@@ -20,7 +20,7 @@ export const GenerationConsumptionChart: React.FC<GenerationConsumptionChartProp
 
     // 2. Calculations
     const data = useMemo(() => {
-        const totalPowerKw = modules.reduce((acc, m) => acc + (m.power * m.quantity), 0) / 1000;
+        const totalPowerKw = modules.reduce((acc, m) => acc + (m.power), 0) / 1000;
         const pr = getPerformanceRatio(); // e.g. 0.75
         const averageConsumption = energyGoal.monthlyTarget || 0;
 

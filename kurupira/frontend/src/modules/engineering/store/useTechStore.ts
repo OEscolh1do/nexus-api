@@ -14,10 +14,18 @@ export interface LossProfile {
   inverterEfficiency: number; // Stored as percentage, e.g., 98.0
 }
 
+export interface LogicalString {
+    id: string;
+    name: string;
+    mpptId: string | null; // "inverterId:mpptId"
+    moduleIds: string[];
+}
+
 export interface MPPTConfig {
     mpptId: number;
-    stringsCount: number;
-    modulesPerString: number;
+    stringIds: string[]; // V4: Array de IDs das Strings atribuídas
+    stringsCount: number; // Mapeado para retro-compatibilidade temporária
+    modulesPerString: number; // Mapeado para retro-compatibilidade 
     azimuth?: number; // Advanced: MPPTs can face different directions
     inclination?: number;
 }
@@ -55,6 +63,7 @@ interface TechState {
   
   // Inverters State (PRÉ-1: normalizado)
   inverters: NormalizedCollection<InverterState>;
+  strings: NormalizedCollection<LogicalString>; // V4: Strings Lógicas
   
   // Actions
   updateLoss: (key: keyof LossProfile, value: number) => void;
@@ -68,6 +77,16 @@ interface TechState {
   updateInverterQuantity: (id: string, qty: number) => void;
 
   updateMPPTConfig: (inverterId: string, mpptId: number, config: Partial<MPPTConfig>) => void;
+  
+  // V4 String Actions
+  createString: (moduleIds: string[]) => void;
+  deleteString: (stringId: string) => void;
+  addModulesToString: (stringId: string, moduleIds: string[]) => void;
+  removeModulesFromString: (stringId: string, moduleIds: string[]) => void;
+  assignStringToMPPT: (stringId: string, inverterId: string, mpptId: number) => void;
+  unassignStringFromMPPT: (stringId: string) => void;
+  assignModulesToNewString: (moduleIds: string[], inverterId: string, mpptId: number) => void;
+  assignStringToInverterFallback: (stringId: string, inverterId: string) => void;
   
   // Selectors (Computed)
   getPerformanceRatio: () => number; // Returns decimal (0.75) using IEC 61724 (Multiplicative)
@@ -96,7 +115,8 @@ const DEFAULT_LOSSES: LossProfile = {
 const createDefaultMPPTConfig = (mppts: number): MPPTConfig[] => {
     return Array.from({ length: mppts }, (_, i) => ({
         mpptId: i + 1,
-        stringsCount: 1,
+        stringIds: [],
+        stringsCount: 0,
         modulesPerString: 0
     }));
 };
@@ -107,6 +127,7 @@ export const useTechStore = create<TechState>((set, get) => ({
   lossProfile: { ...DEFAULT_LOSSES },
   selectedModuleId: null,
   inverters: createEmptyCollection<InverterState>(),
+  strings: createEmptyCollection<LogicalString>(),
   prCalculationMode: 'additive', // Default per user request
 
   setPrCalculationMode: (mode) => set({ prCalculationMode: mode }),
@@ -251,7 +272,277 @@ export const useTechStore = create<TechState>((set, get) => ({
 
     // Return remaining percentage as decimal (e.g. 26.25% loss -> 0.7375)
     return Math.max(0, (100 - totalLossSum) / 100);
-  }
+  },
+
+  // ─── V4: String Actions ────────────────────────────────────────────────
+  createString: (moduleIds) => set((state) => {
+      const id = 'str-' + Math.random().toString(36).substring(2, 9);
+      const newStringCount = state.strings.ids.length + 1;
+      const newString: LogicalString = {
+          id,
+          name: `String ${newStringCount}`,
+          mpptId: null,
+          moduleIds
+      };
+      
+      return {
+          strings: {
+              ids: [...state.strings.ids, id],
+              entities: { ...state.strings.entities, [id]: newString }
+          }
+      };
+  }),
+
+  deleteString: (stringId) => set((state) => {
+      const stringEntity = state.strings.entities[stringId];
+      if (!stringEntity) return state;
+
+      // Se estivesse usando get() precisaria puxar de fora, 
+      // mas como o unassign faria um segundo set(), faremos a lógica aqui inline para manter atômico:
+      let invertersUpdate = state.inverters;
+      
+      if (stringEntity.mpptId) {
+          const [inverterId, mpptIdStr] = stringEntity.mpptId.split(':');
+          const mpptId = parseInt(mpptIdStr);
+          const inv = state.inverters.entities[inverterId];
+          
+          if (inv) {
+              const newMpptConfigs = inv.mpptConfigs.map(m => {
+                  if (m.mpptId === mpptId) {
+                      const newStringIds = m.stringIds.filter(id => id !== stringId);
+                      return { 
+                          ...m, 
+                          stringIds: newStringIds,
+                          stringsCount: newStringIds.length
+                      };
+                  }
+                  return m;
+              });
+
+              invertersUpdate = {
+                  ...state.inverters,
+                  entities: {
+                      ...state.inverters.entities,
+                      [inverterId]: { ...inv, mpptConfigs: newMpptConfigs }
+                  }
+              };
+          }
+      }
+
+      const newEntities = { ...state.strings.entities };
+      delete newEntities[stringId];
+
+      return {
+          strings: {
+              ids: state.strings.ids.filter(id => id !== stringId),
+              entities: newEntities
+          },
+          inverters: invertersUpdate
+      };
+  }),
+
+  addModulesToString: (stringId, moduleIds) => set((state) => {
+      const str = state.strings.entities[stringId];
+      if (!str) return state;
+      return {
+          strings: {
+              ...state.strings,
+              entities: {
+                  ...state.strings.entities,
+                  [stringId]: {
+                      ...str,
+                      moduleIds: Array.from(new Set([...str.moduleIds, ...moduleIds]))
+                  }
+              }
+          }
+      };
+  }),
+
+  removeModulesFromString: (stringId, moduleIdsToRemove) => set((state) => {
+      const str = state.strings.entities[stringId];
+      if (!str) return state;
+
+      const newModuleIds = str.moduleIds.filter(id => !moduleIdsToRemove.includes(id));
+
+      return {
+          strings: {
+              ...state.strings,
+              entities: {
+                  ...state.strings.entities,
+                  [stringId]: {
+                      ...str,
+                      moduleIds: newModuleIds
+                  }
+              }
+          }
+      };
+  }),
+
+  assignStringToMPPT: (stringId, inverterId, mpptId) => set((state) => {
+      const str = state.strings.entities[stringId];
+      const inv = state.inverters.entities[inverterId];
+      if (!str || !inv) return state;
+
+      const mpptRef = `${inverterId}:${mpptId}`;
+
+      const newMpptConfigs = inv.mpptConfigs.map(m => {
+          if (m.mpptId === mpptId) {
+              const newStringIds = Array.from(new Set([...m.stringIds, stringId]));
+              return { 
+                  ...m, 
+                  stringIds: newStringIds,
+                  stringsCount: newStringIds.length
+              };
+          }
+          return m;
+      });
+
+      return {
+          strings: {
+              ...state.strings,
+              entities: {
+                  ...state.strings.entities,
+                  [stringId]: { ...str, mpptId: mpptRef }
+              }
+          },
+          inverters: {
+              ...state.inverters,
+              entities: {
+                  ...state.inverters.entities,
+                  [inverterId]: { ...inv, mpptConfigs: newMpptConfigs }
+              }
+          }
+      };
+  }),
+
+  unassignStringFromMPPT: (stringId) => set((state) => {
+      const str = state.strings.entities[stringId];
+      if (!str || !str.mpptId) return state;
+
+      const [inverterId, mpptIdStr] = str.mpptId.split(':');
+      const mpptId = parseInt(mpptIdStr);
+      const inv = state.inverters.entities[inverterId];
+
+      let invertersUpdate = state.inverters;
+
+      if (inv) {
+          const newMpptConfigs = inv.mpptConfigs.map(m => {
+              if (m.mpptId === mpptId) {
+                  const newStringIds = m.stringIds.filter(id => id !== stringId);
+                  return { 
+                      ...m, 
+                      stringIds: newStringIds,
+                      stringsCount: newStringIds.length
+                  };
+              }
+              return m;
+          });
+
+          invertersUpdate = {
+              ...state.inverters,
+              entities: {
+                  ...state.inverters.entities,
+                  [inverterId]: { ...inv, mpptConfigs: newMpptConfigs }
+              }
+          };
+      }
+
+      return {
+          strings: {
+              ...state.strings,
+              entities: {
+                  ...state.strings.entities,
+                  [stringId]: { ...str, mpptId: null }
+              }
+          },
+          inverters: invertersUpdate
+      };
+  }),
+
+  assignModulesToNewString: (moduleIds, inverterId, mpptId) => set((state) => {
+      const inv = state.inverters.entities[inverterId];
+      if (!inv) return state;
+
+      const newStringId = 'str-' + Math.random().toString(36).substring(2, 9);
+      const mpptRef = `${inverterId}:${mpptId}`;
+
+      const newString: LogicalString = {
+          id: newStringId,
+          name: `String ${state.strings.ids.length + 1}`,
+          mpptId: mpptRef,
+          moduleIds
+      };
+
+      const newMpptConfigs = inv.mpptConfigs.map(m => {
+          if (m.mpptId === mpptId) {
+              const newStringIds = Array.from(new Set([...m.stringIds, newStringId]));
+              return { 
+                  ...m, 
+                  stringIds: newStringIds,
+                  stringsCount: newStringIds.length
+              };
+          }
+          return m;
+      });
+
+      return {
+          strings: {
+              ids: [...state.strings.ids, newStringId],
+              entities: {
+                  ...state.strings.entities,
+                  [newStringId]: newString
+              }
+          },
+          inverters: {
+              ...state.inverters,
+              entities: {
+                  ...state.inverters.entities,
+                  [inverterId]: { ...inv, mpptConfigs: newMpptConfigs }
+              }
+          }
+      };
+  }),
+
+  assignStringToInverterFallback: (stringId, inverterId) => set((state) => {
+      const str = state.strings.entities[stringId];
+      const inv = state.inverters.entities[inverterId];
+      if (!str || !inv || inv.mpptConfigs.length === 0) return state;
+
+      // Se a string já tinha um MPPT em OUTRO ou no MESMO inversor, teríamos que limpar primeiro.
+      // Assumiremos que esta action é chamada prioritariamente para "Strings Desconectadas"
+      
+      const targetMppt = inv.mpptConfigs[0].mpptId;
+      const mpptRef = `${inverterId}:${targetMppt}`;
+
+      const newMpptConfigs = inv.mpptConfigs.map(m => {
+          if (m.mpptId === targetMppt) {
+              const newStringIds = Array.from(new Set([...m.stringIds, stringId]));
+              return { 
+                  ...m, 
+                  stringIds: newStringIds,
+                  stringsCount: newStringIds.length
+              };
+          }
+          return m;
+      });
+
+      return {
+          strings: {
+              ...state.strings,
+              entities: {
+                  ...state.strings.entities,
+                  [stringId]: { ...str, mpptId: mpptRef }
+              }
+          },
+          inverters: {
+              ...state.inverters,
+              entities: {
+                  ...state.inverters.entities,
+                  [inverterId]: { ...inv, mpptConfigs: newMpptConfigs }
+              }
+          }
+      };
+  }),
+
+  // -- Computeds --
 }));
-
-

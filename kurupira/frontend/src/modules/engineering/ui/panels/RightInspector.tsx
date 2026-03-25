@@ -267,7 +267,7 @@ const SimulationMetricsSection: React.FC = () => {
   const { kpi } = useTechKPIs();
 
   const data = useMemo(() => {
-    const totalPowerKw = modules.reduce((acc, m) => acc + (m.power * m.quantity), 0) / 1000;
+    const totalPowerKw = modules.reduce((acc, m) => acc + (m.power), 0) / 1000;
     const pr = getPerformanceRatio();
 
     // Tries to get historical consumption or user-defined average
@@ -340,7 +340,7 @@ const SimulationMetricsSection: React.FC = () => {
          )}
          
          <div className={`flex-1 min-h-0 w-full -ml-3 ${!hasEquipment ? 'opacity-20' : ''}`}>
-             <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
+             <ResponsiveContainer width="100%" height="100%" minHeight={1} minWidth={1}>
                  <BarChart data={data.chartData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }} barGap={0}>
                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 7, fill: '#64748b' }} interval="preserveStartEnd" />
                      <Tooltip 

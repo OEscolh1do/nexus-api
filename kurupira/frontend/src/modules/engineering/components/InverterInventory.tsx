@@ -50,7 +50,7 @@ export const InverterInventory: React.FC<InverterInventoryProps> = ({ className 
                         Inversores do Projeto
                     </h3>
                     <span className="flex items-center justify-center h-5 px-2 rounded-full bg-slate-100 text-[10px] font-bold text-slate-600 shrink-0">
-                        {selectedInverters.reduce((a, m) => a + m.quantity, 0)}
+                        {selectedInverters.length}
                     </span>
                     {isLoading && <Loader2 className="w-3 h-3 text-blue-500 animate-spin" />}
                 </div>

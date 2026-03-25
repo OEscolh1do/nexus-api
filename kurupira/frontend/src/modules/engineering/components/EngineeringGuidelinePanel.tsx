@@ -17,12 +17,12 @@ export const EngineeringGuidelinePanel: React.FC<EngineeringGuidelinePanelProps>
     // 2. Metrics Calculation
     const metrics = useMemo(() => {
         // A. Current Totals
-        const currentQty = modules.reduce((acc, m) => acc + m.quantity, 0);
-        const totalPowerKw = modules.reduce((acc, m) => acc + (m.power * m.quantity), 0) / 1000;
-        const totalAreaM2 = modules.reduce((acc, m) => acc + (m.area * m.quantity), 0);
+        const currentQty = modules.length;
+        const totalPowerKw = modules.reduce((acc, m) => acc + (m.power), 0) / 1000;
+        const totalAreaM2 = modules.reduce((acc, m) => acc + (m.area), 0);
 
         // Weight calculation (fallback to 22kg if 0 or undefined, though schema enforces positive number)
-        const totalWeightKg = modules.reduce((acc, m) => acc + (m.weight * m.quantity), 0);
+        const totalWeightKg = modules.reduce((acc, m) => acc + (m.weight), 0);
 
         // B. Target / Min Modules
         // Formula: Consumption / (HSP_Avg * 30 * ModulePower_kW * PR_0.75)

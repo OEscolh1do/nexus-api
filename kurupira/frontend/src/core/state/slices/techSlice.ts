@@ -154,12 +154,25 @@ export const createTechSlice: StateCreator<
 
   // ─── Módulos (O(1) normalized) ──────────────────────────
 
-  addModule: (module) => set((state) => ({
-    modules: {
-      ids: [...state.modules.ids, module.id],
-      entities: { ...state.modules.entities, [module.id]: module },
-    },
-  })),
+  addModule: (module) => set((state) => {
+    const qty = module.quantity || 1;
+    const newItems: Record<string, ModuleSpecs> = {};
+    const newIds: string[] = [];
+    
+    for (let i = 0; i < qty; i++) {
+        // Gera um ID único para *cada* instância física do módulo
+        const instanceId = Math.random().toString(36).substring(2, 9);
+        newIds.push(instanceId);
+        newItems[instanceId] = { ...module, id: instanceId, quantity: undefined };
+    }
+
+    return {
+      modules: {
+        ids: [...state.modules.ids, ...newIds],
+        entities: { ...state.modules.entities, ...newItems },
+      },
+    };
+  }),
 
   removeModule: (id) => set((state) => {
     const { [id]: _, ...remaining } = state.modules.entities;
@@ -171,15 +184,45 @@ export const createTechSlice: StateCreator<
     };
   }),
 
-  updateModuleQty: (id, qty) => set((state) => ({
-    modules: {
-      ...state.modules,
-      entities: {
-        ...state.modules.entities,
-        [id]: { ...state.modules.entities[id], quantity: qty },
-      },
-    },
-  })),
+  updateModuleQty: (id, targetQty) => set((state) => {
+      // Como o ID recebido agora pertence a UMA instância, precisamos achar o modelo base
+      const baseInstance = state.modules.entities[id];
+      if (!baseInstance) return state;
+
+      const modelName = baseInstance.model;
+      const allInstancesOfModel = state.modules.ids.filter(
+          i => state.modules.entities[i]?.model === modelName
+      );
+      const currentQty = allInstancesOfModel.length;
+
+      if (targetQty === currentQty) return state;
+
+      const newEntities = { ...state.modules.entities };
+      let newIds = [...state.modules.ids];
+
+      if (targetQty > currentQty) {
+          // Add clones
+          const diff = targetQty - currentQty;
+          for (let i = 0; i < diff; i++) {
+              const newId = Math.random().toString(36).substring(2, 9);
+              newIds.push(newId);
+              newEntities[newId] = { ...baseInstance, id: newId };
+          }
+      } else {
+          // Remove (LIFO) - but only those NOT assigned to a string yet?
+          // For now, simple LIFO on the instances array. The String state might be orphaned,
+          // which should be handled via an event or the tree simply drops invalid ones.
+          const diff = currentQty - targetQty;
+          const idsToRemove = allInstancesOfModel.slice(-diff);
+          
+          newIds = newIds.filter(i => !idsToRemove.includes(i));
+          idsToRemove.forEach(i => delete newEntities[i]);
+      }
+
+      return {
+          modules: { ids: newIds, entities: newEntities }
+      };
+  }),
 
   updateModulePrice: (id, price) => set((state) => ({
     modules: {

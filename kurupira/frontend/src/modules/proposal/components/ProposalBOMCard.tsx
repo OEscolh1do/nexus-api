@@ -26,14 +26,21 @@ export const ProposalBOMCard: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                        {/* Módulos */}
-                        {modules.map((m, idx) => (
-                            <tr key={`mod-${idx}`} className="group hover:bg-slate-50 transition-colors">
-                                <td className="py-3 text-sm font-medium text-slate-700">Módulo Fotovoltaico {m.power}W</td>
-                                <td className="py-3 text-sm text-slate-500">{m.manufacturer} {m.model}</td>
-                                <td className="py-3 text-sm font-bold text-slate-700 text-center">{m.quantity}</td>
-                            </tr>
-                        ))}
+                        {/* Módulos (Agrupados por Modelo) */}
+                        {Object.values(modules.reduce((acc, m) => {
+                            if (!acc[m.model]) acc[m.model] = { base: m, count: 0 };
+                            acc[m.model].count += 1;
+                            return acc;
+                        }, {} as Record<string, { base: any; count: number }>)).map((group, idx) => {
+                            const m = group.base;
+                            return (
+                                <tr key={`mod-${idx}`} className="group hover:bg-slate-50 transition-colors">
+                                    <td className="py-3 text-sm font-medium text-slate-700">Módulo Fotovoltaico {m.power}W</td>
+                                    <td className="py-3 text-sm text-slate-500">{m.manufacturer} {m.model}</td>
+                                    <td className="py-3 text-sm font-bold text-slate-700 text-center">{group.count}</td>
+                                </tr>
+                            );
+                        })}
                         
                         {/* Inversores */}
                         {inverters.map((inv, idx) => (
