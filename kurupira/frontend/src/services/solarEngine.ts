@@ -1,4 +1,4 @@
-import { SolarCalculator } from "../core/domain/SolarCalculator";
+
 import { InMemoryEquipmentRepo } from "./adapters/InMemoryEquipmentRepo";
 import { CresesbIrradiationProvider } from "./adapters/CresesbIrradiationProvider";
 import { InputData, EngineeringSettings, ProposalData, SolarOutput, ModuleSpecs, InverterSpecs, InstallmentOption, ServiceItem } from "../core/types";
@@ -7,10 +7,47 @@ import pino from "pino";
 
 const logger = pino();
 
-// Instantiate dependencies
+// Instantiate dependencies (kept for legacy synchronous overrides fallback)
 export const equipmentRepo = new InMemoryEquipmentRepo();
 export const irradiationProvider = new CresesbIrradiationProvider();
-const calculator = new SolarCalculator(irradiationProvider, equipmentRepo);
+
+// P6-3: Web Worker Singleton for off-main-thread calculation
+let solarWorker: Worker | null = null;
+let currentCalculationId = 0;
+
+function getWorker(): Worker {
+  if (!solarWorker) {
+    solarWorker = new Worker(new URL('../core/workers/solar.worker.ts', import.meta.url), { type: 'module' });
+  }
+  return solarWorker;
+}
+
+function calculateViaWorker(data: InputData, settings: EngineeringSettings): Promise<SolarOutput> {
+  return new Promise((resolve, reject) => {
+    const worker = getWorker();
+    const id = `calc_${++currentCalculationId}`;
+    
+    const handler = (e: MessageEvent) => {
+      const response = e.data;
+      if (response.id === id) {
+        worker.removeEventListener('message', handler);
+        if (response.status === 'success') {
+          resolve(response.result);
+        } else {
+          reject(new Error(response.error));
+        }
+      }
+    };
+    
+    worker.addEventListener('message', handler);
+    
+    worker.postMessage({
+      id,
+      type: 'CALCULATE_PROPOSAL',
+      payload: { data, settings }
+    });
+  });
+}
 
 export async function calculateProposal(
   data: InputData,
@@ -20,10 +57,10 @@ export async function calculateProposal(
   const validatedInput = InputDataSchema.parse(data);
   const validatedSettings = EngineeringSettingsSchema.parse(settings);
 
-  logger.info({ event: 'proposal.calculation.start' });
+  logger.info({ event: 'proposal.calculation.start_worker' });
 
-  // Execute Calculation
-  const result: SolarOutput = await calculator.calculate(validatedInput, validatedSettings);
+  // Execute Calculation off-main-thread (P6-3)
+  const result: SolarOutput = await calculateViaWorker(validatedInput, validatedSettings);
 
   // Adapt to ProposalData
   const proposal: ProposalData = {

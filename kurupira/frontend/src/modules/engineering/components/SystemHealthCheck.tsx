@@ -3,6 +3,10 @@ import React from 'react';
 import { AlertTriangle, Activity } from 'lucide-react';
 import { DenseCard, DenseStat } from '@/components/ui/dense-form';
 import { useSolarStore, selectModules, selectInverters } from '@/core/state/solarStore';
+import { useTechStore } from '@/modules/engineering/store/useTechStore';
+import { toArray } from '@/core/types/normalized.types';
+import { INVERTER_CATALOG } from '@/modules/engineering/constants/inverters';
+import { validateSystemStrings, type MPPTInput } from '@/modules/engineering/utils/electricalMath';
 
 export const SystemHealthCheck: React.FC = () => {
     const modules = useSolarStore(selectModules);
@@ -11,72 +15,72 @@ export const SystemHealthCheck: React.FC = () => {
     // Calc Logic
     const totalModulePowerWp = modules.reduce((acc, m) => acc + (m.power * m.quantity), 0);
     const totalModulePowerKwp = totalModulePowerWp / 1000;
-    
+    // Status defaults (will be overwritten below)
     // Inverter power in DB is in Watts, but stored as kW in Store to match schema max(500)
     const totalInverterPowerKw = inverters.reduce((acc, i) => acc + (i.nominalPower * i.quantity), 0);
     
     const overloadRatio = totalInverterPowerKw > 0 ? (totalModulePowerKwp / totalInverterPowerKw) : 0;
     
     // Status Logic
-    const isOptimalOverload = overloadRatio >= 0.75 && overloadRatio <= 1.35; // Regra de Ouro (75% a 135%)
+    const isOptimalOverload = overloadRatio >= 0.75 && overloadRatio <= 1.35;
     const isHighOverload = overloadRatio > 1.35;
     const isLowOverload = overloadRatio < 0.75 && totalInverterPowerKw > 0;
+    
+    const settings = useSolarStore(state => state.settings);
+    const { inverters: techInvertersNorm } = useTechStore();
+    const techInverters = toArray(techInvertersNorm);
 
+    // ── P6-2: System-level electrical validation via pure engine ──
+    const systemReport = React.useMemo(() => {
+        if (modules.length === 0 || techInverters.length === 0) return null;
+
+        const m = modules[0]; // Representative module
+        const moduleSpecs = {
+            voc: m.voc,
+            vmp: m.vmp ?? m.voc * 0.82,
+            isc: m.isc ?? 0,
+            tempCoeffVoc: m.tempCoeff || -0.29,
+        };
+
+        const mpptInputs: MPPTInput[] = techInverters.flatMap(inv => {
+            const spec = INVERTER_CATALOG.find((c: any) => c.id === inv.catalogId);
+            if (!spec) return [];
+            return inv.mpptConfigs
+                .filter(cfg => cfg.modulesPerString > 0 && cfg.stringsCount > 0)
+                .map(cfg => {
+                    const specMppt = spec.mppts?.find((mp: any) => mp.mpptId === cfg.mpptId) || spec.mppts?.[0];
+                    return {
+                        inverterId: inv.id,
+                        mpptId: cfg.mpptId,
+                        modulesPerString: cfg.modulesPerString,
+                        stringsCount: cfg.stringsCount,
+                        maxInputVoltage: specMppt?.maxInputVoltage ?? 800,
+                        minMpptVoltage: specMppt?.minMpptVoltage ?? 100,
+                        maxMpptVoltage: specMppt?.maxMpptVoltage ?? 600,
+                        maxCurrentPerMPPT: specMppt?.maxCurrentPerMPPT ?? 30,
+                    } satisfies MPPTInput;
+                });
+        });
+
+        if (mpptInputs.length === 0) return null;
+        return validateSystemStrings(mpptInputs, moduleSpecs, settings?.minHistoricalTemp ?? 10);
+    }, [modules, techInverters, settings]);
+
+    // ── Status Logic (P6-2 integrated) ──
     let overloadStatus: 'success' | 'warning' | 'danger' | 'default' = 'default';
     let overloadMsg = "Aguardando dimensionamento...";
     let borderColor = 'border-l-slate-300';
-    
-    const settings = useSolarStore(state => state.settings); // Need settings for minHistoricalTemp
-    
-    // Safety Logic: Maximum Voc Check at Low Temp (Inverno)
-    // Formula: Voc_max = Voc_stc * (1 + (tempCoeff/100) * (minHistoricalTemp - 25))
-    let isVocUnsafe = false;
 
-    // Assuming user has picked modules. We check the worst case (series connection).
-    // Note: We don't know strings configuration perfectly here yet, but we can estimate or alert 
-    // based on 'If all modules were in 1 string' or 'Avg string size'. 
-    
-    // Let's refine: The prompt implies I should implement the formula.
-    // I will calculate Per-Module Max Voc first.
-    const module = modules[0]; // Take representative module
-    const inverter = inverters[0]; // Take representative inverter
-
-    let maxVocGenerated = 0;
-
-    if (module && inverter && settings) {
-        const tempCoeff = module.tempCoeff; // %/C, e.g. -0.30
-        const minTemp = settings.minHistoricalTemp; // e.g. -5
-        const vocStc = module.voc;
-
-        // Calculate Max Voc per module at min temp
-        const deltaT = minTemp - 25;
-        const correctionFactor = 1 + (tempCoeff / 100) * deltaT;
-        const vocMaxPerModule = vocStc * correctionFactor;
-
-        // Estimate Series Size (Naive: All modules / Inverters / 2 MPPTs approx? Or just 1 string?)
-        // To be safe and socratic as requested: "If we don't know the string size, we can't validate."
-        // BUT I must follow "Action Plan P0". 
-        // I will assume for this check that we are checking if the *Selected Inverter* supports *Typical String Voltage*.
-        // OR better: I will add a Warning if I can't calculate, but if I can (e.g. if we assume 1 string for small systems), do it.
-        // Let's look at `modules` state. It has `.quantity`.
-        // Let's assume the user puts all modules in series for a single inverter if only 1 inverter exists.
-        
-        const estStrings = Math.max(1, inverter.quantity); // simple assumption
-        const modulesPerString = Math.ceil(modules.reduce((acc, m) => acc + m.quantity, 0) / estStrings);
-
-        maxVocGenerated = vocMaxPerModule * modulesPerString;
-
-        if (maxVocGenerated > (inverter.maxInputVoltage || 1000)) { // Default 1000V if missing
-            isVocUnsafe = true;
-        }
-    }
-    
-    // Status Logic Updates with Voc Check
     if (totalInverterPowerKw > 0) {
-        if (isVocUnsafe) {
-            overloadStatus = 'danger'; // Critical overrides everything
-            overloadMsg = `PERIGO: Tensão Máxima (${maxVocGenerated.toFixed(0)}V) excede limite do Inversor!`;
+        // Priority: Electrical violations > Overload checks
+        if (systemReport && !systemReport.isValid) {
+            overloadStatus = 'danger';
+            overloadMsg = `${systemReport.summary.errors} violação(ões) elétrica(s) detectada(s)!`;
             borderColor = 'border-l-red-600';
+        } else if (systemReport && systemReport.globalStatus === 'warning') {
+            overloadStatus = 'warning';
+            overloadMsg = `${systemReport.summary.warnings} alerta(s) elétrico(s)`;
+            borderColor = 'border-l-yellow-500';
         } else if (isOptimalOverload) {
             overloadStatus = 'success';
             overloadMsg = "Dimensionamento Otimizado";
@@ -147,7 +151,31 @@ export const SystemHealthCheck: React.FC = () => {
                  />
             </div>
             
-            {(isHighOverload || isLowOverload) && (
+            {/* P6-2: Electrical Violation Details */}
+            {systemReport && systemReport.entries.filter(e => e.status !== 'ok').length > 0 && (
+                <div className="mt-3 flex flex-col gap-1 bg-red-50/50 p-2 rounded border border-red-100">
+                    <div className="flex items-center gap-1 mb-0.5">
+                        <AlertTriangle size={10} className="text-red-500 shrink-0" />
+                        <span className="text-[9px] font-bold text-red-600 uppercase tracking-wider">Violações Elétricas</span>
+                    </div>
+                    {systemReport.entries
+                        .filter(e => e.status !== 'ok')
+                        .map(entry => (
+                            <div key={`${entry.inverterId}-${entry.mpptId}`} className="flex flex-col gap-0.5">
+                                {entry.messages.map((msg, i) => (
+                                    <span key={i} className={`text-[9px] font-medium flex items-center gap-1 ${
+                                        entry.status === 'error' ? 'text-red-600' : 'text-amber-600'
+                                    }`}>
+                                        MPPT {entry.mpptId}: {msg}
+                                    </span>
+                                ))}
+                            </div>
+                        ))}
+                </div>
+            )}
+
+            {/* Overload warnings (only if no electrical violations) */}
+            {(!systemReport || systemReport.isValid) && (isHighOverload || isLowOverload) && (
                 <div className="mt-3 flex gap-2 items-start bg-yellow-50 p-2 rounded border border-yellow-100">
                     <AlertTriangle size={14} className="text-yellow-600 shrink-0 mt-0.5" />
                     <p className="text-[10px] text-yellow-700 leading-tight">

@@ -98,3 +98,25 @@ export const ORIENTATION_TO_AZIMUTH: Record<OrientationValue, number> = {
   Oeste: 270,
   Noroeste: 315,
 };
+
+/**
+ * P6-1: Schema estrutural para configuração de Strings (MPPTs)
+ * Valida limites lógicos/estruturais base independentemente do equipamento (Inversor). 
+ * Restrições térmicas/elétricas finas ocorrem em runtime via electricalMath.ts.
+ */
+export const StringConfigSchema = z.object({
+  mpptId: z.number().int().positive("MPPT ID deve ser positivo"),
+  stringsCount: z.number().int().nonnegative("Número de strings não pode ser negativo"),
+  modulesPerString: z.number().int().nonnegative("Módulos por string não pode ser negativo"),
+  azimuth: z.number().min(0, "Azimute >= 0").max(360, "Azimute <= 360").optional(),
+  inclination: z.number().min(0, "Inclinação >= 0").max(90, "Inclinação <= 90").optional(),
+}).refine(data => {
+  // Structural constraints validation (prevent runaway inputs)
+  return data.modulesPerString <= 100 && data.stringsCount <= 20;
+}, {
+  message: "Limitação estrutural excedida: Máx 100 módulos por série, 20 strings em paralelo.",
+  path: ["modulesPerString"]
+});
+
+export type StringConfigInput = z.infer<typeof StringConfigSchema>;
+

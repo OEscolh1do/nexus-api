@@ -15,10 +15,10 @@
  * =============================================================================
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   ChevronRight, ChevronDown, Cpu, Cable, Sun,
-  Layers, Search, Plus, Trash2, Package, type LucideIcon
+  Layers, Search, Plus, Trash2, Package, MapPin, Link2, type LucideIcon
 } from 'lucide-react';
 import { useSolarStore, selectModules, selectInverters } from '@/core/state/solarStore';
 import { useUIStore, useSelectedEntity } from '@/core/state/uiStore';
@@ -27,6 +27,7 @@ import { toArray } from '@/core/types/normalized.types';
 import { ModuleCatalogDialog } from '../../components/ModuleCatalogDialog';
 import { InverterCatalogDialog } from '../../components/InverterCatalogDialog';
 import { mapCatalogToSpecs } from '../../utils/catalogMappers';
+import { useStringAssignment } from '../../hooks/useStringAssignment';
 import type { ModuleCatalogItem } from '@/core/schemas/moduleSchema';
 
 // =============================================================================
@@ -36,11 +37,13 @@ import type { ModuleCatalogItem } from '@/core/schemas/moduleSchema';
 interface TreeNode {
   id: string;
   label: string;
-  type: 'module' | 'inverter' | 'string';
+  type: 'module' | 'inverter' | 'string' | 'placed-module' | 'area';
   icon: LucideIcon;
   badge?: string;
+  badgeColor?: string;
   children?: TreeNode[];
   deletable?: boolean;
+  checkable?: boolean;
 }
 
 // =============================================================================
@@ -59,16 +62,22 @@ export const LeftOutliner: React.FC = () => {
   // ── Store data ──
   const modules = useSolarStore(selectModules);
   const inverters = useSolarStore(selectInverters);
+  const placedModules = useSolarStore(state => state.project.placedModules);
+  const installationAreas = useSolarStore(state => state.project.installationAreas);
   const removeModule = useSolarStore(state => state.removeModule);
   const removeInverter = useSolarStore(state => state.removeInverter);
   const { inverters: techInvertersNorm, removeInverter: removeTechInverter } = useTechStore();
   const techInverters = toArray(techInvertersNorm);
+  const { assign, availableMPPTs } = useStringAssignment();
 
   // ── Local state ──
   const [searchFilter, setSearchFilter] = useState('');
   // Catalog Dialog States (transient)
   const [moduleDialogOpen, setModuleDialogOpen] = useState(false);
   const [inverterDialogOpen, setInverterDialogOpen] = useState(false);
+  // P6-1: Multi-select for stringing
+  const [selectedPlacedIds, setSelectedPlacedIds] = useState<Set<string>>(new Set());
+  const [assignPopoverOpen, setAssignPopoverOpen] = useState(false);
 
   // ── Handle add module (from ModuleCatalogDialog) ──
   const addModule = useSolarStore(state => state.addModule);
@@ -129,12 +138,19 @@ export const LeftOutliner: React.FC = () => {
     // Try to find matching tech inverter for MPPT data
     const techInv = techInverters.find(ti => ti.catalogId === inv.id || ti.id === inv.id);
     const mpptChildren: TreeNode[] = techInv
-      ? techInv.mpptConfigs.map(mppt => ({
-          id: `${inv.id}-mppt-${mppt.mpptId}`,
-          label: `MPPT ${mppt.mpptId} — ${mppt.modulesPerString} mod × ${mppt.stringsCount} str`,
-          type: 'string' as const,
-          icon: Cable,
-        }))
+      ? techInv.mpptConfigs.map(mppt => {
+          const assignedCount = placedModules.filter(
+            pm => pm.stringData?.inverterId === techInv.id && pm.stringData?.mpptId === mppt.mpptId
+          ).length;
+          return {
+            id: `${inv.id}-mppt-${mppt.mpptId}`,
+            label: `MPPT ${mppt.mpptId} — ${mppt.modulesPerString}×${mppt.stringsCount}`,
+            type: 'string' as const,
+            icon: Cable,
+            badge: assignedCount > 0 ? `${assignedCount} mod` : undefined,
+            badgeColor: assignedCount > 0 ? 'text-cyan-400 bg-cyan-500/10' : undefined,
+          };
+        })
       : [];
 
     return {
@@ -147,6 +163,52 @@ export const LeftOutliner: React.FC = () => {
       children: mpptChildren.length > 0 ? mpptChildren : undefined,
     };
   });
+
+  // ── P6-1: Build Placed Module nodes (grouped by Area) ──
+  const MPPT_COLORS = ['text-cyan-400', 'text-amber-400', 'text-violet-400', 'text-rose-400', 'text-lime-400'];
+  const areaNodes: TreeNode[] = useMemo(() => {
+    return installationAreas.map(area => {
+      const areaModules = placedModules.filter(pm => pm.areaId === area.id);
+      const children: TreeNode[] = areaModules.map(pm => {
+        const mpptLabel = pm.stringData?.inverterId
+          ? `MPPT ${pm.stringData.mpptId}`
+          : 'Sem string';
+        const colorIdx = pm.stringData?.mpptId ? (pm.stringData.mpptId - 1) % MPPT_COLORS.length : -1;
+        return {
+          id: pm.id,
+          label: `Mod ${pm.id.slice(-4).toUpperCase()}`,
+          type: 'placed-module' as const,
+          icon: Sun,
+          badge: mpptLabel,
+          badgeColor: colorIdx >= 0 ? `${MPPT_COLORS[colorIdx]} bg-slate-800` : 'text-slate-600 bg-slate-800/50',
+          checkable: true,
+        };
+      });
+      return {
+        id: `area-${area.id}`,
+        label: `Área ${area.surfaceType} (${areaModules.length})`,
+        type: 'area' as const,
+        icon: MapPin,
+        children: children.length > 0 ? children : undefined,
+      };
+    });
+  }, [installationAreas, placedModules]);
+
+  // ── P6-1: Toggle selection ──
+  const togglePlacedSelect = useCallback((id: string) => {
+    setSelectedPlacedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleAssignToMPPT = useCallback((inverterId: string, mpptId: number) => {
+    if (selectedPlacedIds.size === 0) return;
+    assign(Array.from(selectedPlacedIds), inverterId, mpptId);
+    setSelectedPlacedIds(new Set());
+    setAssignPopoverOpen(false);
+  }, [selectedPlacedIds, assign]);
 
   // ── Stats ──
   const totalModules = modules.reduce((a, m) => a + (m.quantity || 0), 0);
@@ -201,6 +263,85 @@ export const LeftOutliner: React.FC = () => {
               onDelete={handleDelete}
             />
           ))
+        )}
+
+        {/* ── Section: Módulos Colocados (P6-1) ── */}
+        {areaNodes.length > 0 && (
+          <>
+            <SectionHeader
+              label="Módulos Colocados"
+              icon={MapPin}
+              count={placedModules.length}
+              onAdd={() => {}}
+            />
+
+            {/* P6-1: MPPT Assignment Bar */}
+            {selectedPlacedIds.size > 0 && (
+              <div className="mx-2 mb-1 p-1.5 rounded bg-emerald-500/10 border border-emerald-500/20">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[9px] text-emerald-400 font-bold">
+                    {selectedPlacedIds.size} selecionados
+                  </span>
+                  <button
+                    onClick={() => setSelectedPlacedIds(new Set())}
+                    className="text-[8px] text-slate-500 hover:text-slate-300"
+                  >
+                    Limpar
+                  </button>
+                </div>
+                <div className="relative">
+                  <button
+                    onClick={() => setAssignPopoverOpen(!assignPopoverOpen)}
+                    className="w-full flex items-center justify-center gap-1 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-[9px] font-bold text-emerald-400 transition-colors"
+                  >
+                    <Link2 size={10} />
+                    Atribuir a MPPT
+                  </button>
+                  {assignPopoverOpen && availableMPPTs.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-slate-900 border border-slate-700 rounded shadow-xl max-h-40 overflow-y-auto">
+                      {availableMPPTs.map(mppt => (
+                        <button
+                          key={`${mppt.inverterId}-${mppt.mpptId}`}
+                          onClick={() => handleAssignToMPPT(mppt.inverterId, mppt.mpptId)}
+                          disabled={mppt.isFull}
+                          className={`w-full text-left px-2 py-1.5 text-[9px] flex items-center justify-between transition-colors ${
+                            mppt.isFull
+                              ? 'text-slate-700 cursor-not-allowed'
+                              : 'text-slate-300 hover:bg-emerald-500/10 hover:text-emerald-400'
+                          }`}
+                        >
+                          <span>{mppt.inverterModel} — MPPT {mppt.mpptId}</span>
+                          <span className="text-[8px] text-slate-600">
+                            {mppt.assignedCount}/{mppt.logicalCapacity}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {areaNodes.map(node => (
+              <TreeNodeComponent
+                key={node.id}
+                node={node}
+                depth={1}
+                selectedId={selectedEntity.id}
+                searchFilter={searchFilter}
+                onSelect={(n) => {
+                  if (n.type === 'placed-module' && n.checkable) {
+                    togglePlacedSelect(n.id);
+                  } else {
+                    selectEntity(n.type, n.id, n.label);
+                  }
+                }}
+                onDelete={handleDelete}
+                checkedIds={selectedPlacedIds}
+                onToggleCheck={togglePlacedSelect}
+              />
+            ))}
+          </>
         )}
 
         {/* ── Section: Inversores ── */}
@@ -321,7 +462,10 @@ const TreeNodeComponent: React.FC<{
   searchFilter: string;
   onSelect: (node: TreeNode) => void;
   onDelete: (node: TreeNode, e: React.MouseEvent) => void;
-}> = ({ node, depth, selectedId, searchFilter, onSelect, onDelete }) => {
+  checkedIds?: Set<string>;
+  onToggleCheck?: (id: string) => void;
+}> = ({ node, depth, selectedId, searchFilter, onSelect, onDelete, checkedIds, onToggleCheck }) => {
+  const isChecked = checkedIds?.has(node.id) ?? false;
   const [expanded, setExpanded] = useState(depth < 2);
   const [hovered, setHovered] = useState(false);
   const hasChildren = node.children && node.children.length > 0;
@@ -386,7 +530,16 @@ const TreeNodeComponent: React.FC<{
         `}
         style={{ paddingLeft: `${8 + depth * 14}px` }}
       >
-        {hasChildren ? (
+        {/* P6-1: Checkbox for placed modules */}
+        {node.checkable && onToggleCheck ? (
+          <input
+            type="checkbox"
+            checked={isChecked}
+            onChange={(e) => { e.stopPropagation(); onToggleCheck(node.id); }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-3 h-3 shrink-0 accent-emerald-500 cursor-pointer"
+          />
+        ) : hasChildren ? (
           expanded
             ? <ChevronDown size={10} className="shrink-0 text-slate-600" />
             : <ChevronRight size={10} className="shrink-0 text-slate-600" />
@@ -399,9 +552,13 @@ const TreeNodeComponent: React.FC<{
         {/* Badge (quantity) — double-click to edit inline */}
         {node.badge && !editingQty && (
           <span
-            className="text-[8px] font-bold text-slate-600 bg-slate-800/80 px-1 py-0.5 rounded shrink-0 cursor-text hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
-            onDoubleClick={handleBadgeDoubleClick}
-            title="Duplo clique para editar quantidade"
+            className={`text-[8px] font-bold px-1 py-0.5 rounded shrink-0 transition-colors ${
+              node.badgeColor
+                ? node.badgeColor
+                : 'text-slate-600 bg-slate-800/80 cursor-text hover:text-emerald-400 hover:bg-emerald-500/10'
+            }`}
+            onDoubleClick={node.checkable ? undefined : handleBadgeDoubleClick}
+            title={node.checkable ? node.badge : 'Duplo clique para editar quantidade'}
           >
             {node.badge}
           </span>
@@ -446,6 +603,8 @@ const TreeNodeComponent: React.FC<{
               searchFilter={searchFilter}
               onSelect={onSelect}
               onDelete={onDelete}
+              checkedIds={checkedIds}
+              onToggleCheck={onToggleCheck}
             />
           ))}
         </div>

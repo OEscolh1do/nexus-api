@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { SimulationPayload, SimulationResponse } from '@/core/workers/simulation.worker';
+import type { SystemValidationReport } from '@/modules/engineering/utils/electricalMath';
 
 // Helper for debounce tracking
 type Timeout = ReturnType<typeof setTimeout>;
@@ -8,6 +9,7 @@ export function useSimulationWorker(payload: SimulationPayload, debounceMs = 500
   const [result, setResult] = useState<SimulationResponse | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [electricalValidation, setElectricalValidation] = useState<SystemValidationReport | null>(null);
   
   const workerRef = useRef<Worker | null>(null);
   const debounceTimerRef = useRef<Timeout | null>(null);
@@ -24,6 +26,7 @@ export function useSimulationWorker(payload: SimulationPayload, debounceMs = 500
       const data = e.data;
       if (data.success) {
         setResult(data.result);
+        setElectricalValidation(data.result.electricalValidation ?? null);
         setError(null);
       } else {
         setError(data.error);
@@ -66,5 +69,5 @@ export function useSimulationWorker(payload: SimulationPayload, debounceMs = 500
       JSON.stringify(payload)
   ]);
 
-  return { result, isCalculating, error };
+  return { result, isCalculating, error, electricalValidation };
 }

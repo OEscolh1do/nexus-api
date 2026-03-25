@@ -1,9 +1,15 @@
+import { validateSystemStrings, type MPPTInput, type SystemValidationReport, type ModuleElectricalSpecs } from '@/modules/engineering/utils/electricalMath';
+
 export interface SimulationPayload {
   systemPowerKWp: number;
   performanceRatio: number;
   clientConsumption: number[];
-  // If we had geographical data, we could calculate accurate hourly DNI/DHI.
-  // We'll use a generic approach for the backbone.
+  // P6-3: Optional electrical validation params
+  electrical?: {
+    mpptConfigs: MPPTInput[];
+    moduleSpecs: ModuleElectricalSpecs & { isc: number };
+    minAmbientTemp: number;
+  };
 }
 
 export interface SimulationResponse {
@@ -11,6 +17,8 @@ export interface SimulationResponse {
   monthlyConsumption: number[];
   totalAnnualGeneration: number;
   totalAnnualConsumption: number;
+  // P6-3: Electrical validation result (null if not requested)
+  electricalValidation: SystemValidationReport | null;
 }
 
 // Synthetic Hourly Simulation (8760 hours)
@@ -24,6 +32,7 @@ function simulate8760(payload: SimulationPayload): SimulationResponse {
       monthlyConsumption: clientConsumption,
       totalAnnualGeneration: 0,
       totalAnnualConsumption: clientConsumption.reduce((a, b) => a + b, 0),
+      electricalValidation: null,
     };
   }
 
@@ -69,7 +78,8 @@ function simulate8760(payload: SimulationPayload): SimulationResponse {
     monthlyGeneration,
     monthlyConsumption: clientConsumption,
     totalAnnualGeneration: monthlyGeneration.reduce((a, b) => a + b, 0),
-    totalAnnualConsumption: clientConsumption.reduce((a, b) => a + b, 0)
+    totalAnnualConsumption: clientConsumption.reduce((a, b) => a + b, 0),
+    electricalValidation: null,
   };
 }
 
@@ -77,7 +87,15 @@ function simulate8760(payload: SimulationPayload): SimulationResponse {
 self.onmessage = (e: MessageEvent<SimulationPayload>) => {
   try {
     const result = simulate8760(e.data);
-    self.postMessage({ success: true, result });
+
+    // P6-3: Run electrical validation if params provided
+    let electricalValidation: SystemValidationReport | null = null;
+    if (e.data.electrical) {
+      const { mpptConfigs, moduleSpecs, minAmbientTemp } = e.data.electrical;
+      electricalValidation = validateSystemStrings(mpptConfigs, moduleSpecs, minAmbientTemp);
+    }
+
+    self.postMessage({ success: true, result: { ...result, electricalValidation } });
   } catch (error) {
     self.postMessage({ success: false, error: (error as Error).message });
   }

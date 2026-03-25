@@ -81,3 +81,158 @@ export const calculateStringMetrics = (
         vmpNominal
     };
 };
+
+// ──────────────────────────────────────────────────
+// System-Level Validation (T1 · P6-2)
+// ──────────────────────────────────────────────────
+
+export type ValidationStatus = 'ok' | 'warning' | 'error';
+
+export interface MPPTValidationEntry {
+    inverterId: string;
+    mpptId: number;
+    status: ValidationStatus;
+    vocMax: number;
+    vmpMin: number;
+    iscTotal: number;
+    messages: string[];
+}
+
+export interface SystemValidationReport {
+    isValid: boolean;
+    globalStatus: ValidationStatus;
+    entries: MPPTValidationEntry[];
+    summary: {
+        totalMPPTs: number;
+        errors: number;
+        warnings: number;
+    };
+}
+
+export interface MPPTInput {
+    inverterId: string;
+    mpptId: number;
+    modulesPerString: number;
+    stringsCount: number;
+    /** From inverter catalog spec */
+    maxInputVoltage: number;
+    minMpptVoltage: number;
+    maxMpptVoltage: number;
+    maxCurrentPerMPPT: number;
+}
+
+/**
+ * Validates all MPPT configurations of a system against inverter limits.
+ * Pure function — no React deps — importable from Worker.
+ *
+ * @param mpptInputs  One entry per configured MPPT
+ * @param moduleSpecs Electrical specs of the PV module used
+ * @param minAmbientTemp Coldest historical ambient temp (°C)
+ * @param maxCellTemp Maximum cell temp for Vmp derating (°C)
+ */
+export const validateSystemStrings = (
+    mpptInputs: MPPTInput[],
+    moduleSpecs: ModuleElectricalSpecs & { isc: number },
+    minAmbientTemp: number = 0,
+    maxCellTemp: number = 70
+): SystemValidationReport => {
+    if (mpptInputs.length === 0) {
+        return {
+            isValid: true,
+            globalStatus: 'ok',
+            entries: [],
+            summary: { totalMPPTs: 0, errors: 0, warnings: 0 }
+        };
+    }
+
+    const entries: MPPTValidationEntry[] = mpptInputs.map(input => {
+        const messages: string[] = [];
+        let status: ValidationStatus = 'ok';
+
+        // Skip empty MPPTs
+        if (input.modulesPerString <= 0 || input.stringsCount <= 0) {
+            return {
+                inverterId: input.inverterId,
+                mpptId: input.mpptId,
+                status: 'ok' as ValidationStatus,
+                vocMax: 0,
+                vmpMin: 0,
+                iscTotal: 0,
+                messages: []
+            };
+        }
+
+        const metrics = calculateStringMetrics(
+            moduleSpecs,
+            input.modulesPerString,
+            minAmbientTemp,
+            maxCellTemp
+        );
+
+        // 1. Voc Max vs Max Input Voltage (CRITICAL SAFETY — NEC 690.7)
+        if (metrics.vocMax > input.maxInputVoltage) {
+            status = 'error';
+            messages.push(
+                `Voc(${metrics.vocMax.toFixed(0)}V) > limite(${input.maxInputVoltage}V). Risco de dano!`
+            );
+        } else if (metrics.vocMax > input.maxInputVoltage * 0.95) {
+            status = 'warning';
+            messages.push(
+                `Voc(${metrics.vocMax.toFixed(0)}V) próximo do limite(${input.maxInputVoltage}V).`
+            );
+        }
+
+        // 2. Vmp Min vs Min MPPT Voltage
+        if (metrics.vmpMin < input.minMpptVoltage) {
+            status = 'error';
+            messages.push(
+                `Vmp min(${metrics.vmpMin.toFixed(0)}V) < MPPT mín(${input.minMpptVoltage}V).`
+            );
+        }
+
+        // 3. Vmp Max vs Max MPPT Voltage (warning only — clipping)
+        if (metrics.vmpMax > input.maxMpptVoltage && status !== 'error') {
+            status = 'warning';
+            messages.push(
+                `Vmp max(${metrics.vmpMax.toFixed(0)}V) > MPPT máx(${input.maxMpptVoltage}V). Clipping possível.`
+            );
+        }
+
+        // 4. Isc Total vs Max Current Per MPPT
+        const iscTotal = moduleSpecs.isc * input.stringsCount;
+        if (iscTotal > input.maxCurrentPerMPPT) {
+            status = 'error';
+            messages.push(
+                `Isc(${iscTotal.toFixed(1)}A) > limite(${input.maxCurrentPerMPPT}A).`
+            );
+        }
+
+        return {
+            inverterId: input.inverterId,
+            mpptId: input.mpptId,
+            status,
+            vocMax: metrics.vocMax,
+            vmpMin: metrics.vmpMin,
+            iscTotal,
+            messages
+        };
+    });
+
+    const errors = entries.filter(e => e.status === 'error').length;
+    const warnings = entries.filter(e => e.status === 'warning').length;
+
+    let globalStatus: ValidationStatus = 'ok';
+    if (errors > 0) globalStatus = 'error';
+    else if (warnings > 0) globalStatus = 'warning';
+
+    return {
+        isValid: errors === 0,
+        globalStatus,
+        entries,
+        summary: {
+            totalMPPTs: entries.length,
+            errors,
+            warnings
+        }
+    };
+};

@@ -357,13 +357,19 @@ const HealthCheckWidget: React.FC = () => {
     const hasWarning = isLowOverload || isMismatch;
     const isEmpty = modules.length === 0 || inverters.length === 0;
 
-    const iconColor = isEmpty ? 'text-slate-600' : hasCritical ? 'text-red-500' : hasWarning ? 'text-amber-500' : 'text-emerald-500';
-    const bgColor = isEmpty ? 'bg-slate-800/50' : hasCritical ? 'bg-red-500/10' : hasWarning ? 'bg-amber-500/10' : 'bg-emerald-500/10';
+    const iconColor = isEmpty ? 'text-slate-600' : hasCritical ? 'text-red-50' : hasWarning ? 'text-amber-500' : 'text-emerald-500';
+    const bgColor = isEmpty ? 'bg-slate-800/50' : hasCritical ? 'bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)] border-red-400' : hasWarning ? 'bg-amber-500/10' : 'bg-emerald-500/10';
 
     return (
         <div className="relative group">
-            <div className={cn("p-1.5 rounded cursor-help transition-colors border border-transparent hover:border-slate-700", bgColor)}>
+            <div className={cn("p-1.5 rounded cursor-help transition-all duration-300 border hover:border-slate-700", bgColor)}>
                 <Activity size={14} className={iconColor} />
+                {hasCritical && (
+                    <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                    </span>
+                )}
             </div>
 
             {/* Popover */}

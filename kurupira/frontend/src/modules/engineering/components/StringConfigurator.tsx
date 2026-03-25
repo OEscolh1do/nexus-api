@@ -89,6 +89,7 @@ export const StringConfigurator: React.FC<{ className?: string }> = ({ className
                                     <MPPTCompactRow
                                         key={config.mpptId}
                                         mpptId={config.mpptId}
+                                        inverterId={invInstance.id}
                                         config={config}
                                         spec={spec}
                                         moduleSpecs={selectedModule} // Pass full module object
