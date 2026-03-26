@@ -27,8 +27,6 @@ import { useElectricalValidation } from '../../hooks/useElectricalValidation';
 import { useProjectContext } from '@/hooks/useProjectContext';
 import { cn } from '@/lib/utils';
 import { useUIStore, type Tool } from '@/core/state/uiStore';
-import { useTechStore } from '../../store/useTechStore';
-import { toArray } from '@/core/types/normalized.types';
 
 // =============================================================================
 // TOOL CONFIG
@@ -313,9 +311,8 @@ const HealthCheckWidget: React.FC = () => {
     const inverters = useSolarStore(selectInverters);
     const placedModules = useSolarStore(state => state.project.placedModules);
     useTechKPIs(); // Subscribes to general KPIs
-    const { validateMPPT, systemMinTemp } = useElectricalValidation();
-    const { inverters: techInvertersNorm } = useTechStore();
-    const techInverters = toArray(techInvertersNorm);
+    const { electrical, inventory } = useElectricalValidation();
+    const systemMinTemp = 10; // Fallback para tooltip
 
     const totalModulePowerWp = modules.reduce((acc, m) => acc + (m.power), 0);
     const totalInverterPowerKw = inverters.reduce((acc, i) => acc + (i.nominalPower * i.quantity), 0);
@@ -326,33 +323,27 @@ const HealthCheckWidget: React.FC = () => {
     const isLowOverload = overloadRatio > 0 && overloadRatio < 0.75;
     
     let isVocUnsafe = false;
+    let isCurrentUnsafe = false;
     const currentViolations: string[] = [];
     let maxVocGenerated = 0;
-    let logicalModuleCount = 0;
     
-    // Calculate Component Limits via Thermal Engine Hook (P6-2)
-    techInverters.forEach(techInv => {
-        techInv.mpptConfigs.forEach(mppt => {
-            const validation = validateMPPT(techInv.id, mppt.mpptId);
-            if (!validation) return;
-
-            if (validation.logicalCount > 0 || validation.physicallyAssigned > 0) {
-                logicalModuleCount += validation.logicalCount;
-                
-                if (validation.isVocUnsafe) isVocUnsafe = true;
-                if (validation.vocMax > maxVocGenerated) maxVocGenerated = validation.vocMax;
-                
-                if (validation.isCurrentUnsafe) {
-                    currentViolations.push(`MPPT ${mppt.mpptId}: ${validation.iscMax.toFixed(1)}A > ${validation.inverterMaxCurrent}A máx.`);
+    // Calculate Component Limits via Thermal Engine Hook (P6.5)
+    if (electrical?.entries) {
+        electrical.entries.forEach(entry => {
+            if (entry.vocMax > maxVocGenerated) maxVocGenerated = entry.vocMax;
+            if (entry.status !== 'ok') {
+                if (entry.messages.some(m => m.includes('Voc'))) isVocUnsafe = true;
+                if (entry.messages.some(m => m.includes('Isc'))) {
+                    isCurrentUnsafe = true;
+                    // Add all messages from the entry that are not OK
+                    currentViolations.push(...entry.messages);
                 }
             }
         });
-    });
+    }
 
     // Physical vs Logical Cross-check (Ação 3)
-    const isMismatch = placedModules.length > 0 && logicalModuleCount > 0 && placedModules.length !== logicalModuleCount;
-
-    const isCurrentUnsafe = currentViolations.length > 0;
+    const isMismatch = !inventory.isSynced;
     const hasCritical = isVocUnsafe || isHighOverload || isCurrentUnsafe;
     const hasWarning = isLowOverload || isMismatch;
     const isEmpty = modules.length === 0 || inverters.length === 0;
@@ -413,7 +404,7 @@ const HealthCheckWidget: React.FC = () => {
                             <span className="text-[9px] text-slate-500">Modelagem Físico-Lógica</span>
                             <div className="flex flex-col mt-0.5">
                                 <span className={cn("text-xs font-bold", isMismatch ? 'text-amber-400' : 'text-emerald-400')}>
-                                    Módulos Lógicos: {logicalModuleCount} <br/>
+                                    Módulos Lógicos: {inventory.logicalCount} <br/>
                                     Módulos no Telhado: {placedModules.length}
                                     {isMismatch && <span className="block text-[10px] uppercase font-bold text-amber-500/80 mt-1">Status: Inconsistente</span>}
                                     {!isMismatch && placedModules.length > 0 && <span className="block text-[10px] uppercase font-bold text-emerald-500/80 mt-1">Status: Sincronizado</span>}

@@ -210,9 +210,9 @@ export const ModuleForm: React.FC<Props> = ({ initialData, onConfirm }) => {
                        <div className="bg-orange-50 p-1 rounded border border-orange-100">
                           <label className="block text-[10px] font-bold text-orange-600 uppercase mb-1 text-center">Quantidade</label>
                           <div className="flex items-center gap-2">
-                             <button type="button" onClick={() => handleChange(mod.id, { target: { name: 'quantity', value: String(Math.max(1, mod.quantity - 1)) } } as any)} className="w-8 h-8 rounded bg-white text-orange-600 font-bold border border-orange-200">-</button>
+                             <button type="button" onClick={() => handleChange(mod.id, { target: { name: 'quantity', value: String(Math.max(1, (mod.quantity ?? 1) - 1)) } } as any)} className="w-8 h-8 rounded bg-white text-orange-600 font-bold border border-orange-200">-</button>
                              <input type="number" name="quantity" value={mod.quantity} onChange={(e) => handleChange(mod.id, e)} className="w-full p-1 bg-transparent text-center font-bold text-xl text-orange-600 outline-none" />
-                             <button type="button" onClick={() => handleChange(mod.id, { target: { name: 'quantity', value: String(mod.quantity + 1) } } as any)} className="w-8 h-8 rounded bg-white text-orange-600 font-bold border border-orange-200">+</button>
+                             <button type="button" onClick={() => handleChange(mod.id, { target: { name: 'quantity', value: String((mod.quantity ?? 1) + 1) } } as any)} className="w-8 h-8 rounded bg-white text-orange-600 font-bold border border-orange-200">+</button>
                           </div>
                        </div>
                    </div>

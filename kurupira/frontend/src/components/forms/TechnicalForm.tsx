@@ -149,7 +149,7 @@ export const TechnicalForm: React.FC<Props> = ({
   const handleQtyChange = (list: 'mod' | 'inv', id: string, delta: number) => {
     if (list === 'mod') {
       setModules(prev => prev.map(item => 
-        item.id === id ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item
+        item.id === id ? { ...item, quantity: Math.max(1, (item.quantity ?? 1) + delta) } : item
       ));
     } else {
       setInverters(prev => prev.map(item => 

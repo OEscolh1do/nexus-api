@@ -26,10 +26,8 @@ export const ModuleInventory: React.FC<ModuleInventoryProps> = ({ className }) =
     const isLoading = false;
     const error = null;
     
-    // Store - Project (Selected Equipment)
     const modules = useSolarStore(selectModules);
     const addModule = useSolarStore(state => state.addModule);
-    const removeModule = useSolarStore(state => state.removeModule);
     const updateModuleQty = useSolarStore(state => state.updateModuleQty);
 
     

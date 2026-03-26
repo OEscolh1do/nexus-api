@@ -1,6 +1,14 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { ProjectService, ProjectMetadata } from '@/services/ProjectService';
+import { ProjectService } from '@/services/ProjectService';
 import { Loader2, FolderOpen, AlertCircle, FileText, Calendar, Search, MoreVertical, Trash2, Copy } from 'lucide-react';
+
+export interface ProjectMetadata {
+    id: string;
+    project_name: string;
+    status: string;
+    client_crm_data?: { clientName?: string };
+    updated_at: string;
+}
 
 export const ProjectQueue: React.FC<{ onProjectLoaded: () => void }> = ({ onProjectLoaded }) => {
     const [projects, setProjects] = useState<ProjectMetadata[]>([]);

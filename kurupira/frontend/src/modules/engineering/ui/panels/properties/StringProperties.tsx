@@ -12,10 +12,13 @@ import { toArray } from '@/core/types/normalized.types';
 import { useElectricalValidation } from '@/modules/engineering/hooks/useElectricalValidation';
 import { SectionHeader, PropRow, PropRowEditable } from './shared';
 
+import { useSolarStore } from '@/core/state/solarStore';
+
 export const StringProperties: React.FC<{ entity: SelectedEntity }> = ({ entity }) => {
   const { inverters: techInvertersNorm, updateMPPTConfig } = useTechStore();
   const techInverters = toArray(techInvertersNorm);
-  const { validateMPPT, systemMinTemp } = useElectricalValidation();
+  const { electrical } = useElectricalValidation();
+  const systemMinTemp = 10;
 
   const parsed = useMemo(() => {
     if (!entity.id) return null;
@@ -40,10 +43,17 @@ export const StringProperties: React.FC<{ entity: SelectedEntity }> = ({ entity 
     [parsed, updateMPPTConfig]
   );
 
+  const placedModules = useSolarStore(s => s.project.placedModules);
+  const physicalCount = parsed ? placedModules.filter(m => m.stringData?.inverterId === parsed.inverterId && m.stringData?.mpptId === parsed.mpptId).length : 0;
+  
   const validation = useMemo(() => {
-    if (!parsed) return null;
-    return validateMPPT(parsed.inverterId, parsed.mpptId);
-  }, [parsed, validateMPPT]);
+    if (!parsed || !electrical?.entries) return null;
+    return electrical.entries.find(e => e.inverterId === parsed.inverterId && e.mpptId === parsed.mpptId);
+  }, [parsed, electrical]);
+
+  const logicalCount = parsed && parsed.mppt ? parsed.mppt.modulesPerString * parsed.mppt.stringsCount : 0;
+  const isVocUnsafe = validation?.messages.some(m => m.includes('Voc')) || false;
+  const isCurrentUnsafe = validation?.messages.some(m => m.includes('Isc')) || false;
 
   return (
     <div className="p-3 space-y-3">
@@ -69,14 +79,12 @@ export const StringProperties: React.FC<{ entity: SelectedEntity }> = ({ entity 
                 type="number"
                 onCommit={handleMPPTCommit('stringsCount', 1, 10)}
               />
-              <PropRow label="Total Lógico" value={`${parsed.mppt.modulesPerString * parsed.mppt.stringsCount}`} accent />
-              {validation && (
-                <PropRow 
-                   label="Total Físico" 
-                   value={`${validation.physicallyAssigned}`} 
-                   accent={validation.physicallyAssigned > 0 && validation.physicallyAssigned === validation.logicalCount} 
-                />
-              )}
+              <PropRow label="Total Lógico" value={`${logicalCount}`} accent />
+              <PropRow 
+                 label="Total Físico" 
+                 value={`${physicalCount}`} 
+                 accent={physicalCount > 0 && physicalCount === logicalCount} 
+              />
               
               <div className="h-px bg-slate-800/50 my-1" />
               
@@ -85,12 +93,12 @@ export const StringProperties: React.FC<{ entity: SelectedEntity }> = ({ entity 
                   <PropRow 
                     label={`Voc Máx (${systemMinTemp}°C)`} 
                     value={`${validation.vocMax.toFixed(1)}V`} 
-                    danger={validation.isVocUnsafe}
+                    danger={isVocUnsafe}
                   />
                   <PropRow 
                     label="Isc (Array)" 
-                    value={`${validation.iscMax.toFixed(1)}A`} 
-                    danger={validation.isCurrentUnsafe}
+                    value={`${validation.iscTotal.toFixed(1)}A`} 
+                    danger={isCurrentUnsafe}
                   />
                 </>
               )}
