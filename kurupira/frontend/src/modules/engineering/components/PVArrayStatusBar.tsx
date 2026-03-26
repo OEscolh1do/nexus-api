@@ -2,8 +2,9 @@ import React, { useMemo } from 'react';
 import { useSolarStore, selectModules, selectClientData } from '@/core/state/solarStore';
 import { useTechStore } from '../store/useTechStore';
 import { Separator } from '@/components/ui/separator';
-import { Ruler, Weight, Maximize, Zap, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Ruler, Weight, Maximize, Zap, AlertCircle, CheckCircle2, Activity, PackageOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useElectricalValidation } from '../hooks/useElectricalValidation';
 
 export const PVArrayStatusBar: React.FC<{ className?: string }> = ({ className }) => {
     // Data Selectors
@@ -43,9 +44,10 @@ export const PVArrayStatusBar: React.FC<{ className?: string }> = ({ className }
         return { currentQty, totalPowerKw, totalAreaM2, totalWeightKg, minModules, avgHsp, performanceRatio };
     }, [modules, clientData, prCalculationMode, getPerformanceRatio, getAdditivePerformanceRatio]); 
 
-
-
     const isUnderSized = metrics.currentQty < metrics.minModules;
+    
+    // --- P6.5 Electrical Validation Hook ---
+    const { globalHealth, electrical, inventory } = useElectricalValidation();
 
     // Compact Stat Item
     const StatItem = ({ label, value, unit, icon: Icon }: { label: string, value: string | number, unit: string, icon: any }) => (
@@ -81,7 +83,6 @@ export const PVArrayStatusBar: React.FC<{ className?: string }> = ({ className }
                 <Separator orientation="vertical" className="h-6" />
                 <StatItem label="Peso" value={metrics.totalWeightKg.toFixed(0)} unit="kg" icon={Weight} />
             </div>
-
             <div className="flex items-center gap-4 pl-6 border-l border-slate-200 h-8">
                 <div className="flex flex-col items-end leading-none">
                     <span className="text-[9px] text-slate-400 font-bold uppercase">Meta de Módulos</span>
@@ -104,6 +105,41 @@ export const PVArrayStatusBar: React.FC<{ className?: string }> = ({ className }
                         <span className="text-[10px] font-bold uppercase tracking-wide">Atingido</span>
                      </div>    
                 )}
+
+                {/* --- P6.5 Validations --- */}
+                <Separator orientation="vertical" className="h-6 ml-2 mr-2" />
+                
+                {/* Inventário */}
+                <div 
+                    title={inventory.message}
+                    className={cn(
+                        "flex items-center gap-1.5 px-2 py-1 rounded border cursor-help transition-colors",
+                        inventory.status === 'ok' ? "bg-slate-50 border-slate-200 text-slate-500" :
+                        inventory.status === 'warning' ? "bg-amber-50 border-amber-200 text-amber-600" :
+                        "bg-red-50 border-red-200 text-red-600"
+                    )}
+                >
+                    <PackageOpen size={14} />
+                    <span className="text-[10px] font-bold uppercase tracking-wide">
+                        {inventory.status === 'ok' ? 'Inv. Sincronizado' : inventory.difference > 0 ? `+${inventory.difference} Sobra Lógica` : `${Math.abs(inventory.difference)} Desconectados`}
+                    </span>
+                </div>
+
+                {/* Saúde Elétrica */}
+                <div 
+                    title={electrical?.globalStatus === 'error' ? 'Violação Crítica de Limites Elétricos' : electrical?.globalStatus === 'warning' ? 'Alertas de Dimensionamento' : 'Parâmetros Elétricos Normais'}
+                    className={cn(
+                        "flex items-center gap-1.5 px-2 py-1 rounded border cursor-help transition-colors",
+                        globalHealth === 'ok' ? "bg-emerald-50 border-emerald-200 text-emerald-600" :
+                        globalHealth === 'warning' ? "bg-yellow-50 border-yellow-200 text-yellow-600" :
+                        "bg-red-50 border-red-200 text-red-600"
+                    )}
+                >
+                    <Activity size={14} />
+                    <span className="text-[10px] font-bold uppercase tracking-wide">
+                        {globalHealth === 'ok' ? 'Elétrica OK' : globalHealth === 'warning' ? 'Atenção' : 'Violação Elétrica'}
+                    </span>
+                </div>
             </div>
         </div>
     );

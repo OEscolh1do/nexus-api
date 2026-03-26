@@ -3,10 +3,7 @@ import React from 'react';
 import { AlertTriangle, Activity } from 'lucide-react';
 import { DenseCard, DenseStat } from '@/components/ui/dense-form';
 import { useSolarStore, selectModules, selectInverters } from '@/core/state/solarStore';
-import { useTechStore } from '@/modules/engineering/store/useTechStore';
-import { toArray } from '@/core/types/normalized.types';
-import { INVERTER_CATALOG } from '@/modules/engineering/constants/inverters';
-import { validateSystemStrings, type MPPTInput } from '@/modules/engineering/utils/electricalMath';
+import { useElectricalValidation } from '@/modules/engineering/hooks/useElectricalValidation';
 
 export const SystemHealthCheck: React.FC = () => {
     const modules = useSolarStore(selectModules);
@@ -25,46 +22,9 @@ export const SystemHealthCheck: React.FC = () => {
     const isOptimalOverload = overloadRatio >= 0.75 && overloadRatio <= 1.35;
     const isHighOverload = overloadRatio > 1.35;
     const isLowOverload = overloadRatio < 0.75 && totalInverterPowerKw > 0;
-    
-    const settings = useSolarStore(state => state.settings);
-    const { inverters: techInvertersNorm } = useTechStore();
-    const techInverters = toArray(techInvertersNorm);
 
-    // ── P6-2: System-level electrical validation via pure engine ──
-    const systemReport = React.useMemo(() => {
-        if (modules.length === 0 || techInverters.length === 0) return null;
-
-        const m = modules[0]; // Representative module
-        const moduleSpecs = {
-            voc: m.voc,
-            vmp: m.vmp ?? m.voc * 0.82,
-            isc: m.isc ?? 0,
-            tempCoeffVoc: m.tempCoeff || -0.29,
-        };
-
-        const mpptInputs: MPPTInput[] = techInverters.flatMap(inv => {
-            const spec = INVERTER_CATALOG.find((c: any) => c.id === inv.catalogId);
-            if (!spec) return [];
-            return inv.mpptConfigs
-                .filter(cfg => cfg.modulesPerString > 0 && cfg.stringsCount > 0)
-                .map(cfg => {
-                    const specMppt = spec.mppts?.find((mp: any) => mp.mpptId === cfg.mpptId) || spec.mppts?.[0];
-                    return {
-                        inverterId: inv.id,
-                        mpptId: cfg.mpptId,
-                        modulesPerString: cfg.modulesPerString,
-                        stringsCount: cfg.stringsCount,
-                        maxInputVoltage: specMppt?.maxInputVoltage ?? 800,
-                        minMpptVoltage: specMppt?.minMpptVoltage ?? 100,
-                        maxMpptVoltage: specMppt?.maxMpptVoltage ?? 600,
-                        maxCurrentPerMPPT: specMppt?.maxCurrentPerMPPT ?? 30,
-                    } satisfies MPPTInput;
-                });
-        });
-
-        if (mpptInputs.length === 0) return null;
-        return validateSystemStrings(mpptInputs, moduleSpecs, settings?.minHistoricalTemp ?? 10);
-    }, [modules, techInverters, settings]);
+    // ── P6.5: System-level electrical validation via unified hook ──
+    const { electrical: systemReport } = useElectricalValidation();
 
     // ── Status Logic (P6-2 integrated) ──
     let overloadStatus: 'success' | 'warning' | 'danger' | 'default' = 'default';
