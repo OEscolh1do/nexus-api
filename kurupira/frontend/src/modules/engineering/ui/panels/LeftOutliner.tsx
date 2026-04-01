@@ -9,13 +9,19 @@ import { InverterCatalogDialog } from '../../components/InverterCatalogDialog';
 import { mapCatalogToSpecs } from '../../utils/catalogMappers';
 import type { ModuleCatalogItem } from '@/core/schemas/moduleSchema';
 import { cn } from '@/lib/utils';
-import { DenseButton } from '@/components/ui/dense-form';
+
+import * as ContextMenu from '@radix-ui/react-context-menu';
+import { 
+  DndContext, PointerSensor, useSensor, useSensors, 
+  DragOverlay, DragEndEvent, DragStartEvent, 
+  useDraggable, useDroppable 
+} from '@dnd-kit/core';
 
 // =============================================================================
 // TYPES
 // =============================================================================
 
-type TreeNodeType = 'inverter' | 'mppt' | 'string' | 'module' | 'area' | 'placed-module';
+type TreeNodeType = 'inverter' | 'mppt' | 'string' | 'module' | 'area' | 'placed-module' | 'folder';
 
 interface TreeNode {
   id: string;
@@ -30,8 +36,6 @@ interface TreeNode {
   droppable?: boolean;
   meta?: any;
 }
-
-const DND_TYPE = 'application/x-solar-dnd';
 
 // =============================================================================
 // COMPONENT
@@ -63,7 +67,15 @@ export const LeftOutliner: React.FC = () => {
   // ── Local State ──
   const [moduleDialogOpen, setModuleDialogOpen] = useState(false);
   const [inverterDialogOpen, setInverterDialogOpen] = useState(false);
-  const [dragOverTargetId, setDragOverTargetId] = useState<string | null>(null);
+  const [activeDragData, setActiveDragData] = useState<any>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Must move 8px to become a drag, ignoring simple clicks
+      },
+    })
+  );
 
   const handleAddModule = useCallback((catalogItem: ModuleCatalogItem) => {
     const mappedSpecs = mapCatalogToSpecs(catalogItem);
@@ -79,8 +91,8 @@ export const LeftOutliner: React.FC = () => {
   }, [addProjectInverter, techState]);
 
   // ── Delete / Unlink Handlers ──
-  const handleUnlink = useCallback((node: TreeNode, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleUnlink = useCallback((node: TreeNode, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (node.type === 'string') {
         techState.unassignStringFromMPPT(node.id);
     } else if (node.type === 'module' && node.meta?.stringId) {
@@ -93,10 +105,9 @@ export const LeftOutliner: React.FC = () => {
     }
   }, [techState, selectedEntity, clearSelection]);
 
-  const handleDelete = useCallback((node: TreeNode, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDelete = useCallback((node: TreeNode, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (node.type === 'module') {
-      // Se tiver múltiplos módulos selecionados e este for um deles, deletar todos
       if (selectedEntity.multiIds.includes(node.id)) {
           selectedEntity.multiIds.forEach(id => removeModule(id));
           clearSelection();
@@ -116,50 +127,52 @@ export const LeftOutliner: React.FC = () => {
   }, [removeModule, removeInverter, techState, selectedEntity, clearSelection]);
 
   // ── DnD Handlers ──
-  const handleDrop = useCallback((targetNode: TreeNode, e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragOverTargetId(null);
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveDragData(event.active.data.current);
+  }, []);
 
-    const dataRaw = e.dataTransfer.getData(DND_TYPE);
-    if (!dataRaw) return;
-    const data = JSON.parse(dataRaw);
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    setActiveDragData(null);
+    const { active, over } = event;
+    if (!over) return;
+
+    const data = active.data.current;
+    const targetData = over.data.current;
     
+    if (!data || !targetData) return;
+
     // 1. Drag String -> Drop MPPT
-    if (data.type === 'string' && targetNode.type === 'mppt') {
+    if (data.type === 'string' && targetData.type === 'mppt') {
         data.ids.forEach((strId: string) => {
-            techState.assignStringToMPPT(strId, targetNode.meta.inverterId, targetNode.meta.mpptId);
+            techState.assignStringToMPPT(strId, targetData.meta.inverterId, targetData.meta.mpptId);
         });
     }
     // 2. Drag Module -> Drop String
-    else if (data.type === 'module' && targetNode.type === 'string') {
-        techState.addModulesToString(targetNode.id, data.ids);
+    else if (data.type === 'module' && targetData.type === 'string') {
+        techState.addModulesToString(targetData.id, data.ids);
     }
-    // 3. Drag Module -> Drop MPPT (Auto-create string shortcut)
-    else if (data.type === 'module' && targetNode.type === 'mppt') {
-        techState.assignModulesToNewString(data.ids, targetNode.meta.inverterId, targetNode.meta.mpptId);
+    // 3. Drag Module -> Drop MPPT
+    else if (data.type === 'module' && targetData.type === 'mppt') {
+        techState.assignModulesToNewString(data.ids, targetData.meta.inverterId, targetData.meta.mpptId);
     }
-    // 4. Drag Module -> Drop Inverter (Fallback MPPT 1)
-    else if (data.type === 'module' && targetNode.type === 'inverter') {
-        const inv = useTechStore.getState().inverters.entities[targetNode.id];
+    // 4. Drag Module -> Drop Inverter
+    else if (data.type === 'module' && targetData.type === 'inverter') {
+        const inv = useTechStore.getState().inverters.entities[targetData.id];
         const mpptId = inv?.mpptConfigs?.[0]?.mpptId || 1;
-        techState.assignModulesToNewString(data.ids, targetNode.id, mpptId);
+        techState.assignModulesToNewString(data.ids, targetData.id, mpptId);
     }
-    // 5. Drag String -> Drop Inverter (Fallback MPPT 1)
-    else if (data.type === 'string' && targetNode.type === 'inverter') {
+    // 5. Drag String -> Drop Inverter
+    else if (data.type === 'string' && targetData.type === 'inverter') {
         data.ids.forEach((strId: string) => {
-            techState.assignStringToInverterFallback(strId, targetNode.id);
+            techState.assignStringToInverterFallback(strId, targetData.id);
         });
     }
     // 6. Action: Devolver String para Pool
-    else if (data.type === 'string' && targetNode.id === 'folder-disconnected-strings') {
+    else if (data.type === 'string' && targetData.id === 'folder-disconnected-strings') {
         data.ids.forEach((strId: string) => techState.unassignStringFromMPPT(strId));
     }
     // 7. Action: Devolver Module para Pool Livre
-    else if (data.type === 'module' && targetNode.id === 'folder-free-modules') {
-        // Find which string owns these modules
-        // data.meta object can tell us the string. But we don't have meta on ids array.
-        // Easiest is to search all strings and remove them
+    else if (data.type === 'module' && targetData.id === 'folder-free-modules') {
         const allStrings = useTechStore.getState().strings.entities;
         Object.values(allStrings).forEach(str => {
              const intersection = str.moduleIds.filter(mid => data.ids.includes(mid));
@@ -173,18 +186,14 @@ export const LeftOutliner: React.FC = () => {
   }, [techState, clearSelection]);
 
   // ── Derived Data for Trees ──
-  
-  // 1. Encontrar todos os módulos atrelados a Strings
   const assignedModuleIds = new Set<string>();
   Object.values(strings).forEach(str => str.moduleIds.forEach(mId => assignedModuleIds.add(mId)));
 
-  // 2. Classificadores
   const freeModules = useMemo(() => modules.filter(m => !assignedModuleIds.has(m.id)), [modules, assignedModuleIds]);
   const unassignedStrings = Object.values(strings).filter(str => !str.mpptId);
 
   // ── Multi-select Range Handler ──
   const handleMultiSelect = useCallback((id: string, shiftKey?: boolean) => {
-      // Range Selection for Free Modules
       if (shiftKey && selectedEntity.type === 'module' && selectedEntity.multiIds.length > 0) {
           const isFreeModule = freeModules.some(m => m.id === id);
           if (isFreeModule) {
@@ -205,9 +214,18 @@ export const LeftOutliner: React.FC = () => {
       toggleMultiSelection(id);
   }, [freeModules, selectedEntity, toggleMultiSelection, setMultiSelection]);
 
+  // ── Create String Handlers ──
+  const handleCreateString = useCallback(() => {
+      if (selectedEntity.type !== 'module') return;
+      const idsToGroup = selectedEntity.multiIds.filter(id => freeModules.some(m => m.id === id));
+      if (idsToGroup.length > 0) {
+          techState.createString(idsToGroup);
+          clearSelection();
+      }
+  }, [selectedEntity, freeModules, techState, clearSelection]);
+
   // ── Tree Construction ──
   
-  // A) Topologia Elétrica (Inverters > MPPTs > Strings > Modules)
   const electricalNodes: TreeNode[] = useMemo(() => inverters.map(inv => {
     const techInv = techInverters.find(ti => ti.catalogId === inv.id || ti.id === inv.id);
     const mpptChildren: TreeNode[] = techInv
@@ -225,7 +243,7 @@ export const LeftOutliner: React.FC = () => {
                  badge: `${strModules.length} mods`,
                  deletable: true,
                  draggable: true,
-                 droppable: true, // Can receive dropped modules
+                 droppable: true,
                  children: strModules.map(m => ({
                      id: m.id,
                      label: `${m.manufacturer.substring(0,6)} ${m.power}W`,
@@ -261,7 +279,6 @@ export const LeftOutliner: React.FC = () => {
     };
   }), [inverters, techInverters, strings, modules]);
 
-  // B) Strings Desconectadas
   const disconnectedStringNodes: TreeNode[] = useMemo(() => unassignedStrings.map(str => {
       const strModules = str.moduleIds.map(mid => modules.find(m => m.id === mid)).filter(Boolean) as any[];
       return {
@@ -286,7 +303,6 @@ export const LeftOutliner: React.FC = () => {
       };
   }), [unassignedStrings, modules]);
 
-  // C) Módulos Livres
   const freeModuleNodes: TreeNode[] = useMemo(() => freeModules.map(m => ({
       id: m.id,
       label: `${m.manufacturer.substring(0,6)} ${m.power}W`,
@@ -296,7 +312,6 @@ export const LeftOutliner: React.FC = () => {
       draggable: true
   })), [freeModules]);
 
-  // D) Físico
   const areaNodes: TreeNode[] = useMemo(() => installationAreas.map(area => {
       const areaModules = placedModules.filter(pm => pm.areaId === area.id);
       const children: TreeNode[] = areaModules.map(pm => ({
@@ -315,7 +330,6 @@ export const LeftOutliner: React.FC = () => {
       };
   }), [installationAreas, placedModules]);
 
-  // C) Pastas Virtuais (Root level aggregation)
   const virtualFolders: TreeNode[] = [];
   
   if (disconnectedStringNodes.length > 0) {
@@ -324,7 +338,7 @@ export const LeftOutliner: React.FC = () => {
           label: 'Strings Desconectadas',
           type: 'folder' as any,
           icon: Unlink,
-          droppable: true, // Can receive dropped strings to unassign
+          droppable: true,
           badgeColor: 'text-amber-500 bg-amber-500/10',
           badge: `${disconnectedStringNodes.length}`,
           children: disconnectedStringNodes
@@ -337,7 +351,7 @@ export const LeftOutliner: React.FC = () => {
           label: 'Módulos Livres',
           type: 'folder' as any,
           icon: Package,
-          droppable: true, // Can receive dropped modules to unassign them from strings
+          droppable: true,
           badgeColor: 'text-indigo-400 bg-indigo-400/10',
           badge: `${freeModuleNodes.length}`,
           children: freeModuleNodes
@@ -354,20 +368,7 @@ export const LeftOutliner: React.FC = () => {
       });
   }
 
-  // Unified File Explorer Array
   const allRootNodes = [...electricalNodes, ...virtualFolders];
-
-  // ── Multi-select Action Bar ──
-  const selectedFreeModulesCount = selectedEntity.type === 'module' 
-      ? selectedEntity.multiIds.filter(id => freeModules.some(m => m.id === id)).length 
-      : 0;
-
-  const handleCreateString = () => {
-      if (selectedEntity.type !== 'module' || selectedFreeModulesCount === 0) return;
-      const idsToGroup = selectedEntity.multiIds.filter(id => freeModules.some(m => m.id === id));
-      techState.createString(idsToGroup);
-      clearSelection();
-  };
 
   return (
     <div className="h-full bg-slate-950 flex flex-col overflow-hidden relative">
@@ -389,37 +390,36 @@ export const LeftOutliner: React.FC = () => {
         </div>
       </div>
 
-      {/* Tree View */}
+      {/* Tree View inside DndContext */}
       <div className="flex-1 overflow-y-auto p-2">
-        {allRootNodes.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-slate-500 gap-2 p-6 text-center border-2 border-dashed border-slate-800 rounded-xl m-2 bg-slate-900/50">
-            <Cable size={24} className="text-slate-700" />
-            <p className="text-[11px] max-w-[150px]">Adicione inversores ou painéis para montar a topologia.</p>
-          </div>
-        ) : (
-          <div className="space-y-1">
-             {allRootNodes.map(node => (
-                <TreeNodeItem key={node.id} node={node} depth={0}
-                  selectedEntity={selectedEntity} dragOverTargetId={dragOverTargetId}
-                  onSelect={selectEntity} onMultiSelect={handleMultiSelect}
-                  onDelete={handleDelete} onUnlink={handleUnlink} onDragOverTarget={setDragOverTargetId} onDrop={handleDrop}
-                />
-             ))}
-          </div>
-        )}
-      </div>
+        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+          {allRootNodes.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-slate-500 gap-2 p-6 text-center border-2 border-dashed border-slate-800 rounded-xl m-2 bg-slate-900/50">
+              <Cable size={24} className="text-slate-700" />
+              <p className="text-[11px] max-w-[150px]">Adicione inversores ou painéis para montar a topologia.</p>
+            </div>
+          ) : (
+            <div className="space-y-1">
+               {allRootNodes.map(node => (
+                  <TreeNodeItem key={node.id} node={node} depth={0}
+                    selectedEntity={selectedEntity} 
+                    onSelect={selectEntity} onMultiSelect={handleMultiSelect}
+                    onDelete={handleDelete} onUnlink={handleUnlink} onCreateString={handleCreateString}
+                  />
+               ))}
+            </div>
+          )}
 
-      {/* Floating Action Bar for Multi-Select */}
-      {selectedFreeModulesCount > 0 && (
-          <div className="absolute bottom-4 left-4 right-4 bg-emerald-900 border border-emerald-500/50 shadow-xl rounded-lg p-3 animate-in slide-in-from-bottom-5">
-              <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-emerald-100">{selectedFreeModulesCount} módulos livres selecionados</span>
-                  <DenseButton variant="primary" size="sm" onClick={handleCreateString}>
-                      <Link2 size={12} className="mr-1.5" /> Criar String
-                  </DenseButton>
-              </div>
-          </div>
-      )}
+          <DragOverlay dropAnimation={null}>
+             {activeDragData && (
+                 <div className="px-3 py-1.5 bg-emerald-500/90 text-emerald-50 font-medium text-[11px] rounded shadow-xl flex items-center gap-2 border border-emerald-400 backdrop-blur-md">
+                     <Layers size={14} /> 
+                     Arrastando {activeDragData.ids?.length || 1} ite{activeDragData.ids?.length === 1 ? 'm' : 'ns'}
+                 </div>
+             )}
+          </DragOverlay>
+        </DndContext>
+      </div>
 
       {/* Footer */}
       <div className="shrink-0 px-3 py-1.5 border-t border-slate-800/50 flex items-center justify-between bg-slate-950 z-10">
@@ -427,7 +427,6 @@ export const LeftOutliner: React.FC = () => {
         <span className="text-[9px] text-slate-700">{placedModules.length > 0 ? `${placedModules.length} físicos` : ''}</span>
       </div>
 
-      {/* Catalog Dialogs */}
       <ModuleCatalogDialog isOpen={moduleDialogOpen} onClose={() => setModuleDialogOpen(false)} onAddModule={handleAddModule} />
       <InverterCatalogDialog isOpen={inverterDialogOpen} onClose={() => setInverterDialogOpen(false)} onAddInverter={handleAddInverter} />
     </div>
@@ -435,130 +434,164 @@ export const LeftOutliner: React.FC = () => {
 };
 
 // =============================================================================
-// TREE NODE (Recursive, DnD, Multi-select)
+// TREE NODE (Recursive, DnD via dnd-kit, ContextMenu)
 // =============================================================================
 
 const TreeNodeItem: React.FC<{
   node: TreeNode;
   depth: number;
   selectedEntity: any;
-  dragOverTargetId: string | null;
   onSelect: (type: any, id: string, label?: string) => void;
   onMultiSelect: (id: string, shiftKey?: boolean) => void;
-  onDelete: (node: TreeNode, e: React.MouseEvent) => void;
-  onUnlink?: (node: TreeNode, e: React.MouseEvent) => void;
-  onDragOverTarget: (id: string | null) => void;
-  onDrop: (node: TreeNode, e: React.DragEvent) => void;
-}> = ({ node, depth, selectedEntity, dragOverTargetId, onSelect, onMultiSelect, onDelete, onUnlink, onDragOverTarget, onDrop }) => {
+  onDelete: (node: TreeNode, e?: React.MouseEvent) => void;
+  onUnlink?: (node: TreeNode, e?: React.MouseEvent) => void;
+  onCreateString?: () => void;
+}> = ({ node, depth, selectedEntity, onSelect, onMultiSelect, onDelete, onUnlink, onCreateString }) => {
   const [expanded, setExpanded] = useState(true);
-  const [hovered, setHovered] = useState(false);
   
   const hasChildren = node.children && node.children.length > 0;
-  
-  // Is this node currently in the multi-select array?
   const isSelected = selectedEntity.type === node.type && selectedEntity.multiIds.includes(node.id);
-  
-  const isDragOver = dragOverTargetId === node.id;
   const Icon = node.icon;
 
-  const handleDragStart = (e: React.DragEvent) => {
-      e.stopPropagation();
-      
-      // Se tiver múltiplos selecionados e este item fizer parte, arrastamos TODOS
-      const idsToDrag = isSelected && selectedEntity.multiIds.length > 1 
-                        ? selectedEntity.multiIds 
-                        : [node.id];
+  const idsToDrag = isSelected && selectedEntity.multiIds.length > 1 
+                    ? selectedEntity.multiIds 
+                    : [node.id];
 
-      e.dataTransfer.setData(DND_TYPE, JSON.stringify({ type: node.type, ids: idsToDrag }));
-      e.dataTransfer.effectAllowed = 'move';
+  // Identificadores únicos para o dnd-kit
+  const dragId = node.id + '-drag';
+  const dropId = node.id + '-drop';
+
+  const { attributes, listeners, setNodeRef: setDraggableRef, isDragging } = useDraggable({
+      id: dragId,
+      data: { type: node.type, ids: idsToDrag, meta: node.meta },
+      disabled: !node.draggable
+  });
+
+  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
+      id: dropId,
+      data: { type: node.type, id: node.id, meta: node.meta },
+      disabled: !node.droppable
+  });
+
+  const setNodeRef = useCallback((element: HTMLElement | null) => {
+      setDroppableRef(element);
+      if (node.draggable) setDraggableRef(element);
+  }, [setDroppableRef, setDraggableRef, node.draggable]);
+
+  // Menu de Contexto Dinâmico
+  const renderContextMenu = () => {
+    const isFreeSelected = selectedEntity.type === 'module' && selectedEntity.multiIds.includes(node.id);
+    const actions: React.ReactNode[] = [];
+    
+    // Opção: Agrupar Strings
+    if (node.type === 'module' && isFreeSelected && selectedEntity.multiIds.length > 0 && onCreateString) {
+        actions.push(
+            <ContextMenu.Item 
+                key="create-string"
+                className="px-2 py-1.5 text-[10px] text-slate-300 hover:bg-emerald-500/20 hover:text-emerald-400 outline-none cursor-pointer rounded-sm flex items-center gap-2 transition-colors"
+                onClick={onCreateString}
+            >
+                <Link2 size={12}/> Agrupar em Nova String ({selectedEntity.multiIds.length})
+            </ContextMenu.Item>
+        );
+    }
+    
+    // Opção: Desvincular / Devolver
+    if (onUnlink && ((node.type === 'module' && node.meta?.stringId) || (node.type === 'string' && node.meta?.mpptId !== undefined))) {
+        actions.push(
+            <ContextMenu.Item 
+                key="unlink"
+                className="px-2 py-1.5 text-[10px] text-slate-300 hover:bg-amber-500/20 hover:text-amber-400 outline-none cursor-pointer rounded-sm flex items-center gap-2 transition-colors"
+                onClick={(e) => onUnlink(node, e as any)}
+            >
+                <Unlink size={12}/> Desvincular e Devolver
+            </ContextMenu.Item>
+        );
+    }
+
+    // Opção: Deletar Permanentemente
+    if (node.deletable) {
+        actions.push(
+            <ContextMenu.Item 
+                key="delete"
+                className="px-2 py-1.5 text-[10px] text-red-500 hover:bg-red-500/20 hover:text-red-400 outline-none cursor-pointer rounded-sm flex items-center gap-2 transition-colors"
+                onClick={(e) => onDelete(node, e as any)}
+            >
+                <Trash2 size={12}/> Deletar Permanentemente
+            </ContextMenu.Item>
+        );
+    }
+
+    if (actions.length === 0) return null;
+
+    return (
+        <ContextMenu.Portal>
+            <ContextMenu.Content 
+                className="min-w-[180px] bg-slate-900/95 backdrop-blur-sm border border-slate-700 shadow-xl rounded-lg p-1 z-[100] animate-in fade-in zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2"
+            >
+                {actions}
+            </ContextMenu.Content>
+        </ContextMenu.Portal>
+    );
   };
 
-  const handleDropLocal = (e: React.DragEvent) => {
-      onDrop(node, e);
-  };
+  const contextMenuContent = renderContextMenu();
 
   return (
-    <div>
-      <div
-        draggable={node.draggable}
-        onDragStart={node.draggable ? handleDragStart : undefined}
-        onDragOver={node.droppable ? (e) => { e.preventDefault(); e.stopPropagation(); onDragOverTarget(node.id); } : undefined}
-        onDragLeave={node.droppable ? (e) => { e.preventDefault(); onDragOverTarget(null); } : undefined}
-        onDrop={node.droppable ? handleDropLocal : undefined}
-        onClick={(e) => {
-          e.stopPropagation();
-          if (hasChildren && !e.shiftKey && !e.ctrlKey) setExpanded(!expanded);
-          
-          if (e.shiftKey || e.ctrlKey) {
-              onMultiSelect(node.id, e.shiftKey);
-          } else {
-              onSelect(node.type as any, node.id, node.label);
-          }
-        }}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        className={cn(
-          "w-full flex items-center gap-1 px-1.5 py-1 rounded text-left transition-all text-[10px] group cursor-pointer select-none",
-          isSelected ? 'bg-emerald-500/20 text-emerald-400 font-medium' : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200',
-          isDragOver && 'ring-2 ring-emerald-400 bg-emerald-500/20 text-emerald-300 scale-[1.02] z-10',
-          node.draggable && !isSelected && 'hover:bg-slate-800'
-        )}
-        style={{ paddingLeft: `${8 + depth * 14}px` }}
-      >
-        {hasChildren ? (
-          expanded
-            ? <ChevronDown size={10} className="shrink-0 text-slate-600" />
-            : <ChevronRight size={10} className="shrink-0 text-slate-600" />
-        ) : (
-          <span className="w-[10px] shrink-0" />
-        )}
-        
-        <Icon size={11} className={cn("shrink-0", isSelected ? 'text-emerald-400' : node.badgeColor ? node.badgeColor.split(' ')[0] : 'text-slate-600')} />
-        <span className="truncate flex-1">{node.label}</span>
+    <div ref={setNodeRef} className={cn("relative", isDragging && "opacity-40")}>
+      <ContextMenu.Root>
+        <ContextMenu.Trigger asChild>
+          <div
+            {...listeners}
+            {...attributes}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (hasChildren && !e.shiftKey && !e.ctrlKey) setExpanded(!expanded);
+              
+              if (e.shiftKey || e.ctrlKey) {
+                  onMultiSelect(node.id, e.shiftKey);
+              } else {
+                  onSelect(node.type as any, node.id, node.label);
+              }
+            }}
+            className={cn(
+              "w-full flex items-center gap-1 px-1.5 py-1 rounded text-left transition-all text-[10px] group cursor-pointer select-none",
+              isSelected ? 'bg-emerald-500/20 text-emerald-400 font-medium' : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200',
+              isOver && 'ring-1 ring-emerald-500 bg-emerald-500/10 text-emerald-300',
+              node.draggable && !isSelected && 'hover:bg-slate-800'
+            )}
+            style={{ paddingLeft: `${8 + depth * 14}px` }}
+          >
+            {hasChildren ? (
+              expanded
+                ? <ChevronDown size={10} className="shrink-0 text-slate-600" />
+                : <ChevronRight size={10} className="shrink-0 text-slate-600" />
+            ) : (
+              <span className="w-[10px] shrink-0" />
+            )}
+            
+            <Icon size={11} className={cn("shrink-0", isSelected ? 'text-emerald-400' : node.badgeColor ? node.badgeColor.split(' ')[0] : 'text-slate-600')} />
+            <span className="truncate flex-1">{node.label}</span>
 
-        {/* Badge */}
-        {node.badge && (
-          <span className={cn("text-[8px] font-bold px-1 py-0.5 rounded shrink-0", node.badgeColor || 'text-slate-600 bg-slate-800/80')}>
-            {node.badge}
-          </span>
-        )}
-
-        {/* Delete / Unlink */}
-        {node.deletable && (hovered || isSelected) && (
-          <div className="flex items-center gap-1 shrink-0 ml-2">
-              {/* If it's a module inside a string OR a string inside an MPPT, it can be unlinked */}
-              {onUnlink && ((node.type === 'module' && node.meta?.stringId) || (node.type === 'string' && node.meta?.mpptId !== undefined)) && (
-                <span
-                  role="button"
-                  onClick={(e) => onUnlink(node, e)}
-                  className="p-0.5 rounded hover:bg-amber-500/20 text-slate-700 hover:text-amber-400 transition-colors"
-                  title="Devolver / Desconectar"
-                >
-                  <Unlink size={10} />
-                </span>
-              )}
-              {/* Trash completely destroys it */}
-              <span
-                role="button"
-                onClick={(e) => onDelete(node, e)}
-                className="p-0.5 rounded hover:bg-red-500/20 text-slate-700 hover:text-red-400 transition-colors"
-                title="Deletar permanentemente"
-              >
-                <Trash2 size={10} />
+            {/* Badge */}
+            {node.badge && (
+              <span className={cn("text-[8px] font-bold px-1 py-0.5 rounded shrink-0", node.badgeColor || 'text-slate-600 bg-slate-800/80')}>
+                {node.badge}
               </span>
+            )}
           </div>
-        )}
-      </div>
+        </ContextMenu.Trigger>
+        {contextMenuContent}
+      </ContextMenu.Root>
 
       {hasChildren && expanded && (
         <div className="animate-in fade-in slide-in-from-top-1 duration-150 relative">
-           {/* Guidelines */}
            <div className="absolute left-[14px] top-0 bottom-1 w-px bg-slate-800/50" />
           {node.children!.map(child => (
             <TreeNodeItem key={child.id} node={child} depth={depth + 1}
-              selectedEntity={selectedEntity} dragOverTargetId={dragOverTargetId}
+              selectedEntity={selectedEntity} 
               onSelect={onSelect} onMultiSelect={onMultiSelect}
-              onDelete={onDelete} onUnlink={onUnlink} onDragOverTarget={onDragOverTarget} onDrop={onDrop}
+              onDelete={onDelete} onUnlink={onUnlink} onCreateString={onCreateString}
             />
           ))}
         </div>

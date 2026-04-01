@@ -17,6 +17,21 @@ import { AuthProvider } from './core/auth/AuthProvider';
 import { useAuth } from './core/auth/useAuth';
 import { Loader2 } from 'lucide-react';
 
+// Captura token injetado via deep link do Iaçã (?token=<jwt>&leadId=<id>)
+// Executado antes do AuthProvider para que sessionStorage já esteja preenchido
+function captureDeepLinkToken() {
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('token');
+  if (token) {
+    sessionStorage.setItem('kurupira_token', token);
+    // Remove o token da URL sem recarregar a página (segurança)
+    const cleanUrl = window.location.pathname + (params.get('leadId') ? `?leadId=${params.get('leadId')}` : '');
+    window.history.replaceState({}, '', cleanUrl);
+  }
+}
+
+captureDeepLinkToken();
+
 const AuthGuard: React.FC = () => {
   const { loading } = useAuth();
 

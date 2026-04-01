@@ -1,88 +1,121 @@
 import { useSolarStore } from '@/core/state/solarStore';
 import { useTechStore } from '@/modules/engineering/store/useTechStore';
-import { toArray } from '@/core/types/normalized.types';
+import { KurupiraClient, TechnicalDesignSummary } from './NexusClient';
 
-export interface ProjectSnapshot {
-  id?: string;
-  projectName: string;
-  status: string;
-  clientData: any;
-  modules: any[];
-  inverters: any[];
-  kpis: {
-    totalPowerWp: number;
-    totalACPowerW: number;
-    dcAcRatio: number;
+const DESIGN_DATA_VERSION = '3.1';
+
+function buildDesignData() {
+  const solar = useSolarStore.getState();
+  const tech = useTechStore.getState();
+
+  return {
+    version: DESIGN_DATA_VERSION,
+    savedAt: new Date().toISOString(),
+    solar: {
+      project: solar.project,
+      modules: solar.modules,
+      settings: solar.settings,
+      clientData: solar.clientData,
+      legalData: solar.legalData,
+      simulatedItems: solar.simulatedItems,
+      bosInventory: solar.bosInventory,
+      engineeringData: solar.engineeringData,
+    },
+    tech: {
+      lossProfile: tech.lossProfile,
+      inverters: tech.inverters,
+      strings: tech.strings,
+      prCalculationMode: tech.prCalculationMode,
+    },
   };
-  snapshotImageBase64: string | null;
+}
+
+function hydrateStores(designData: any) {
+  if (!designData || designData.version !== DESIGN_DATA_VERSION) return;
+
+  if (designData.solar) {
+    useSolarStore.setState((current) => ({
+      ...current,
+      ...designData.solar,
+      project: { ...current.project, ...designData.solar.project },
+    }));
+  }
+
+  if (designData.tech) {
+    useTechStore.setState((current) => ({
+      ...current,
+      ...designData.tech,
+    }));
+  }
 }
 
 export const ProjectService = {
-  /**
-   * Coleta o estado de engenharia do Kurupira (Zustand) e 
-   * a imagem do canvas para persistir no backend.
-   */
-  async saveDesign(snapshotImageBase64: string | null): Promise<boolean> {
+  async listProjects(): Promise<TechnicalDesignSummary[]> {
+    return KurupiraClient.designs.list();
+  },
+
+  async saveDesign(_snapshotImageBase64: string | null): Promise<boolean> {
     try {
       const solarState = useSolarStore.getState();
-      const techState = useTechStore.getState();
+      const activeProjectId = solarState.activeProjectId;
+      const designData = buildDesignData();
 
-      const modules = toArray(solarState.modules);
-      const inverters = toArray(techState.inverters);
+      if (activeProjectId) {
+        // Atualizar projeto existente
+        await KurupiraClient.designs.update(activeProjectId, {
+          designData,
+          status: 'IN_PROGRESS',
+        });
+      } else {
+        // Criar novo projeto (iacaLeadId vem do deep link do Iaçã; null = standalone)
+        const leadId = (solarState.clientData as any)?.iacaLeadId || null;
+        const projectName =
+          (solarState.clientData as any)?.name ||
+          'Projeto Kurupira ' + new Date().toISOString().split('T')[0];
 
-      const totalPowerWp = modules.reduce((acc, m) => acc + (m.power), 0);
-      const totalACPowerW = inverters.reduce((acc, i: any) => acc + ((i.nominalPower || 0) * i.quantity * 1000), 0);
-      const dcAcRatio = totalACPowerW > 0 ? totalPowerWp / totalACPowerW : 0;
+        const design = await KurupiraClient.designs.create({
+          iacaLeadId: leadId,
+          name: projectName,
+        });
 
-      const payload: ProjectSnapshot = {
-        projectName: 'Projeto Kurupira ' + new Date().toISOString().split('T')[0],
-        status: 'approved',
-        clientData: {}, // Dados de CRM podem vir do uiStore futuramente
-        modules: solarState.project.placedModules,
-        inverters,
-        kpis: {
-          totalPowerWp,
-          totalACPowerW,
-          dcAcRatio,
-        },
-        snapshotImageBase64
-      };
-
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002';
-      console.log('[ProjectService] Sending Payload to API:', `${API_URL}/api/v1/designs`);
-      
-      const response = await fetch(`${API_URL}/api/v1/designs`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer kurupira-m2m-token'
-        },
-        body: JSON.stringify(payload)
-      });
-      
-      if (!response.ok) {
-        // Fallback para Dev Locals sem token JWT real
-        if (response.status === 401 || response.status === 403) {
-          console.warn('[ProjectService] Backend retornou erro de Auth. Ignorando no modo Dev/Mock para concluir o fluxo visual.');
-        } else {
-          throw new Error(`[ProjectService] Backend Error ${response.status}: ${response.statusText}`);
-        }
+        // Salvar o snapshot no campo designData
+        await KurupiraClient.designs.update(design.id, { designData });
+        solarState.setActiveProjectId(design.id);
       }
-      console.log('[ProjectService] Projeto salvo com sucesso!');
-      
-      // Tranca o projeto na UI
-      solarState.approveProject();
-      return true;
 
+      solarState.approveProject();
+      console.log('[ProjectService] Projeto salvo com sucesso.');
+      return true;
     } catch (error) {
       console.error('[ProjectService] Falha ao salvar design:', error);
       return false;
     }
   },
 
-  // Stubs mantidos para retrocompatibilidade
-  async listProjects() { return []; },
-  async loadProjectAndHydrate(_projectId: string) {},
-  async deleteProject(_projectId: string) {},
-  async duplicateProject(_projectId: string) { return null; }
+  async loadProjectAndHydrate(projectId: string): Promise<boolean> {
+    try {
+      const design = await KurupiraClient.designs.get(projectId);
+      hydrateStores(design.designData);
+      useSolarStore.getState().setActiveProjectId(projectId);
+      console.log('[ProjectService] Projeto carregado:', design.name);
+      return true;
+    } catch (error) {
+      console.error('[ProjectService] Falha ao carregar design:', error);
+      return false;
+    }
+  },
+
+  async deleteProject(projectId: string): Promise<boolean> {
+    try {
+      await KurupiraClient.designs.delete(projectId);
+      return true;
+    } catch (error) {
+      console.error('[ProjectService] Falha ao deletar design:', error);
+      return false;
+    }
+  },
+
+  async duplicateProject(_projectId: string) {
+    return null;
+  },
 };

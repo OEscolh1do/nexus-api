@@ -44,7 +44,7 @@ export const ProjectQueue: React.FC<{ onProjectLoaded: () => void }> = ({ onProj
             setLoading(true);
             setError(null);
             const data = await ProjectService.listProjects();
-            setProjects(data || []);
+            setProjects((data as unknown as ProjectMetadata[]) || []);
         } catch (err: any) {
             setError(err.message || "Failed to load projects");
         } finally {
