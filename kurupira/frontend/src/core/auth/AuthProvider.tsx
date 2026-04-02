@@ -4,6 +4,9 @@ import { AuthContext, User } from './useAuth';
 
 const IACA_URL = import.meta.env.VITE_IACA_URL || 'http://localhost:3000';
 
+// Demo mode: se não há VITE_IACA_URL configurada em produção, funciona como preview/demo
+const IS_DEMO = !import.meta.env.VITE_IACA_URL && !import.meta.env.DEV;
+
 function decodeJwtPayload(token: string): Record<string, unknown> | null {
   try {
     const base64Url = token.split('.')[1];
@@ -32,8 +35,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.getItem('token');
 
     if (!token) {
-      if (import.meta.env.DEV) {
-        // Dev standalone: mock user para desenvolvimento isolado do Kurupira
+      if (import.meta.env.DEV || IS_DEMO) {
+        // Dev standalone / Demo mode: mock user
         setUser({ id: 'dev-engineer', email: 'engenheiro@neonorte.dev', role: 'ADMIN', tenantId: 'dev-tenant' });
         setUserRole('ADMIN');
         setLoading(false);
@@ -47,7 +50,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!payload) {
       sessionStorage.removeItem('kurupira_token');
       localStorage.removeItem('token');
-      window.location.href = IACA_URL;
+      if (IS_DEMO) {
+        setUser({ id: 'demo-user', email: 'demo@neonorte.dev', role: 'ADMIN', tenantId: 'demo-tenant' });
+        setUserRole('ADMIN');
+        setLoading(false);
+      } else {
+        window.location.href = IACA_URL;
+      }
       return;
     }
 
@@ -56,7 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (exp && Date.now() / 1000 > exp) {
       sessionStorage.removeItem('kurupira_token');
       localStorage.removeItem('token');
-      if (import.meta.env.DEV) {
+      if (import.meta.env.DEV || IS_DEMO) {
         setUser({ id: 'dev-engineer', email: 'engenheiro@neonorte.dev', role: 'ADMIN', tenantId: 'dev-tenant' });
         setUserRole('ADMIN');
         setLoading(false);
