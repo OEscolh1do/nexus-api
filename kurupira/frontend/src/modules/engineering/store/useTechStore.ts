@@ -74,6 +74,7 @@ interface TechState {
   // Inverter Actions
   addInverter: (equipment: any, providedId?: string) => void;
   removeInverter: (id: string) => void;
+  duplicateInverter: (id: string) => void;
   updateInverterQuantity: (id: string, qty: number) => void;
 
   updateMPPTConfig: (inverterId: string, mpptId: number, config: Partial<MPPTConfig>) => void;
@@ -161,6 +162,29 @@ export const useTechStore = create<TechState>((set, get) => ({
         inverters: {
           ids: state.inverters.ids.filter(existingId => existingId !== id),
           entities: remaining,
+        },
+      };
+  }),
+
+  duplicateInverter: (id) => set(state => {
+      const source = state.inverters.entities[id];
+      if (!source) return state;
+
+      const newId = Math.random().toString(36).substr(2, 9);
+      const cloned: InverterState = {
+        ...source,
+        id: newId,
+        mpptConfigs: source.mpptConfigs.map(m => ({
+          ...m,
+          stringIds: [],
+          stringsCount: 0,
+        })),
+      };
+
+      return {
+        inverters: {
+          ids: [...state.inverters.ids, newId],
+          entities: { ...state.inverters.entities, [newId]: cloned },
         },
       };
   }),
