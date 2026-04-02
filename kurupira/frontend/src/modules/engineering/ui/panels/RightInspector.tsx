@@ -452,14 +452,17 @@ const SystemLossesSection: React.FC = () => {
           <RotateCcw size={12} />
         </button>
 
-        <div className="pr-6 space-y-4">
+        <div className="pr-6 space-y-3">
           {LOSS_CONFIG.map((config) => {
             const Icon = config.icon;
             const val = localLosses[config.key] ?? 0;
             const isEff = config.type === 'efficiency';
+            // Constrained slider ranges for precision (instead of 0-100)
+            const sliderMax = isEff ? 100 : 15;
+            const sliderStep = isEff ? 0.5 : 0.1;
 
             return (
-              <div key={config.key} className="flex flex-col gap-1.5" title={config.description}>
+              <div key={config.key} className="flex flex-col gap-1" title={config.description}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <Icon size={10} className={isEff ? "text-indigo-400" : "text-slate-500"} />
@@ -474,7 +477,14 @@ const SystemLossesSection: React.FC = () => {
                       step="0.1"
                       onChange={(e) => handleSliderChange(config.key, e as any)}
                       onBlur={() => updateLoss(config.key, val)}
-                      className="w-12 text-right bg-transparent border-b border-transparent hover:border-slate-700 focus:border-indigo-500 focus:outline-none text-[10px] font-mono text-slate-300 tabular-nums transition-colors"
+                      onFocus={(e) => e.target.select()}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') { 
+                          updateLoss(config.key, val);
+                          (e.target as HTMLInputElement).blur();
+                        }
+                      }}
+                      className="w-14 text-right bg-slate-800/60 border border-slate-700/50 rounded px-1 py-0.5 hover:border-indigo-500/50 focus:border-indigo-500 focus:bg-slate-800 focus:outline-none text-[10px] font-mono text-slate-200 tabular-nums transition-colors cursor-text"
                     />
                     <span className="text-[10px] font-mono text-slate-500">%</span>
                   </div>
@@ -482,16 +492,16 @@ const SystemLossesSection: React.FC = () => {
                 <input
                   type="range"
                   min="0"
-                  max="100"
-                  step="0.1"
-                  value={val}
+                  max={sliderMax}
+                  step={sliderStep}
+                  value={Math.min(val, sliderMax)}
                   onChange={(e) => handleSliderChange(config.key, e)}
                   onPointerUp={(e) => handleSliderCommit(config.key, e)}
                   style={{
                     backgroundColor: 'rgba(30, 41, 59, 1)',
-                    height: '4px',
+                    height: '3px',
                   }}
-                  className="w-full rounded-lg appearance-none cursor-pointer accent-indigo-500 hover:accent-indigo-400 focus:outline-none"
+                  className="w-full rounded-lg appearance-none cursor-pointer accent-indigo-500 hover:accent-indigo-400 focus:outline-none opacity-60 hover:opacity-100 transition-opacity"
                 />
               </div>
             );

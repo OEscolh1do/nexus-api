@@ -83,7 +83,9 @@ export const InverterCatalogDialog: React.FC<InverterCatalogDialogProps> = ({ is
     // For now, simple add. User can close manually.
     // For now, simple add. User can close manually or it closes automatically depending on parent.
     const handleAdd = (item: any) => {
-        onAddInverter(item);
+        // Pass the ORIGINAL catalog item (full data), not the stripped adapter
+        const original = catalogInverters.find(ci => ci.id === item.id || ci.id === item._catalogId);
+        onAddInverter(original || item);
     };
 
     return (

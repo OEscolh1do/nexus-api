@@ -89,7 +89,29 @@ export const LeftOutliner: React.FC = () => {
 
   const handleAddInverter = useCallback((catalogItem: any) => {
     const newId = Math.random().toString(36).substr(2, 9);
-    addProjectInverter({ ...catalogItem, id: newId, quantity: 1 });
+    // mppts can be a number (from adapter) or array (from catalog store)
+    const mpptArray = Array.isArray(catalogItem.mppts) ? catalogItem.mppts : null;
+    const mpptCount = mpptArray ? mpptArray.length : (catalogItem.mppts || 1);
+
+    const mapped = {
+      id: newId,
+      quantity: 1,
+      manufacturer: catalogItem.manufacturer,
+      model: catalogItem.model,
+      imageUrl: catalogItem.imageUrl,
+      nominalPower: catalogItem.nominalPowerW ? catalogItem.nominalPowerW / 1000 : catalogItem.nominalPower || 0,
+      maxEfficiency: catalogItem.efficiency?.euro || catalogItem.efficiency || 0,
+      maxInputVoltage: catalogItem.maxInputVoltage || (mpptArray ? mpptArray[0]?.maxInputVoltage : 600) || 600,
+      minInputVoltage: mpptArray ? mpptArray[0]?.minMpptVoltage || 40 : 40,
+      maxInputCurrent: mpptArray ? Math.round(mpptArray.reduce((sum: number, m: any) => sum + (m.maxCurrentPerMPPT || 0), 0) * 10) / 10 : 0,
+      outputVoltage: catalogItem.outputVoltage || 220,
+      outputFrequency: catalogItem.outputFrequency || 60,
+      maxOutputCurrent: catalogItem.maxOutputCurrent || 0,
+      weight: catalogItem.weight || 0,
+      connectionType: catalogItem.connectionType || 'Monofásico',
+      mppts: mpptCount,
+    };
+    addProjectInverter(mapped);
     techState.addInverter(catalogItem, newId);
     setInverterDialogOpen(false);
   }, [addProjectInverter, techState]);
