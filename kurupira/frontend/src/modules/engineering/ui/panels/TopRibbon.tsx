@@ -17,8 +17,9 @@ import {
   PanelLeftClose, PanelLeftOpen,
   PanelRightClose, PanelRightOpen,
   Undo2, Redo2, Download, LayoutDashboard,
-  Activity, ChevronDown, Flag, Check, type LucideIcon
+  Activity, ChevronDown, Flag, Check, User, type LucideIcon
 } from 'lucide-react';
+import { ClientDataModal } from '../components/ClientDataModal';
 import React from 'react';
 import { useSolarStore, selectModules, selectInverters, selectClientData } from '@/core/state/solarStore';
 import { useTemporalStore } from '@/core/state/useTemporalStore';
@@ -68,8 +69,10 @@ export const TopRibbon: React.FC<TopRibbonProps> = ({
   onToggleRight,
 }) => {
   const setActiveModule = useSolarStore(state => state.setActiveModule);
+  const clientData = useSolarStore(selectClientData);
   const activeTool = useUIStore(s => s.activeTool);
   const setActiveTool = useUIStore(s => s.setActiveTool);
+  const [isClientModalOpen, setIsClientModalOpen] = React.useState(false);
 
   // Zundo Temporal Store for Undo/Redo
   const pastStates = useTemporalStore((state: any) => state.pastStates);
@@ -98,6 +101,20 @@ export const TopRibbon: React.FC<TopRibbonProps> = ({
           title="Voltar ao Explorador"
         >
           <LayoutDashboard size={14} />
+        </button>
+
+        <div className="h-5 w-px bg-slate-800 mx-0.5" />
+
+        {/* Client Data Button */}
+        <button
+          onClick={() => setIsClientModalOpen(true)}
+          className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold transition-colors text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+          title="Dados do Cliente & Localização"
+        >
+          <User size={12} className={clientData?.clientName ? 'text-emerald-400' : 'text-slate-500'} />
+          <span className="hidden xl:inline max-w-[100px] truncate">
+            {clientData?.clientName || 'Cliente'}
+          </span>
         </button>
 
         <div className="h-5 w-px bg-slate-800 mx-0.5" />
@@ -256,6 +273,8 @@ export const TopRibbon: React.FC<TopRibbonProps> = ({
           <span className="hidden xl:inline">{isExporting ? 'Salvando...' : 'Exportar API'}</span>
         </button>
       </div>
+
+      <ClientDataModal isOpen={isClientModalOpen} onClose={() => setIsClientModalOpen(false)} />
     </div>
   );
 };
@@ -269,6 +288,7 @@ const ApprovalDropdown: React.FC = () => {
     const projectStatus = useSolarStore(s => s.project.projectStatus);
     const setProjectStatus = useSolarStore(s => s.setProjectStatus);
     const [isOpen, setIsOpen] = React.useState(false);
+    const { globalHealth } = useElectricalValidation();
 
     const STATUS_MAP = {
         draft: { label: 'Rascunho (Destravado)', color: 'text-slate-400', bg: 'bg-slate-800', border: 'border-slate-700' },
@@ -293,7 +313,16 @@ const ApprovalDropdown: React.FC = () => {
                     {(Object.keys(STATUS_MAP) as Array<keyof typeof STATUS_MAP>).map(s => (
                         <button
                             key={s}
-                            onClick={() => { setProjectStatus(s); setIsOpen(false); }}
+                            onClick={() => { 
+                                if (s === 'approved' && globalHealth === 'error') {
+                                    const confirmMsg = "Atenção Crítica: O sistema apresenta Erros Elétricos (Violando Limites do Inversor) ou Inconsistência Lógica. Tem certeza que deseja TRAVAR e APROVAR o projeto nessas condições?";
+                                    if (window.confirm(confirmMsg)) {
+                                        setProjectStatus(s); setIsOpen(false); 
+                                    }
+                                } else {
+                                    setProjectStatus(s); setIsOpen(false); 
+                                }
+                            }}
                             className="w-full text-left px-3 py-2 text-[10px] font-bold text-slate-300 hover:bg-slate-800 flex items-center justify-between"
                         >
                             <span className={STATUS_MAP[s].color}>{STATUS_MAP[s].label}</span>
@@ -310,9 +339,9 @@ const HealthCheckWidget: React.FC = () => {
     const modules = useSolarStore(selectModules);
     const inverters = useSolarStore(selectInverters);
     const placedModules = useSolarStore(state => state.project.placedModules);
+    const systemMinTemp = useSolarStore(state => state.settings.minHistoricalTemp); // Leitura dinâmica
     useTechKPIs(); // Subscribes to general KPIs
     const { electrical, inventory } = useElectricalValidation();
-    const systemMinTemp = 10; // Fallback para tooltip
 
     const totalModulePowerWp = modules.reduce((acc, m) => acc + (m.power), 0);
     const totalInverterPowerKw = inverters.reduce((acc, i) => acc + (i.nominalPower * i.quantity), 0);

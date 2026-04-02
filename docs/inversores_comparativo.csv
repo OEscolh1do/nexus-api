@@ -1,0 +1,32 @@
+﻿Fabricante;Modelo;Fase;Tensão Máx. Entrada CC (V);Tensão Mín. Entrada CC (V);Corrente Máx. Entrada CC (A);Tensão de Saída CA (V);Frequência Saída (Hz);Corrente Máx. Saída CA (A);Potência Nominal (W);Eficiência Máxima (%);Peso (kg);Ligação CA;Nº Strings;Nº MPPTs;Grau de Proteção IP;Garantia Base (anos);Observações
+PHB Solar;PHB2000-XS;Monofásico;550.0;40.0;16;115/120/127;60;15.7;2000.0;97.6;5.8;Monofásico;1.0;1.0;IP66;15;Para rede 127V
+PHB Solar;PHB3100D-YS;Monofásico;550.0;40.0;20;115/120/127;60;24.4;3100.0;96.4;9.2;Monofásico/Bifásico;2.0;2.0;IP66;10;Para rede 127V
+PHB Solar;PHB3300-XS;Monofásico;600.0;40.0;16;208/220/230/240/254;60;15.0;3300.0;97.6;5.8;Monofásico/Bifásico;1.0;1.0;IP66;15;Ultra compacto A4
+PHB Solar;PHB4000D-YS;Monofásico;600.0;40.0;20;208/220/230/240/254;60;18.2;4000.0;98.1;9.2;Monofásico/Bifásico;2.0;2.0;IP66;10;Zero Grid
+PHB Solar;PHB5000D-YS;Monofásico;600.0;40.0;20;208/220/230/240/254;60;22.8;5000.0;98.1;9.2;Monofásico/Bifásico;2.0;2.0;IP66;10;Zero Grid
+PHB Solar;PHB6000D-YS;Monofásico;600.0;40.0;20;208/220/230/240/254;60;27.3;6000.0;98.1;9.2;Monofásico/Bifásico;2.0;2.0;IP66;10;Zero Grid
+PHB Solar;PHB7K5D-WS;Monofásico;600.0;40.0;20;208/220/230/240/254;60;34.1;7500.0;97.8;16.0;Monofásico/Bifásico;2.0;2.0;IP65;10;2 MPPTs
+PHB Solar;PHB7K5-MS;Monofásico;600.0;40.0;20;208/220/230/240/254;60;34.1;7500.0;97.8;16.0;Monofásico/Bifásico;3.0;3.0;IP65;10;3 MPPTs
+PHB Solar;PHB10K-MS;Monofásico;600.0;40.0;20;208/220/230/240/254;60;45.5;10000.0;97.9;16.0;Monofásico/Bifásico;3.0;3.0;IP65;10;3 MPPTs
+PHB Solar;PHB9K-SDT;Trifásico;850.0;140.0;22/22;220/127;60;22.7;9000.0;97.7;16.2;3F+N+T / 3F+T;2.0;2.0;IP66;10;
+PHB Solar;PHB12K-SDT;Trifásico;850.0;140.0;32/22;220/127;60;33.3;12000.0;98.2;17.1;3F+N+T / 3F+T;3.0;2.0;IP66;10;
+PHB Solar;PHB15K-SDT;Trifásico;1100.0;140.0;22/22;380/220;60;22.7;15000.0;98.5;16.2;3F+N+T / 3F+T;2.0;2.0;IP66;10;
+PHB Solar;PHB17K-SDT;Trifásico;850.0;140.0;42/32;220/127;60;50.0;17000.0;97.5;20.5;3F+N+T / 3F+T;4.0;2.0;IP66;10;
+PHB Solar;PHB20K-SDT;Trifásico;1100.0;140.0;32/22;380/220;60;30.3;20000.0;98.5;17.1;3F+N+T / 3F+T;3.0;2.0;IP66;10;
+PHB Solar;PHB30K-SDT;Trifásico;1100.0;140.0;42/32;380/220;60;45.5;30000.0;98.6;20.5;3F+N+T / 3F+T;4.0;2.0;IP66;10;
+PHB Solar;PHB12KS-DT;Trifásico;850.0;140.0;40/40;220/127;60;31.5;12000.0;98.3;16.6;3F+N+T / 3F+T;4.0;2.0;IP66;10;String Box integrada
+PHB Solar;PHB20KS-DT;Trifásico;1100.0;140.0;40/40;380/220;60;30.3;20000.0;98.7;16.6;3F+N+T / 3F+T;4.0;2.0;IP66;10;String Box integrada
+PHB Solar;PHB23K-SDT;Trifásico;850.0;140.0;42/42/32;220/127;60;60.4;23000.0;98.6;28.0;3F+N+T / 3F+T;6.0;3.0;IP65;10;
+PHB Solar;PHB37K5-SDT;Trifásico;1100.0;140.0;42/42/32;380/220;60;56.9;37500.0;98.6;28.0;3F+N+T / 3F+T;6.0;3.0;IP65;10;
+PHB Solar;PHB35KS-MT;Trifásico;800.0;200.0;30×6;220/127;60;96.0;35000.0;98.6;55.0;3F+N+T / 3F+T;12.0;6.0;IP65;15;Cor vermelha
+PHB Solar;PHB60KS-MT;Trifásico;1100.0;200.0;30×6;380/220;60;96.0;60000.0;98.6;55.0;3F+N+T / 3F+T;12.0;6.0;IP65;15;Cor vermelha
+PHB Solar;PHB50K-SMT;Trifásico;900.0;180.0;42×6;220/127;60;131.2;50000.0;98.5;64.0;3F+N+T / 3F+T;12.0;6.0;IP66;15;AFCI integrado
+PHB Solar;PHB75K-SMT;Trifásico;1100.0;180.0;42×6;380/220;60;114.0;75000.0;98.6;64.0;3F+N+T / 3F+T;12.0;6.0;IP66;15;AFCI integrado
+PHB Solar;PHB75K-GT;Trifásico;800.0;180.0;42×8;220/127;60;196.9;75000.0;98.6;88.0;3F+N+T / 3F+T;16.0;8.0;IP66;10;String Box integrada
+PHB Solar;PHB125K-GT;Trifásico;1100.0;180.0;42×10;380/220;60;199.4;125000.0;98.6;88.0;3F+N+T / 3F+T;20.0;10.0;IP66;10;String Box integrada
+Huawei;SUN2000-2KTL-L1;Monofásico;600.0;90.0;12.5;220/230/240;50/60;10.0;2000.0;98.2;12.0;Monofásico;1.0;2.0;IP65;—;Compatível com bateria
+Huawei;SUN2000-3KTL-L1;Monofásico;600.0;90.0;12.5;220/230/240;50/60;15.0;3000.0;98.3;12.0;Monofásico;1.0;2.0;IP65;—;Compatível com bateria
+Huawei;SUN2000-4KTL-L1;Monofásico;600.0;90.0;12.5;220/230/240;50/60;20.0;4000.0;98.4;12.0;Monofásico;1.0;2.0;IP65;—;Compatível com bateria
+Huawei;SUN2000-5KTL-L1;Monofásico;600.0;90.0;12.5;220/230/240;50/60;25.0;5000.0;98.4;12.0;Monofásico;1.0;2.0;IP65;—;Compatível com bateria
+Huawei;SUN2000-6KTL-L1;Monofásico;600.0;90.0;12.5;220/230/240;50/60;27.3;6000.0;98.4;12.0;Monofásico;1.0;2.0;IP65;—;Compatível com bateria
+Huawei;SUN2000-75KTL-M1;Trifásico;1100.0;200.0;26;380/400;50/60;113.6;75000.0;98.6;90.0;3W+N+PE;20.0;10.0;IP66;—;Diagnóstico curva I-V

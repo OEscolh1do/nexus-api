@@ -12,25 +12,24 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { useSolarStore, selectModules } from '@/core/state/solarStore';
 import { useTechStore } from '../store/useTechStore';
-import { INVERTER_CATALOG } from '../constants/inverters';
+import { useCatalogStore } from '@/modules/engineering/store/useCatalogStore';
 import { toArray } from '@/core/types/normalized.types';
 
 export const InverterStatusBar: React.FC<{ className?: string }> = ({ className }) => {
     // 1. Consumer Stores
     const modules = useSolarStore(selectModules);
-    const { inverters: invertersNormalized } = useTechStore();
-    const inverters = toArray(invertersNormalized);
+    const inverters = useTechStore(state => toArray(state.inverters));
+    const catalogInverters = useCatalogStore(state => state.inverters);
 
     // 2. Calculate KPIs
     const kpi = useMemo(() => {
-        // ... (existing implementation)
         // Total DC (kWp)
         const totalDC = modules.reduce((acc, m) => acc + (m.power), 0) / 1000;
 
         // Total AC (kW)
         const totalAC = inverters.reduce((acc, inv) => {
-            const spec = INVERTER_CATALOG.find(i => i.id === inv.catalogId);
-            return acc + ((spec?.nominalPowerW || 0) * inv.quantity);
+            const spec = catalogInverters.find((i: any) => i.id === inv.catalogId);
+            return acc + ((spec?.nominalPowerW || 0) * (inv as any).quantity);
         }, 0) / 1000;
 
         // Total Modules Count

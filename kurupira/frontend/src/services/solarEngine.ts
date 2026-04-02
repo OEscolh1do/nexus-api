@@ -7,7 +7,7 @@ import pino from "pino";
 
 const logger = pino();
 
-// Instantiate dependencies (kept for legacy synchronous overrides fallback)
+// @deprecated P8: Mantido para compatibilidade do solar.worker.ts. Use useCatalogStore para dados atualizados.
 export const equipmentRepo = new InMemoryEquipmentRepo();
 export const irradiationProvider = new CresesbIrradiationProvider();
 

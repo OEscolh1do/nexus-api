@@ -2,24 +2,94 @@ import React, { useEffect, useState } from 'react';
 import { useSolarStore } from '@/core/state/solarStore';
 import { AuthContext, User } from './useAuth';
 
+const IACA_URL = import.meta.env.VITE_IACA_URL || 'http://localhost:3000';
+
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(base64));
+  } catch {
+    return null;
+  }
+}
+
+function mapRole(jwtRole: string): 'SALES' | 'ENGINEER' | 'ADMIN' {
+  if (jwtRole === 'ADMIN' || jwtRole === 'COORDENACAO') return 'ADMIN';
+  if (jwtRole === 'ENGINEER') return 'ENGINEER';
+  return 'SALES';
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const setUserRole = useSolarStore(state => state.setUserRole);
 
   useEffect(() => {
-    // Mode de Desenvolvimento / Mock SSO
-    console.log("AuthProvider: Supabase removido. Workspace Kurupira ativado com sessão local mockada.");
-    
-    // Auto-login instantâneo como engenheiro para contornar qualquer barreira de gateway
-    setUser({ id: "mock-kurupira-user", email: "engenheiro@neonorte", role: "ADMIN" });
-    setUserRole('ADMIN');
+    // Prioridade: sessionStorage (injetado via ?token= na URL) → localStorage (SSO bridge Iaçã)
+    const token =
+      sessionStorage.getItem('kurupira_token') ||
+      localStorage.getItem('token');
+
+    if (!token) {
+      if (import.meta.env.DEV) {
+        // Dev standalone: mock user para desenvolvimento isolado do Kurupira
+        setUser({ id: 'dev-engineer', email: 'engenheiro@neonorte.dev', role: 'ADMIN', tenantId: 'dev-tenant' });
+        setUserRole('ADMIN');
+        setLoading(false);
+      } else {
+        window.location.href = IACA_URL;
+      }
+      return;
+    }
+
+    const payload = decodeJwtPayload(token);
+    if (!payload) {
+      sessionStorage.removeItem('kurupira_token');
+      localStorage.removeItem('token');
+      window.location.href = IACA_URL;
+      return;
+    }
+
+    // Verificar expiração
+    const exp = payload.exp as number | undefined;
+    if (exp && Date.now() / 1000 > exp) {
+      sessionStorage.removeItem('kurupira_token');
+      localStorage.removeItem('token');
+      if (import.meta.env.DEV) {
+        setUser({ id: 'dev-engineer', email: 'engenheiro@neonorte.dev', role: 'ADMIN', tenantId: 'dev-tenant' });
+        setUserRole('ADMIN');
+        setLoading(false);
+      } else {
+        window.location.href = IACA_URL;
+      }
+      return;
+    }
+
+    // Garantir que o token esteja no sessionStorage para o NexusClient
+    if (!sessionStorage.getItem('kurupira_token')) {
+      sessionStorage.setItem('kurupira_token', token);
+    }
+
+    const userId = (payload.id || payload.sub) as string;
+    const role = (payload.role as string) || 'VENDEDOR';
+
+    setUser({
+      id: userId,
+      email: payload.username as string | undefined,
+      role,
+      tenantId: (payload.tenantId as string) || 'default-tenant-001',
+    });
+    setUserRole(mapRole(role));
     setLoading(false);
   }, [setUserRole]);
 
   const signOut = async () => {
-    console.warn("SignOut não faz nada no ambiente Kurupira mockado atual.");
+    sessionStorage.removeItem('kurupira_token');
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
     setUser(null);
+    window.location.href = IACA_URL;
   };
 
   return (

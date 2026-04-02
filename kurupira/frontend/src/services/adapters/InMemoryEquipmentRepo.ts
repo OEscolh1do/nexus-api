@@ -1,45 +1,84 @@
 /**
  * P4-2: InMemoryEquipmentRepo — Adaptador de Equipamentos
- * 
- * Módulos: MODULE_DB já é parseado por `moduleDatabaseSchema` (Zod),
- * retornando `ModuleCatalogItem[]` diretamente. Nenhum mapeamento necessário.
- * 
- * Inversores: INVERTER_DB ainda usa formato legado com chaves em português.
- * O mapeamento via `mapInverterToSpec` é mantido até a migração do DB.
+ *
+ * Estratégia: API-first com fallback para dados locais.
+ * - Tenta buscar do backend (GET /api/v1/catalog/modules e /inverters)
+ * - Em caso de erro (rede, 401, backend desligado), usa os arrays locais.
+ *
+ * P7: Fonte única — INVERTER_CATALOG substitui INVERTER_DB.
+ * Derivamos InverterSpecs a partir do catálogo unificado.
  */
 
 import { IEquipmentRepository } from "../../core/ports/IEquipmentRepository";
 import { ModuleCatalogItem } from "../../core/schemas/moduleSchema";
 import { InverterSpecs } from "../../core/schemas/equipment.schemas";
-import { MODULE_DB } from "../../data/equipment/modules";
-import { INVERTER_DB } from "../../data/equipment/inverters";
+import { KurupiraClient } from "../NexusClient";
 
-function mapInverterToSpec(data: any): InverterSpecs {
+function mapApiModuleToItem(apiModule: any): ModuleCatalogItem | null {
+  const ed = apiModule.electricalData;
+  if (!ed || ed.vmp == null || ed.voc == null) return null;
+
   return {
-    id: data["Modelo"].replace(/\s+/g, '-').toLowerCase(),
-    quantity: 0,
-    manufacturer: data["Fabricante"],
-    model: data["Modelo"],
-    maxInputVoltage: Number(data["Tensão máxima de entrada"]),
-    minInputVoltage: Number(data["Tensão mínima de entrada"]),
-    maxInputCurrent: Number(data["Corrente Máxima de entrada"]),
-    outputVoltage: Number(data["Tensão de saída"]),
-    outputFrequency: Number(data["Frequência de saída"]),
-    maxOutputCurrent: Number(data["Corrente Máxima de Saída"]),
-    nominalPower: Number(data["Potência Nominal"]),
-    maxEfficiency: Number(data["Eficiência Máxima"]),
-    weight: Number(data["Peso"]),
-    connectionType: data["Ligação"]
+    id: apiModule.id,
+    manufacturer: apiModule.manufacturer,
+    model: apiModule.model,
+    imageUrl: apiModule.imageUrl,
+    unifilarSymbolRef: apiModule.unifilarSymbolRef,
+    electrical: {
+      pmax: apiModule.powerWp,
+      vmp: ed.vmp,
+      imp: ed.imp,
+      voc: ed.voc,
+      isc: ed.isc,
+      efficiency: ed.efficiency ?? apiModule.efficiency ?? 0,
+      tempCoeffVoc: ed.tempCoeffVoc,
+    },
+    physical: {
+      widthMm: ed.widthMm,
+      heightMm: ed.heightMm,
+      depthMm: ed.depthMm,
+      weightKg: ed.weightKg ?? apiModule.weight ?? 0,
+      cells: ed.cells,
+    },
+  };
+}
+
+function mapApiInverterToSpec(apiInv: any): InverterSpecs | null {
+  const ed = apiInv.electricalData;
+  if (!ed) return null;
+
+  return {
+    id: apiInv.id,
+    quantity: 0, // Assigned by inventory config
+    manufacturer: apiInv.manufacturer,
+    model: apiInv.model,
+    imageUrl: apiInv.imageUrl,
+    unifilarSymbolRef: apiInv.unifilarSymbolRef,
+    maxInputVoltage: apiInv.maxInputV ?? 0,
+    minInputVoltage: ed.minInputV ?? 0,
+    maxInputCurrent: ed.maxInputCurrent ?? 0,
+    outputVoltage: ed.outputVoltage ?? 0,
+    outputFrequency: ed.outputFrequency ?? 60,
+    maxOutputCurrent: ed.maxOutputCurrent ?? 0,
+    nominalPower: apiInv.nominalPowerW,
+    maxEfficiency: apiInv.efficiency ?? 0,
+    weight: ed.weight ?? 0,
+    connectionType: ed.connectionType ?? '',
   };
 }
 
 export class InMemoryEquipmentRepo implements IEquipmentRepository {
   async getModules(): Promise<ModuleCatalogItem[]> {
-    // MODULE_DB já é ModuleCatalogItem[] validado pelo Zod (moduleDatabaseSchema.parse)
-    return MODULE_DB;
+    const apiData = await KurupiraClient.catalog.modules();
+    const mapped = apiData.map(mapApiModuleToItem).filter(Boolean) as ModuleCatalogItem[];
+    if (mapped.length === 0) throw new Error("Equipment Repository: fetched modules catalog is empty.");
+    return mapped;
   }
 
   async getInverters(): Promise<InverterSpecs[]> {
-    return INVERTER_DB.map(mapInverterToSpec);
+    const apiData = await KurupiraClient.catalog.inverters();
+    const mapped = apiData.map(mapApiInverterToSpec).filter(Boolean) as InverterSpecs[];
+    if (mapped.length === 0) throw new Error("Equipment Repository: fetched inverters catalog is empty.");
+    return mapped;
   }
 }

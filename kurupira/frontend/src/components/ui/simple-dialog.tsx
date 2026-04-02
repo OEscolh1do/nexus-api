@@ -1,4 +1,5 @@
 import React from 'react';
+import ReactDOM from 'react-dom';
 
 interface DialogProps {
   open: boolean;
@@ -9,14 +10,15 @@ interface DialogProps {
 export const Dialog: React.FC<DialogProps> = ({ open, onOpenChange, children }) => {
   if (!open) return null;
 
-  return (
+  return ReactDOM.createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div 
         className="fixed inset-0" 
         onClick={() => onOpenChange(false)}
       />
       {children}
-    </div>
+    </div>,
+    document.body
   );
 };
 

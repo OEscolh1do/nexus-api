@@ -20,7 +20,8 @@ import React, { useMemo, useState } from 'react';
 import {
   User, MapPin, BarChart3, Thermometer, Zap,
   Info, CloudOff, RotateCcw, Activity, Hexagon,
-  ArrowUpRight, ArrowDownRight, CheckCircle2, AlertTriangle, Sun
+  ArrowUpRight, ArrowDownRight, CheckCircle2, AlertTriangle, Sun,
+  Flame // Adicionado para a seção termodinâmica
 } from 'lucide-react';
 
 import { useSolarStore, selectModules } from '@/core/state/solarStore';
@@ -145,6 +146,9 @@ const CommercialContextView: React.FC = () => {
 
       {/* System Losses (P1-1) */}
       <SystemLossesSection />
+
+      {/* Opção C: Controles Dinâmicos de Termodinâmica */}
+      <ThermalConfigBlock />
     </div>
   );
 };
@@ -498,3 +502,83 @@ const SystemLossesSection: React.FC = () => {
   );
 };
 
+// =============================================================================
+// VIEW: THERMAL CONFIG BLOCK (Opção C - Motor Dinâmico)
+// =============================================================================
+
+const ThermalConfigBlock: React.FC = () => {
+    // Acessa as propriedades do Solar Store para as configurações técnicas
+    const settings = useSolarStore(state => state.settings);
+    const updateSettings = useSolarStore(state => state.updateSettings);
+
+    const handleTempChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        updateSettings({ minHistoricalTemp: parseFloat(e.target.value) || 0 });
+    };
+
+    const handleCoeffChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        updateSettings({ vocTempCoefficient: parseFloat(e.target.value) || 0 });
+    };
+
+    return (
+        <section className="mt-4 pt-4 border-t border-slate-800">
+            <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    <Flame size={12} className="text-red-400" />
+                    <span>Termodinâmica Local</span>
+                </div>
+            </div>
+
+            <div className="space-y-3 bg-slate-900 rounded-lg p-3 border border-slate-800 relative">
+                <p className="text-[9px] text-slate-500 mb-2 leading-tight">
+                    Esses parâmetros afetam dinamicamente o cálculo de limite de tensão (VocMax) durante as madrugadas frias de inverno (NEC 690.7).
+                </p>
+
+                <div className="flex flex-col gap-1.5" title="Temperatura Mínima Histórica">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-medium text-slate-400 leading-none">Temp. Mínima Histórica</span>
+                        <div className="flex items-center gap-0.5">
+                            <input
+                                type="number"
+                                value={settings.minHistoricalTemp}
+                                min="-40"
+                                max="50"
+                                step="1"
+                                onChange={handleTempChange}
+                                className="w-12 text-right bg-transparent border-b border-transparent hover:border-slate-700 focus:border-red-500 focus:outline-none text-[10px] font-mono text-slate-300 tabular-nums transition-colors"
+                            />
+                            <span className="text-[10px] font-mono text-slate-500">°C</span>
+                        </div>
+                    </div>
+                    <input
+                        type="range"
+                        min="-20"
+                        max="30"
+                        step="1"
+                        value={settings.minHistoricalTemp}
+                        onChange={handleTempChange}
+                        style={{ backgroundColor: 'rgba(30, 41, 59, 1)', height: '4px' }}
+                        className="w-full rounded-lg appearance-none cursor-pointer accent-red-500 hover:accent-red-400 focus:outline-none"
+                    />
+                </div>
+
+                <div className="flex flex-col gap-1.5 mt-2" title="Coeficiente de Temperatura Voc (%/°C)">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-medium text-slate-400 leading-none">Coeficiente de Voc</span>
+                        <div className="flex items-center gap-0.5">
+                            <input
+                                type="number"
+                                value={settings.vocTempCoefficient}
+                                min="-0.5"
+                                max="0"
+                                step="0.01"
+                                onChange={handleCoeffChange}
+                                className="w-14 text-right bg-transparent border-b border-transparent hover:border-slate-700 focus:border-red-500 focus:outline-none text-[10px] font-mono text-slate-300 tabular-nums transition-colors"
+                            />
+                            <span className="text-[10px] font-mono text-slate-500">%/°C</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    );
+};

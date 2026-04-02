@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useSolarStore, selectModules } from '@/core/state/solarStore';
 import { useTechStore } from '@/modules/engineering/store/useTechStore';
-import { INVERTER_CATALOG } from '@/modules/engineering/constants/inverters';
+import { useCatalogStore } from '@/modules/engineering/store/useCatalogStore';
 import { validateSystemStrings, type MPPTInput, type SystemValidationReport } from '@/modules/engineering/utils/electricalMath';
 
 export interface InventorySyncStatus {
@@ -23,6 +23,7 @@ export const useElectricalValidation = (): UnifiedValidationResult => {
     // 1. Fetch dependencies (avoiding deep object listening if possible, but keeping it simple for now)
     const modules = useSolarStore(selectModules);
     const settings = useSolarStore(state => state.settings);
+    const catalogInverters = useCatalogStore(state => state.inverters);
     
     // TechStore data
     const invertersNorm = useTechStore(state => state.inverters);
@@ -87,7 +88,7 @@ export const useElectricalValidation = (): UnifiedValidationResult => {
             };
 
             const mpptInputs: MPPTInput[] = techInverters.flatMap(inv => {
-                const catalogSpec = INVERTER_CATALOG.find((c: any) => c.id === inv.catalogId);
+                const catalogSpec = catalogInverters.find((c: any) => c.id === inv.catalogId);
                 if (!catalogSpec) return [];
 
                 return inv.mpptConfigs.map(cfg => {
@@ -139,5 +140,5 @@ export const useElectricalValidation = (): UnifiedValidationResult => {
         };
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [modulesCount, representativeModule?.id, invertersSig, stringsSig, settingsSig]);
+    }, [modulesCount, representativeModule?.id, invertersSig, stringsSig, settingsSig, catalogInverters.length]);
 };

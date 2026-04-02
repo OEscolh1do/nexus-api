@@ -1,12 +1,11 @@
 /**
  * CATALOG-SLICE.TS
- * P4-3: Slice para dados de catálogo (módulos e inversores disponíveis)
+ * @deprecated P8: Este slice foi substituído pelo `useCatalogStore` (Zustand standalone).
+ * Mantido temporariamente para não quebrar a tipagem do solarStore combinado.
+ * Migre consumidores para: import { useCatalogStore } from '@/modules/engineering/store/useCatalogStore';
  * 
- * REGRA CRÍTICA: Este slice é EXCLUÍDO do partialize do Zundo (temporal)
- * e do persist (localStorage). Filtragens e navegações no catálogo
- * NUNCA devem poluir o histórico de Undo/Redo do projeto.
- * 
- * Os dados são carregados sob demanda via InMemoryEquipmentRepo.
+ * Os dados carregados aqui NÃO contêm MPPTs fiéis ao banco nem fallback de imagem.
+ * Use `useCatalogStore` para dados completos e atualizados.
  */
 
 import { StateCreator } from 'zustand';

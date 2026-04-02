@@ -1,4 +1,5 @@
 import { useSolarStore } from '@/core/state/solarStore';
+import { initialClientData } from '@/core/state/slices/clientSlice';
 import { useTechStore } from '@/modules/engineering/store/useTechStore';
 import { KurupiraClient, TechnicalDesignSummary } from './NexusClient';
 
@@ -94,6 +95,11 @@ export const ProjectService = {
 
   async loadProjectAndHydrate(projectId: string): Promise<boolean> {
     try {
+      // Clear before loading to avoid array leaks from old projects
+      useSolarStore.setState(s => ({ 
+          project: { ...s.project, installationAreas: [], placedModules: [] } 
+      }));
+
       const design = await KurupiraClient.designs.get(projectId);
       hydrateStores(design.designData);
       useSolarStore.getState().setActiveProjectId(projectId);
@@ -118,4 +124,57 @@ export const ProjectService = {
   async duplicateProject(_projectId: string) {
     return null;
   },
+
+  async createStandaloneProject(payload: {
+    projectName: string;
+    clientName: string;
+    city: string;
+    stateUF: string;
+    connectionType: 'monofasico' | 'bifasico' | 'trifasico';
+    tariffRate: number;
+    monthlyHistory: number[];
+  }): Promise<string | null> {
+    try {
+      const design = await KurupiraClient.designs.create({
+        iacaLeadId: null as any,
+        name: payload.projectName || 'Sem Título',
+      });
+
+      // Clear local state early
+      useSolarStore.setState(s => ({ 
+        project: { ...s.project, installationAreas: [], placedModules: [], projectName: payload.projectName } 
+      }));
+
+      const skeletonData = buildDesignData();
+
+      skeletonData.solar.clientData = {
+        ...initialClientData,
+        clientName: payload.clientName,
+        city: payload.city,
+        state: payload.stateUF,
+        connectionType: payload.connectionType,
+        tariffRate: payload.tariffRate,
+        averageConsumption: payload.monthlyHistory.reduce((a,b)=>a+b,0)/12,
+        invoices: [{
+          id: 'default',
+          name: 'Instalação Principal',
+          installationNumber: '',
+          concessionaire: '',
+          rateGroup: 'B',
+          connectionType: payload.connectionType,
+          voltage: '220',
+          breakerCurrent: 50,
+          monthlyHistory: payload.monthlyHistory,
+        }],
+      };
+
+      await KurupiraClient.designs.update(design.id, { designData: skeletonData });
+      await ProjectService.loadProjectAndHydrate(design.id);
+      
+      return design.id;
+    } catch (e) {
+      console.error('[ProjectService] Failed to create standalone project', e);
+      return null;
+    }
+  }
 };

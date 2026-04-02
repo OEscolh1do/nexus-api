@@ -99,6 +99,8 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: neonorte_root_2026!
+    ports:
+      - "3306:3306"
     volumes:
       - nexus_mysql_data:/var/lib/mysql
       - ./infra/mysql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro

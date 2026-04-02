@@ -1,14 +1,15 @@
 import React from 'react';
 import { useTechStore } from '../store/useTechStore';
 import { useSolarStore, selectModules } from '@/core/state/solarStore';
+import { useCatalogStore } from '@/modules/engineering/store/useCatalogStore';
 import { toArray } from '@/core/types/normalized.types';
-import { INVERTER_CATALOG } from '../constants/inverters';
 import { Settings2, Zap, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MPPTCompactRow } from './StringConfiguratorRow';
 
 export const StringConfigurator: React.FC<{ className?: string }> = ({ className }) => {
     const { inverters: invertersNormalized, updateMPPTConfig, selectedModuleId, updateInverterQuantity } = useTechStore();
+    const catalogInverters = useCatalogStore(s => s.inverters);
     const inverters = toArray(invertersNormalized);
 
     // Get Selected Module Specs
@@ -56,7 +57,7 @@ export const StringConfigurator: React.FC<{ className?: string }> = ({ className
             {/* BODY (Scrollable) */}
             <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-slate-50/50">
                 {inverters.map(invInstance => {
-                    const spec = INVERTER_CATALOG.find(i => i.id === invInstance.catalogId);
+                    const spec = catalogInverters.find((i: any) => i.id === invInstance.catalogId);
                     if (!spec) return null;
 
                     return (

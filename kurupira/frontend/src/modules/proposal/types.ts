@@ -28,10 +28,11 @@ export interface ProposalCalculations {
         estimatedMonthlyGenKwh: number;
         monthlySavings: number;
         paybackYears: number;
-        payback: number;
         roi: number;
         npv: number;
         irr: number;
+        avgHsp?: number;
+        avgTariff?: number;
         monthlyInstallment?: number;
         cashFlows?: number[];
         cumulativeCashFlows?: number[];

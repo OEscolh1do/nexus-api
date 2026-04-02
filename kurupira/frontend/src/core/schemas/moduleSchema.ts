@@ -30,6 +30,8 @@ export const ModuleCatalogItemSchema = z.object({
   id: z.string().min(1),
   manufacturer: z.string().min(1),
   model: z.string().min(1),
+  imageUrl: z.string().optional(),
+  unifilarSymbolRef: z.string().optional(),
   electrical: ModuleElectricalSchema,
   physical: ModulePhysicalSchema,
   asset: ModuleAssetSchema.optional(),

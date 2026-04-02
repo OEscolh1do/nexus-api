@@ -5,7 +5,8 @@ import {
 } from '@/components/ui/simple-dialog';
 import { InverterFilterPanel, InverterFilters, INITIAL_FILTERS } from './InverterFilterPanel';
 import { InverterInventoryItem } from './InverterInventoryItem';
-import { useSolarStore } from '@/core/state/solarStore';
+import { useCatalogStore } from '../store/useCatalogStore';
+import type { Inverter } from '../store/useTechStore';
 
 interface InverterCatalogDialogProps {
     isOpen: boolean;
@@ -14,31 +15,46 @@ interface InverterCatalogDialogProps {
 }
 
 export const InverterCatalogDialog: React.FC<InverterCatalogDialogProps> = ({ isOpen, onClose, onAddInverter }) => {
-    // P4-5: Consume catalog from store (loaded via InMemoryEquipmentRepo)
-    const catalogInverters = useSolarStore(state => state.catalogInverters);
-    const isCatalogLoaded = useSolarStore(state => state.isCatalogLoaded);
-    const loadCatalog = useSolarStore(state => state.loadCatalog);
-    const isLoading = !isCatalogLoaded;
+    // P8: Consume catalog from useCatalogStore (Single Source of Truth)
+    const catalogInverters = useCatalogStore(state => state.inverters);
+    const isLoading = useCatalogStore(state => state.isLoading);
+    const fetchCatalog = useCatalogStore(state => state.fetchCatalog);
+    const isCatalogLoaded = catalogInverters.length > 0;
 
     // Load catalog data on first open
     useEffect(() => {
-        if (isOpen && !isCatalogLoaded) {
-            loadCatalog();
+        if (isOpen && !isCatalogLoaded && !isLoading) {
+            fetchCatalog();
         }
-    }, [isOpen, isCatalogLoaded, loadCatalog]);
+    }, [isOpen, isCatalogLoaded, isLoading, fetchCatalog]);
+
+    // Adapter: InverterCatalogItem → Inverter (for InverterInventoryItem rendering)
+    const adaptedInverters: (Inverter & { _catalogId: string })[] = useMemo(() => {
+        return catalogInverters.map(i => ({
+            id: i.id,
+            _catalogId: i.id,
+            manufacturer: i.manufacturer,
+            model: i.model,
+            nominalPower: i.nominalPowerW / 1000,
+            mppts: i.mppts.length,
+            connectionType: i.connectionType || 'Trifásico',
+            maxInputVoltage: i.maxInputVoltage || i.mppts[0]?.maxInputVoltage || 600,
+            imageUrl: i.imageUrl,
+        }));
+    }, [catalogInverters]);
 
     // Local Filter State
     const [filters, setFilters] = useState<InverterFilters>(INITIAL_FILTERS);
 
-    // 1. Extract Unique Brands form Catalog
+    // 1. Extract Unique Brands from Catalog
     const uniqueBrands = useMemo(() => {
-        const brands = new Set(catalogInverters.map(m => m.manufacturer));
+        const brands = new Set(adaptedInverters.map(m => m.manufacturer));
         return Array.from(brands).sort();
-    }, [catalogInverters]);
+    }, [adaptedInverters]);
 
     // 2. Final Filtered List
     const filteredCatalog = useMemo(() => {
-        return catalogInverters.filter(item => {
+        return adaptedInverters.filter(item => {
             // A. Manufacturer (Exact)
             if (filters.manufacturer && item.manufacturer !== filters.manufacturer) return false;
 
@@ -55,13 +71,12 @@ export const InverterCatalogDialog: React.FC<InverterCatalogDialogProps> = ({ is
             // D. Phase (Exact)
             if (filters.phase && item.connectionType !== filters.phase) return false;
 
-            // E. MPPTs — campo não disponível no InverterSpecs atual, filtro desabilitado
-            // TODO P4-future: adicionar mppts ao InverterSpecs quando INVERTER_DB for migrado
-            // if (filters.minMppts && (item.mppts || 1) < parseInt(filters.minMppts)) return false;
+            // E. MPPTs (P8: agora disponível via useCatalogStore)
+            if (filters.minMppts && (item.mppts || 1) < parseInt(filters.minMppts)) return false;
 
             return true;
         });
-    }, [filters, catalogInverters]);
+    }, [filters, adaptedInverters]);
 
     // Handle Add & Close (Optional UX: maintain open to add multiple? or close on add?)
     // Decision: Keep open to allow adding multiple, maybe show toast? 
@@ -80,19 +95,19 @@ export const InverterCatalogDialog: React.FC<InverterCatalogDialogProps> = ({ is
                     className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity" 
                     onClick={onClose}
                 />
-
+                
                 {/* MODAL CONTENT */}
-                <div className="relative z-50 w-full max-w-5xl bg-white rounded-xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
+                <div className="relative z-50 w-full max-w-5xl bg-slate-900 rounded-xl shadow-2xl shadow-black/40 flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-700/50">
                     
                     {/* 1. Header */}
-                    <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/50 shrink-0">
+                    <div className="px-6 py-4 border-b border-slate-700/50 flex items-center justify-between bg-slate-800/50 shrink-0">
                         <div>
-                            <h2 className="text-lg font-bold text-slate-800">Catálogo de Inversores</h2>
-                            <p className="text-sm text-slate-500">Selecione os equipamentos para o projeto.</p>
+                            <h2 className="text-lg font-bold text-white">Catálogo de Inversores</h2>
+                            <p className="text-sm text-slate-400">Selecione os equipamentos para o projeto.</p>
                         </div>
                         <button 
                             onClick={onClose}
-                            className="text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-100/80 rounded-full transition-colors"
+                            className="text-slate-500 hover:text-white p-2 hover:bg-slate-700/60 rounded-full transition-colors"
                         >
                             <span className="sr-only">Fechar</span>
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -100,7 +115,7 @@ export const InverterCatalogDialog: React.FC<InverterCatalogDialogProps> = ({ is
                     </div>
 
                     {/* 2. Filters (Sticky Top) */}
-                    <div className="border-b border-slate-200 bg-white p-2 shrink-0 z-10">
+                    <div className="border-b border-slate-700/50 bg-slate-800/30 p-2 shrink-0 z-10">
                          <InverterFilterPanel 
                             uniqueBrands={uniqueBrands}
                             activeFilters={filters}
@@ -113,23 +128,23 @@ export const InverterCatalogDialog: React.FC<InverterCatalogDialogProps> = ({ is
                     </div>
 
                     {/* 3. Catalog Grid (Scrollable) */}
-                    <div className="flex-1 overflow-y-auto p-4 bg-slate-50/30">
-                        {isLoading && catalogInverters.length === 0 ? (
+                    <div className="flex-1 overflow-y-auto p-4 bg-slate-950/50">
+                        {isLoading && adaptedInverters.length === 0 ? (
                              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                                 {[1,2,3,4,5,6,7,8].map(i => (
-                                    <div key={i} className="h-32 bg-slate-200 rounded-lg animate-pulse" />
+                                    <div key={i} className="h-48 bg-slate-800 rounded-xl animate-pulse" />
                                 ))}
                             </div>
                         ) : filteredCatalog.length === 0 ? (
                             <div className="h-full flex flex-col items-center justify-center p-12 text-center opacity-60">
-                                <Search size={48} className="text-slate-300 mb-4" />
-                                <h3 className="text-base font-semibold text-slate-600">Nenhum resultado encontrado</h3>
+                                <Search size={48} className="text-slate-600 mb-4" />
+                                <h3 className="text-base font-semibold text-slate-400">Nenhum resultado encontrado</h3>
                                 <p className="text-sm text-slate-500 max-w-md mx-auto mt-2">
                                     Tente ajustar os filtros de potência, marca ou fases para encontrar o inversor desejado.
                                 </p>
                                 <button 
                                     onClick={() => setFilters(INITIAL_FILTERS)}
-                                    className="mt-6 px-4 py-2 bg-white border border-slate-300 rounded-md text-sm font-medium text-slate-700 hover:bg-slate-50 shadow-sm transition-all"
+                                    className="mt-6 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:border-slate-500 shadow-sm transition-all"
                                 >
                                     Limpar Filtros
                                 </button>
@@ -149,9 +164,9 @@ export const InverterCatalogDialog: React.FC<InverterCatalogDialogProps> = ({ is
                     </div>
 
                     {/* 4. Footer */}
-                    <div className="px-6 py-3 border-t border-slate-200 bg-white shrink-0 flex items-center justify-between text-xs text-slate-500">
+                    <div className="px-6 py-3 border-t border-slate-700/50 bg-slate-800/50 shrink-0 flex items-center justify-between text-xs text-slate-500">
                         <span>
-                            Mostrando <b>{filteredCatalog.length}</b> de <b>{catalogInverters.length}</b> equipamentos
+                            Mostrando <b className="text-slate-300">{filteredCatalog.length}</b> de <b className="text-slate-300">{adaptedInverters.length}</b> equipamentos
                         </span>
                     </div>
 

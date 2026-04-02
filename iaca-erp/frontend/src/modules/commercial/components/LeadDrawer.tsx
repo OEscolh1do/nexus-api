@@ -77,7 +77,10 @@ const LeadDrawer: React.FC = () => {
               className="w-full bg-gradient-to-r from-emerald-500 to-cyan-600 hover:from-emerald-600 hover:to-cyan-700 text-white gap-2 flex items-center justify-center"
               onClick={() => {
                 const kurupiraUrl = import.meta.env.VITE_KURUPIRA_URL || 'http://localhost:5174';
-                window.open(`${kurupiraUrl}?leadId=${selectedLead.id}&name=${encodeURIComponent(selectedLead.name)}`, '_blank');
+                const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+                const params = new URLSearchParams({ leadId: selectedLead.id, name: selectedLead.name });
+                if (token) params.set('token', token);
+                window.open(`${kurupiraUrl}?${params.toString()}`, '_blank');
               }}
             >
               <Zap size={16} />

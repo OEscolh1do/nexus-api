@@ -27,7 +27,8 @@ const IamService = {
         password: true,
         fullName: true,
         role: true,
-        orgUnitId: true
+        orgUnitId: true,
+        tenantId: true
       }
     });
 
@@ -69,7 +70,8 @@ const IamService = {
       {
         id: user.id,
         role: user.role,
-        username: user.username
+        username: user.username,
+        tenantId: user.tenantId || 'default-tenant-001'
       },
       JWT_SECRET,
       { expiresIn: "8h" }

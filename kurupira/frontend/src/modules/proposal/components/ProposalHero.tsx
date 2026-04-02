@@ -54,7 +54,7 @@ export const ProposalHero: React.FC<ProposalHeroProps> = ({ pricing, financials,
 
                         {/* New Bill */}
                         <div className="text-center sm:text-right relative z-10">
-                            <div className="text-xs font-bold text-emerald-600 uppercase mb-2">Com Lumi</div>
+                            <div className="text-xs font-bold text-emerald-600 uppercase mb-2">Com Energia Solar</div>
                             <div className="text-4xl sm:text-5xl font-black text-emerald-600 tracking-tight">
                                 {formatCurrency(newBillEstimate)}*
                             </div>

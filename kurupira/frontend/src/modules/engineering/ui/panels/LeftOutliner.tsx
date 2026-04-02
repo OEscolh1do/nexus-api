@@ -3,6 +3,7 @@ import { Cpu, Package, MapPin, Cable, Sun, Link2, Unlink, Layers, ChevronDown, C
 import { useSolarStore, selectModules, selectInverters } from '@/core/state/solarStore';
 import { useUIStore, useSelectedEntity } from '@/core/state/uiStore';
 import { useTechStore } from '@/modules/engineering/store/useTechStore';
+import { useElectricalValidation } from '@/modules/engineering/hooks/useElectricalValidation';
 import { toArray } from '@/core/types/normalized.types';
 import { ModuleCatalogDialog } from '../../components/ModuleCatalogDialog';
 import { InverterCatalogDialog } from '../../components/InverterCatalogDialog';
@@ -63,6 +64,9 @@ export const LeftOutliner: React.FC = () => {
   const techState = useTechStore();
   const techInverters = useMemo(() => toArray(techState.inverters), [techState.inverters]);
   const strings = useMemo(() => techState.strings.entities, [techState.strings]);
+  
+  // ── Electrical Validation ──
+  const { electrical } = useElectricalValidation();
   
   // ── Local State ──
   const [moduleDialogOpen, setModuleDialogOpen] = useState(false);
@@ -228,11 +232,20 @@ export const LeftOutliner: React.FC = () => {
   
   const electricalNodes: TreeNode[] = useMemo(() => inverters.map(inv => {
     const techInv = techInverters.find(ti => ti.catalogId === inv.id || ti.id === inv.id);
+    const hasError = electrical?.entries?.some(e => e.inverterId === techInv?.id && e.status === 'error');
+    const hasWarning = electrical?.entries?.some(e => e.inverterId === techInv?.id && e.status === 'warning');
+    const inverterStatus = hasError ? 'error' : hasWarning ? 'warning' : 'ok';
+
     const mpptChildren: TreeNode[] = techInv
       ? techInv.mpptConfigs.map(mppt => {
           
           const mpptStrings = mppt.stringIds.map(sid => strings[sid]).filter(Boolean);
           
+          // Verificar validação deste MPPT
+          const validationEntry = electrical?.entries?.find(e => e.inverterId === techInv.id && e.mpptId === mppt.mpptId);
+
+          const errorMessage = validationEntry?.messages?.[0]?.includes('Voc') ? 'Sobretensão!' : 'Isc Alta!';
+
           const stringChildren: TreeNode[] = mpptStrings.map(str => {
              const strModules = str.moduleIds.map(mid => modules.find(m => m.id === mid)).filter(Boolean) as any[];
              return {
@@ -241,6 +254,8 @@ export const LeftOutliner: React.FC = () => {
                  type: 'string' as const,
                  icon: Link2,
                  badge: `${strModules.length} mods`,
+                 // Fios vermelhos se a string estiver num MPPT com erro
+                 badgeColor: validationEntry?.status === 'error' ? 'text-red-500 bg-red-500/10 border border-red-500/50' : undefined,
                  deletable: true,
                  draggable: true,
                  droppable: true,
@@ -262,6 +277,9 @@ export const LeftOutliner: React.FC = () => {
             type: 'mppt' as const,
             icon: Cable,
             droppable: true,
+            badge: validationEntry && validationEntry.status !== 'ok' ? errorMessage : undefined,
+            badgeColor: validationEntry?.status === 'error' ? 'text-red-400 bg-red-400/10 border border-red-500/50' : 
+                        validationEntry?.status === 'warning' ? 'text-amber-400 bg-amber-400/10' : undefined,
             children: stringChildren,
             meta: { inverterId: techInv.id, mpptId: mppt.mpptId }
           };
@@ -275,9 +293,11 @@ export const LeftOutliner: React.FC = () => {
       icon: Cpu,
       deletable: true,
       droppable: true,
+      badge: inverterStatus === 'error' ? 'Crítico: Risco de Queima' : undefined,
+      badgeColor: inverterStatus === 'error' ? 'text-red-50 text-[9px] bg-red-600 animate-pulse outline outline-1 outline-red-400 shadow-[0_0_8px_rgba(239,68,68,0.6)]' : undefined,
       children: mpptChildren,
     };
-  }), [inverters, techInverters, strings, modules]);
+  }), [inverters, techInverters, strings, modules, electrical]);
 
   const disconnectedStringNodes: TreeNode[] = useMemo(() => unassignedStrings.map(str => {
       const strModules = str.moduleIds.map(mid => modules.find(m => m.id === mid)).filter(Boolean) as any[];

@@ -1,8 +1,8 @@
 # CONTEXT.md — Sistema NEONORTE
 
-> **Última Atualização:** 2026-03-20
+> **Última Atualização:** 2026-04-01
 > **Arquiteto:** Antigravity AI
-> **Versão do Sistema:** 3.0.0 (Neonorte Workspace — Cisão Arquitetural "Operação Guardiões")
+> **Versão do Sistema:** 3.2.1 (Tenant Isolation + Ferramentas Independentes)
 
 ---
 
@@ -113,7 +113,8 @@ Entidades principais: `User`, `Strategy`, `KeyResult`, `Project`, `OperationalTa
 - **M2M Service Token** para comunicação inter-serviço
 - **Validação Zod** na fronteira de dados
 - **RBAC** com roles: `ADMIN`, `COORDENACAO`, `VENDEDOR`, `ENGINEER`
-- **Multi-Tenancy** via `tenantId` (Iaçã)
+- **Multi-Tenancy** via `tenantId` (Iaçã e Kurupira)
+- **Auth Bypass (Dev)** — Em `NODE_ENV !== production`, o backend do Kurupira injeta um usuário mock para fluxo local sem JWT
 
 ---
 
@@ -132,8 +133,15 @@ neonorte/
 ├── infra/
 │   ├── mysql/init.sql     (GRANTs isolados por schema)
 │   └── nginx/nginx.conf   (API Gateway routing)
+├── .agent/
+│   ├── context.md         (este ficheiro)
+│   ├── aguardando/        (specs aguardando implementação)
+│   ├── em-andamento/      (épico ativo — máximo 1 por vez)
+│   ├── concluido/         (relatórios de execução finalizados)
+│   ├── skills/            (skills do agente)
+│   └── workflows/         (workflows de automação)
 ├── docker-compose.yml     (4 contentores)
-└── CONTEXT.md             (este ficheiro)
+└── CONTEXT.md             (este ficheiro, espelhado)
 ```
 
 ---
@@ -142,15 +150,39 @@ neonorte/
 
 | Item | Status | Nota |
 |------|--------|------|
-| Kurupira `AuthProvider` | ⚠️ Mock JWT bypass | Bypass p/ dev — implementar JWT real do Kurupira backend |
-| `ProjectService` / `SettingsService` | ⚠️ Stub | Supabase removido, aguarda integração com `KurupiraClient` |
+| Kurupira `AuthProvider` | ✅ JWT Real | Lê token de `sessionStorage`/`localStorage`; mock DEV com `tenantId` |
+| `ProjectService` | ✅ Integrado | `createStandaloneProject()` + save/load/delete conectados à API real |
+| `SettingsService` | ✅ Integrado | `GET/PUT /api/v1/settings` via sentinel `iacaLeadId: '__settings__'` |
+| Tenant Isolation | ✅ Implementado | `tenantId` no JWT (Iaçã) + filtro em todas as rotas Kurupira |
+| `iacaLeadId` standalone | ✅ Corrigido | Projetos sem lead usam `null` (não mais `'standalone'`) |
+| Catálogo de Equipamentos | ✅ Seeded | 28 módulos DMEGC/PHB + 32 inversores no banco via `seed-catalog.js` |
 | `useProposalCalculator` | ✅ Corrigido | `FinanceSlice` removido, mockado localmente |
 | `EquipmentDatabaseManager` | ✅ Removido | Funcionalidade movida para Iaçã ERP |
-| Equipamento CRM stores | ✅ Mockados | `useEquipmentStore` substituídos por mocks locais |
+| TailwindCSS CDN | ⚠️ Warning | Migrar de CDN para PostCSS em produção |
+| Prisma v5.10 → v7.x | 🟡 Baixa prioridade | Funcional, upgrade não-urgente |
 
 ---
 
 ## 🔄 CHANGELOG
+
+### v3.2.1 (2026-04-01) — Tenant Isolation + Ferramentas Independentes
+
+- ✅ **JWT com tenantId:** `iam.service.js` (Iaçã) agora inclui `tenantId` no payload do token. Campo `tenantId` adicionado ao `select` do login.
+- ✅ **Schema Kurupira:** Campo `tenantId` adicionado ao `TechnicalDesign` com `@default("default-tenant-001")`; `iacaLeadId` agora `String?` (opcional). Novo `@@index([tenantId])`.
+- ✅ **Backend Scoping:** Todas as rotas `/api/v1/designs` filtram por `req.user.tenantId`. POST cria com `tenantId`. GET/PUT/DELETE verificam `tenantId` antes de operar (proteção cross-tenant).
+- ✅ **Prisma db push + seed:** Schema sincronizado via `docker exec neonorte_kurupira npx prisma db push`. Catálogo populado via `seed-catalog.js` (dados validados Neonorte: módulos DMEGC e inversores PHB Solar).
+- ✅ **Frontend:** `ProjectService` usa `iacaLeadId: null` para standalone. `AuthProvider` propaga `tenantId` do JWT real e do mock DEV.
+- ✅ **Deep Link completo:** `LeadDrawer.tsx` agora passa `?token=<jwt>&leadId=<id>` ao abrir Kurupira.
+
+### v3.2.0 (2026-04-01) — Eng-First Standalone Projects + Infra Fixes
+
+- ✅ **Fluxo Eng-First (Standalone):** Wizard multi-step (`ProjectInitWizardModal`) para criação de projetos diretamente no Kurupira, sem necessidade de Lead no Iaçã. Captura: Cliente, Local, Conexão, Tarifa e Consumo (média ou 12 meses).
+- ✅ **ProjectService Integrado:** Método `createStandaloneProject()` com hard reset do Zustand para evitar resíduos de sessões anteriores.
+- ✅ **Hub API Real:** `ProjectExplorer` conectado à `KurupiraClient.designs.list()` com botão "+ Novo Projeto".
+- ✅ **Nginx Gateway Fix:** Diretiva `limit_req_zone` movida do bloco `server{}` para o contexto HTTP global, eliminando crash loop do container.
+- ✅ **MySQL Porta Exposta:** Mapeamento `3306:3306` no `docker-compose.yml` para dev local.
+- ✅ **Credenciais Corrigidas:** `DATABASE_URL` alinhada com credenciais reais do `init.sql`.
+- ✅ **Prisma Sync:** Schema e Client sincronizados (campo `tenantId` reconhecido).
 
 ### v3.1.0 (2026-03-23) — Engenharia Funcional, WebGL & Biblioteca Visual
 

@@ -44,7 +44,7 @@ export interface ElectricalValidation {
 
 export interface InverterState {
     id: string; // Unique ID for this instance in the project
-    catalogId: string; // Ref to INVERTER_CATALOG
+    catalogId: string; // Ref to useCatalogStore inverter id
     quantity: number;
     mpptConfigs: MPPTConfig[]; // Array of MPPT configs
     snapshot: {

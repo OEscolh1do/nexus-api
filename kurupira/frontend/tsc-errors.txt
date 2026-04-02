@@ -1,0 +1,8 @@
+src/App.tsx(14,17): error TS6133: 'useEffect' is declared but its value is never read.
+src/modules/engineering/ProjectQueue.tsx(47,25): error TS2345: Argument of type 'TechnicalDesignSummary[]' is not assignable to parameter of type 'SetStateAction<ProjectMetadata[]>'.
+  Type 'TechnicalDesignSummary[]' is not assignable to type 'ProjectMetadata[]'.
+    Type 'TechnicalDesignSummary' is missing the following properties from type 'ProjectMetadata': project_name, updated_at
+src/modules/engineering/ui/panels/LeftOutliner.tsx(12,1): error TS6133: 'DenseButton' is declared but its value is never read.
+src/modules/engineering/ui/panels/LeftOutliner.tsx(452,10): error TS6133: 'hovered' is declared but its value is never read.
+src/modules/engineering/ui/panels/LeftOutliner.tsx(486,20): error TS2503: Cannot find namespace 'JSX'.
+src/services/ProjectService.ts(57,20): error TS6133: 'snapshotImageBase64' is declared but its value is never read.

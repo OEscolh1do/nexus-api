@@ -70,7 +70,7 @@ export const ProposalSpecs: React.FC<ProposalSpecsProps> = ({ metrics, financial
                 <div className="p-4 space-y-3">
                     <Row label="Geração Estimada (Ano)" value={`${formatNumber(annualGenKwh, 0)} kWh`} />
                     <Row label="Economia (25 Anos)" value={formatCurrency(financials.monthlySavings * 12 * 25)} highlightColor="text-blue-600" highlight />
-                    <Row label="T.I.R. (Rentabilidade)" value={`${(financials.irr).toFixed(1)}% a.a.`} highlightColor="text-purple-600" />
+                    <Row label="T.I.R. (Rentabilidade)" value={`${(financials.irr * 100).toFixed(1)}% a.a.`} highlightColor="text-purple-600" />
                     <Row label="Valorização Imóvel" value="~4% a 6%" description="(Estudo Zillow)" />
                 </div>
             </DenseCard>

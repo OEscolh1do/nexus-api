@@ -7,9 +7,9 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { InputData, WeatherAnalysis } from '@/core/types';
 import { fetchWeatherAnalysis } from '@/services/weatherService';
 import html2canvas from 'html2canvas';
-import { 
+import {
   MapPin, Navigation, Search, Loader2, Layers, PencilRuler, Eraser,
-  Crosshair, Sun, CloudSun
+  Crosshair, Sun, CloudSun, Home, Zap, TrendingDown, Users
 } from 'lucide-react';
 import {
   DenseFormGrid, DenseCard, DenseInput, DenseSelect, DenseStat, DenseButton
@@ -23,10 +23,26 @@ interface Props {
 declare const L: any;
 
 const ORIENTATION_OPTIONS = [
-  { value: 'Norte', label: 'Norte (Maximo)' },
+  { value: 'Norte', label: 'Norte (Máximo)' },
+  { value: 'Nordeste', label: 'Nordeste' },
+  { value: 'Noroeste', label: 'Noroeste' },
   { value: 'Leste', label: 'Leste' },
   { value: 'Oeste', label: 'Oeste' },
-  { value: 'Sul', label: 'Sul (Minimo)' },
+  { value: 'Sul', label: 'Sul (Mínimo)' },
+];
+
+const ROOF_TYPE_OPTIONS = [
+  { value: 'ceramica', label: 'Cerâmica (Barro)' },
+  { value: 'metalico', label: 'Metálico (Galvanizado/Sanduíche)' },
+  { value: 'fibrocimento', label: 'Fibrocimento (Brasilit)' },
+  { value: 'laje', label: 'Laje Plana (Concreto)' },
+  { value: 'outro', label: 'Outro' },
+];
+
+const CONNECTION_TYPE_OPTIONS = [
+  { value: 'monofasico', label: 'Monofásico (1F)' },
+  { value: 'bifasico', label: 'Bifásico (2F)' },
+  { value: 'trifasico', label: 'Trifásico (3F)' },
 ];
 
 const STATE_OPTIONS = [
@@ -393,9 +409,107 @@ export const InputForm: React.FC<Props> = ({ initialData, onSubmit }) => {
           {/* Parametros Tecnicos */}
           <DenseCard>
             <DenseFormGrid>
-              <DenseSelect label="Orientacao do Telhado" value={formData.orientation} onChange={handleChange('orientation')} options={ORIENTATION_OPTIONS} colSpan={6} />
+              <DenseSelect label="Orientação do Telhado" value={formData.orientation} onChange={handleChange('orientation')} options={ORIENTATION_OPTIONS} colSpan={6} />
               <DenseInput label="Tarifa (R$/kWh)" type="number" step="0.01" value={formData.tariffRate} onChange={handleNumericChange('tariffRate')} colSpan={6} />
             </DenseFormGrid>
+          </DenseCard>
+
+          {/* Estrutura do Telhado */}
+          <DenseCard>
+            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <Home size={12} className="text-neonorte-purple" />
+              Estrutura do Telhado
+            </h4>
+            <DenseFormGrid>
+              <DenseSelect
+                label="Tipo de Cobertura"
+                value={formData.roofType || ''}
+                onChange={handleChange('roofType')}
+                options={[{ value: '', label: 'Selecione...' }, ...ROOF_TYPE_OPTIONS]}
+                colSpan={6}
+              />
+              <DenseInput
+                label="Inclinação (°)"
+                type="number"
+                step="1"
+                value={formData.roofInclination ?? 15}
+                onChange={handleNumericChange('roofInclination')}
+                colSpan={3}
+              />
+              <DenseSelect
+                label="Conexão"
+                value={formData.connectionType || 'monofasico'}
+                onChange={handleChange('connectionType')}
+                options={CONNECTION_TYPE_OPTIONS}
+                colSpan={3}
+              />
+            </DenseFormGrid>
+          </DenseCard>
+
+          {/* Consumo Mensal (12 meses) */}
+          <DenseCard>
+            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <Zap size={12} className="text-neonorte-green" />
+              Histórico de Consumo (kWh/mês)
+            </h4>
+            <div className="grid grid-cols-6 gap-2">
+              {MONTHS_SHORT.map((month, i) => {
+                const history = formData.invoices?.[0]?.monthlyHistory;
+                const val = history?.[i] ?? formData.averageConsumption ?? 0;
+                return (
+                  <div key={month} className="flex flex-col gap-1">
+                    <label className="text-[10px] text-slate-400 text-center font-medium">{month}</label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={val || ''}
+                      onChange={e => {
+                        const v = parseFloat(e.target.value) || 0;
+                        const invoices = formData.invoices?.length
+                          ? [...formData.invoices]
+                          : [{
+                              id: 'default', name: 'Instalação Principal',
+                              installationNumber: '', concessionaire: '',
+                              rateGroup: 'B', connectionType: formData.connectionType || 'monofasico',
+                              voltage: '220', breakerCurrent: 50,
+                              monthlyHistory: Array(12).fill(formData.averageConsumption ?? 0)
+                            }];
+                        const newHistory = [...(invoices[0].monthlyHistory || Array(12).fill(0))];
+                        newHistory[i] = v;
+                        invoices[0] = { ...invoices[0], monthlyHistory: newHistory };
+                        const avg = newHistory.reduce((a, b) => a + b, 0) / 12;
+                        setFormData(prev => ({ ...prev, invoices, averageConsumption: avg }));
+                      }}
+                      className="w-full h-8 text-center text-xs font-bold rounded-lg border border-slate-200 bg-slate-50 focus:border-neonorte-green focus:bg-white outline-none transition-colors"
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            {(() => {
+              const history = formData.invoices?.[0]?.monthlyHistory;
+              if (!history) return null;
+              const avg = history.reduce((a, b) => a + b, 0) / 12;
+              const max = Math.max(...history);
+              const min = Math.min(...history.filter(v => v > 0));
+              return (
+                <div className="mt-3 grid grid-cols-3 gap-2 pt-2 border-t border-slate-100">
+                  <div className="text-center">
+                    <p className="text-[10px] text-slate-400 uppercase">Média</p>
+                    <p className="text-sm font-bold text-slate-700">{avg.toFixed(0)} kWh</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[10px] text-slate-400 uppercase">Pico</p>
+                    <p className="text-sm font-bold text-orange-500">{max} kWh</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[10px] text-slate-400 uppercase">Mínimo</p>
+                    <p className="text-sm font-bold text-emerald-600">{isFinite(min) ? min : 0} kWh</p>
+                  </div>
+                </div>
+              );
+            })()}
           </DenseCard>
         </div>
 
@@ -472,10 +586,42 @@ export const InputForm: React.FC<Props> = ({ initialData, onSubmit }) => {
             </div>
           </DenseCard>
 
+          {/* Perfil do Lead */}
+          <DenseCard>
+            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <Users size={12} className="text-neonorte-purple" />
+              Perfil do Lead
+            </h4>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                { value: 'provedor', label: 'Provedor', desc: 'Foco em alívio e segurança familiar', icon: <Home size={18} /> },
+                { value: 'calculista', label: 'Calculista', desc: 'Foco em ROI e eficiência', icon: <TrendingDown size={18} /> },
+              ] as const).map(opt => {
+                const selected = formData.leadPersona === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, leadPersona: opt.value }))}
+                    className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all text-center ${
+                      selected
+                        ? 'border-neonorte-purple bg-neonorte-purple/10 text-neonorte-purple'
+                        : 'border-slate-200 bg-slate-50 text-slate-400 hover:border-slate-300'
+                    }`}
+                  >
+                    {opt.icon}
+                    <span className={`text-xs font-bold ${selected ? 'text-neonorte-purple' : 'text-slate-600'}`}>{opt.label}</span>
+                    <span className="text-[9px] leading-tight text-slate-400">{opt.desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </DenseCard>
+
           {/* Submit Button */}
           <div className="flex justify-end">
             <DenseButton type="submit" variant="primary" icon={<Crosshair size={16} />} className="w-full">
-              Confirmar Localizacao
+              Confirmar Dados
             </DenseButton>
           </div>
         </div>

@@ -110,7 +110,12 @@ export const initialClientData: InputData = {
 
   // Default values for Irradiation
   monthlyIrradiation: Array(12).fill(0),
-  irradiationCity: ''
+  irradiationCity: '',
+
+  // Diagnóstico Preliminar (V3.3)
+  roofType: undefined,
+  roofInclination: 15,
+  leadPersona: undefined,
 };
 
 /**

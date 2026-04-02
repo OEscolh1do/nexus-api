@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useSolarStore, selectModules } from '@/core/state/solarStore';
 import { useTechStore } from '../store/useTechStore';
-import { INVERTER_CATALOG } from '../constants/inverters';
+import { useCatalogStore } from '@/modules/engineering/store/useCatalogStore';
 import { toArray } from '@/core/types/normalized.types';
 import {
     calculateStringMetrics,
@@ -33,6 +33,7 @@ export function useStringAssignment() {
     const modules = useSolarStore(selectModules);
     const settings = useSolarStore(state => state.settings);
     
+    const catalogInverters = useCatalogStore(state => state.inverters);
     const techInvertersStore = useTechStore(s => s.inverters);
 
     // ─── Assign Logical Modules ─────────────────────────────
@@ -77,7 +78,7 @@ export function useStringAssignment() {
         );
         if (!techInv) return null;
 
-        const spec = INVERTER_CATALOG.find((c: any) => c.id === techInv.catalogId);
+        const spec = catalogInverters.find((c: any) => c.id === techInv.catalogId);
         if (!spec) return null;
 
         const specMppt = spec.mppts?.find((mp: any) => mp.mpptId === mpptId) || spec.mppts?.[0];
@@ -122,7 +123,7 @@ export function useStringAssignment() {
                     : 'ok',
             iscStatus: iscTotal > specMppt.maxCurrentPerMPPT ? 'error' : 'ok',
         };
-    }, [modules, settings]);
+    }, [modules, settings, catalogInverters]);
 
     // ─── Computed: Available MPPTs & Pool ───────────────────
 
@@ -133,7 +134,7 @@ export function useStringAssignment() {
         let totalAssigned = 0;
         
         const mppts = techInverters.flatMap(inv => {
-            const spec = INVERTER_CATALOG.find((c: any) => c.id === inv.catalogId);
+            const spec = catalogInverters.find((c: any) => c.id === inv.catalogId);
             if (!spec) return [];
 
             return inv.mpptConfigs.map(mppt => {

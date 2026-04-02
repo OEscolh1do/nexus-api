@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { ModuleSpecs } from '@/core/types';
 import { Box, ArrowRight, Sun, LayoutGrid, Plus, Trash2, Database } from 'lucide-react';
-import { MODULE_DB } from '@/data/equipment/modules';
+import { useCatalogStore } from '@/modules/engineering/store/useCatalogStore';
 
 interface Props {
   initialData: ModuleSpecs[];
@@ -9,6 +9,7 @@ interface Props {
 }
 
 export const ModuleForm: React.FC<Props> = ({ initialData, onConfirm }) => {
+  const catalogModules = useCatalogStore(state => state.modules);
   const [modules, setModules] = useState<ModuleSpecs[]>(initialData);
   
   // Selection States
@@ -17,14 +18,14 @@ export const ModuleForm: React.FC<Props> = ({ initialData, onConfirm }) => {
 
   // Derived Lists
   const uniqueMakes = useMemo(() => {
-    const makes = new Set(MODULE_DB.map(m => m.manufacturer));
+    const makes = new Set(catalogModules.map((m: any) => m.manufacturer));
     return Array.from(makes).sort();
-  }, []);
+  }, [catalogModules]);
 
   const availableModels = useMemo(() => {
     if (!selectedMake) return [];
-    return MODULE_DB.filter(m => m.manufacturer === selectedMake).map(m => m.model).sort();
-  }, [selectedMake]);
+    return catalogModules.filter((m: any) => m.manufacturer === selectedMake).map((m: any) => m.model).sort();
+  }, [selectedMake, catalogModules]);
 
   // Calculate Aggregates
   const totalPowerKwp = modules.reduce((acc, m) => acc + (m.power), 0) / 1000;
@@ -34,7 +35,7 @@ export const ModuleForm: React.FC<Props> = ({ initialData, onConfirm }) => {
   const handleAddFromDb = () => {
     if (!selectedMake || !selectedModel) return;
 
-    const dbEntry = MODULE_DB.find(m => m.manufacturer === selectedMake && m.model === selectedModel);
+    const dbEntry = catalogModules.find((m: any) => m.manufacturer === selectedMake && m.model === selectedModel);
     if (!dbEntry) return;
 
     const newMod: ModuleSpecs = {
@@ -43,6 +44,8 @@ export const ModuleForm: React.FC<Props> = ({ initialData, onConfirm }) => {
       supplier: dbEntry.manufacturer, // Temporary fallback since supplier was removed
       manufacturer: dbEntry.manufacturer,
       model: dbEntry.model,
+      imageUrl: dbEntry.imageUrl,
+      unifilarSymbolRef: dbEntry.unifilarSymbolRef,
       type: 'Mono PERC', // Type is missing from schema, hardcoding default for now
       power: dbEntry.electrical.pmax,
       efficiency: Number(((dbEntry.electrical.efficiency || 0.2) * 100).toFixed(2)),
@@ -177,8 +180,15 @@ export const ModuleForm: React.FC<Props> = ({ initialData, onConfirm }) => {
                 
                 {/* Header */}
                 <div className="bg-slate-50 p-3 border-b border-slate-200 flex justify-between items-center">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                        <span className="bg-slate-200 text-slate-600 w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold">{index + 1}</span>
+                       <div className="w-10 h-10 rounded border border-slate-200 overflow-hidden bg-white flex-shrink-0 flex items-center justify-center p-0.5">
+                         <img 
+                            src={mod.imageUrl || '/assets/images/solar-module.png'} 
+                            alt={mod.model} 
+                            className="max-w-full max-h-full object-contain"
+                         />
+                       </div>
                        <h3 className="text-sm font-bold text-slate-700">{mod.model}</h3>
                     </div>
                     <button 

@@ -2,7 +2,6 @@ import React from 'react';
 import { Plus, Minus, Trash2, Zap, Cpu, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Inverter } from '../store/useTechStore';
-import { Badge } from '@/components/ui/badge';
 
 interface InverterInventoryItemProps {
     inverter: Inverter;
@@ -13,8 +12,11 @@ interface InverterInventoryItemProps {
     onRemove?: () => void;
 }
 
+const FALLBACK_IMAGE = '/assets/images/solar-inverter.png';
+
 /**
- * InverterInventoryItem - Modern Tech Card
+ * InverterInventoryItem — Premium Engineering Card (P8 Visual Refactor)
+ * Dark glass surface with product thumbnail, data-dense specs grid.
  */
 export const InverterInventoryItem: React.FC<InverterInventoryItemProps> = ({
     inverter,
@@ -24,114 +26,123 @@ export const InverterInventoryItem: React.FC<InverterInventoryItemProps> = ({
     onQuantityChange,
     onRemove
 }) => {
-    
-    // Determine Phase Color/Label
-    const isThreePhase = inverter.connectionType === 'TRIFÁSICO';
+    const isThreePhase = (inverter.connectionType || '').toUpperCase().includes('TRI');
     const phaseLabel = isThreePhase ? '3Φ' : '1Φ';
-    const phaseColor = isThreePhase 
-        ? 'bg-orange-100 text-orange-700 border-orange-200' 
-        : 'bg-blue-100 text-blue-700 border-blue-200';
+    const mpptCount = inverter.mppts || 1;
+    const imageUrl = (inverter as any).imageUrl || FALLBACK_IMAGE;
 
     return (
-        <div 
+        <div
             className={cn(
-                "group relative flex flex-col justify-between bg-white rounded-lg transition-all duration-300 overflow-hidden",
-                "border border-slate-200 shadow-sm",
-                "hover:shadow-md hover:border-blue-300/50 hover:-translate-y-0.5"
+                "group relative flex flex-col bg-gradient-to-b from-slate-800 to-slate-900 rounded-xl transition-all duration-300 overflow-hidden",
+                "border border-slate-700/60 shadow-md",
+                "hover:shadow-xl hover:shadow-blue-500/10 hover:border-blue-500/40 hover:-translate-y-1 hover:scale-[1.02]"
             )}
         >
-            {/* 1. TOP BAR: Manufacturer & Phase */}
-            <div className="flex items-center justify-between px-2 py-1.5 bg-slate-50/50 border-b border-slate-100">
-                <Badge variant="outline" className="bg-white text-[9px] font-bold text-slate-600 uppercase tracking-wider border-slate-200 shadow-sm px-1.5 h-4">
-                    {inverter.manufacturer}
-                </Badge>
-                <div className={cn("text-[9px] font-black px-1 py-0.5 rounded border leading-none", phaseColor)}>
+            {/* ── THUMBNAIL + BADGE OVERLAY ── */}
+            <div className="relative h-28 bg-slate-800/50 flex items-center justify-center overflow-hidden border-b border-slate-700/40">
+                {/* Gradient Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-transparent to-transparent z-10" />
+
+                {/* Product Image */}
+                <img
+                    src={imageUrl}
+                    alt={inverter.model}
+                    className="w-full h-full object-contain p-3 opacity-80 group-hover:opacity-100 transition-opacity duration-300 group-hover:scale-105"
+                    onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMAGE; }}
+                />
+
+                {/* Phase Badge - Top Left */}
+                <div className={cn(
+                    "absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded text-[9px] font-black tracking-wide border backdrop-blur-sm",
+                    isThreePhase
+                        ? "bg-orange-500/20 text-orange-300 border-orange-500/40"
+                        : "bg-blue-500/20 text-blue-300 border-blue-500/40"
+                )}>
                     {phaseLabel}
                 </div>
-            </div>
 
-            {/* 2. HERO: Power Output */}
-            <div className="flex flex-col items-center justify-center py-2 px-2 relative">
-                <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-black text-slate-800 tracking-tight">
+                {/* MPPT Badge - Top Right */}
+                <div className="absolute top-2 right-2 z-20 flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-700/60 backdrop-blur-sm border border-slate-600/40">
+                    <Cpu size={9} className="text-emerald-400" />
+                    <span className="text-[9px] font-bold text-emerald-300">{mpptCount} MPPT{mpptCount > 1 ? 's' : ''}</span>
+                </div>
+
+                {/* Power - Bottom Center (overlaid) */}
+                <div className="absolute bottom-2 left-0 right-0 z-20 flex items-baseline justify-center gap-1">
+                    <span className="text-2xl font-black text-white tracking-tight drop-shadow-lg">
                         {inverter.nominalPower.toFixed(1)}
                     </span>
                     <span className="text-[10px] font-bold text-slate-400">kW</span>
                 </div>
-                <div className="w-full text-center mt-0.5 px-2">
-                     <p className="text-[9px] font-medium text-slate-500 truncate" title={inverter.model}>
-                        {inverter.model}
-                    </p>
+            </div>
+
+            {/* ── MODEL INFO ── */}
+            <div className="px-3 pt-2.5 pb-1.5">
+                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">
+                    {inverter.manufacturer}
+                </p>
+                <p className="text-xs font-semibold text-slate-200 truncate leading-tight" title={inverter.model}>
+                    {inverter.model}
+                </p>
+            </div>
+
+            {/* ── SPECS GRID ── */}
+            <div className="mx-2 mb-2 grid grid-cols-2 gap-px rounded-lg overflow-hidden bg-slate-700/30">
+                <div className="flex items-center justify-center gap-1.5 py-1.5 bg-slate-800/60">
+                    <Zap size={10} className="text-amber-400" />
+                    <span className="text-[9px] font-semibold text-slate-300">
+                        {inverter.maxInputVoltage} <span className="text-slate-500">V</span>
+                    </span>
                 </div>
-                
-                {/* Visual Accent */}
-                <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                     <Activity size={10} className="text-blue-400" />
+                <div className="flex items-center justify-center gap-1.5 py-1.5 bg-slate-800/60">
+                    <Activity size={10} className="text-cyan-400" />
+                    <span className="text-[9px] font-semibold text-slate-300">
+                        {(inverter.nominalPower * 1000).toFixed(0)} <span className="text-slate-500">W</span>
+                    </span>
                 </div>
             </div>
 
-            {/* 3. SPECS GRID */}
-            <div className="grid grid-cols-2 border-t border-slate-100 divide-x divide-slate-100 bg-slate-50/30">
-                <div className="flex items-center justify-center gap-1 py-1.5">
-                    <Cpu size={10} className="text-slate-400" />
-                    <span className="text-[9px] font-semibold text-slate-600">
-                        {inverter.mppts || 1} <span className="font-normal text-slate-400">MPPTs</span>
-                    </span>
-                </div>
-                <div className="flex items-center justify-center gap-1 py-1.5">
-                    <Zap size={10} className="text-slate-400" />
-                    <span className="text-[9px] font-semibold text-slate-600">
-                         {inverter.maxInputVoltage} <span className="font-normal text-slate-400">V</span>
-                    </span>
-                </div>
-            </div>
-
-
-
-            {/* 4. ACTIONS */}
-            <div className="p-1.5 border-t border-slate-100 bg-white">
+            {/* ── ACTIONS ── */}
+            <div className="p-2 pt-0 mt-auto">
                 {mode === 'catalog' ? (
                     <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onAdd?.();
-                        }}
+                        onClick={(e) => { e.stopPropagation(); onAdd?.(); }}
                         className={cn(
-                            "w-full h-7 flex items-center justify-center gap-1.5 rounded-md transition-all",
-                            "bg-slate-900 text-white shadow-sm",
-                            "hover:bg-blue-600 active:scale-[0.98]",
-                            "text-[10px] font-bold tracking-wide"
+                            "w-full h-8 flex items-center justify-center gap-1.5 rounded-lg transition-all duration-200",
+                            "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-sm shadow-blue-500/20",
+                            "hover:from-blue-500 hover:to-blue-400 hover:shadow-md hover:shadow-blue-500/30",
+                            "active:scale-[0.97]",
+                            "text-[10px] font-bold tracking-wide uppercase"
                         )}
                     >
-                        <Plus size={12} className="stroke-[3]" />
+                        <Plus size={13} className="stroke-[2.5]" />
                         Adicionar
                     </button>
                 ) : (
-                   <div className="flex items-center gap-1.5">
-                        {/* Quantity Stepper */}
-                            <div className="flex items-center border border-slate-200 rounded-md bg-white">
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); onQuantityChange?.(-1); }}
-                                    className="p-1 hover:bg-slate-100 text-slate-500"
-                                >
-                                    <Minus size={14} />
-                                </button>
-                                <span className="w-8 text-center text-xs font-medium text-slate-700">{quantity}</span>
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); onQuantityChange?.(1); }}
-                                    className="p-1 hover:bg-slate-100 text-slate-500"
-                                >
-                                    <Plus size={14} />
-                                </button>
-                            </div>
-                            
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); onRemove?.(); }}
-                                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                    <div className="flex items-center gap-1.5">
+                        <div className="flex items-center border border-slate-600 rounded-lg bg-slate-800/80 overflow-hidden">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onQuantityChange?.(-1); }}
+                                className="px-2 py-1 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
                             >
-                                <Trash2 size={14} />
+                                <Minus size={12} />
+                            </button>
+                            <span className="w-8 text-center text-xs font-bold text-white">{quantity}</span>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onQuantityChange?.(1); }}
+                                className="px-2 py-1 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+                            >
+                                <Plus size={12} />
                             </button>
                         </div>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onRemove?.(); }}
+                            className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                        >
+                            <Trash2 size={13} />
+                        </button>
+                    </div>
                 )}
             </div>
         </div>

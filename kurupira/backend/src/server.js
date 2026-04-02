@@ -37,15 +37,30 @@ app.use(cookieParser());
 // =============================================================
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  let token = authHeader && authHeader.split(' ')[1];
+
+  // Fallback: HTTPOnly cookie bridge (SSO com Iaçã)
+  if (!token && req.cookies?.nexus_session) {
+    token = req.cookies.nexus_session;
+  }
 
   if (!token) {
+    if (process.env.NODE_ENV !== 'production') {
+      // Sincronizando com o Fallback Standalone do AuthProvider.tsx
+      req.user = { id: 'dev-engineer', tenantId: 'dev-tenant', role: 'ADMIN' };
+      return next();
+    }
     return res.status(401).json({ success: false, error: 'Token required' });
   }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // { sub, role, orgUnitId, exp }
+    // Normaliza campo de ID e tenantId
+    req.user = {
+      ...decoded,
+      id: decoded.id || decoded.sub,
+      tenantId: decoded.tenantId || 'default-tenant-001'
+    };
     next();
   } catch (error) {
     return res.status(403).json({ success: false, error: 'Invalid or expired token' });
@@ -98,23 +113,30 @@ async function fetchLeadsBatch(ids) {
 // ROUTES: Technical Designs (CRUD)
 // =============================================================
 
-// List all designs (with lead context injection)
+// List all designs (scoped by tenant)
 app.get("/api/v1/designs", authenticateToken, async (req, res) => {
   try {
     const designs = await prisma.technicalDesign.findMany({
+      where: {
+        tenantId: req.user.tenantId,
+        OR: [
+          { iacaLeadId: null },
+          { iacaLeadId: { not: '__settings__' } }
+        ]
+      },
       include: { roofSections: true, pvArrays: true },
       orderBy: { updatedAt: 'desc' },
       take: 50
     });
 
-    // Batch fetch lead names from Iaçã
-    const leadIds = [...new Set(designs.map(d => d.iacaLeadId))];
-    const leads = await fetchLeadsBatch(leadIds);
+    // Batch fetch lead names from Iaçã (apenas designs com leadId)
+    const leadIds = [...new Set(designs.map(d => d.iacaLeadId).filter(Boolean))];
+    const leads = leadIds.length > 0 ? await fetchLeadsBatch(leadIds) : [];
     const leadMap = Object.fromEntries(leads.map(l => [l.id, l]));
 
     const enriched = designs.map(d => ({
       ...d,
-      leadContext: leadMap[d.iacaLeadId] || { unavailable: true }
+      leadContext: d.iacaLeadId ? (leadMap[d.iacaLeadId] || { unavailable: true }) : null
     }));
 
     res.json({ success: true, data: enriched });
@@ -126,13 +148,13 @@ app.get("/api/v1/designs", authenticateToken, async (req, res) => {
 // Get single design (with full lead context)
 app.get("/api/v1/designs/:id", authenticateToken, async (req, res) => {
   try {
-    const design = await prisma.technicalDesign.findUnique({
-      where: { id: req.params.id },
+    const design = await prisma.technicalDesign.findFirst({
+      where: { id: req.params.id, tenantId: req.user.tenantId },
       include: { roofSections: true, pvArrays: true, simulations: true }
     });
     if (!design) return res.status(404).json({ success: false, error: 'Design not found' });
 
-    const leadContext = await fetchLeadContext(design.iacaLeadId);
+    const leadContext = design.iacaLeadId ? await fetchLeadContext(design.iacaLeadId) : null;
 
     res.json({
       success: true,
@@ -146,17 +168,17 @@ app.get("/api/v1/designs/:id", authenticateToken, async (req, res) => {
   }
 });
 
-// Create design (from CRM deep link)
+// Create design (standalone ou via CRM deep link)
 app.post("/api/v1/designs", authenticateToken, async (req, res) => {
   try {
     const { iacaLeadId, name } = req.body;
-    if (!iacaLeadId) return res.status(400).json({ success: false, error: 'iacaLeadId is required' });
 
     const design = await prisma.technicalDesign.create({
       data: {
-        iacaLeadId,
+        tenantId: req.user.tenantId,
+        iacaLeadId: iacaLeadId || null,
         name: name || 'Novo Projeto Técnico',
-        createdBy: req.user.sub
+        createdBy: req.user.id
       }
     });
 
@@ -166,9 +188,29 @@ app.post("/api/v1/designs", authenticateToken, async (req, res) => {
   }
 });
 
-// Update design
+// Delete design (verifica tenant antes de deletar)
+app.delete("/api/v1/designs/:id", authenticateToken, async (req, res) => {
+  try {
+    const existing = await prisma.technicalDesign.findFirst({
+      where: { id: req.params.id, tenantId: req.user.tenantId }
+    });
+    if (!existing) return res.status(404).json({ success: false, error: 'Not found' });
+
+    await prisma.technicalDesign.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Update design (verifica tenant antes de atualizar)
 app.put("/api/v1/designs/:id", authenticateToken, async (req, res) => {
   try {
+    const existing = await prisma.technicalDesign.findFirst({
+      where: { id: req.params.id, tenantId: req.user.tenantId }
+    });
+    if (!existing) return res.status(404).json({ success: false, error: 'Not found' });
+
     const { designData, name, status, notes } = req.body;
     const design = await prisma.technicalDesign.update({
       where: { id: req.params.id },
@@ -248,6 +290,51 @@ app.get("/api/v1/catalog/inverters", authenticateToken, async (req, res) => {
       orderBy: { manufacturer: 'asc' }
     });
     res.json({ success: true, data: inverters });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// =============================================================
+// ROUTES: User Settings (persisted via TechnicalDesign como registro especial)
+// =============================================================
+
+const SETTINGS_LEAD_ID = '__settings__';
+
+app.get("/api/v1/settings", authenticateToken, async (req, res) => {
+  try {
+    const name = `settings-${req.user.id}`;
+    const record = await prisma.technicalDesign.findFirst({
+      where: { iacaLeadId: SETTINGS_LEAD_ID, createdBy: req.user.id }
+    });
+    res.json({ success: true, data: record?.designData ?? null });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.put("/api/v1/settings", authenticateToken, async (req, res) => {
+  try {
+    const name = `settings-${req.user.id}`;
+    const existing = await prisma.technicalDesign.findFirst({
+      where: { iacaLeadId: SETTINGS_LEAD_ID, createdBy: req.user.id }
+    });
+
+    const record = existing
+      ? await prisma.technicalDesign.update({
+          where: { id: existing.id },
+          data: { designData: req.body }
+        })
+      : await prisma.technicalDesign.create({
+          data: {
+            iacaLeadId: SETTINGS_LEAD_ID,
+            name,
+            createdBy: req.user.id,
+            designData: req.body
+          }
+        });
+
+    res.json({ success: true, data: record.designData });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

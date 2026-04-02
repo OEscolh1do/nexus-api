@@ -32,8 +32,7 @@ import { PropertiesDrawer } from '../panels/properties/PropertiesDrawer';
 import { useSolarStore, selectModules } from '@/core/state/solarStore';
 import { useTechStore } from '../../store/useTechStore';
 import { useSelectedEntity } from '@/core/state/uiStore';
-import { MODULE_DB } from '@/data/equipment/modules';
-import { INVERTER_CATALOG } from '../../constants/inverters';
+import { useCatalogStore } from '../../store/useCatalogStore';
 
 // =============================================================================
 // COMPONENT
@@ -46,18 +45,27 @@ export const WorkspaceLayout: React.FC = () => {
 
   // ── Bootstrap: inject default equipment on empty project (Ação 4) ──
   const hasBootstrapped = useRef(false);
-  const modules = useSolarStore(selectModules);
+  const userModules = useSolarStore(selectModules);
   const addModule = useSolarStore(state => state.addModule);
+  
+  const { modules: catalogModules, inverters: catalogInverters, fetchCatalog, isLoading } = useCatalogStore();
 
   useEffect(() => {
-    const moduleCount = modules.length;
-    const inverterCount = useTechStore.getState().inverters.ids.length;
+    // Carrega a biblioteca visual do banco se ainda estiver vazia
+    if (catalogModules.length === 0 && catalogInverters.length === 0 && !isLoading) {
+      fetchCatalog();
+    }
+  }, [fetchCatalog, catalogModules.length, catalogInverters.length, isLoading]);
 
-    if (moduleCount === 0 && inverterCount === 0 && !hasBootstrapped.current) {
+  useEffect(() => {
+    const userModuleCount = userModules.length;
+    const userInverterCount = useTechStore.getState().inverters.ids.length;
+
+    // Só faz bootstrap se o catálogo do banco já carregou as opções
+    if (userModuleCount === 0 && userInverterCount === 0 && !hasBootstrapped.current && catalogModules.length > 0 && catalogInverters.length > 0) {
       hasBootstrapped.current = true;
 
-      // Inject first module from catalog (MODULE_DB[0])
-      const cat = MODULE_DB[0];
+      const cat = catalogModules[0];
       if (cat) {
         addModule({
           id: Math.random().toString(36).substr(2, 9),
@@ -83,21 +91,20 @@ export const WorkspaceLayout: React.FC = () => {
         });
       }
 
-      // Inject first inverter from catalog (INVERTER_CATALOG[0])
-      const inv = INVERTER_CATALOG[0];
+      const inv = catalogInverters[0];
       if (inv) {
         useTechStore.getState().addInverter({
           id: inv.id,
           manufacturer: inv.manufacturer,
           model: inv.model,
           nominalPower: inv.nominalPowerW / 1000, // W → kW
-          mppts: inv.mppts.length, // use length since addInverter expects the count, not the array
-          connectionType: 'Trifásico',
+          mppts: inv.mppts.length,
+          connectionType: inv.connectionType || 'Trifásico',
           maxInputVoltage: inv.mppts?.[0]?.maxInputVoltage || 600,
         });
       }
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [catalogModules, catalogInverters, userModules.length, addModule]);
 
   // Detect if an entity is selected to show the Properties Drawer
   const selectedEntity = useSelectedEntity();

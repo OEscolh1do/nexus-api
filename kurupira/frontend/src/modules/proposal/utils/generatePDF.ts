@@ -211,63 +211,74 @@ export const generateProposalPDF = async (data: ProposalData) => {
     doc.rect(0, 0, pageWidth, 20, 'F');
     doc.text("Análise Financeira - Fluxo de Caixa Acumulado", margin, 14);
 
-    // Generate Cash Flow Data
-    const cashFlowData = [];
-    // Adjust initial for financing
-    const initialInvestment = isFinanced ? 0 : data.pricing.finalPrice;
+    // --- KPI Summary Box (NPV / IRR / ROI) ---
+    const kpiY = 26;
+    const kpiBoxW = (pageWidth - margin * 2 - 10) / 3;
 
-    let accumulated = -initialInvestment;
-    let currentSavings = data.financials.monthlySavings * 12;
-    const inflation = 0.045; // 4.5% energy inflation
+    const drawFinKpi = (x: number, label: string, value: string, color: number[]) => {
+        doc.setFillColor(colors.bgLight[0], colors.bgLight[1], colors.bgLight[2]);
+        doc.setDrawColor(226, 232, 240);
+        doc.roundedRect(x, kpiY, kpiBoxW, 22, 2, 2, 'FD');
+        doc.setFontSize(7);
+        doc.setTextColor(colors.textLight[0], colors.textLight[1], colors.textLight[2]);
+        doc.text(label, x + 3, kpiY + 7);
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(color[0], color[1], color[2]);
+        doc.text(value, x + 3, kpiY + 17);
+        doc.setFont("helvetica", "normal");
+    };
 
-    // Add Year 0
-    cashFlowData.push(['Ano 0', '(Investimento / Entrada)', formatCurrency(-initialInvestment)]);
+    const npv = data.financials.npv ?? 0;
+    const irr = data.financials.irr ?? 0;
+    const roi = data.financials.roi ?? 0;
 
+    drawFinKpi(margin, "VPL (NPV) — 25 anos / 8% a.a.", formatCurrency(npv), npv >= 0 ? [16, 185, 129] : [239, 68, 68]);
+    drawFinKpi(margin + kpiBoxW + 5, "TIR (IRR) — Taxa Interna de Retorno", `${(irr * 100).toFixed(1)}% a.a.`, irr >= 0.08 ? [16, 185, 129] : [245, 158, 11]);
+    drawFinKpi(margin + (kpiBoxW + 5) * 2, "ROI Bruto — 25 anos", `${(roi * 100).toFixed(0)}%`, [37, 99, 235]);
+
+    // Assumptions footnote
+    const avgHsp = data.financials.avgHsp ?? 4.5;
+    const avgTariff = data.financials.avgTariff ?? 0.92;
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(colors.textLight[0], colors.textLight[1], colors.textLight[2]);
+    doc.text(
+        `Premissas: HSP médio = ${avgHsp.toFixed(2)} h/dia · Tarifa = R$ ${avgTariff.toFixed(4)}/kWh · Degradação 0,5%/ano · Inflação tarifária 5%/ano · WACC 8% a.a.`,
+        margin, kpiY + 28
+    );
+
+    // --- Cash Flow Table ---
+    const cashFlows = data.financials.cashFlows;
+    const cashFlowData: string[][] = [];
+    const investment = data.pricing.finalPrice;
+
+    cashFlowData.push(['Ano 0', '(Investimento Inicial)', formatCurrency(-investment), formatCurrency(-investment)]);
+
+    let accumulated = -investment;
     for (let i = 1; i <= 25; i++) {
-        // If financed, allow for loan payments in cash flow if we want to be precise, 
-        // but typically the table shows "Savings" vs "Accumulated".
-        // The simple view uses savings. A more complex view would net the loan payments.
-        // For this PDF, let's keep it simple: Savings accumulate.
-        // BUT if we want to match the "Cash Flow Chart", we should use `financials.cashFlows` if available.
-        // However, `data.financials.cashFlows` exists. Let's use it!
-
-        const netFlow = data.financials.cashFlows ? data.financials.cashFlows[i] : currentSavings; // Year i (index i because Year 0 is index 0)
-
-        // Wait, cashFlows[0] is initial. cashFlows[1] is Year 1.
-
-        if (data.financials.cumulativeCashFlows && data.financials.cumulativeCashFlows[i]) {
-            accumulated = data.financials.cumulativeCashFlows[i];
-            cashFlowData.push([
-                `Ano ${i}`,
-                formatCurrency(netFlow), // This is Net Flow (Savings - O&M - Loan)
-                formatCurrency(accumulated)
-            ]);
-        } else {
-            // Fallback if no arrays
-            accumulated += currentSavings;
-            cashFlowData.push([
-                `Ano ${i}`,
-                formatCurrency(currentSavings),
-                formatCurrency(accumulated)
-            ]);
-            currentSavings = currentSavings * (1 + inflation);
-        }
+        const netFlow = cashFlows ? cashFlows[i] : data.financials.monthlySavings * 12 * Math.pow(1.045, i - 1);
+        accumulated += netFlow;
+        cashFlowData.push([`Ano ${i}`, formatCurrency(netFlow), formatCurrency(accumulated), accumulated >= 0 ? '✓' : '']);
     }
 
     doc.autoTable({
-        startY: 30,
-        head: [['Período', 'Fluxo de Caixa Anual (Liq)', 'Saldo Acumulado']],
+        startY: kpiY + 34,
+        head: [['Período', 'Fluxo Anual (Líquido)', 'Saldo Acumulado', '']],
         body: cashFlowData,
         theme: 'striped',
         headStyles: { fillColor: colors.secondary },
-        styles: { fontSize: 9, cellPadding: 3, halign: 'right' },
-        columnStyles: { 0: { halign: 'left', fontStyle: 'bold' } },
-        didParseCell: function (data: any) {
-            if (data.section === 'body' && data.column.index === 2) {
-                // Check logic for red/green
-                // Simpler: just check if string starts with '-' (formatCurrency behavior for negative?)
-                // pt-BR usually uses -R$ or R$ -
-                // Let's assume coloring is fine or optional.
+        styles: { fontSize: 8, cellPadding: 2.5, halign: 'right' },
+        columnStyles: {
+            0: { halign: 'left', fontStyle: 'bold', cellWidth: 18 },
+            3: { cellWidth: 8, halign: 'center', textColor: [16, 185, 129] }
+        },
+        didParseCell: function (cellData: any) {
+            if (cellData.section === 'body' && cellData.column.index === 2) {
+                const raw = cashFlows ? cashFlows.slice(1, cellData.row.index + 1).reduce((a: number, b: number) => a + b, -investment) : null;
+                if (raw !== null && raw < 0) {
+                    cellData.cell.styles.textColor = [239, 68, 68];
+                }
             }
         }
     });
@@ -278,9 +289,9 @@ export const generateProposalPDF = async (data: ProposalData) => {
         doc.setPage(i);
         doc.setFontSize(8);
         doc.setTextColor(150, 150, 150);
-        doc.text(`Gerado por Lumi V3.0 - Página ${i} de ${pageCount}`, margin, pageHeight - 10);
+        doc.text(`Gerado por Kurupira / Neonorte Energia - Página ${i} de ${pageCount}`, margin, pageHeight - 10);
     }
 
     // Save
-    doc.save(`Proposta_Lumi_${data.clientName.replace(/\s+/g, '_')}.pdf`);
+    doc.save(`Proposta_Neonorte_${data.clientName.replace(/\s+/g, '_')}.pdf`);
 };

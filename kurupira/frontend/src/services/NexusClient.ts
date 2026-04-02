@@ -81,6 +81,9 @@ export const KurupiraClient = {
         method: 'PUT',
         body: JSON.stringify(data),
       }),
+
+    delete: (id: string) =>
+      apiFetch<{ success: boolean }>(`/api/v1/designs/${id}`, { method: 'DELETE' }),
   },
 
   roofSections: {

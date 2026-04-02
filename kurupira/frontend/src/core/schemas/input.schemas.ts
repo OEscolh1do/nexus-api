@@ -51,6 +51,11 @@ export const InputDataSchema = z.object({
   // Dados de Irradiação Persistidos (V2.1.0)
   monthlyIrradiation: z.array(z.number()).length(12).optional(),
   irradiationCity: z.string().optional(), // Nome do preset/cidade selecionada para referência
+
+  // Diagnóstico Preliminar (V3.3)
+  roofType: z.enum(['ceramica', 'metalico', 'fibrocimento', 'laje', 'outro']).optional(),
+  roofInclination: z.number().min(0).max(60).optional(),
+  leadPersona: z.enum(['provedor', 'calculista']).optional(),
 });
 
 export type InputData = z.infer<typeof InputDataSchema>;

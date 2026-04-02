@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { Inverter } from '../constants/inverters';
 import { calculateStringMetrics, ModuleElectricalSpecs } from '../utils/electricalMath';
 
 interface ValidationResult {
@@ -25,7 +24,7 @@ interface StringValidationReport {
  */
 export const useStringValidation = (
     moduleSpecs: ModuleElectricalSpecs & { imp: number, isc: number } | null,
-    inverterSpecs: Inverter | null,
+    inverterSpecs: any | null,
     modulesPerString: number,
     stringsInParallel: number,
     minTemp: number = 0, // °C

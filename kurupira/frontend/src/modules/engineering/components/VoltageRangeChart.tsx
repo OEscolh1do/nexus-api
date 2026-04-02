@@ -2,8 +2,8 @@ import React, { useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { useTechStore } from '../store/useTechStore';
 import { useSolarStore, selectModules } from '@/core/state/solarStore';
+import { useCatalogStore } from '@/modules/engineering/store/useCatalogStore';
 import { toArray } from '@/core/types/normalized.types';
-import { INVERTER_CATALOG } from '../constants/inverters';
 import { Zap, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { calculateStringMetrics } from '../utils/electricalMath';
@@ -13,6 +13,7 @@ export const VoltageRangeChart: React.FC<{ className?: string, entityId?: string
     const inverters = toArray(invertersNormalized);
     const modules = useSolarStore(selectModules);
     const settings = useSolarStore(state => state.settings);
+    const catalogInverters = useCatalogStore(state => state.inverters);
     
     // Fallback to first module if none selected
     const selectedModule = modules.find(m => m.id === selectedModuleId) || modules[0];
@@ -33,7 +34,7 @@ export const VoltageRangeChart: React.FC<{ className?: string, entityId?: string
             // If an entityId is provided, filter out unrelated inverters
             if (targetInverterId && inv.id !== targetInverterId && inv.catalogId !== targetInverterId) return;
 
-            const spec = INVERTER_CATALOG.find(i => i.id === inv.catalogId);
+            const spec = catalogInverters.find(i => i.id === inv.catalogId);
             if (!spec) return;
 
             inv.mpptConfigs.forEach(mppt => {

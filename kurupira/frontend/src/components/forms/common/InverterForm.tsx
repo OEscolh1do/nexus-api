@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { InverterSpecs } from '@/core/types';
 import { Zap, Activity, CheckCircle, ArrowRight, Plus, Trash2, Database } from 'lucide-react';
-import { INVERTER_DB } from '@/data/equipment/inverters';
+import { useCatalogStore } from '@/modules/engineering/store/useCatalogStore';
 
 interface Props {
   initialData: InverterSpecs[];
@@ -10,6 +10,7 @@ interface Props {
 }
 
 export const InverterForm: React.FC<Props> = ({ initialData, systemSize, onConfirm }) => {
+  const catalogInverters = useCatalogStore(state => state.inverters);
   const [inverters, setInverters] = useState<InverterSpecs[]>(initialData);
 
   // Selection States
@@ -18,14 +19,14 @@ export const InverterForm: React.FC<Props> = ({ initialData, systemSize, onConfi
 
   // Derived Lists
   const uniqueMakes = useMemo(() => {
-    const makes = new Set(INVERTER_DB.map(i => i.Fabricante));
+    const makes = new Set(catalogInverters.map((i: any) => i.manufacturer));
     return Array.from(makes).sort();
-  }, []);
+  }, [catalogInverters]);
 
   const availableModels = useMemo(() => {
     if (!selectedMake) return [];
-    return INVERTER_DB.filter(i => i.Fabricante === selectedMake).map(i => i.Modelo).sort();
-  }, [selectedMake]);
+    return catalogInverters.filter((i: any) => i.manufacturer === selectedMake).map((i: any) => i.model).sort();
+  }, [selectedMake, catalogInverters]);
 
   // Calculates total nominal AC power of all inverters
   const totalInverterPower = inverters.reduce((acc, inv) => acc + (inv.nominalPower * inv.quantity), 0);
@@ -38,24 +39,24 @@ export const InverterForm: React.FC<Props> = ({ initialData, systemSize, onConfi
   const handleAddFromDb = () => {
     if (!selectedMake || !selectedModel) return;
 
-    const dbEntry = INVERTER_DB.find(i => i.Fabricante === selectedMake && i.Modelo === selectedModel);
+    const dbEntry = catalogInverters.find((i: any) => i.manufacturer === selectedMake && i.model === selectedModel);
     if (!dbEntry) return;
 
     const newInv: InverterSpecs = {
       id: Math.random().toString(36).substr(2, 9),
       quantity: 1,
-      manufacturer: dbEntry.Fabricante,
-      model: dbEntry.Modelo,
-      maxInputVoltage: dbEntry["Tensão máxima de entrada"],
-      minInputVoltage: dbEntry["Tensão mínima de entrada"],
-      maxInputCurrent: dbEntry["Corrente Máxima de entrada"],
-      outputVoltage: dbEntry["Tensão de saída"],
-      outputFrequency: dbEntry["Frequência de saída"],
-      maxOutputCurrent: dbEntry["Corrente Máxima de Saída"],
-      nominalPower: dbEntry["Potência Nominal"] / 1000, // Convert W to kW
-      maxEfficiency: dbEntry["Eficiência Máxima"] > 1 ? dbEntry["Eficiência Máxima"] : dbEntry["Eficiência Máxima"] * 100, // Normalize to %
-      weight: dbEntry.Peso,
-      connectionType: dbEntry.Ligação
+      manufacturer: dbEntry.manufacturer,
+      model: dbEntry.model,
+      maxInputVoltage: dbEntry.maxInputVoltage ?? Math.max(...dbEntry.mppts.map(m => m.maxInputVoltage)),
+      minInputVoltage: Math.min(...dbEntry.mppts.map(m => m.minMpptVoltage)),
+      maxInputCurrent: Math.max(...dbEntry.mppts.map(m => m.maxCurrentPerMPPT)),
+      outputVoltage: dbEntry.outputVoltage ?? 220,
+      outputFrequency: dbEntry.outputFrequency ?? 60,
+      maxOutputCurrent: dbEntry.maxOutputCurrent ?? 0,
+      nominalPower: dbEntry.nominalPowerW / 1000,
+      maxEfficiency: dbEntry.efficiency?.euro ?? 0,
+      weight: dbEntry.weight ?? 0,
+      connectionType: dbEntry.connectionType ?? '',
     };
     setInverters([...inverters, newInv]);
   };
@@ -168,8 +169,15 @@ export const InverterForm: React.FC<Props> = ({ initialData, systemSize, onConfi
               <div key={inv.id} className="border border-slate-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
                  {/* Item Header */}
                  <div className="bg-slate-50 p-3 border-b border-slate-200 flex justify-between items-center">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                        <span className="bg-slate-200 text-slate-600 w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold">{index + 1}</span>
+                       <div className="w-10 h-10 rounded border border-slate-200 overflow-hidden bg-white flex-shrink-0 flex items-center justify-center p-0.5">
+                         <img 
+                            src={inv.imageUrl || '/assets/images/solar-inverter.png'} 
+                            alt={inv.model} 
+                            className="max-w-full max-h-full object-contain"
+                         />
+                       </div>
                        <h3 className="text-sm font-bold text-slate-700">{inv.model}</h3>
                     </div>
                     <button 

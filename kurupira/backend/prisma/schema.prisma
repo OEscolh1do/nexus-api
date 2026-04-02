@@ -17,21 +17,23 @@ datasource db {
 // =============================================================
 
 model TechnicalDesign {
-  id          String   @id @default(cuid())
-  iacaLeadId  String   // FK virtual → Lead no Iaçã (nunca duplicamos dados comerciais)
-  name        String   // Nome do projeto (injetado via M2M ou override local)
-  status      String   @default("DRAFT") // DRAFT, IN_PROGRESS, REVIEW, APPROVED, REJECTED
-  designData  Json?    // Layout de painéis, strings, inversores (dossiê técnico completo)
-  notes       String?  @db.Text
-  createdBy   String   // userId do engenheiro (validado via JWT do Iaçã)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  tenantId   String   @default("default-tenant-001") // Escopo de organização (multi-tenancy)
+  iacaLeadId String? // FK virtual → Lead no Iaçã (opcional — projetos standalone não têm lead)
+  name       String // Nome do projeto (injetado via M2M ou override local)
+  status     String   @default("DRAFT") // DRAFT, IN_PROGRESS, REVIEW, APPROVED, REJECTED
+  designData Json? // Layout de painéis, strings, inversores (dossiê técnico completo)
+  notes      String?  @db.Text
+  createdBy  String // userId do engenheiro (validado via JWT do Iaçã)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   // Relações internas do Kurupira
-  roofSections  RoofSection[]
-  pvArrays      PVArray[]
-  simulations   Simulation[]
+  roofSections RoofSection[]
+  pvArrays     PVArray[]
+  simulations  Simulation[]
 
+  @@index([tenantId])
   @@index([iacaLeadId])
   @@index([createdBy])
   @@index([status])
@@ -44,10 +46,10 @@ model TechnicalDesign {
 model RoofSection {
   id                String  @id @default(cuid())
   technicalDesignId String
-  polygonGeoJson    Json    // Polígono GeoJSON do Leaflet
-  azimuth           Float   // Orientação em graus (0-360)
-  tilt              Float   // Inclinação em graus
-  area              Float   // Área útil em m²
+  polygonGeoJson    Json // Polígono GeoJSON do Leaflet
+  azimuth           Float // Orientação em graus (0-360)
+  tilt              Float // Inclinação em graus
+  area              Float // Área útil em m²
   shadingFactor     Float   @default(1.0) // 0.0 a 1.0 (1 = sem sombra)
   label             String? // "Telhado Norte", "Garagem", etc.
 
@@ -65,14 +67,14 @@ model PVArray {
   id                String  @id @default(cuid())
   technicalDesignId String
   roofSectionId     String?
-  moduleModel       String  // Ex: "Canadian Solar CS6W-550MS"
-  modulePower       Float   // Watts pico (Wp)
-  moduleCount       Int     // Quantidade de painéis
-  stringConfig      Json?   // Configuração de strings (série x paralelo)
+  moduleModel       String // Ex: "Canadian Solar CS6W-550MS"
+  modulePower       Float // Watts pico (Wp)
+  moduleCount       Int // Quantidade de painéis
+  stringConfig      Json? // Configuração de strings (série x paralelo)
   inverterModel     String? // Ex: "Growatt MIN 6000TL-X"
-  inverterPower     Float?  // Watts
-  cableSectionMm2   Float?  // Seção do cabo em mm²
-  estimatedGenKwh   Float?  // Geração estimada mensal (kWh)
+  inverterPower     Float? // Watts
+  cableSectionMm2   Float? // Seção do cabo em mm²
+  estimatedGenKwh   Float? // Geração estimada mensal (kWh)
 
   technicalDesign TechnicalDesign @relation(fields: [technicalDesignId], references: [id], onDelete: Cascade)
   roofSection     RoofSection?    @relation(fields: [roofSectionId], references: [id])
@@ -88,9 +90,9 @@ model PVArray {
 model Simulation {
   id                String   @id @default(cuid())
   technicalDesignId String
-  type              String   // "GENERATION", "LOSS", "PAYBACK", "IRRADIANCE"
-  inputParams       Json     // Parâmetros de entrada do cálculo
-  resultData        Json     // Resultado (matrizes, curvas, projeções)
+  type              String // "GENERATION", "LOSS", "PAYBACK", "IRRADIANCE"
+  inputParams       Json // Parâmetros de entrada do cálculo
+  resultData        Json // Resultado (matrizes, curvas, projeções)
   executedAt        DateTime @default(now())
 
   technicalDesign TechnicalDesign @relation(fields: [technicalDesignId], references: [id], onDelete: Cascade)
@@ -104,29 +106,37 @@ model Simulation {
 // =============================================================
 
 model ModuleCatalog {
-  id           String  @id @default(cuid())
-  manufacturer String  // "Canadian Solar", "JA Solar", etc.
-  model        String  @unique
-  powerWp      Float   // Potência nominal (Wp)
-  efficiency   Float?  // Eficiência (%)
-  dimensions   String? // "2278x1134x35mm"
-  weight       Float?  // kg
-  datasheet    String? // URL do datasheet
-  isActive     Boolean @default(true)
+  id                String  @id @default(cuid())
+  manufacturer      String // "Canadian Solar", "JA Solar", etc.
+  model             String  @unique
+  powerWp           Float // Potência nominal (Wp)
+  efficiency        Float? // Eficiência (%)
+  dimensions        String? // "2278x1134x35mm"
+  weight            Float? // kg
+  datasheet         String? // URL do datasheet
+  imageUrl          String? // Imagem/Foto real do módulo para catálogo visual
+  unifilarSymbolRef String? // Referência ou SVG do símbolo unifilar (Biblioteca do Motor)
+  isActive          Boolean @default(true)
+  // Parâmetros elétricos completos para validação MPPT/string (VocMax, Isc, etc.)
+  electricalData    Json? // { vmp, imp, voc, isc, tempCoeffVoc, widthMm, heightMm, depthMm, cells }
 
   @@index([manufacturer])
 }
 
 model InverterCatalog {
-  id             String  @id @default(cuid())
-  manufacturer   String
-  model          String  @unique
-  nominalPowerW  Float   // Potência nominal (W)
-  maxInputV      Float?  // Tensão máxima de entrada (V)
-  mpptCount      Int?    // Número de MPPTs
-  efficiency     Float?  // Eficiência máxima (%)
-  datasheet      String?
-  isActive       Boolean @default(true)
+  id                String  @id @default(cuid())
+  manufacturer      String
+  model             String  @unique
+  nominalPowerW     Float // Potência nominal (W)
+  maxInputV         Float? // Tensão máxima de entrada (V)
+  mpptCount         Int? // Número de MPPTs
+  efficiency        Float? // Eficiência máxima (%)
+  datasheet         String?
+  imageUrl          String? // Imagem/Foto real do inversor para catálogo visual
+  unifilarSymbolRef String? // Referência ou SVG do símbolo unifilar (Biblioteca do Motor)
+  isActive          Boolean @default(true)
+  // Parâmetros elétricos completos para validação de string
+  electricalData    Json? // { minInputV, maxInputCurrent, maxOutputCurrent, outputVoltage, outputFrequency, weight, connectionType }
 
   @@index([manufacturer])
 }

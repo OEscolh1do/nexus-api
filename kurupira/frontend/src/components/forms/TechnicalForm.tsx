@@ -9,9 +9,8 @@ import {
   Box, Plus, Trash2, Zap, DollarSign, AlertTriangle, 
   CheckCircle, Minus, BarChart3, TrendingUp
 } from 'lucide-react';
-import { MODULE_DB } from '@/data/equipment/modules';
-import { INVERTER_CATALOG, Inverter } from '@/modules/engineering/constants/inverters';
 import { calculateSimpleGeneration } from '@/services/solarEngine';
+import { useCatalogStore } from '@/modules/engineering/store/useCatalogStore';
 import { GenerationChart } from '@/components/ui/SolarCharts';
 import {
   DenseFormGrid, DenseCard, DenseSelect, DenseStat, DenseButton, DenseDivider
@@ -37,6 +36,9 @@ export const TechnicalForm: React.FC<Props> = ({
   hspMonthly,
   onConfirm 
 }) => {
+  const catalogModules = useCatalogStore(state => state.modules);
+  const catalogInverters = useCatalogStore(state => state.inverters);
+  
   const [modules, setModules] = useState<ModuleSpecs[]>(initialModules);
   const [inverters, setInverters] = useState<InverterSpecs[]>(initialInverters);
   
@@ -71,10 +73,10 @@ export const TechnicalForm: React.FC<Props> = ({
   const isOverloadCritical = overloadRatio > 1.50;
 
   // Listas de equipamentos
-  const moduleMakes = useMemo(() => Array.from(new Set(MODULE_DB.map((m: any) => m.manufacturer))).sort(), []);
-  const moduleModels = useMemo(() => modMake ? MODULE_DB.filter((m: any) => m.manufacturer === modMake).map((m: any) => m.model).sort() : [], [modMake]);
-  const inverterMakes = useMemo(() => Array.from(new Set(INVERTER_CATALOG.map((i: Inverter) => i.manufacturer))).sort(), []);
-  const inverterModels = useMemo(() => invMake ? INVERTER_CATALOG.filter((i: Inverter) => i.manufacturer === invMake).map((i: Inverter) => i.model).sort() : [], [invMake]);
+  const moduleMakes = useMemo(() => Array.from(new Set(catalogModules.map((m: any) => m.manufacturer))).sort(), [catalogModules]);
+  const moduleModels = useMemo(() => modMake ? catalogModules.filter((m: any) => m.manufacturer === modMake).map((m: any) => m.model).sort() : [], [modMake, catalogModules]);
+  const inverterMakes = useMemo(() => Array.from(new Set(catalogInverters.map((i: any) => i.manufacturer))).sort(), [catalogInverters]);
+  const inverterModels = useMemo(() => invMake ? catalogInverters.filter((i: any) => i.manufacturer === invMake).map((i: any) => i.model).sort() : [], [invMake, catalogInverters]);
 
   // Calculo de geracao reativo
   const monthlyGeneration = useMemo(() => {
@@ -98,7 +100,7 @@ export const TechnicalForm: React.FC<Props> = ({
 
   // Handlers
   const handleAddModule = () => {
-    const db = MODULE_DB.find(m => m.model === modModel);
+    const db = catalogModules.find((m: any) => m.model === modModel);
     if (!db) return;
     setModules([...modules, {
       id: Math.random().toString(36).substr(2, 9),
@@ -126,7 +128,7 @@ export const TechnicalForm: React.FC<Props> = ({
   };
 
   const handleAddInverter = (modelName: string) => {
-    const db = INVERTER_CATALOG.find((i: Inverter) => i.model === modelName);
+    const db = catalogInverters.find((i: any) => i.model === modelName);
     if (!db) return;
     setInverters([...inverters, {
       id: Math.random().toString(36).substr(2, 9),
