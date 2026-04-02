@@ -1,8 +1,8 @@
 # CONTEXT.md — Sistema NEONORTE
 
-> **Última Atualização:** 2026-04-01
+> **Última Atualização:** 2026-04-02
 > **Arquiteto:** Antigravity AI
-> **Versão do Sistema:** 3.2.1 (Tenant Isolation + Ferramentas Independentes)
+> **Versão do Sistema:** 3.3.0 (Catalog Consolidation + Premium Dark UI)
 
 ---
 
@@ -155,15 +155,26 @@ neonorte/
 | `SettingsService` | ✅ Integrado | `GET/PUT /api/v1/settings` via sentinel `iacaLeadId: '__settings__'` |
 | Tenant Isolation | ✅ Implementado | `tenantId` no JWT (Iaçã) + filtro em todas as rotas Kurupira |
 | `iacaLeadId` standalone | ✅ Corrigido | Projetos sem lead usam `null` (não mais `'standalone'`) |
-| Catálogo de Equipamentos | ✅ Seeded | 28 módulos DMEGC/PHB + 32 inversores no banco via `seed-catalog.js` |
+| Catálogo de Equipamentos | ✅ Consolidado | `useCatalogStore` (SSoT), `catalogSlice` e `InMemoryEquipmentRepo` deprecated |
 | `useProposalCalculator` | ✅ Corrigido | `FinanceSlice` removido, mockado localmente |
 | `EquipmentDatabaseManager` | ✅ Removido | Funcionalidade movida para Iaçã ERP |
+| ProjectExplorer thumbnails | ⚠️ Placeholder | Padrão generativo; aguarda lat/lng no schema para mapas estáticos reais |
+| `targetPowerKwp` / `avgConsumption` | ⚠️ Fallback | Dados não retornados pela API de listagem; aguarda integração M2M Iaçã |
 | TailwindCSS CDN | ⚠️ Warning | Migrar de CDN para PostCSS em produção |
 | Prisma v5.10 → v7.x | 🟡 Baixa prioridade | Funcional, upgrade não-urgente |
 
 ---
 
 ## 🔄 CHANGELOG
+
+### v3.3.0 (2026-04-02) — Catalog Consolidation + Premium Dark UI
+
+- ✅ **Single Source of Truth:** Migração de `InverterCatalogDialog` e `ModuleCatalogDialog` do legacy `catalogSlice` para `useCatalogStore`. `catalogSlice` e `InMemoryEquipmentRepo` marcados `@deprecated`.
+- ✅ **Premium Dark Glass UI:** Reescrita completa de `InverterInventoryItem` e `ModuleInventoryItem` com thumbnails + fallback local, badges MPPT/Fase, efficiency color coding, micro-animações hover (scale, glow, translate).
+- ✅ **Diálogos Dark Theme:** `InverterCatalogDialog` e `ModuleCatalogDialog` inteiramente migrados para tema dark (header, filtros, grid, skeletons, empty state, footer).
+- ✅ **ProjectExplorer Fixes:** MapPin não sobrepõe mais "Abrir Dimensionamento" (movido para badge bottom-left). Placeholder generativo com grid determinístico por hash do nome. Gradientes dinâmicos por status (DRAFT/IN_PROGRESS/REVIEW/APPROVED).
+- ✅ **Limpeza de Dead Code:** Deletados `data/equipment/inverters.ts` e `constants/inverters.ts`.
+- ✅ **Validação:** `tsc --noEmit` → EXIT CODE 0. Checkpoint: `0365567`.
 
 ### v3.2.1 (2026-04-01) — Tenant Isolation + Ferramentas Independentes
 
