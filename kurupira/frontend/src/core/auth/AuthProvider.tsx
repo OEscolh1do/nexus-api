@@ -98,7 +98,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
-    window.location.href = IACA_URL;
+    if (IS_DEMO) {
+      window.location.reload();
+    } else {
+      window.location.href = IACA_URL;
+    }
   };
 
   return (
