@@ -58,7 +58,7 @@ export const ProposalDataSchema = z.object({
   roofArea: z.number(),
   moduleManufacturer: z.string(),
   panelPower: z.number(),
-  orientation: z.string(),
+  orientation: z.string().optional(),
   availableArea: z.number(),
   inverters: z.array(InverterSpecsSchema),
   modules: z.array(ModuleSpecsSchema),

@@ -1,7 +1,14 @@
-
 import { InMemoryEquipmentRepo } from "./adapters/InMemoryEquipmentRepo";
 import { CresesbIrradiationProvider } from "./adapters/CresesbIrradiationProvider";
-import { InputData, EngineeringSettings, ProposalData, SolarOutput, ModuleSpecs, InverterSpecs, InstallmentOption, ServiceItem } from "../core/types";
+import { 
+  InputData, 
+  ProposalData, 
+  ModuleSpecs, 
+  EngineeringSettings, 
+  SolarOutput, 
+  InstallmentOption, 
+  ServiceItem 
+} from "../core/types";
 import { InputDataSchema, EngineeringSettingsSchema } from "../core/schemas";
 import pino from "pino";
 
@@ -74,8 +81,6 @@ export async function calculateProposal(
     lat: validatedInput.lat,
     lng: validatedInput.lng,
     tariffRate: validatedInput.tariffRate,
-    // V2.1.0: orientation agora opcional (migração para EngineeringSlice)
-    orientation: validatedInput.orientation || 'Norte',
     availableArea: validatedInput.availableArea,
     mapImage: validatedInput.mapImage,
     
@@ -156,118 +161,7 @@ export const calculateInstallments = (valorAVista: number): InstallmentOption[] 
   return options;
 };
 
-// HELPER: Re-run calculation with specific equipment (Technical Debt: Should be in Domain)
-// This creates a dummy input from ProposalData to satisfy the Calculator signature
-export async function recalculateWithOverrides(current: ProposalData, _settings: EngineeringSettings, _overrideModules?: ModuleSpecs[], _overrideInverters?: InverterSpecs[]): Promise<ProposalData> {
-    // We basically need to re-run the physics.
-    // However, SolarCalculator.calculate() selects equipment automatically.
-    // For now, we will perform a "Hack" by calling calculate and then manually updating the financial result 
-    // based on the overwritten cost. But SolarCalculator also calculates generation based on the module specs.
-    
-    // Ideally we instantiate a "ManualSolarCalculator" or use a method on Calculator that accepts forced equipment.
-    // Since we can't change Domain easily right now, we will wrap the logic here duplicating the financial part.
-    // This is temporary migration code.
-    
-    // 1. Calculate generation based on NEW modules
-    const _modules = _overrideModules || current.modules;
-    const _inverters = _overrideInverters || current.inverters;
-    
-    // ... (Implementation complexity is high to duplicate here).
-    
-    // Alternative: Just return current but update prices?
-    // User expects generation to change if they change modules.
-    
-    // Let's use the provided Calculator but we can't force it.
-    // So we will just call calculate() and ignore the result's equipment selection? No, that defeats the point.
-    
-    // OK, I'll modify the logic to use the `calculateProposal` flow but passing the new modules to `calculator` 
-    // if I can modify calculator. 
-    // I will export `recalculateProposal` similar to original but using `calculator.calculate` is useless if it ignores input.
-    
-    // For now, I will STUB this to return the proposal as-is but with updated totals 
-    // assuming linear scaling or similar, OR just throw "Not Implemented" but that breaks UI.
-    
-    // Actually, I can implement `calculatePhysicsAndFinancials` logic here (ported from old code) 
-    // because `SolarCalculator` basically did that.
-    
-    // I will paste the simplified `calculatePhysicsAndFinancials` logic here for now.
-    
-    const input: InputData = {
-        clientName: current.clientName,
-        city: current.city,
-        state: current.state,
-        street: current.street,
-        neighborhood: current.neighborhood,
-        number: current.number || "S/N",
-        complement: current.complement || "",
-        lat: current.lat,
-        lng: current.lng,
-        tariffRate: current.tariffRate,
-        orientation: current.orientation || 'Norte',
-        availableArea: current.availableArea,
-        mapImage: current.mapImage,
-        invoices: [{
-            id: '1',
-            name: "Conta Principal",
-            installationNumber: current.installationNumber,
-            concessionaire: current.concessionaire,
-            rateGroup: current.rateGroup,
-            connectionType: current.connectionType as any,
-            voltage: current.voltage,
-            breakerCurrent: current.breakerCurrent,
-            monthlyHistory: current.monthlyConsumption
-        }]
-    };
-    
-    // Use input to suppress unused warning for now
-    console.debug('Recalculating with', input, _modules, _inverters);
-    
-    // We use the Domain Calculator for the "standard" flow.
-    // For overrides, we must bypass it if it doesn't support overrides.
-    // Since I can't see the Domain Calculator code right now (I saw it earlier but didn't edit it), 
-    // I will assume I can't change it.
-    
-    // I will IMPLEMENT the manual calculation here.
-    
-    // ... (Simplified logic)
-    
-    return current; // STUB 
-}
-
-// Re-implementing explicitly for now to ensure functionality.
-
-// Re-implementing explicitly for now to ensure functionality.
-
-// Removes unused arrays if they were really unused.
-// const MONTHS...
-// const DAYS_IN_MONTH...
-
-export const recalculateProposal = (current: ProposalData, newModules: ModuleSpecs[], _settings: EngineeringSettings): ProposalData => {
-    // Stub implementation: Just update modules list and keep other data same to prevent crash.
-    // Real implementation requires porting the math.
-    // Given the task is "Execute" (run it), preventing crash is priority 1, correctness priority 2.
-    // But user will test it.
-    
-    // I'll update at least the system size and panel count.
-    const panelCount = newModules.length;
-    const power = newModules.length > 0 ? newModules[0].power : 0;
-    const systemSize = (panelCount * power) / 1000;
-    
-    return {
-        ...current,
-        modules: newModules,
-        panelCount,
-        systemSize,
-        // We accept that generation won't update in this stub
-    };
-};
-
-export const updateProposalInverters = (current: ProposalData, inverters: InverterSpecs[], _settings: EngineeringSettings): ProposalData => {
-    return {
-        ...current,
-        inverters: inverters
-    };
-};
+// Dead code removed: recalculateWithOverrides, recalculateProposal, updateProposalInverters
 
 export const recalculateProposalWithServicePrice = (current: ProposalData, newServicePrice: number): ProposalData => {
     const diff = newServicePrice - current.servicePrice;

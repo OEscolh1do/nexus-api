@@ -95,11 +95,6 @@ export const initialClientData: InputData = {
   lat: 0,
   lng: 0,
   availableArea: 0,
-  /**
-   * @deprecated V2.1.0 - Mantido para compatibilidade.
-   * Fonte de verdade: EngineeringSlice.engineeringData.orientation
-   */
-  orientation: 'Norte',
   tariffRate: 0.92,
   mapImage: '',
   invoices: [],

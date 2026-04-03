@@ -26,7 +26,6 @@ import { TechSlice, createTechSlice } from './slices/techSlice';
 import { EngineeringSlice, createEngineeringSlice } from './slices/engineeringSlice';
 import { ElectricalSlice, createElectricalSlice } from './slices/electricalSlice';
 import { ProjectSlice, createProjectSlice } from './slices/projectSlice';
-import { CatalogSlice, createCatalogSlice } from './slices/catalogSlice';
 
 // PRÉ-1: fromArray mantido para uso em actions do store (addModule, etc.)
 import { fromArray } from '@/core/types/normalized.types';
@@ -65,7 +64,6 @@ export type SolarState =
   & EngineeringSlice
   & ElectricalSlice
   & ProjectSlice
-  & CatalogSlice
   & UIState;
 
 /**
@@ -108,7 +106,6 @@ export const useSolarStore = create<SolarState>()(
           ...createEngineeringSlice(set, get, api),
           ...createElectricalSlice(set, get, api),
           ...createProjectSlice(set, get, api),
-          ...createCatalogSlice(set, get, api),
 
           ...createUISlice(set, get, api),
         }),

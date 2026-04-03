@@ -37,15 +37,4 @@ Sempre que executar a rotina de limpeza técnica, puxe os itens daqui.
 
 ## 3. Baixa Prioridade (Dívida de Estrutura / Cleanup)
 
-Esses são restos de código marcados para deleção após a estabilização das refatorações (Migração v2.1.0):
-
-### A. `solarEngine.ts` e Workaround Financeiro
-- **Débito:** `// For now, we will perform a "Hack" by calling calculate and then manually updating the financial result`
-- **Ação Recomendada:** Unificar o payload financeiro com a engine principal e delegar o serviço de financeiro para o Kurupira Backend, ou criar um solver financeiro unificado no estado principal (o que remove o mock).
-
-### B. Cleanup de Aliases Deprecated (`@deprecated`)
-Estes devem ser deletados, e as referências soltas, corrigidas pela árvore:
-- `useTechCalculations.ts` (`@deprecated Alias mantido para facilitar transição e não quebrar imports existentes. Use ModuleSpecs diretamente se possível.`)
-- `clientSlice.ts` (`@deprecated V2.1.0` no campo `orientation` - Fonte da verdade migrada).
-- `input.schemas.ts` (`@deprecated V2.1.0` - O campo migrou totalmente para `EngineeringInputSchema`).
-- `catalogSlice.ts` (`@deprecated P8` - Já utilizamos completamente a `useCatalogStore` mas esse arquivo legado ficou no diretório e pode ser apagado em totalidade).
+Todos os itens listados nesta categoria foram resolvidos (Limpeza de solarEngine.ts, remoção do campo orientation legado, e deleção dos slices zumbis e hooks deprecados).

@@ -35,13 +35,6 @@ export const InputDataSchema = z.object({
   invoices: z.array(InvoiceDataSchema).min(1),
   tariffRate: z.number().positive("Tarifa deve ser positiva"),
 
-  /**
-   * @deprecated V2.1.0 - Este campo está sendo migrado para EngineeringInputSchema.
-   * Use engineeringData.orientation do useSolarStore() em novos componentes.
-   * Mantido temporariamente para compatibilidade durante migração.
-   */
-  orientation: z.string().optional(),
-
   availableArea: z.number().nonnegative(),
   mapImage: z.string().optional(),
   zipCode: z.string().optional(),
