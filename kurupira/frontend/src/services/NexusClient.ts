@@ -49,6 +49,8 @@ export interface TechnicalDesignSummary {
   updatedAt: string;
   targetPowerKwp?: number;
   averageConsumptionKwh?: number;
+  lat?: number | null;
+  lng?: number | null;
   leadContext?: {
     name: string;
     phone?: string;

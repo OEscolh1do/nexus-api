@@ -43,6 +43,13 @@ export interface ProjectCard {
   updatedAt: string;
 }
 
+// Gera URL de tile satélite estático via OpenStreetMap (grátis, sem API key)
+function buildStaticMapUrl(lat: number | null | undefined, lng: number | null | undefined): string | null {
+  if (!lat || !lng) return null;
+  // Usa serviço de tile estático do OSM via proxy público (400x200, zoom 18 = nível de telhado)
+  return `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=18&size=400x200&maptype=mapnik`;
+}
+
 // Extrator do Swagger/API local para ProjectCard
 const mapSummaryToCard = (summary: TechnicalDesignSummary): ProjectCard => {
   return {
@@ -56,7 +63,7 @@ const mapSummaryToCard = (summary: TechnicalDesignSummary): ProjectCard => {
       state: summary.leadContext?.state || 'UF',
       averageConsumptionKwh: summary.averageConsumptionKwh || 0,
     },
-    thumbnailUrl: null,
+    thumbnailUrl: buildStaticMapUrl(summary.lat, summary.lng),
     createdAt: summary.updatedAt,
     updatedAt: summary.updatedAt,
   };
@@ -292,7 +299,7 @@ const ProjectCardComponent: React.FC<{
       {/* ── THUMBNAIL AREA (Generative Pattern) ── */}
       <div className={`relative h-32 bg-gradient-to-br ${gradient} overflow-hidden`}>
         {project.thumbnailUrl ? (
-          <img src={project.thumbnailUrl} alt="Site" className="w-full h-full object-cover" />
+          <img src={project.thumbnailUrl} alt="Site" loading="lazy" className="w-full h-full object-cover" />
         ) : (
           <>
             {/* Generative architectural pattern — simulates city/roof blocks */}
