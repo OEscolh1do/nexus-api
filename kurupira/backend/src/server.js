@@ -17,6 +17,7 @@ const PORT = process.env.PORT || 3002;
 const allowedOrigins = [
   "http://localhost:5174", // Kurupira Frontend (Vite dev)
   "http://localhost:5173", // Kurupira Frontend (fallback)
+  "https://neonorte-kurupira.vercel.app", // Kurupira Frontend (Production/Vercel)
 ];
 
 app.use(cors({
