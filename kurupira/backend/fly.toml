@@ -15,6 +15,7 @@ primary_region = 'gru'
 [env]
   NODE_ENV = 'production'
   PORT = '3002'
+  IS_DEMO = 'true'
 
 [http_service]
   internal_port = 3002

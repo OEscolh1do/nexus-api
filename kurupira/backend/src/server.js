@@ -46,7 +46,7 @@ const authenticateToken = (req, res, next) => {
   }
 
   if (!token) {
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.NODE_ENV !== 'production' || process.env.IS_DEMO === 'true') {
       // Sincronizando com o Fallback Standalone do AuthProvider.tsx
       req.user = { id: 'dev-engineer', tenantId: 'dev-tenant', role: 'ADMIN' };
       return next();
