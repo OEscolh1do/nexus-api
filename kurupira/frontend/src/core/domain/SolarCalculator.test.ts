@@ -69,8 +69,7 @@ describe('SolarCalculator', () => {
     number: '123',
     complement: '',
     zipCode: '00000-000',
-    availableArea: 50,
-    orientation: 'Norte'
+    availableArea: 50
   };
 
   beforeEach(() => {

@@ -80,8 +80,7 @@ export const SolarDashboard: FC<Props> = ({
       lat: inputData.lat,
       lng: inputData.lng,
       tariffRate: inputData.tariffRate,
-      // V2.1.0: orientation agora opcional (migração para EngineeringSlice)
-      orientation: inputData.orientation || 'Norte',
+      // V2.1.0: orientation agora migrou definitivamente para o Canvas 3D e não é injetado via InputData
       availableArea: inputData.availableArea,
       
       installationNumber: firstInvoice?.installationNumber || '',

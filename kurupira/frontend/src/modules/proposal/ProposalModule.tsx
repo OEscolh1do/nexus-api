@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useSolarStore, selectModules, selectClientData } from '@/core/state/solarStore';
-import { DenseCard } from '@/components/ui/dense-form';
-import { FileText, AlertCircle, Settings2, Eye, FileSignature, Activity } from 'lucide-react';
+import { FileText, Settings2, Eye, FileSignature, Activity } from 'lucide-react';
 import { PresentationTab } from './tabs/PresentationTab';
 import { PricingTab } from './tabs/PricingTab';
 import { ContractPreviewTab } from './tabs/ContractPreviewTab';

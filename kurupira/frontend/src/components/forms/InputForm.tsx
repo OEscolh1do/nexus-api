@@ -22,14 +22,7 @@ interface Props {
 
 declare const L: any;
 
-const ORIENTATION_OPTIONS = [
-  { value: 'Norte', label: 'Norte (Máximo)' },
-  { value: 'Nordeste', label: 'Nordeste' },
-  { value: 'Noroeste', label: 'Noroeste' },
-  { value: 'Leste', label: 'Leste' },
-  { value: 'Oeste', label: 'Oeste' },
-  { value: 'Sul', label: 'Sul (Mínimo)' },
-];
+
 
 const ROOF_TYPE_OPTIONS = [
   { value: 'ceramica', label: 'Cerâmica (Barro)' },
@@ -409,8 +402,7 @@ export const InputForm: React.FC<Props> = ({ initialData, onSubmit }) => {
           {/* Parametros Tecnicos */}
           <DenseCard>
             <DenseFormGrid>
-              <DenseSelect label="Orientação do Telhado" value={formData.orientation} onChange={handleChange('orientation')} options={ORIENTATION_OPTIONS} colSpan={6} />
-              <DenseInput label="Tarifa (R$/kWh)" type="number" step="0.01" value={formData.tariffRate} onChange={handleNumericChange('tariffRate')} colSpan={6} />
+              <DenseInput label="Tarifa (R$/kWh)" type="number" step="0.01" value={formData.tariffRate} onChange={handleNumericChange('tariffRate')} colSpan={12} />
             </DenseFormGrid>
           </DenseCard>
 

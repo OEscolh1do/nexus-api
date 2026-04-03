@@ -51,10 +51,8 @@ export class SolarCalculator {
       // Or MonthlyGeneration = Power * HSP * 30 * PR
       // Target Power = AvgConsumption / (AvgHSP * 30 * PR)
       
-      // V2.1.0: orientation agora é opcional em InputData (migração para EngineeringSlice)
-      // Fallback para 'Norte' se não definido
-      const orientationKey = (input.orientation || 'Norte').toLowerCase() as keyof typeof settings.orientationFactors;
-      const orientationFactor = settings.orientationFactors[orientationKey] || 1.0;
+      // V2.1.0: orientation extraí-se puramente das premissas se não estiver no Canvas Paramétrico, default para 1.0 (Norte Ideal)
+      const orientationFactor = settings.orientationFactors['norte'] || 1.0;
       const effectivePR = settings.performanceRatio * orientationFactor;
 
       const targetSystemSizeKwp = avgConsumption / (hspAvg * 30.4 * effectivePR);
