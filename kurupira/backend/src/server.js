@@ -116,11 +116,15 @@ async function fetchLeadsBatch(ids) {
 // List all designs (scoped by tenant)
 // Extrai métricas resumidas do blob designData (evita enviar o blob inteiro na listagem)
 function extractDesignMetrics(designData) {
-  if (!designData?.solar) return { targetPowerKwp: 0, averageConsumptionKwh: 0, lat: null, lng: null };
+  if (!designData?.solar) return { targetPowerKwp: 0, averageConsumptionKwh: 0, lat: null, lng: null, clientName: null, city: null, state: null };
 
-  const avgConsumption = designData.solar.clientData?.averageConsumption || 0;
-  const lat = designData.solar.clientData?.lat || null;
-  const lng = designData.solar.clientData?.lng || null;
+  const cd = designData.solar.clientData || {};
+  const avgConsumption = cd.averageConsumption || 0;
+  const lat = cd.lat || null;
+  const lng = cd.lng || null;
+  const clientName = cd.clientName || null;
+  const city = cd.city || null;
+  const state = cd.state || null;
 
   // kWp = placedModules × potência do módulo selecionado
   const placedCount = designData.solar.project?.placedModules?.length || 0;
@@ -135,6 +139,9 @@ function extractDesignMetrics(designData) {
     averageConsumptionKwh: Math.round(avgConsumption),
     lat: lat && lat !== 0 ? lat : null,
     lng: lng && lng !== 0 ? lng : null,
+    clientName,
+    city,
+    state,
   };
 }
 
@@ -167,6 +174,9 @@ app.get("/api/v1/designs", authenticateToken, async (req, res) => {
         averageConsumptionKwh: metrics.averageConsumptionKwh,
         lat: metrics.lat,
         lng: metrics.lng,
+        clientName: metrics.clientName,
+        city: metrics.city,
+        state: metrics.state,
         leadContext: d.iacaLeadId ? (leadMap[d.iacaLeadId] || { unavailable: true }) : null
       };
     });

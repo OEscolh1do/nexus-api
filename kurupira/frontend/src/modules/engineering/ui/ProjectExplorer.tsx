@@ -20,8 +20,7 @@ import {
   Battery, ArrowUpRight, Clock, Edit2, Loader2, FolderOpen
 } from 'lucide-react';
 import { KurupiraClient, TechnicalDesignSummary } from '@/services/NexusClient';
-import { ProjectQuickEditModal } from './components/ProjectQuickEditModal';
-import { ProjectInitWizardModal } from './components/ProjectInitWizardModal';
+import { ProjectFormModal } from './components/ProjectFormModal';
 
 // =============================================================================
 // TIPOS (Payload Anorético — apenas o necessário para decisão de clique)
@@ -58,9 +57,10 @@ const mapSummaryToCard = (summary: TechnicalDesignSummary): ProjectCard => {
     targetPowerKwp: summary.targetPowerKwp || 0,
     voltage: '220V',
     commercialContext: {
-      clientName: summary.leadContext?.name || summary.name || 'Sem Título',
-      city: summary.leadContext?.city || 'Desconhecida',
-      state: summary.leadContext?.state || 'UF',
+      // Single Source of Truth: designData.solar.clientData (via extractDesignMetrics)
+      clientName: summary.clientName || summary.leadContext?.name || summary.name || 'Sem Título',
+      city: summary.city || summary.leadContext?.city || 'Desconhecida',
+      state: summary.state || summary.leadContext?.state || 'UF',
       averageConsumptionKwh: summary.averageConsumptionKwh || 0,
     },
     thumbnailUrl: buildStaticMapUrl(summary.lat, summary.lng),
@@ -99,9 +99,8 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelectProjec
   const [projects, setProjects] = useState<TechnicalDesignSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Modal State
-  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
-  const [isInitWizardOpen, setIsInitWizardOpen] = useState(false);
+  // Unified Modal State: null = closed, 'NEW' = create, string = edit by projectId
+  const [formProjectId, setFormProjectId] = useState<string | null>(null);
 
   const fetchProjects = async () => {
     setLoading(true);
@@ -153,7 +152,7 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelectProjec
               {filteredProjects.length} projeto{filteredProjects.length !== 1 ? 's' : ''} encontrado{filteredProjects.length !== 1 ? 's' : ''}
             </p>
           </div>
-          <button onClick={() => setIsInitWizardOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 text-xs font-bold hover:bg-emerald-500/20 transition-all border border-emerald-500/20">
+          <button onClick={() => setFormProjectId('NEW')} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 text-xs font-bold hover:bg-emerald-500/20 transition-all border border-emerald-500/20">
             <Plus size={14} />
             Novo Projeto
           </button>
@@ -225,23 +224,18 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelectProjec
                 key={project.projectId}
                 project={project}
                 onClick={() => onSelectProject(project.projectId)}
-                onEdit={(e) => { e.stopPropagation(); setEditingProjectId(project.projectId); }}
+                onEdit={(e) => { e.stopPropagation(); setFormProjectId(project.projectId); }}
               />
             ))}
           </div>
         )}
       </div>
 
-      <ProjectQuickEditModal 
-          isOpen={!!editingProjectId}
-          projectId={editingProjectId!}
-          onClose={() => setEditingProjectId(null)}
+      <ProjectFormModal
+          isOpen={formProjectId !== null}
+          projectId={formProjectId === 'NEW' ? null : formProjectId}
+          onClose={() => setFormProjectId(null)}
           onSaveSuccess={() => { fetchProjects(); }}
-      />
-
-      <ProjectInitWizardModal 
-          isOpen={isInitWizardOpen} 
-          onClose={() => setIsInitWizardOpen(false)} 
       />
     </div>
   );

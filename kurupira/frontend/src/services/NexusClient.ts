@@ -51,6 +51,9 @@ export interface TechnicalDesignSummary {
   averageConsumptionKwh?: number;
   lat?: number | null;
   lng?: number | null;
+  clientName?: string | null;
+  city?: string | null;
+  state?: string | null;
   leadContext?: {
     name: string;
     phone?: string;

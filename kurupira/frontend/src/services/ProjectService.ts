@@ -130,6 +130,12 @@ export const ProjectService = {
     clientName: string;
     city: string;
     stateUF: string;
+    street?: string;
+    zipCode?: string;
+    neighborhood?: string;
+    number?: string;
+    lat?: number;
+    lng?: number;
     connectionType: 'monofasico' | 'bifasico' | 'trifasico';
     tariffRate: number;
     monthlyHistory: number[];
@@ -150,8 +156,14 @@ export const ProjectService = {
       skeletonData.solar.clientData = {
         ...initialClientData,
         clientName: payload.clientName,
+        street: payload.street || '',
+        zipCode: payload.zipCode || '',
+        neighborhood: payload.neighborhood || '',
+        number: payload.number || '',
         city: payload.city,
         state: payload.stateUF,
+        lat: payload.lat || 0,
+        lng: payload.lng || 0,
         connectionType: payload.connectionType,
         tariffRate: payload.tariffRate,
         averageConsumption: payload.monthlyHistory.reduce((a,b)=>a+b,0)/12,

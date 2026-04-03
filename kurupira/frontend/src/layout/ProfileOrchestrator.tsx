@@ -21,7 +21,7 @@ import { DocumentationModule } from '@/modules/documentation/DocumentationModule
 import { ProposalModule } from '@/modules/proposal/ProposalModule';
 import { SettingsModule } from '@/modules/settings/SettingsModule';
 import { ProjectExplorer } from '@/modules/engineering/ui/ProjectExplorer';
-import { SiteContextModal, getSiteContext, SiteContext } from '@/modules/engineering/ui/SiteContextModal';
+import { ProjectService } from '@/services/ProjectService';
 import { DASHBOARD_TABS, TabId, TAB_COLOR_CLASSES } from '@/config/navigation';
 import {
   Lock, ShieldCheck, ShieldAlert,
@@ -71,9 +71,8 @@ export const ProfileOrchestrator: React.FC = () => {
     'settings': ['ENGINEER', 'ADMIN'],
   };
 
-  // Site Context Modal state (Phase 2)
-  const [siteContext, setSiteContext] = useState<SiteContext | null>(null);
-  const [showContextModal, setShowContextModal] = useState(false);
+  // Loading state for project hydration
+  const [isLoadingProject, setIsLoadingProject] = useState(false);
 
   const allowedTabs = DASHBOARD_TABS.filter(tab =>
     MODULE_ROLES[tab.id]?.includes(userRole)
@@ -91,18 +90,21 @@ export const ProfileOrchestrator: React.FC = () => {
     setFullscreen(!fullscreen);
   };
 
-  // Handle project selection from ProjectExplorer (Phase 1 -> Phase 2)
-  const handleSelectProject = (projectId: string) => {
-    const context = getSiteContext(projectId);
-    setSiteContext(context);
-    setShowContextModal(true);
-  };
-
-  // Handle 'Dimensionar Projeto' from SiteContextModal (Phase 2 -> Phase 3)
-  const handleDimensionar = (_projectId: string) => {
-    setShowContextModal(false);
-    setActiveModule('engineering');
-    // TODO: Carregar dados do projeto no store (setActiveProjectId)
+  // Handle project selection — hydrate from DB then enter workspace
+  const handleSelectProject = async (projectId: string) => {
+    setIsLoadingProject(true);
+    try {
+      const success = await ProjectService.loadProjectAndHydrate(projectId);
+      if (success) {
+        setActiveModule('engineering');
+      } else {
+        console.error('[Orchestrator] Failed to hydrate project', projectId);
+      }
+    } catch (e) {
+      console.error('[Orchestrator] Error loading project', e);
+    } finally {
+      setIsLoadingProject(false);
+    }
   };
 
   const handleTabChange = async (targetTab: TabId) => {
@@ -238,14 +240,14 @@ export const ProfileOrchestrator: React.FC = () => {
         </main>
       </div>
 
-      {/* SITE CONTEXT MODAL (Phase 2 Overlay) */}
-      {siteContext && (
-        <SiteContextModal
-          context={siteContext}
-          isOpen={showContextModal}
-          onClose={() => setShowContextModal(false)}
-          onDimensionar={handleDimensionar}
-        />
+      {/* Loading overlay for project hydration */}
+      {isLoadingProject && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-xs font-bold text-slate-400">Carregando projeto do banco de dados...</p>
+          </div>
+        </div>
       )}
     </div>
   );

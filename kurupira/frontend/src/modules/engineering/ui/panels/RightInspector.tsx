@@ -88,6 +88,12 @@ const CommercialContextView: React.FC = () => {
             <PropRow label="Nome" value={clientData.clientName || '—'} />
             <PropRow label="Cidade" value={`${clientData.city || '—'}, ${clientData.state || '—'}`} />
             <PropRow label="Endereço" value={clientData.street || '—'} />
+            <PropRow label="Conexão" value={
+              clientData.connectionType === 'trifasico' ? 'Trifásico' :
+              clientData.connectionType === 'bifasico' ? 'Bifásico' :
+              clientData.connectionType === 'monofasico' ? 'Monofásico' :
+              clientData.connectionType || '—'
+            } />
           </div>
         ) : (
           <div className="mt-2 p-2 rounded-lg bg-slate-900 border border-slate-800 text-center">
@@ -275,17 +281,16 @@ const SimulationMetricsSection: React.FC = () => {
     const pr = getPerformanceRatio();
 
     // Tries to get historical consumption or user-defined average
-    const defaultAvg = 400;
-    const avgConsumptionSafe = clientData.averageConsumption || 0;
     const consumptionInvoices = clientData.invoices?.[0]?.monthlyHistory;
+    const hasMonthlyData = consumptionInvoices?.length === 12 && consumptionInvoices.some(v => v > 0);
     
-    const avgCons = avgConsumptionSafe > 0 
-        ? avgConsumptionSafe 
-        : (consumptionInvoices ? (consumptionInvoices.reduce((a,b)=>a+b,0)/12) : defaultAvg);
-
-    const consumptionHistory = (consumptionInvoices?.length === 12 && avgConsumptionSafe === 0)
+    // Single Source of Truth: individual monthly values from invoices
+    // Falls back to flat average only when no monthly data exists
+    const consumptionHistory = hasMonthlyData
         ? consumptionInvoices
-        : Array(12).fill(avgCons);
+        : Array(12).fill(clientData.averageConsumption || 400);
+    
+    const avgCons = consumptionHistory.reduce((a: number, b: number) => a + b, 0) / 12;
 
     // Weather Data (HSP)
     const irradiationData = (clientData.monthlyIrradiation && clientData.monthlyIrradiation.length === 12 && clientData.monthlyIrradiation.some(v => v > 0))
