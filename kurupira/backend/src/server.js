@@ -114,6 +114,26 @@ async function fetchLeadsBatch(ids) {
 // =============================================================
 
 // List all designs (scoped by tenant)
+// Extrai métricas resumidas do blob designData (evita enviar o blob inteiro na listagem)
+function extractDesignMetrics(designData) {
+  if (!designData?.solar) return { targetPowerKwp: 0, averageConsumptionKwh: 0 };
+
+  const avgConsumption = designData.solar.clientData?.averageConsumption || 0;
+
+  // kWp = placedModules × potência do módulo selecionado
+  const placedCount = designData.solar.project?.placedModules?.length || 0;
+  const moduleIds = designData.solar.modules?.ids || [];
+  const entities = designData.solar.modules?.entities || {};
+  const firstModule = moduleIds.length > 0 ? entities[moduleIds[0]] : null;
+  const modulePowerW = firstModule?.power || 0;
+  const systemKwp = (placedCount * modulePowerW) / 1000;
+
+  return {
+    targetPowerKwp: Math.round(systemKwp * 100) / 100,
+    averageConsumptionKwh: Math.round(avgConsumption),
+  };
+}
+
 app.get("/api/v1/designs", authenticateToken, async (req, res) => {
   try {
     const designs = await prisma.technicalDesign.findMany({
@@ -134,10 +154,16 @@ app.get("/api/v1/designs", authenticateToken, async (req, res) => {
     const leads = leadIds.length > 0 ? await fetchLeadsBatch(leadIds) : [];
     const leadMap = Object.fromEntries(leads.map(l => [l.id, l]));
 
-    const enriched = designs.map(d => ({
-      ...d,
-      leadContext: d.iacaLeadId ? (leadMap[d.iacaLeadId] || { unavailable: true }) : null
-    }));
+    const enriched = designs.map(d => {
+      const metrics = extractDesignMetrics(d.designData);
+      return {
+        ...d,
+        designData: undefined, // Não enviar blob completo na listagem
+        targetPowerKwp: metrics.targetPowerKwp,
+        averageConsumptionKwh: metrics.averageConsumptionKwh,
+        leadContext: d.iacaLeadId ? (leadMap[d.iacaLeadId] || { unavailable: true }) : null
+      };
+    });
 
     res.json({ success: true, data: enriched });
   } catch (error) {

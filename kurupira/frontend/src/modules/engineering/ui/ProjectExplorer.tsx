@@ -48,13 +48,13 @@ const mapSummaryToCard = (summary: TechnicalDesignSummary): ProjectCard => {
   return {
     projectId: summary.id,
     technicalStatus: (summary.status as any) || 'DRAFT',
-    targetPowerKwp: 0, // Fallback BFF
+    targetPowerKwp: summary.targetPowerKwp || 0,
     voltage: '220V',
     commercialContext: {
       clientName: summary.leadContext?.name || summary.name || 'Sem Título',
       city: summary.leadContext?.city || 'Desconhecida',
       state: summary.leadContext?.state || 'UF',
-      averageConsumptionKwh: 0, // Fallback BFF
+      averageConsumptionKwh: summary.averageConsumptionKwh || 0,
     },
     thumbnailUrl: null,
     createdAt: summary.updatedAt,

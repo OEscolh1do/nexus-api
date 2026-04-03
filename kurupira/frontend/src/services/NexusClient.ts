@@ -47,6 +47,8 @@ export interface TechnicalDesignSummary {
   iacaLeadId: string;
   status: string;
   updatedAt: string;
+  targetPowerKwp?: number;
+  averageConsumptionKwh?: number;
   leadContext?: {
     name: string;
     phone?: string;
