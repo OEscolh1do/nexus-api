@@ -1,0 +1,3 @@
+17:49:30.966847 exec-cmd.c:266          trace: resolved executable dir: C:/Program Files/Git/mingw64/bin
+17:49:30.979961 git.c:502               trace: built-in: git commit -m test
+fatal: not a git repository: D:/Reposit├│rio_Pessoal/SaaS Projects/Neonorte/Neonorte/.git/worktrees/blissful-raman

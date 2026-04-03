@@ -214,13 +214,38 @@ const MonthlyIrradiationGrid: React.FC = () => {
   const avgHsp = hspArray.reduce((acc, curr) => acc + curr, 0) / 12;
   const sourceLabel = clientData.irradiationCity || weatherData?.irradiation_source || 'Média Genérica';
 
-  // Parauapebas como default se não houver cidade definida
+  // Auto-Assign / Fallback Logic
   React.useEffect(() => {
-    if (!clientData.irradiationCity) {
-      const defaultCityKey = "PARAUAPEBAS - PA";
-      setIrradiationData(CRESESB_DB[defaultCityKey].hsp_monthly, defaultCityKey);
+    // 1. If explicit irradiation key is already saved and valid, use it
+    if (clientData.irradiationCity && CRESESB_DB[clientData.irradiationCity]) {
+       // Already set correctly, do nothing
+       return;
     }
-  }, [clientData.irradiationCity, setIrradiationData]);
+
+    // 2. Try to match the city/state string from the form
+    let matchedKey: string | null = null;
+    if (clientData.city && clientData.state) {
+       const candidate = `${clientData.city.toUpperCase()} - ${clientData.state.toUpperCase()}`;
+       if (CRESESB_DB[candidate]) {
+          matchedKey = candidate;
+       }
+    }
+
+    // 3. Fallback based on State
+    if (!matchedKey) {
+       if (clientData.state?.toUpperCase() === 'PA') {
+          matchedKey = "DEFAULT_PA";
+       } else {
+          // If no state or outside PA, safely fallback to generic Parauapebas
+          matchedKey = "PARAUAPEBAS - PA"; 
+       }
+    }
+
+    // Apply the matched data
+    if (matchedKey) {
+      setIrradiationData(CRESESB_DB[matchedKey].hsp_monthly, matchedKey);
+    }
+  }, [clientData.city, clientData.state, clientData.irradiationCity, setIrradiationData]);
 
   // Lista de cidades ativas no CRESESB
   const cityOptions = Object.keys(CRESESB_DB);

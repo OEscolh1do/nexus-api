@@ -1,7 +1,7 @@
 FROM node:20-slim
 
 # Instalar OpenSSL necessário para o Prisma no Debian slim
-RUN apt-get update -y && apt-get install -y openssl
+RUN apt-get update -y && apt-get install -y openssl ca-certificates
 
 WORKDIR /app
 
@@ -13,6 +13,7 @@ COPY . .
 
 RUN npx prisma generate
 
+ENV PORT=3002
 EXPOSE 3002
 
 # Health check endpoint

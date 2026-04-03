@@ -15,11 +15,12 @@
  * =============================================================================
  */
 
-import React, { useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   X, MapPin, Zap, BarChart3, ArrowRight,
-  Thermometer, Calendar, Building2, User
+  Thermometer, Calendar, Building2, User, Loader2
 } from 'lucide-react';
+import { KurupiraClient } from '@/services/NexusClient';
 
 // =============================================================================
 // TIPOS
@@ -43,87 +44,11 @@ export interface SiteContext {
 }
 
 interface SiteContextModalProps {
-  context: SiteContext;
+  projectId: string | null;
   isOpen: boolean;
   onClose: () => void;
   onDimensionar: (projectId: string) => void;
 }
-
-// =============================================================================
-// MOCK CONTEXT (até integração com BFF: GET /api/kurupira/projects/:id/context)
-// =============================================================================
-
-export const MOCK_SITE_CONTEXTS: Record<string, SiteContext> = {
-  'prj-001': {
-    projectId: 'prj-001',
-    clientName: 'Supermercado Central',
-    city: 'Manaus',
-    state: 'AM',
-    street: 'Av. Eduardo Ribeiro, 420',
-    lat: -3.1316,
-    lng: -60.0233,
-    voltage: '380V',
-    connectionType: 'Trifásico',
-    averageConsumptionKwh: 12000,
-    monthlyHistory: [11200, 11800, 12500, 13000, 12800, 11500, 10800, 11000, 12200, 13500, 14000, 12000],
-    tariffRate: 0.92,
-    targetPowerKwp: 75.6,
-    technicalStatus: 'IN_PROGRESS',
-  },
-  'prj-002': {
-    projectId: 'prj-002',
-    clientName: 'Residência Silva',
-    city: 'Manaus',
-    state: 'AM',
-    street: 'Rua das Flores, 88',
-    lat: -3.1190,
-    lng: -60.0217,
-    voltage: '220V',
-    connectionType: 'Bifásico',
-    averageConsumptionKwh: 450,
-    monthlyHistory: [400, 420, 480, 500, 490, 410, 380, 390, 450, 520, 540, 480],
-    tariffRate: 0.92,
-    targetPowerKwp: 8.4,
-    technicalStatus: 'DRAFT',
-  },
-  'prj-003': {
-    projectId: 'prj-003',
-    clientName: 'Galpão Industrial Norte',
-    city: 'Manaus',
-    state: 'AM',
-    street: 'Distrito Industrial, Lote 45',
-    lat: -3.0800,
-    lng: -59.9700,
-    voltage: '380V',
-    connectionType: 'Trifásico',
-    averageConsumptionKwh: 28000,
-    monthlyHistory: [26000, 27000, 29000, 30000, 31000, 28000, 25000, 26500, 28500, 30500, 31500, 29000],
-    tariffRate: 0.85,
-    targetPowerKwp: 150.0,
-    technicalStatus: 'REVIEW',
-  },
-};
-
-// Fallback para projetos sem contexto detalhado
-const DEFAULT_CONTEXT: SiteContext = {
-  projectId: '',
-  clientName: 'Projeto sem contexto',
-  city: '—',
-  state: '—',
-  street: '—',
-  lat: 0,
-  lng: 0,
-  voltage: '—',
-  connectionType: '—',
-  averageConsumptionKwh: 0,
-  monthlyHistory: Array(12).fill(0),
-  tariffRate: 0,
-  targetPowerKwp: 0,
-  technicalStatus: 'DRAFT',
-};
-
-export const getSiteContext = (projectId: string): SiteContext =>
-  MOCK_SITE_CONTEXTS[projectId] || { ...DEFAULT_CONTEXT, projectId };
 
 // =============================================================================
 // MONTH LABELS
@@ -136,28 +61,98 @@ const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', '
 // =============================================================================
 
 export const SiteContextModal: React.FC<SiteContextModalProps> = ({
-  context,
+  projectId,
   isOpen,
   onClose,
   onDimensionar,
 }) => {
+  const [loading, setLoading] = useState(false);
+  const [context, setContext] = useState<SiteContext | null>(null);
+
+  useEffect(() => {
+    if (!isOpen || !projectId) {
+      setContext(null);
+      return;
+    }
+
+    let isMounted = true;
+    const fetchContext = async () => {
+      setLoading(true);
+      try {
+        const data = await KurupiraClient.designs.get(projectId);
+        
+        if (isMounted) {
+          const clientData = data.designData?.solar?.clientData || {};
+          const invoices = clientData.invoices || [];
+          const mainInvoice = invoices[0] || {};
+          const history = mainInvoice.monthlyHistory || Array(12).fill(0);
+
+          let voltage = '—';
+          if (mainInvoice.voltage) {
+            voltage = mainInvoice.voltage.includes('V') ? mainInvoice.voltage : `${mainInvoice.voltage}V`;
+          }
+
+          setContext({
+            projectId: data.id,
+            clientName: clientData.clientName || data.name || 'Projeto sem título',
+            city: clientData.city || '—',
+            state: clientData.state || '—',
+            street: clientData.street || 'Endereço não informado',
+            lat: clientData.lat || 0,
+            lng: clientData.lng || 0,
+            voltage: voltage,
+            connectionType: clientData.connectionType || '—',
+            averageConsumptionKwh: clientData.averageConsumption || 0,
+            monthlyHistory: history,
+            tariffRate: clientData.tariffRate || 0,
+            targetPowerKwp: data.targetPowerKwp || 0,
+            technicalStatus: data.status || 'DRAFT',
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load project context', error);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    fetchContext();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [projectId, isOpen]);
+
   const maxConsumption = useMemo(() =>
-    Math.max(...context.monthlyHistory, 1),
-    [context.monthlyHistory]
+    Math.max(...(context?.monthlyHistory || [1]), 1),
+    [context?.monthlyHistory]
   );
 
   const avgConsumption = useMemo(() =>
-    Math.round(context.monthlyHistory.reduce((a, b) => a + b, 0) / 12),
-    [context.monthlyHistory]
+    Math.round((context?.monthlyHistory || []).reduce((a, b) => a + b, 0) / 12) || 0,
+    [context?.monthlyHistory]
   );
 
   const peakMonth = useMemo(() => {
+    if (!context) return '—';
     const maxVal = Math.max(...context.monthlyHistory);
     const idx = context.monthlyHistory.indexOf(maxVal);
     return MONTHS[idx] || '—';
-  }, [context.monthlyHistory]);
+  }, [context?.monthlyHistory]);
 
   if (!isOpen) return null;
+
+  if (loading || !context) {
+    return (
+      <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={onClose} />
+        <div className="relative flex flex-col items-center justify-center text-slate-400 gap-3">
+          <Loader2 size={32} className="animate-spin text-emerald-500/50" />
+          <span className="text-xs font-semibold">Buscando contexto...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">

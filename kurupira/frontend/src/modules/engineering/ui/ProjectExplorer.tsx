@@ -9,8 +9,6 @@
  *
  * O engenheiro não procura um "Lead"; ele procura visualmente pelo
  * telhado que vai dimensionar.
- *
- * MOCK DATA: Temporário até integração com BFF (GET /api/kurupira/projects)
  * =============================================================================
  */
 
@@ -21,6 +19,7 @@ import {
 } from 'lucide-react';
 import { KurupiraClient, TechnicalDesignSummary } from '@/services/NexusClient';
 import { ProjectFormModal } from './components/ProjectFormModal';
+import { SiteContextModal } from './SiteContextModal';
 
 // =============================================================================
 // TIPOS (Payload Anorético — apenas o necessário para decisão de clique)
@@ -99,8 +98,9 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelectProjec
   const [projects, setProjects] = useState<TechnicalDesignSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Unified Modal State: null = closed, 'NEW' = create, string = edit by projectId
+  // Modal States
   const [formProjectId, setFormProjectId] = useState<string | null>(null);
+  const [contextProjectId, setContextProjectId] = useState<string | null>(null);
 
   const fetchProjects = async () => {
     setLoading(true);
@@ -223,7 +223,7 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelectProjec
               <ProjectCardComponent
                 key={project.projectId}
                 project={project}
-                onClick={() => onSelectProject(project.projectId)}
+                onClick={() => setContextProjectId(project.projectId)}
                 onEdit={(e) => { e.stopPropagation(); setFormProjectId(project.projectId); }}
               />
             ))}
@@ -236,6 +236,16 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelectProjec
           projectId={formProjectId === 'NEW' ? null : formProjectId}
           onClose={() => setFormProjectId(null)}
           onSaveSuccess={() => { fetchProjects(); }}
+      />
+
+      <SiteContextModal
+        projectId={contextProjectId}
+        isOpen={!!contextProjectId}
+        onClose={() => setContextProjectId(null)}
+        onDimensionar={(id) => {
+          setContextProjectId(null);
+          onSelectProject(id);
+        }}
       />
     </div>
   );
