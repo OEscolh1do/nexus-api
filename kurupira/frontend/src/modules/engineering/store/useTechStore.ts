@@ -136,15 +136,23 @@ export const useTechStore = create<TechState>((set, get) => ({
   setSelectedModuleId: (id) => set({ selectedModuleId: id }),
 
   addInverter: (equipment, providedId) => {
+      // Defensivo: mppts pode vir como array (CatalogStore) ou number (adapter/SolarStore)
+      const mpptCount = Array.isArray(equipment.mppts)
+          ? equipment.mppts.length
+          : (equipment.mppts || 1);
+      // Defensivo: nominalPower (kW) ou nominalPowerW (W)
+      const nominalPower = equipment.nominalPower
+          || (equipment.nominalPowerW ? equipment.nominalPowerW / 1000 : 0);
+
       const newInverter: InverterState = {
           id: providedId || Math.random().toString(36).substr(2, 9),
           catalogId: equipment.id || '',
           quantity: 1,
-          mpptConfigs: createDefaultMPPTConfig(equipment.mppts || 1),
+          mpptConfigs: createDefaultMPPTConfig(mpptCount),
           snapshot: {
               model: equipment.model,
-              nominalPower: equipment.nominalPower,
-              mppts: equipment.mppts || 1
+              nominalPower,
+              mppts: mpptCount,
           },
       };
 
