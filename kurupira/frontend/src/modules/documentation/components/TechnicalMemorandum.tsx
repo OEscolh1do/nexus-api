@@ -12,10 +12,29 @@
 import React from 'react';
 import { FileText, Download, AlertCircle } from 'lucide-react';
 import { DenseCard, DenseButton } from '@/components/ui/dense-form';
+import { useSolarStore, selectModules, selectInverters } from '@/core/state/solarStore';
+
+import { generateTechnicalMemorandumPDF } from '../utils/pdfGenerator';
 
 export const TechnicalMemorandum: React.FC = () => {
-  // Placeholder: Em implementação futura, consumir do store
-  const hasRequiredData = false; // useSolarStore(state => state.modules.length > 0 && state.bosInventory !== null)
+  const modules = useSolarStore(selectModules);
+  const inverters = useSolarStore(selectInverters);
+  const clientData = useSolarStore(state => state.clientData);
+  const projectName = useSolarStore(state => (state.project as any)?.projectName);
+  const projectState = useSolarStore(state => state.project);
+
+  const hasRequiredData = modules.length > 0 && inverters.length > 0;
+
+  const handleExportPDF = () => {
+    generateTechnicalMemorandumPDF({
+      modules,
+      inverters,
+      clientData,
+      projectName,
+      projectMapData: projectState,
+      placedModulesQty: projectState.placedModules?.length || 0
+    });
+  };
 
   return (
     <DenseCard className="h-full">
@@ -30,8 +49,9 @@ export const TechnicalMemorandum: React.FC = () => {
           size="sm"
           icon={<Download size={12} />}
           disabled={!hasRequiredData}
+          onClick={handleExportPDF}
         >
-          Exportar
+          Exportar PDF
         </DenseButton>
       </div>
 
@@ -43,23 +63,47 @@ export const TechnicalMemorandum: React.FC = () => {
             Dados insuficientes
           </p>
           <p className="text-[10px] text-center mt-1">
-            Complete o dimensionamento e BOS para gerar o memorial
+            Complete o dimensionamento (Módulos e Inversores) para gerar o memorial
           </p>
         </div>
       ) : (
         <div className="space-y-3">
+          {/* Project Summary Header */}
+          <div className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white">
+             <h4 className="text-xs font-bold text-emerald-400 mb-1">{clientData.clientName || projectName || 'Projeto sem Nome'}</h4>
+             <p className="text-[10px] text-slate-400">{clientData.street ? `${clientData.street}, ` : ''}{clientData.city} - {clientData.state}</p>
+          </div>
+
           {/* Preview do Memorial */}
           <div className="bg-slate-50 rounded p-3 border border-slate-200">
-            <p className="text-[10px] text-slate-500 uppercase font-bold mb-1">
-              Seções do Documento
+            <p className="text-[10px] text-slate-500 uppercase font-bold mb-2">
+              Índice do Memorial
             </p>
-            <ul className="text-xs text-slate-600 space-y-1">
-              <li>✓ 1. Identificação do Projeto</li>
-              <li>✓ 2. Especificações dos Módulos</li>
-              <li>✓ 3. Especificações do Inversor</li>
-              <li>○ 4. Cálculo de Queda de Tensão CC</li>
-              <li>○ 5. Cálculo de Queda de Tensão CA</li>
-              <li>○ 6. Dimensionamento de Proteções</li>
+            <ul className="text-xs text-slate-600 space-y-2">
+              <li className="flex justify-between">
+                <span>✓ 1. Identificação do Projeto</span>
+                <span className="text-[10px] text-emerald-600 bg-emerald-100 px-1 rounded">OK</span>
+              </li>
+              <li className="flex justify-between">
+                <span>✓ 2. Módulos ({modules.length}x)</span>
+                <span className="text-[10px] text-emerald-600 bg-emerald-100 px-1 rounded">OK</span>
+              </li>
+              <li className="flex justify-between">
+                <span>✓ 3. Inversor(es) ({inverters.length}x)</span>
+                <span className="text-[10px] text-emerald-600 bg-emerald-100 px-1 rounded">OK</span>
+              </li>
+              <li className="flex justify-between">
+                <span>○ 4. Queda de Tensão CC</span>
+                <span className="text-[10px] text-slate-400 bg-slate-100 px-1 rounded">PENDENTE</span>
+              </li>
+              <li className="flex justify-between">
+                <span>○ 5. Queda de Tensão CA</span>
+                <span className="text-[10px] text-slate-400 bg-slate-100 px-1 rounded">PENDENTE</span>
+              </li>
+              <li className="flex justify-between">
+                <span>○ 6. Proteções</span>
+                <span className="text-[10px] text-slate-400 bg-slate-100 px-1 rounded">PENDENTE</span>
+              </li>
             </ul>
           </div>
         </div>
