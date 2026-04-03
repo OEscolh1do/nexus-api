@@ -293,14 +293,14 @@ export const DenseStat: React.FC<DenseStatProps> = ({
 }) => {
   const variantClasses = {
     default: 'bg-slate-50 border-slate-200',
-    success: 'bg-green-50 border-green-200',
+    success: 'bg-neonorte-green/10 border-neonorte-green/30',
     warning: 'bg-amber-50 border-amber-200',
     danger: 'bg-red-50 border-red-200',
   };
 
   const textClasses = {
     default: 'text-slate-800',
-    success: 'text-green-700',
+    success: 'text-neonorte-darkGreen',
     warning: 'text-amber-700',
     danger: 'text-red-700',
   };

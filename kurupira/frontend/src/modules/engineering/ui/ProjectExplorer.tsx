@@ -68,9 +68,9 @@ const mapSummaryToCard = (summary: TechnicalDesignSummary): ProjectCard => {
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; dot: string }> = {
   DRAFT: { label: 'Rascunho', bg: 'bg-slate-500/10', text: 'text-slate-400', dot: 'bg-slate-400' },
-  IN_PROGRESS: { label: 'Em Progresso', bg: 'bg-blue-500/10', text: 'text-blue-400', dot: 'bg-blue-400' },
+  IN_PROGRESS: { label: 'Em Progresso', bg: 'bg-neonorte-lightPurple/10', text: 'text-neonorte-lightPurple', dot: 'bg-neonorte-lightPurple' },
   REVIEW: { label: 'Revisão', bg: 'bg-amber-500/10', text: 'text-amber-400', dot: 'bg-amber-400' },
-  APPROVED: { label: 'Aprovado', bg: 'bg-emerald-500/10', text: 'text-emerald-400', dot: 'bg-emerald-400' },
+  APPROVED: { label: 'Aprovado', bg: 'bg-neonorte-green/10', text: 'text-neonorte-darkGreen', dot: 'bg-neonorte-green' },
 };
 
 // =============================================================================

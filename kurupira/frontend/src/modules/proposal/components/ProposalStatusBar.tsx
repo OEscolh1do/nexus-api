@@ -48,7 +48,7 @@ export const ProposalStatusBar: React.FC = () => {
             <div className="flex items-center gap-6">
                 <div className="flex flex-col items-end">
                     <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        <Calendar size={12} className="text-blue-500" />
+                        <Calendar size={12} className="text-neonorte-purple" />
                         <span>Payback</span>
                     </div>
                     <div className="text-lg font-bold text-slate-800 leading-none mt-0.5">

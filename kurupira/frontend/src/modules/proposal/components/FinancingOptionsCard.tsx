@@ -30,9 +30,9 @@ export const FinancingOptionsCard: React.FC<FinancingOptionsCardProps> = ({
     const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
     return (
-        <DenseCard className="p-6 bg-slate-50 border-blue-200 border">
+        <DenseCard className="p-6 bg-slate-50 border-neonorte-purple/30 border">
             <div className="flex items-center gap-2 mb-4">
-                <PiggyBank className="text-blue-600" size={24} />
+                <PiggyBank className="text-neonorte-purple" size={24} />
                 <h3 className="text-xl font-bold text-slate-800">Análise de Troca de Boleto</h3>
             </div>
 
@@ -47,14 +47,14 @@ export const FinancingOptionsCard: React.FC<FinancingOptionsCardProps> = ({
                 </div>
 
                 {/* 2. Cenário Solar Financiado */}
-                <div className="bg-white p-4 rounded-lg shadow-sm border-2 border-blue-500 relative flex flex-col justify-between">
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-500 text-white px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide whitespace-nowrap">
+                <div className="bg-white p-4 rounded-lg shadow-sm border-2 border-neonorte-purple relative flex flex-col justify-between">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-neonorte-purple text-white px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide whitespace-nowrap">
                         Cenário Proposto
                     </div>
 
                     <span className="text-sm font-semibold text-slate-500 uppercase">Parcela + Conta Mínima</span>
                     <div className="mt-2">
-                        <span className="text-2xl font-bold text-blue-700">{formatCurrency(totalNewMonthlyCost)}</span>
+                        <span className="text-2xl font-bold text-neonorte-purple">{formatCurrency(totalNewMonthlyCost)}</span>
                         <div className="flex flex-col text-xs text-slate-500 mt-1">
                             <span>Parcela: {formatCurrency(installment)} ({term}x)</span>
                             <span>Nova Conta: {formatCurrency(newBill)}</span>

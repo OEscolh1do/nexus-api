@@ -28,7 +28,7 @@ export const ProposalModule: React.FC = () => {
                 {/* Left: Branding */}
                 <div className="flex items-center gap-4 shrink-0">
                      <div className="flex items-center gap-3">
-                        <div className="w-2 h-2 rounded-full bg-purple-600 animate-pulse"></div>
+                        <div className="w-2 h-2 rounded-full bg-neonorte-purple animate-pulse"></div>
                         <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] hidden md:block">COMERCIAL</span>
                     </div>
                 </div>
@@ -39,7 +39,7 @@ export const ProposalModule: React.FC = () => {
                         onClick={() => setActiveTab('diagnostico')}
                         className={`flex items-center gap-2 px-3 h-full rounded-md text-xs font-bold transition-all ${
                             activeTab === 'diagnostico'
-                                ? 'bg-white text-purple-700 shadow-sm'
+                                ? 'bg-white text-neonorte-purple shadow-sm'
                                 : 'text-slate-400 hover:text-slate-600'
                         }`}
                     >
@@ -51,7 +51,7 @@ export const ProposalModule: React.FC = () => {
                         disabled={needsGate}
                         className={`flex items-center gap-2 px-3 h-full rounded-md text-xs font-bold transition-all ${
                             activeTab === 'presentation'
-                                ? 'bg-white text-purple-700 shadow-sm'
+                                ? 'bg-white text-neonorte-purple shadow-sm'
                                 : needsGate
                                 ? 'text-slate-300 cursor-not-allowed'
                                 : 'text-slate-400 hover:text-slate-600'
@@ -65,7 +65,7 @@ export const ProposalModule: React.FC = () => {
                         disabled={needsGate}
                         className={`flex items-center gap-2 px-3 h-full rounded-md text-xs font-bold transition-all ${
                             activeTab === 'pricing'
-                                ? 'bg-white text-purple-700 shadow-sm'
+                                ? 'bg-white text-neonorte-purple shadow-sm'
                                 : needsGate
                                 ? 'text-slate-300 cursor-not-allowed'
                                 : 'text-slate-400 hover:text-slate-600'
@@ -79,7 +79,7 @@ export const ProposalModule: React.FC = () => {
                         disabled={needsGate}
                         className={`flex items-center gap-2 px-3 h-full rounded-md text-xs font-bold transition-all ${
                             activeTab === 'contract'
-                                ? 'bg-white text-purple-700 shadow-sm'
+                                ? 'bg-white text-neonorte-purple shadow-sm'
                                 : needsGate
                                 ? 'text-slate-300 cursor-not-allowed'
                                 : 'text-slate-400 hover:text-slate-600'

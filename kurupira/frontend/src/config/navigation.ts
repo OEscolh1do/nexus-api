@@ -13,7 +13,7 @@ export interface TabConfig {
   label: string;
   icon: LucideIcon;
   description: string;
-  color: 'green' | 'purple' | 'orange' | 'blue' | 'slate';
+  color: 'green' | 'purple' | 'darkGreen' | 'slate';
   order: number;
 }
 
@@ -32,7 +32,7 @@ export const DASHBOARD_TABS: readonly TabConfig[] = [
     label: 'Dimensionamento',
     icon: SunMedium,
     description: 'Orientação, módulos, inversores e geração',
-    color: 'orange',
+    color: 'darkGreen',
     order: 1,
   },
   {
@@ -56,7 +56,7 @@ export const DASHBOARD_TABS: readonly TabConfig[] = [
     label: 'Proposta',
     icon: FileText,
     description: 'Documentação e orçamento final',
-    color: 'blue',
+    color: 'purple',
     order: 4,
   },
   {
@@ -111,17 +111,11 @@ export const TAB_COLOR_CLASSES = {
     border: 'border-neonorte-purple',
     icon: 'text-neonorte-purple',
   },
-  orange: {
-    active: 'bg-orange-500 text-white',
-    inactive: 'text-orange-500/60 hover:text-orange-500',
-    border: 'border-orange-500',
-    icon: 'text-orange-500',
-  },
-  blue: {
-    active: 'bg-blue-500 text-white',
-    inactive: 'text-blue-500/60 hover:text-blue-500',
-    border: 'border-blue-500',
-    icon: 'text-blue-500',
+  darkGreen: {
+    active: 'bg-neonorte-darkGreen text-white',
+    inactive: 'text-neonorte-darkGreen/60 hover:text-neonorte-darkGreen',
+    border: 'border-neonorte-darkGreen',
+    icon: 'text-neonorte-darkGreen',
   },
   slate: {
     active: 'bg-slate-700 text-white',

@@ -50,8 +50,8 @@ export const ModuleInventoryItem: React.FC<ModuleInventoryItemProps> = ({
             className={cn(
                 "group relative flex flex-col bg-gradient-to-b from-slate-800 to-slate-900 rounded-xl transition-all duration-300 overflow-hidden",
                 "border border-slate-700/60 shadow-md",
-                isSelected && "border-blue-500 ring-1 ring-blue-500/50 shadow-blue-500/20",
-                !isSelected && "hover:shadow-xl hover:shadow-emerald-500/10 hover:border-emerald-500/40 hover:-translate-y-1 hover:scale-[1.02]",
+                isSelected && "border-neonorte-purple ring-1 ring-neonorte-purple/50 shadow-neonorte-purple/20",
+                !isSelected && "hover:shadow-xl hover:shadow-neonorte-green/10 hover:border-neonorte-green/40 hover:-translate-y-1 hover:scale-[1.02]",
                 mode === 'inventory' && "cursor-pointer"
             )}
             onClick={mode === 'inventory' ? onSelect : undefined}
@@ -74,7 +74,7 @@ export const ModuleInventoryItem: React.FC<ModuleInventoryItemProps> = ({
                     "absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded text-[8px] font-black tracking-wider border backdrop-blur-sm",
                     isMono
                         ? "bg-slate-600/40 text-slate-200 border-slate-500/40"
-                        : "bg-blue-500/20 text-blue-300 border-blue-500/40"
+                        : "bg-neonorte-purple/20 text-neonorte-lightPurple border-neonorte-purple/40"
                 )}>
                     {typeLabel}
                 </div>

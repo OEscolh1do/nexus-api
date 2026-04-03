@@ -86,7 +86,7 @@ export const SettingsModule: React.FC = () => {
     <button
       onClick={() => setActiveTab(id)}
       className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === id
-          ? 'bg-purple-100 text-purple-700 shadow-sm border border-purple-200'
+          ? 'bg-neonorte-purple/10 text-neonorte-purple shadow-sm border border-neonorte-purple/20'
           : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200'
         }`}
     >

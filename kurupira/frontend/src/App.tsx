@@ -17,20 +17,30 @@ import { AuthProvider } from './core/auth/AuthProvider';
 import { useAuth } from './core/auth/useAuth';
 import { Loader2 } from 'lucide-react';
 
-// Captura token injetado via deep link do Iaçã (?token=<jwt>&leadId=<id>)
+// Captura token + leadId injetados via deep link do Iaçã (?token=<jwt>&leadId=<id>&name=<nome>)
 // Executado antes do AuthProvider para que sessionStorage já esteja preenchido
-function captureDeepLinkToken() {
+function captureDeepLinkParams() {
   const params = new URLSearchParams(window.location.search);
   const token = params.get('token');
+  const leadId = params.get('leadId');
+  const leadName = params.get('name');
+
   if (token) {
     sessionStorage.setItem('kurupira_token', token);
-    // Remove o token da URL sem recarregar a página (segurança)
-    const cleanUrl = window.location.pathname + (params.get('leadId') ? `?leadId=${params.get('leadId')}` : '');
-    window.history.replaceState({}, '', cleanUrl);
+  }
+
+  if (leadId) {
+    sessionStorage.setItem('kurupira_leadId', leadId);
+    if (leadName) sessionStorage.setItem('kurupira_leadName', leadName);
+  }
+
+  // Limpa URL (segurança — token não deve ficar no histórico/referer)
+  if (token || leadId) {
+    window.history.replaceState({}, '', window.location.pathname);
   }
 }
 
-captureDeepLinkToken();
+captureDeepLinkParams();
 
 const AuthGuard: React.FC = () => {
   const { loading } = useAuth();

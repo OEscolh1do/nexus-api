@@ -327,6 +327,7 @@ app.put("/api/v1/settings", authenticateToken, async (req, res) => {
         })
       : await prisma.technicalDesign.create({
           data: {
+            tenantId: req.user.tenantId,
             iacaLeadId: SETTINGS_LEAD_ID,
             name,
             createdBy: req.user.id,

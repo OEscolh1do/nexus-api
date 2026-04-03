@@ -52,6 +52,9 @@ export const InputDataSchema = z.object({
   monthlyIrradiation: z.array(z.number()).length(12).optional(),
   irradiationCity: z.string().optional(), // Nome do preset/cidade selecionada para referência
 
+  // Deep Link — FK virtual para Lead no Iaçã (null = projeto standalone)
+  iacaLeadId: z.string().nullable().optional(),
+
   // Diagnóstico Preliminar (V3.3)
   roofType: z.enum(['ceramica', 'metalico', 'fibrocimento', 'laje', 'outro']).optional(),
   roofInclination: z.number().min(0).max(60).optional(),

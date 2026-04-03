@@ -13,10 +13,10 @@ export default defineConfig({
       },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'Lumi Propose Engine',
-        short_name: 'Lumi',
-        description: 'Plataforma avançada para simulações solares',
-        theme_color: '#4F46E5',
+        name: 'Kurupira | Neonorte',
+        short_name: 'Kurupira',
+        description: 'Plataforma de engenharia solar da Neonorte',
+        theme_color: '#64147D',
         icons: [
           {
             src: 'pwa-192x192.png',

@@ -69,9 +69,9 @@ export const ProjectService = {
         });
       } else {
         // Criar novo projeto (iacaLeadId vem do deep link do Iaçã; null = standalone)
-        const leadId = (solarState.clientData as any)?.iacaLeadId || null;
+        const leadId = solarState.clientData?.iacaLeadId ?? null;
         const projectName =
-          (solarState.clientData as any)?.name ||
+          solarState.clientData?.projectName ||
           'Projeto Kurupira ' + new Date().toISOString().split('T')[0];
 
         const design = await KurupiraClient.designs.create({
@@ -136,7 +136,7 @@ export const ProjectService = {
   }): Promise<string | null> {
     try {
       const design = await KurupiraClient.designs.create({
-        iacaLeadId: null as any,
+        iacaLeadId: null,
         name: payload.projectName || 'Sem Título',
       });
 

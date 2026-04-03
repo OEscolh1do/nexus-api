@@ -115,7 +115,11 @@ export const CommercialPipeline: React.FC = () => {
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 const kurupiraUrl = import.meta.env.VITE_KURUPIRA_URL || 'http://localhost:5174';
-                                                                window.open(`${kurupiraUrl}?leadId=${deal.leadId}`, '_blank');
+                                                                const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+                                                                const params = new URLSearchParams({ leadId: deal.leadId });
+                                                                if (deal.lead?.name) params.set('name', deal.lead.name);
+                                                                if (token) params.set('token', token);
+                                                                window.open(`${kurupiraUrl}?${params.toString()}`, '_blank');
                                                             }}
                                                             className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-[9px] font-bold transition-colors ring-1 ring-emerald-200/50 dark:ring-emerald-500/30"
                                                             title="Abrir dimensionamento no Kurupira"

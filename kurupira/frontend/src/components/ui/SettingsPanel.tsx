@@ -146,7 +146,7 @@ export const SettingsPanel: React.FC<Props> = ({ settings, isOpen, onClose, onSa
 
               {/* SERVICE SECTION */}
               <section className="space-y-6">
-                <div className="flex items-center gap-2 text-blue-500">
+                <div className="flex items-center gap-2 text-neonorte-purple">
                   <Wrench size={18} />
                   <h3 className="text-xs font-black uppercase tracking-widest">Precificação do Serviço</h3>
                 </div>
@@ -155,15 +155,15 @@ export const SettingsPanel: React.FC<Props> = ({ settings, isOpen, onClose, onSa
                   <div className="grid grid-cols-2 gap-4">
                     <div className="col-span-2">
                       <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Montagem Telhado (Por Módulo)</label>
-                      <input type="number" step="0.01" value={localSettings.serviceUnitModule} onChange={e => handleChange('serviceUnitModule', parseFloat(e.target.value))} className="w-full bg-slate-800 border border-white/5 rounded-xl px-4 py-2.5 text-xs font-bold text-white outline-none focus:ring-2 focus:ring-blue-500" />
+                      <input type="number" step="0.01" value={localSettings.serviceUnitModule} onChange={e => handleChange('serviceUnitModule', parseFloat(e.target.value))} className="w-full bg-slate-800 border border-white/5 rounded-xl px-4 py-2.5 text-xs font-bold text-white outline-none focus:ring-2 focus:ring-neonorte-purple" />
                     </div>
                     <div>
                       <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Estrutura (Por Par)</label>
-                      <input type="number" step="0.01" value={localSettings.serviceUnitStructure} onChange={e => handleChange('serviceUnitStructure', parseFloat(e.target.value))} className="w-full bg-slate-800 border border-white/5 rounded-xl px-4 py-2.5 text-xs font-bold text-white outline-none focus:ring-2 focus:ring-blue-500" />
+                      <input type="number" step="0.01" value={localSettings.serviceUnitStructure} onChange={e => handleChange('serviceUnitStructure', parseFloat(e.target.value))} className="w-full bg-slate-800 border border-white/5 rounded-xl px-4 py-2.5 text-xs font-bold text-white outline-none focus:ring-2 focus:ring-neonorte-purple" />
                     </div>
                     <div>
                       <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Instalação Inversor</label>
-                      <input type="number" step="0.01" value={localSettings.serviceUnitInverter} onChange={e => handleChange('serviceUnitInverter', parseFloat(e.target.value))} className="w-full bg-slate-800 border border-white/5 rounded-xl px-4 py-2.5 text-xs font-bold text-white outline-none focus:ring-2 focus:ring-blue-500" />
+                      <input type="number" step="0.01" value={localSettings.serviceUnitInverter} onChange={e => handleChange('serviceUnitInverter', parseFloat(e.target.value))} className="w-full bg-slate-800 border border-white/5 rounded-xl px-4 py-2.5 text-xs font-bold text-white outline-none focus:ring-2 focus:ring-neonorte-purple" />
                     </div>
                   </div>
 
@@ -171,14 +171,14 @@ export const SettingsPanel: React.FC<Props> = ({ settings, isOpen, onClose, onSa
                     <div className="col-span-2">
                       <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Projeto, Regularização e ART</label>
                       <div className="flex gap-2">
-                        <input type="number" value={localSettings.serviceProjectBase} onChange={e => handleChange('serviceProjectBase', parseFloat(e.target.value))} className="flex-1 bg-slate-800 border border-white/5 rounded-xl px-4 py-2.5 text-xs font-bold text-white outline-none focus:ring-2 focus:ring-blue-500" placeholder="Base" />
+                        <input type="number" value={localSettings.serviceProjectBase} onChange={e => handleChange('serviceProjectBase', parseFloat(e.target.value))} className="flex-1 bg-slate-800 border border-white/5 rounded-xl px-4 py-2.5 text-xs font-bold text-white outline-none focus:ring-2 focus:ring-neonorte-purple" placeholder="Base" />
                         <input type="number" step="0.01" value={localSettings.serviceProjectPercent} onChange={e => handleChange('serviceProjectPercent', parseFloat(e.target.value))} className="w-24 bg-slate-800 border border-white/5 rounded-xl px-4 py-2.5 text-xs font-bold text-orange-400 outline-none focus:ring-2 focus:ring-orange-500" placeholder="%" />
                       </div>
                     </div>
                     <div className="col-span-2">
                       <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Adm e Despesas Gerais</label>
                       <div className="flex gap-2">
-                        <input type="number" value={localSettings.serviceAdminBase} onChange={e => handleChange('serviceAdminBase', parseFloat(e.target.value))} className="flex-1 bg-slate-800 border border-white/5 rounded-xl px-4 py-2.5 text-xs font-bold text-white outline-none focus:ring-2 focus:ring-blue-500" placeholder="Base" />
+                        <input type="number" value={localSettings.serviceAdminBase} onChange={e => handleChange('serviceAdminBase', parseFloat(e.target.value))} className="flex-1 bg-slate-800 border border-white/5 rounded-xl px-4 py-2.5 text-xs font-bold text-white outline-none focus:ring-2 focus:ring-neonorte-purple" placeholder="Base" />
                         <input type="number" step="0.01" value={localSettings.serviceAdminPercent} onChange={e => handleChange('serviceAdminPercent', parseFloat(e.target.value))} className="w-24 bg-slate-800 border border-white/5 rounded-xl px-4 py-2.5 text-xs font-bold text-orange-400 outline-none focus:ring-2 focus:ring-orange-500" placeholder="%" />
                       </div>
                     </div>
@@ -192,7 +192,7 @@ export const SettingsPanel: React.FC<Props> = ({ settings, isOpen, onClose, onSa
 
               {/* MARGINS SECTION */}
               <section className="space-y-6">
-                <div className="flex items-center gap-2 text-purple-500">
+                <div className="flex items-center gap-2 text-neonorte-lightPurple">
                   <Percent size={18} />
                   <h3 className="text-xs font-black uppercase tracking-widest">Margens de Operação</h3>
                 </div>
@@ -204,7 +204,7 @@ export const SettingsPanel: React.FC<Props> = ({ settings, isOpen, onClose, onSa
                       type="number" step="0.01"
                       value={localSettings.marginPercentage}
                       onChange={(e) => handleChange('marginPercentage', parseFloat(e.target.value))}
-                      className="w-full bg-slate-800 border border-white/5 rounded-xl px-2 py-3 text-center text-xs font-bold text-white outline-none focus:ring-2 focus:ring-purple-500"
+                      className="w-full bg-slate-800 border border-white/5 rounded-xl px-2 py-3 text-center text-xs font-bold text-white outline-none focus:ring-2 focus:ring-neonorte-lightPurple"
                     />
                   </div>
                   <div className="text-center">
@@ -213,7 +213,7 @@ export const SettingsPanel: React.FC<Props> = ({ settings, isOpen, onClose, onSa
                       type="number" step="0.01"
                       value={localSettings.commissionPercentage}
                       onChange={(e) => handleChange('commissionPercentage', parseFloat(e.target.value))}
-                      className="w-full bg-slate-800 border border-white/5 rounded-xl px-2 py-3 text-center text-xs font-bold text-white outline-none focus:ring-2 focus:ring-purple-500"
+                      className="w-full bg-slate-800 border border-white/5 rounded-xl px-2 py-3 text-center text-xs font-bold text-white outline-none focus:ring-2 focus:ring-neonorte-lightPurple"
                     />
                   </div>
                   <div className="text-center">
@@ -222,7 +222,7 @@ export const SettingsPanel: React.FC<Props> = ({ settings, isOpen, onClose, onSa
                       type="number" step="0.01"
                       value={localSettings.taxPercentage}
                       onChange={(e) => handleChange('taxPercentage', parseFloat(e.target.value))}
-                      className="w-full bg-slate-800 border border-white/5 rounded-xl px-2 py-3 text-center text-xs font-bold text-white outline-none focus:ring-2 focus:ring-purple-500"
+                      className="w-full bg-slate-800 border border-white/5 rounded-xl px-2 py-3 text-center text-xs font-bold text-white outline-none focus:ring-2 focus:ring-neonorte-lightPurple"
                     />
                   </div>
                 </div>
@@ -233,7 +233,7 @@ export const SettingsPanel: React.FC<Props> = ({ settings, isOpen, onClose, onSa
           {activeTab === 'institucional' && (
             <div className="space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-300">
               <section className="space-y-6">
-                <div className="flex items-center gap-2 text-purple-500">
+                <div className="flex items-center gap-2 text-neonorte-lightPurple">
                   <HardHat size={18} />
                   <h3 className="text-xs font-black uppercase tracking-widest">Engenheiro Responsável</h3>
                 </div>
@@ -245,7 +245,7 @@ export const SettingsPanel: React.FC<Props> = ({ settings, isOpen, onClose, onSa
                       type="text"
                       value={localSettings.engineerName}
                       onChange={(e) => handleChange('engineerName', e.target.value)}
-                      className="w-full bg-slate-800 border border-white/5 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:ring-2 focus:ring-purple-500"
+                      className="w-full bg-slate-800 border border-white/5 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:ring-2 focus:ring-neonorte-lightPurple"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -255,7 +255,7 @@ export const SettingsPanel: React.FC<Props> = ({ settings, isOpen, onClose, onSa
                         type="text"
                         value={localSettings.creaNumber}
                         onChange={(e) => handleChange('creaNumber', e.target.value)}
-                        className="w-full bg-slate-800 border border-white/5 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:ring-2 focus:ring-purple-500"
+                        className="w-full bg-slate-800 border border-white/5 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:ring-2 focus:ring-neonorte-lightPurple"
                       />
                     </div>
                     <div>
@@ -264,7 +264,7 @@ export const SettingsPanel: React.FC<Props> = ({ settings, isOpen, onClose, onSa
                         type="text"
                         value={localSettings.companyCnpj}
                         onChange={(e) => handleChange('companyCnpj', e.target.value)}
-                        className="w-full bg-slate-800 border border-white/5 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:ring-2 focus:ring-purple-500"
+                        className="w-full bg-slate-800 border border-white/5 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:ring-2 focus:ring-neonorte-lightPurple"
                       />
                     </div>
                   </div>

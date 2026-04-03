@@ -23,7 +23,7 @@ export const DocumentationModule: React.FC = () => {
       <header className="flex items-center justify-between px-4 py-0 bg-white border-b border-slate-200 shadow-sm shrink-0 h-12">
         <div className="flex items-center gap-4">
             <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-purple-600 animate-pulse"></div>
+                <div className="w-2 h-2 rounded-full bg-neonorte-purple animate-pulse"></div>
                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] hidden md:block">DOCUMENTAÇÃO TÉCNICA</span>
             </div>
 
@@ -32,8 +32,8 @@ export const DocumentationModule: React.FC = () => {
                 <button 
                     onClick={() => setActiveTab('memorial')}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                        activeTab === 'memorial' 
-                        ? 'bg-white text-purple-600 shadow-sm' 
+                        activeTab === 'memorial'
+                        ? 'bg-white text-neonorte-purple shadow-sm'
                         : 'text-slate-400 hover:text-slate-600'
                     }`}
                 >
@@ -43,8 +43,8 @@ export const DocumentationModule: React.FC = () => {
                 <button 
                         onClick={() => setActiveTab('comissionamento')}
                         className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                        activeTab === 'comissionamento' 
-                        ? 'bg-white text-purple-600 shadow-sm' 
+                        activeTab === 'comissionamento'
+                        ? 'bg-white text-neonorte-purple shadow-sm'
                         : 'text-slate-400 hover:text-slate-600'
                     }`}
                 >

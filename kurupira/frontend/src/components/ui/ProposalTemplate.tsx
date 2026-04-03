@@ -226,7 +226,7 @@ export const ProposalTemplate: React.FC<Props> = ({ data }) => {
                         </div>
                      </div>
                      <div className="bg-slate-50 p-5 rounded-[2rem] border border-slate-100 flex items-center gap-4">
-                        <div className="bg-blue-500 p-2.5 rounded-xl text-white"><Box size={18} /></div>
+                        <div className="bg-neonorte-purple p-2.5 rounded-xl text-white"><Box size={18} /></div>
                         <div>
                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Módulos</p>
                            <p className="text-xl font-black text-neonorte-deepPurple">{data.panelCount} <span className="text-[10px] text-slate-400">Und.</span></p>

@@ -70,7 +70,7 @@ export const KurupiraClient = {
 
     get: (id: string) => apiFetch<TechnicalDesignFull>(`/api/v1/designs/${id}`),
 
-    create: (data: { iacaLeadId: string; name?: string }) =>
+    create: (data: { iacaLeadId: string | null; name?: string }) =>
       apiFetch<TechnicalDesignSummary>('/api/v1/designs', {
         method: 'POST',
         body: JSON.stringify(data),

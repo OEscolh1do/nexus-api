@@ -11,7 +11,7 @@
  * =============================================================================
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/core/auth/useAuth';
 import { useSolarStore } from '@/core/state/solarStore';
 import { useUIStore } from '@/core/state/uiStore';
@@ -40,7 +40,22 @@ export const ProfileOrchestrator: React.FC = () => {
   const { signOut } = useAuth();
 
 
+  const updateClientData = useSolarStore(state => state.updateClientData);
   const [fullscreen, setFullscreen] = useState(false);
+
+  // Hidrata iacaLeadId do deep link (sessionStorage ← captureDeepLinkParams em App.tsx)
+  useEffect(() => {
+    const leadId = sessionStorage.getItem('kurupira_leadId');
+    if (leadId) {
+      const leadName = sessionStorage.getItem('kurupira_leadName');
+      updateClientData({
+        iacaLeadId: leadId,
+        ...(leadName ? { clientName: leadName } : {}),
+      });
+      sessionStorage.removeItem('kurupira_leadId');
+      sessionStorage.removeItem('kurupira_leadName');
+    }
+  }, [updateClientData]);
 
   // Ensure activeModule is a valid TabId
   const currentModule = (['hub', 'engineering', 'electrical', 'documentation', 'proposal', 'settings'].includes(activeModule)
@@ -118,14 +133,7 @@ export const ProfileOrchestrator: React.FC = () => {
         <div className="flex items-center gap-3">
           {/* Logo */}
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-gradient-to-br from-emerald-400 to-cyan-500 rounded-lg flex items-center justify-center">
-              <Zap size={14} className="text-white" />
-            </div>
-            <div>
-              <h1 className="text-xs font-bold text-white leading-tight">
-                Kurupira <span className="text-emerald-400 text-[10px] font-normal">Workspace</span>
-              </h1>
-            </div>
+            <img src="/logo-neonorte.png" alt="Neonorte" className="h-5 w-auto opacity-90" />
           </div>
 
           <div className="h-5 w-px bg-slate-700 mx-1" />
@@ -134,7 +142,7 @@ export const ProfileOrchestrator: React.FC = () => {
 
           {/* Active Project Badge */}
           <div className="flex items-center gap-2 bg-slate-700/50 rounded-lg px-3 py-1">
-            <Zap size={13} className="text-emerald-400" />
+            <Zap size={13} className="text-neonorte-green" />
             <span className="text-xs font-semibold text-white truncate max-w-[200px]">
               {clientData.clientName || 'Novo Projeto'}
             </span>
@@ -182,7 +190,7 @@ export const ProfileOrchestrator: React.FC = () => {
           <div className="flex items-center gap-1 px-2 py-1 bg-slate-700/50 rounded">
             {userRole === 'ADMIN'
               ? <ShieldAlert size={11} className="text-red-400" />
-              : <ShieldCheck size={11} className="text-emerald-400" />}
+              : <ShieldCheck size={11} className="text-neonorte-green" />}
             <span className="text-[10px] font-bold text-slate-300 uppercase">{userRole}</span>
           </div>
 

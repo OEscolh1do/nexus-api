@@ -36,7 +36,7 @@ export const InverterInventoryItem: React.FC<InverterInventoryItemProps> = ({
             className={cn(
                 "group relative flex flex-col bg-gradient-to-b from-slate-800 to-slate-900 rounded-xl transition-all duration-300 overflow-hidden",
                 "border border-slate-700/60 shadow-md",
-                "hover:shadow-xl hover:shadow-blue-500/10 hover:border-blue-500/40 hover:-translate-y-1 hover:scale-[1.02]"
+                "hover:shadow-xl hover:shadow-neonorte-purple/10 hover:border-neonorte-purple/40 hover:-translate-y-1 hover:scale-[1.02]"
             )}
         >
             {/* ── THUMBNAIL + BADGE OVERLAY ── */}
@@ -57,7 +57,7 @@ export const InverterInventoryItem: React.FC<InverterInventoryItemProps> = ({
                     "absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded text-[9px] font-black tracking-wide border backdrop-blur-sm",
                     isThreePhase
                         ? "bg-orange-500/20 text-orange-300 border-orange-500/40"
-                        : "bg-blue-500/20 text-blue-300 border-blue-500/40"
+                        : "bg-neonorte-purple/20 text-neonorte-lightPurple border-neonorte-purple/40"
                 )}>
                     {phaseLabel}
                 </div>
@@ -110,8 +110,8 @@ export const InverterInventoryItem: React.FC<InverterInventoryItemProps> = ({
                         onClick={(e) => { e.stopPropagation(); onAdd?.(); }}
                         className={cn(
                             "w-full h-8 flex items-center justify-center gap-1.5 rounded-lg transition-all duration-200",
-                            "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-sm shadow-blue-500/20",
-                            "hover:from-blue-500 hover:to-blue-400 hover:shadow-md hover:shadow-blue-500/30",
+                            "bg-neonorte-purple text-white shadow-sm shadow-neonorte-purple/20",
+                            "hover:bg-neonorte-lightPurple hover:shadow-md hover:shadow-neonorte-purple/30",
                             "active:scale-[0.97]",
                             "text-[10px] font-bold tracking-wide uppercase"
                         )}
