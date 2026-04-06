@@ -24,7 +24,7 @@ import { PerformanceTab } from './tabs/PerformanceTab';
 import { PricingTab } from './tabs/PricingTab';
 import { InstitutionalTab } from './tabs/InstitutionalTab';
 import { FinanceTab } from './tabs/FinanceTab'; // New Tab
-// Equipment Database was moved to Iaçã ERP in Phase 1
+import { CatalogEditor } from '../catalog/CatalogEditor';
 
 type TabType = 'performance' | 'comercial' | 'financeiro' | 'institucional' | 'equipamentos';
 
@@ -152,13 +152,7 @@ export const SettingsModule: React.FC = () => {
           )}
 
           {activeTab === 'equipamentos' && (
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center">
-              <Database className="mx-auto h-12 w-12 text-slate-300 mb-4" />
-              <h3 className="text-lg font-bold text-slate-800">Gestão de Equipamentos Removida</h3>
-              <p className="text-sm text-slate-500 max-w-md mx-auto mt-2">
-                O controlo da base de dados de inversores e módulos fotovoltaicos foi movido para o <b>Iaçã ERP</b> como parte da cisão arquitetural. O Kurupira Workspace consome estes catálogos via API (M2M).
-              </p>
-            </div>
+             <CatalogEditor />
           )}
 
           {activeTab === 'comercial' && (

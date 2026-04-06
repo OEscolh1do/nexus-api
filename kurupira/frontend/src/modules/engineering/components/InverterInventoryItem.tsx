@@ -2,6 +2,7 @@ import React from 'react';
 import { Plus, Minus, Trash2, Zap, Cpu, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Inverter } from '../store/useTechStore';
+import { API_URL } from '@/services/NexusClient';
 
 interface InverterInventoryItemProps {
     inverter: Inverter;
@@ -29,7 +30,9 @@ export const InverterInventoryItem: React.FC<InverterInventoryItemProps> = ({
     const isThreePhase = (inverter.connectionType || '').toUpperCase().includes('TRI');
     const phaseLabel = isThreePhase ? '3Φ' : '1Φ';
     const mpptCount = inverter.mppts || 1;
-    const imageUrl = (inverter as any).imageUrl || FALLBACK_IMAGE;
+    
+    const rawImageUrl = (inverter as any).imageUrl;
+    const imageUrl = rawImageUrl ? (rawImageUrl.startsWith('http') ? rawImageUrl : `${API_URL}${rawImageUrl}`) : FALLBACK_IMAGE;
 
     return (
         <div

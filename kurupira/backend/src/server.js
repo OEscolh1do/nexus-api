@@ -8,6 +8,9 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const jwt = require("jsonwebtoken");
 const { PrismaClient } = require("@prisma/client");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
 
 const app = express();
 const prisma = new PrismaClient();
@@ -32,6 +35,29 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(cookieParser());
+
+// =============================================================
+// MIDDLEWARE: Upload & Static Files
+// =============================================================
+const uploadDir = path.join(__dirname, "../uploads/catalog");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, req.params.id + '-' + uniqueSuffix + '.webp');
+  }
+});
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 2 * 1024 * 1024 } // 2MB limit
+});
 
 // =============================================================
 // MIDDLEWARE: JWT Validation (Stateless — chave partilhada com Iaçã)
@@ -313,6 +339,96 @@ app.post("/api/v1/designs/:designId/simulations", authenticateToken, async (req,
 // =============================================================
 // ROUTES: Equipment Catalogs
 // =============================================================
+
+// --- MODULES ---
+
+app.post("/api/v1/catalog/modules", authenticateToken, async (req, res) => {
+  try {
+    const { manufacturer, model, powerWp, efficiency, dimensions, weight, datasheet, isActive, electricalData, unifilarSymbolRef } = req.body;
+    const module = await prisma.moduleCatalog.create({
+      data: {
+        manufacturer, model, powerWp, efficiency, dimensions, weight, datasheet, isActive, electricalData, unifilarSymbolRef
+      }
+    });
+    res.status(201).json({ success: true, data: module });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.put("/api/v1/catalog/modules/:id", authenticateToken, async (req, res) => {
+  try {
+    const { manufacturer, model, powerWp, efficiency, dimensions, weight, datasheet, isActive, electricalData, unifilarSymbolRef } = req.body;
+    const module = await prisma.moduleCatalog.update({
+      where: { id: req.params.id },
+      data: {
+        manufacturer, model, powerWp, efficiency, dimensions, weight, datasheet, isActive, electricalData, unifilarSymbolRef
+      }
+    });
+    res.json({ success: true, data: module });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post("/api/v1/catalog/modules/:id/image", authenticateToken, upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, error: 'No image uploaded' });
+    const imageUrl = `/uploads/catalog/${req.file.filename}`;
+    const module = await prisma.moduleCatalog.update({
+      where: { id: req.params.id },
+      data: { imageUrl }
+    });
+    res.json({ success: true, data: module });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// --- INVERTERS ---
+
+app.post("/api/v1/catalog/inverters", authenticateToken, async (req, res) => {
+  try {
+    const { manufacturer, model, nominalPowerW, maxInputV, mpptCount, efficiency, datasheet, isActive, electricalData, unifilarSymbolRef } = req.body;
+    const inverter = await prisma.inverterCatalog.create({
+      data: {
+        manufacturer, model, nominalPowerW, maxInputV, mpptCount, efficiency, datasheet, isActive, electricalData, unifilarSymbolRef
+      }
+    });
+    res.status(201).json({ success: true, data: inverter });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.put("/api/v1/catalog/inverters/:id", authenticateToken, async (req, res) => {
+  try {
+    const { manufacturer, model, nominalPowerW, maxInputV, mpptCount, efficiency, datasheet, isActive, electricalData, unifilarSymbolRef } = req.body;
+    const inverter = await prisma.inverterCatalog.update({
+      where: { id: req.params.id },
+      data: {
+        manufacturer, model, nominalPowerW, maxInputV, mpptCount, efficiency, datasheet, isActive, electricalData, unifilarSymbolRef
+      }
+    });
+    res.json({ success: true, data: inverter });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post("/api/v1/catalog/inverters/:id/image", authenticateToken, upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, error: 'No image uploaded' });
+    const imageUrl = `/uploads/catalog/${req.file.filename}`;
+    const inverter = await prisma.inverterCatalog.update({
+      where: { id: req.params.id },
+      data: { imageUrl }
+    });
+    res.json({ success: true, data: inverter });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 app.get("/api/v1/catalog/modules", authenticateToken, async (req, res) => {
   try {

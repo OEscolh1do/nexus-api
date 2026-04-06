@@ -2,6 +2,7 @@ import React from 'react';
 import { Plus, Minus, Trash2, Ruler, SlidersHorizontal, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ModuleCatalogItem } from '@/core/schemas/moduleSchema';
+import { API_URL } from '@/services/NexusClient';
 
 interface ModuleInventoryItemProps {
     module: ModuleCatalogItem;
@@ -33,7 +34,9 @@ export const ModuleInventoryItem: React.FC<ModuleInventoryItemProps> = ({
     const modelLower = module.model.toLowerCase();
     const isMono = modelLower.includes('mono') || modelLower.includes('m10') || modelLower.includes('m12') || modelLower.includes('p-type');
     const typeLabel = isMono ? 'MONO' : 'POLY';
-    const imageUrl = (module as any).imageUrl || FALLBACK_IMAGE;
+    
+    const rawImageUrl = (module as any).imageUrl;
+    const imageUrl = rawImageUrl ? (rawImageUrl.startsWith('http') ? rawImageUrl : `${API_URL}${rawImageUrl}`) : FALLBACK_IMAGE;
 
     const areaM2 = ((module.physical.widthMm * module.physical.heightMm) / 1_000_000).toFixed(2);
     const efficiencyPercent = module.electrical.efficiency

@@ -4,7 +4,7 @@
  * Regra: Todas as chamadas ao backend passam por aqui.
  */
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002';
+export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002';
 
 // Recupera token JWT do sessionStorage (injectado pelo AuthProvider)
 function getAuthToken(): string | null {
@@ -119,7 +119,38 @@ export const KurupiraClient = {
 
   catalog: {
     modules: () => apiFetch<any[]>('/api/v1/catalog/modules'),
+    createModule: (data: any) => apiFetch<any>('/api/v1/catalog/modules', { method: 'POST', body: JSON.stringify(data) }),
+    updateModule: (id: string, data: any) => apiFetch<any>(`/api/v1/catalog/modules/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    uploadModuleImage: async (id: string, file: Blob) => {
+      const formData = new FormData();
+      formData.append('image', file);
+      const response = await fetch(`${API_URL}/api/v1/catalog/modules/${id}/image`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${getAuthToken()}`
+        },
+        body: formData
+      });
+      if (!response.ok) throw new Error('Falha no upload da imagem');
+      return (await response.json()).data;
+    },
+
     inverters: () => apiFetch<any[]>('/api/v1/catalog/inverters'),
+    createInverter: (data: any) => apiFetch<any>('/api/v1/catalog/inverters', { method: 'POST', body: JSON.stringify(data) }),
+    updateInverter: (id: string, data: any) => apiFetch<any>(`/api/v1/catalog/inverters/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    uploadInverterImage: async (id: string, file: Blob) => {
+      const formData = new FormData();
+      formData.append('image', file);
+      const response = await fetch(`${API_URL}/api/v1/catalog/inverters/${id}/image`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${getAuthToken()}`
+        },
+        body: formData
+      });
+      if (!response.ok) throw new Error('Falha no upload da imagem');
+      return (await response.json()).data;
+    },
   },
 };
 
