@@ -14,23 +14,32 @@ export const useTechKPIs = () => {
         getPerformanceRatio,
         getAdditivePerformanceRatio,
         prCalculationMode,
-        inverters: techInvertersNormalized
+        inverters: techInvertersNormalized,
+        strings: techStringsNormalized
     } = useTechStore();
 
     // PRÉ-1: converter NormalizedCollection para array para cálculos
     const techInverters = useMemo(() => toArray(techInvertersNormalized), [techInvertersNormalized]);
+    const techStrings = useMemo(() => toArray(techStringsNormalized), [techStringsNormalized]);
 
     const { energyGoal } = useProjectContext();
 
     // 2. Memoized Main KPIs Calculations
     const kpi = useMemo(() => {
-        // Total DC Power (kWp)
-        const totalDC = modules.reduce((acc, m) => acc + (m.power), 0) / 1000;
+        // DC Efetivo: Só contabilizamos a potência de módulos conectados a uma string ATIVA num MPPT (Inversor)
+        const efetiveModulesId = new Set(
+            techStrings.filter(s => s.mpptId !== null).flatMap(s => s.moduleIds)
+        );
 
-        // Total AC Power (kW) - Fixed: Using Snapshot (Source of Truth)
+        // Total DC Power (kWp) efetivamente conectada
+        const totalDC = modules
+            .filter(m => efetiveModulesId.has(m.id))
+            .reduce((acc, m) => acc + (m.power), 0) / 1000;
+
+        // Total AC Power (kW) - Using Snapshot (Source of Truth já está em kW)
         const totalAC = techInverters.reduce((acc, inv) => {
             return acc + (inv.snapshot?.nominalPower || 0) * inv.quantity;
-        }, 0) / 1000;
+        }, 0);
 
         // Area Usage
         const usedArea = modules.reduce((acc, m) => acc + (m.area), 0);
@@ -65,7 +74,7 @@ export const useTechKPIs = () => {
             targetConsumption,
             generationCoverage
         };
-    }, [modules, techInverters, energyGoal.monthlyTarget, getAdditivePerformanceRatio, clientData.availableArea]);
+    }, [modules, techInverters, techStrings, energyGoal.monthlyTarget, getAdditivePerformanceRatio, clientData.availableArea]);
 
     // 3. PR Calculation Priority Logic
     const prDecimalIEC = getPerformanceRatio();
