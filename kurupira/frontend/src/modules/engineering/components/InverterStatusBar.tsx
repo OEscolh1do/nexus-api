@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { 
     Zap, 
     Activity, 
@@ -10,53 +10,35 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import { useSolarStore, selectModules } from '@/core/state/solarStore';
+import { useTechKPIs } from '../hooks/useTechKPIs';
 import { useTechStore } from '../store/useTechStore';
-import { useCatalogStore } from '@/modules/engineering/store/useCatalogStore';
 import { toArray } from '@/core/types/normalized.types';
+import { FDI_LOW_PERCENT, FDI_HIGH_PERCENT, getFdiStatus, FDI_STATUS_CONFIG } from '../constants/thresholds';
 
 export const InverterStatusBar: React.FC<{ className?: string }> = ({ className }) => {
-    // 1. Consumer Stores
-    const modules = useSolarStore(selectModules);
+    const { kpi } = useTechKPIs();
     const inverters = useTechStore(state => toArray(state.inverters));
-    const catalogInverters = useCatalogStore(state => state.inverters);
 
-    // 2. Calculate KPIs
-    const kpi = useMemo(() => {
-        // Total DC (kWp)
-        const totalDC = modules.reduce((acc, m) => acc + (m.power), 0) / 1000;
+    const fdiPercent = kpi.dcAcRatio * 100;
+    const fdiStatus = getFdiStatus(kpi.dcAcRatio);
+    const statusConfig = FDI_STATUS_CONFIG[fdiStatus];
 
-        // Total AC (kW)
-        const totalAC = inverters.reduce((acc, inv) => {
-            const spec = catalogInverters.find((i: any) => i.id === inv.catalogId);
-            return acc + ((spec?.nominalPowerW || 0) * (inv as any).quantity);
-        }, 0) / 1000;
+    const totalInvCount = inverters.reduce((acc, inv) => acc + inv.quantity, 0);
 
-        // Total Modules Count
-        const totalModCount = modules.length;
+    const statusIcon = fdiStatus === 'clipping' ? Activity 
+        : fdiStatus === 'oversized' ? AlertTriangle 
+        : CheckCircle2;
+    const StatusIcon = statusIcon;
 
-        // Total Inverters Count
-        const totalInvCount = inverters.reduce((acc, inv) => acc + inv.quantity, 0);
-
-        // FDI (DC/AC Ratio)
-        // Note: usage of getDCACRatio might need watts input, let's verify store signature. 
-        // Store: getDCACRatio: (totalModulePowerW) => number
-        const dcAcRatio = totalAC > 0 ? totalDC / totalAC : 0; 
-        const fdiPercentage = dcAcRatio * 100;
-
-        return { totalDC, totalAC, dcAcRatio, fdiPercentage, totalModCount, totalInvCount };
-    }, [modules, inverters]);
-
-    // 3. Status Logic
-    let status = { color: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-100', icon: CheckCircle2, label: 'Ideal' };
-    
-    if (kpi.fdiPercentage < 75) {
-        status = { color: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-100', icon: AlertTriangle, label: 'Subdimensionado' };
-    } else if (kpi.fdiPercentage > 130) {
-        status = { color: 'text-red-500', bg: 'bg-red-50', border: 'border-red-100', icon: Activity, label: 'Sobrecarga' };
-    }
-
-    const StatusIcon = status.icon;
+    const statusBg = fdiStatus === 'clipping' ? 'bg-red-50' 
+        : fdiStatus === 'oversized' ? 'bg-amber-50' 
+        : 'bg-emerald-50';
+    const statusBorder = fdiStatus === 'clipping' ? 'border-red-100' 
+        : fdiStatus === 'oversized' ? 'border-amber-100' 
+        : 'border-emerald-100';
+    const statusColor = fdiStatus === 'clipping' ? 'text-red-500' 
+        : fdiStatus === 'oversized' ? 'text-amber-500' 
+        : 'text-emerald-500';
 
     return (
         <div className={cn("flex items-center justify-between px-4 h-14 bg-white border-b border-slate-200 shrink-0 shadow-sm z-10 transition-all", className)}>
@@ -83,7 +65,7 @@ export const InverterStatusBar: React.FC<{ className?: string }> = ({ className 
                     </div>
                     <div className="flex items-baseline gap-2 mt-0.5">
                         <span className="text-lg font-bold text-slate-800 leading-none">
-                            {kpi.totalInvCount}
+                            {totalInvCount}
                         </span>
                         <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 rounded-full">
                             {inverters.length} Tipos
@@ -100,8 +82,8 @@ export const InverterStatusBar: React.FC<{ className?: string }> = ({ className 
                         <TrendingUp size={12} />
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
-                        <span className={cn("text-xl font-black leading-none", status.color)}>
-                            {(kpi.fdiPercentage).toFixed(1)}%
+                        <span className={cn("text-xl font-black leading-none", statusColor)}>
+                            {fdiPercent.toFixed(1)}%
                         </span>
                     </div>
                 </div>
@@ -110,12 +92,12 @@ export const InverterStatusBar: React.FC<{ className?: string }> = ({ className 
                     variant="outline" 
                     className={cn(
                         "h-9 px-3 flex flex-col items-start justify-center gap-0.5 border",
-                        status.bg, status.border, status.color
+                        statusBg, statusBorder, statusColor
                     )}
                 >
                     <div className="flex items-center gap-1.5">
                         <StatusIcon size={12} />
-                        <span className="text-[10px] uppercase font-bold tracking-wider">{status.label}</span>
+                        <span className="text-[10px] uppercase font-bold tracking-wider">{statusConfig.label}</span>
                     </div>
                     <span className="text-[9px] opacity-80 font-normal normal-case">
                         Relação DC/AC: {kpi.dcAcRatio.toFixed(2)}x
@@ -125,3 +107,4 @@ export const InverterStatusBar: React.FC<{ className?: string }> = ({ className 
         </div>
     );
 };
+

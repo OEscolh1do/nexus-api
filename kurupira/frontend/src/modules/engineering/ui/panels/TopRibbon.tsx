@@ -28,6 +28,7 @@ import { useElectricalValidation } from '../../hooks/useElectricalValidation';
 import { useProjectContext } from '@/hooks/useProjectContext';
 import { cn } from '@/lib/utils';
 import { useUIStore, type Tool } from '@/core/state/uiStore';
+import { getFdiStatus, FDI_STATUS_CONFIG } from '../../constants/thresholds';
 
 // =============================================================================
 // TOOL CONFIG
@@ -339,17 +340,16 @@ const HealthCheckWidget: React.FC = () => {
     const modules = useSolarStore(selectModules);
     const inverters = useSolarStore(selectInverters);
     const placedModules = useSolarStore(state => state.project.placedModules);
-    const systemMinTemp = useSolarStore(state => state.settings.minHistoricalTemp); // Leitura dinâmica
-    useTechKPIs(); // Subscribes to general KPIs
+    const systemMinTemp = useSolarStore(state => state.settings.minHistoricalTemp);
+    const { kpi } = useTechKPIs();
     const { electrical, inventory } = useElectricalValidation();
 
-    const totalModulePowerWp = modules.reduce((acc, m) => acc + (m.power), 0);
-    const totalInverterPowerKw = inverters.reduce((acc, i) => acc + (i.nominalPower * i.quantity), 0);
-    const overloadRatio = totalInverterPowerKw > 0 ? (totalModulePowerWp / 1000) / totalInverterPowerKw : 0;
-
-    // Evaluate Oversizing limits
-    const isHighOverload = overloadRatio > 1.35;
-    const isLowOverload = overloadRatio > 0 && overloadRatio < 0.75;
+    // FDI from unified source
+    const fdiStatus = getFdiStatus(kpi.dcAcRatio);
+    const fdiConfig = FDI_STATUS_CONFIG[fdiStatus];
+    const fdiPercent = kpi.dcAcRatio * 100;
+    const isHighOverload = fdiStatus === 'clipping';
+    const isLowOverload = fdiStatus === 'oversized';
     
     let isVocUnsafe = false;
     let isCurrentUnsafe = false;
@@ -364,7 +364,6 @@ const HealthCheckWidget: React.FC = () => {
                 if (entry.messages.some(m => m.includes('Voc'))) isVocUnsafe = true;
                 if (entry.messages.some(m => m.includes('Isc'))) {
                     isCurrentUnsafe = true;
-                    // Add all messages from the entry that are not OK
                     currentViolations.push(...entry.messages);
                 }
             }
@@ -406,8 +405,8 @@ const HealthCheckWidget: React.FC = () => {
                         <div className="flex flex-col">
                             <span className="text-[9px] text-slate-500">FDI (Fator de Dimensionamento)</span>
                             <div className="flex flex-col mt-0.5">
-                                <span className={cn("text-xs font-bold", isHighOverload ? 'text-red-400' : isLowOverload ? 'text-amber-400' : 'text-emerald-400')}>
-                                    {(overloadRatio * 100).toFixed(1)}% {isHighOverload ? '(Clipping)' : isLowOverload ? '(Oversized AC)' : '(Ideal)'}
+                                <span className={cn("text-xs font-bold", fdiConfig.color)}>
+                                    {fdiPercent.toFixed(1)}% ({fdiConfig.label})
                                 </span>
                             </div>
                         </div>

@@ -28,6 +28,7 @@ import { useSolarStore, selectModules } from '@/core/state/solarStore';
 import { useTechStore, type LossProfile } from '../../store/useTechStore';
 import { useTechKPIs } from '../../hooks/useTechKPIs';
 import { LOSS_CONFIG } from '../../constants/lossConfig';
+import { getFdiStatus } from '../../constants/thresholds';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { SectionHeader, PropRow, PropRowEditable } from './properties/shared';
 import { CRESESB_DB } from '@/data/irradiation/cresesbData';
@@ -346,10 +347,11 @@ const SimulationMetricsSection: React.FC = () => {
   const isPositive = data.averageGen >= data.averageCons;
   const hasEquipment = modules.length > 0;
 
-  // FDI Evaluation
+  // FDI Evaluation (unified via thresholds.ts)
   const fdiPercent = kpi.dcAcRatio * 100;
-  const isFdiLow = fdiPercent < 75;
-  const isFdiHigh = fdiPercent > 130;
+  const fdiStatus = getFdiStatus(kpi.dcAcRatio);
+  const isFdiLow = fdiStatus === 'oversized';
+  const isFdiHigh = fdiStatus === 'clipping';
   
   return (
     <section className="space-y-3">

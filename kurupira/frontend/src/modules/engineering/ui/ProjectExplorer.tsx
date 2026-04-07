@@ -41,11 +41,15 @@ export interface ProjectCard {
   updatedAt: string;
 }
 
-// Gera URL de tile satélite estático via OpenStreetMap (grátis, sem API key)
+// Gera URL de tile satélite estático via OpenStreetMap tile server (grátis, sem API key)
 function buildStaticMapUrl(lat: number | null | undefined, lng: number | null | undefined): string | null {
   if (!lat || !lng) return null;
-  // Usa serviço de tile estático do OSM via proxy público (400x200, zoom 18 = nível de telhado)
-  return `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=18&size=400x200&maptype=mapnik`;
+  // Calcula tile x/y no zoom 17 (nível de telhado) e retorna tile individual 256x256
+  const zoom = 17;
+  const n = Math.pow(2, zoom);
+  const x = Math.floor(((lng + 180) / 360) * n);
+  const y = Math.floor((1 - Math.log(Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)) / Math.PI) / 2 * n);
+  return `https://tile.openstreetmap.org/${zoom}/${x}/${y}.png`;
 }
 
 // Extrator do Swagger/API local para ProjectCard
