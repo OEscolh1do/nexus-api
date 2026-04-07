@@ -25,6 +25,8 @@ model TechnicalDesign {
   designData Json? // Layout de painéis, strings, inversores (dossiê técnico completo)
   notes      String?  @db.Text
   createdBy  String // userId do engenheiro (validado via JWT do Iaçã)
+  latitude   Float? // Coord Y do Sítio
+  longitude  Float? // Coord X do Sítio
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 

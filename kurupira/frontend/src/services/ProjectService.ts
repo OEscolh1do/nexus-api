@@ -144,6 +144,8 @@ export const ProjectService = {
       const design = await KurupiraClient.designs.create({
         iacaLeadId: null,
         name: payload.projectName || 'Sem Título',
+        latitude: payload.lat,
+        longitude: payload.lng,
       });
 
       // Clear local state early

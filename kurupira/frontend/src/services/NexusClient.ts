@@ -77,13 +77,13 @@ export const KurupiraClient = {
 
     get: (id: string) => apiFetch<TechnicalDesignFull>(`/api/v1/designs/${id}`),
 
-    create: (data: { iacaLeadId: string | null; name?: string }) =>
+    create: (data: { iacaLeadId: string | null; name?: string; latitude?: number | null; longitude?: number | null }) =>
       apiFetch<TechnicalDesignSummary>('/api/v1/designs', {
         method: 'POST',
         body: JSON.stringify(data),
       }),
 
-    update: (id: string, data: Partial<{ name: string; status: string; designData: any; notes: string }>) =>
+    update: (id: string, data: Partial<{ name: string; status: string; designData: any; notes: string; latitude: number | null; longitude: number | null }>) =>
       apiFetch<TechnicalDesignSummary>(`/api/v1/designs/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),

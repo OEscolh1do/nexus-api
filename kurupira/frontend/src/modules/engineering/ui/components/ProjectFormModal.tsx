@@ -343,6 +343,8 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
         await KurupiraClient.designs.update(projectId, {
           name: projectName,
           designData: updatedDesignData,
+          latitude: lat,
+          longitude: lng,
         });
 
         onSaveSuccess();

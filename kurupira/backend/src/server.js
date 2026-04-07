@@ -199,8 +199,8 @@ app.get("/api/v1/designs", authenticateToken, async (req, res) => {
         designData: undefined, // Não enviar blob completo na listagem
         targetPowerKwp: metrics.targetPowerKwp,
         averageConsumptionKwh: metrics.averageConsumptionKwh,
-        lat: metrics.lat,
-        lng: metrics.lng,
+        lat: d.latitude ?? metrics.lat,
+        lng: d.longitude ?? metrics.lng,
         clientName: metrics.clientName,
         city: metrics.city,
         state: metrics.state,
@@ -240,14 +240,16 @@ app.get("/api/v1/designs/:id", authenticateToken, async (req, res) => {
 // Create design (standalone ou via CRM deep link)
 app.post("/api/v1/designs", authenticateToken, async (req, res) => {
   try {
-    const { iacaLeadId, name } = req.body;
+    const { iacaLeadId, name, latitude, longitude } = req.body;
 
     const design = await prisma.technicalDesign.create({
       data: {
         tenantId: req.user.tenantId,
         iacaLeadId: iacaLeadId || null,
         name: name || 'Novo Projeto Técnico',
-        createdBy: req.user.id
+        createdBy: req.user.id,
+        latitude: latitude || null,
+        longitude: longitude || null
       }
     });
 
@@ -280,10 +282,10 @@ app.put("/api/v1/designs/:id", authenticateToken, async (req, res) => {
     });
     if (!existing) return res.status(404).json({ success: false, error: 'Not found' });
 
-    const { designData, name, status, notes } = req.body;
+    const { designData, name, status, notes, latitude, longitude } = req.body;
     const design = await prisma.technicalDesign.update({
       where: { id: req.params.id },
-      data: { designData, name, status, notes }
+      data: { designData, name, status, notes, latitude, longitude }
     });
     res.json({ success: true, data: design });
   } catch (error) {
