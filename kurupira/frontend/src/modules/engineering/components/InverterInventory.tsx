@@ -36,11 +36,9 @@ export const InverterInventory: React.FC<InverterInventoryProps> = ({ className 
         const newId = Math.random().toString(36).substr(2, 9);
         addProjectInverter({ ...item, id: newId, quantity });
         
-        // Se a tech store tem updateInverterQuantity e precisa chamar junto
-        addTechInverter({ ...item }, newId);
-        if (quantity > 1) {
-            updateInverterQuantity(newId, quantity); // ou adaptar addTechInverter para já receber a prop
-        }
+        // Agora o store respeitará quantity
+        addTechInverter({ ...item, quantity }, newId);
+        
         setIsModalOpen(false);
     };
 

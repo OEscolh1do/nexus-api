@@ -44,17 +44,17 @@ export const ModuleInventory: React.FC<ModuleInventoryProps> = ({ className }) =
         const newId = Math.random().toString(36).substr(2, 9);
         const mappedItem = mapCatalogToSpecs(catalogItem);
 
-        // Add to project state overriding ID with local unique ID
+        // O store já criará `quantity` instâncias com IDs únicos internamente
         addModule({
             ...mappedItem,
             id: newId,
+            quantity
         });
         
-        if (quantity > 1) {
-            updateModuleQty(newId, quantity); // SolarStore criará clones deste item
-        }
-        
-        setSelectedModuleId(newId);
+        // Embora o store crie IDs próprios, não poderemos scrolar o painel para a primeira instância
+        // tão facilmente, mas o item aparecerá na tela corretamente.
+        // Ocultar o modal:
+        // setIsModalOpen(false); // Opcional, atualmente o comportamento é deixar modal aberto para lote
     };
 
     // Auto-Scroll to Selected Item

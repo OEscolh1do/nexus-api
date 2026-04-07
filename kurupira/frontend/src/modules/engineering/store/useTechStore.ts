@@ -147,7 +147,7 @@ export const useTechStore = create<TechState>((set, get) => ({
       const newInverter: InverterState = {
           id: providedId || Math.random().toString(36).substr(2, 9),
           catalogId: equipment.id || '',
-          quantity: 1,
+          quantity: equipment.quantity || 1,
           mpptConfigs: createDefaultMPPTConfig(mpptCount),
           snapshot: {
               model: equipment.model,

@@ -160,7 +160,7 @@ export const ModuleCatalogDialog: React.FC<ModuleCatalogDialogProps> = ({
                                         key={`${item.manufacturer}-${item.model}-${idx}`}
                                         module={item}
                                         mode="catalog"
-                                        onAdd={() => handleAdd(item)}
+                                        onAdd={(quantity) => handleAdd(item, quantity)}
                                     />
                                 ))}
                             </div>
