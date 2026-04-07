@@ -3,13 +3,7 @@ import { Search } from 'lucide-react';
 import { 
     Dialog
 } from '@/components/ui/simple-dialog';
-import { 
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
+
 import { ModuleInventoryItem } from './ModuleInventoryItem';
 import { useCatalogStore } from '../store/useCatalogStore';
 import type { ModuleCatalogItem } from '@/core/schemas/moduleSchema';
@@ -17,7 +11,7 @@ import type { ModuleCatalogItem } from '@/core/schemas/moduleSchema';
 interface ModuleCatalogDialogProps {
     isOpen: boolean;
     onClose: () => void;
-    onAddModule: (module: ModuleCatalogItem) => void;
+    onAddModule: (module: ModuleCatalogItem, quantity: number) => void;
 }
 
 export const ModuleCatalogDialog: React.FC<ModuleCatalogDialogProps> = ({ 
@@ -39,34 +33,31 @@ export const ModuleCatalogDialog: React.FC<ModuleCatalogDialogProps> = ({
     }, [isOpen, isCatalogLoaded, isLoading, fetchCatalog]);
     
     // Local Filter State
-    const [selectedBrand, setSelectedBrand] = useState<string>('all');
     const [searchQuery, setSearchQuery] = useState<string>('');
-
-    // 1. Extract Unique Brands
-    const uniqueBrands = useMemo(() => {
-        const brands = new Set(catalogModules.map(m => m.manufacturer));
-        return Array.from(brands).sort();
-    }, [catalogModules]);
+    const [powerCategory, setPowerCategory] = useState<string>('ALL');
 
     // 2. Filter Logic
     const filteredModules = useMemo(() => {
         return catalogModules.filter(item => {
-            // A. Brand
-            if (selectedBrand !== 'all' && item.manufacturer !== selectedBrand) return false;
-            
-            // B. Search (Model)
+            // A. Search (Model + Manufacturer)
             if (searchQuery) {
                 const searchLower = searchQuery.toLowerCase();
-                if (!item.model.toLowerCase().includes(searchLower)) return false;
+                const fullString = `${item.manufacturer} ${item.model}`.toLowerCase();
+                if (!fullString.includes(searchLower)) return false;
             }
+
+            // B. Power Category
+            if (powerCategory === '<400W' && item.electrical.pmax >= 400) return false;
+            if (powerCategory === '400-550W' && (item.electrical.pmax < 400 || item.electrical.pmax > 550)) return false;
+            if (powerCategory === '>550W' && item.electrical.pmax <= 550) return false;
 
             return true;
         });
-    }, [catalogModules, selectedBrand, searchQuery]);
+    }, [catalogModules, searchQuery, powerCategory]);
 
 
-    const handleAdd = (item: ModuleCatalogItem) => {
-        onAddModule(item);
+    const handleAdd = (item: ModuleCatalogItem, quantity: number = 1) => {
+        onAddModule(item, quantity);
     };
 
     return (
@@ -98,36 +89,45 @@ export const ModuleCatalogDialog: React.FC<ModuleCatalogDialogProps> = ({
                     </div>
 
                     {/* 2. Filters (Sticky Top) */}
-                    <div className="border-b border-slate-700/50 bg-slate-800/30 p-3 shrink-0 z-10 flex gap-3 items-center">
-                         {/* Brand Select */}
-                         <Select value={selectedBrand} onValueChange={setSelectedBrand}>
-                            <SelectTrigger className="w-[180px] h-9 text-xs bg-slate-800 border-slate-600 text-slate-200">
-                                <SelectValue placeholder="Todas as Marcas" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all" className="text-xs font-semibold">Todas as Marcas</SelectItem>
-                                {uniqueBrands.map(brand => (
-                                    <SelectItem key={brand} value={brand} className="text-xs">
-                                        {brand}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                    <div className="border-b border-slate-700/50 bg-slate-800/30 p-3 shrink-0 z-10 flex flex-col gap-3">
+                        <div className="flex gap-3 items-center">
+                            {/* Search Input */}
+                            <div className="relative flex-1 max-w-md">
+                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
+                                <input
+                                    type="text"
+                                    placeholder="Buscar modelo ou fabricante..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="h-9 w-full rounded-lg border border-slate-600 bg-slate-800 pl-9 pr-3 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/20 focus:border-emerald-400"
+                                />
+                            </div>
 
-                        {/* Search Input */}
-                        <div className="relative flex-1 max-w-sm">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
-                            <input
-                                type="text"
-                                placeholder="Buscar modelo..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="h-9 w-full rounded-lg border border-slate-600 bg-slate-800 pl-9 pr-3 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/20 focus:border-emerald-400"
-                            />
+                            <div className="ml-auto text-xs text-slate-500">
+                                <b className="text-slate-300">{filteredModules.length}</b> modelos encontrados
+                            </div>
                         </div>
-
-                         <div className="ml-auto text-xs text-slate-500">
-                            <b className="text-slate-300">{filteredModules.length}</b> modelos encontrados
+                        
+                        {/* Power Category Chips */}
+                        <div className="flex flex-wrap gap-2">
+                             {[
+                                { id: 'ALL', label: 'Todos' },
+                                { id: '<400W', label: 'Até 400W' },
+                                { id: '400-550W', label: '400W - 550W' },
+                                { id: '>550W', label: '> 550W' }
+                            ].map(cat => (
+                                <button
+                                    key={cat.id}
+                                    onClick={() => setPowerCategory(cat.id)}
+                                    className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-colors border ${
+                                        powerCategory === cat.id 
+                                            ? "bg-slate-700 text-white border-slate-600"
+                                            : "bg-slate-800/50 text-slate-400 border-slate-700 hover:bg-slate-800"
+                                    }`}
+                                >
+                                    {cat.label}
+                                </button>
+                            ))}
                         </div>
                     </div>
 
@@ -147,7 +147,7 @@ export const ModuleCatalogDialog: React.FC<ModuleCatalogDialogProps> = ({
                                     Tente mudar a marca ou termo de busca.
                                 </p>
                                 <button 
-                                    onClick={() => { setSelectedBrand('all'); setSearchQuery(''); }}
+                                    onClick={() => { setPowerCategory('ALL'); setSearchQuery(''); }}
                                     className="mt-6 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:border-slate-500 shadow-sm transition-all"
                                 >
                                     Limpar Filtros

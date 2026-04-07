@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Plus, Minus, Trash2, Ruler, SlidersHorizontal, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ModuleCatalogItem } from '@/core/schemas/moduleSchema';
@@ -10,7 +10,7 @@ interface ModuleInventoryItemProps {
     isSelected?: boolean;
     quantity?: number;
     onSelect?: () => void;
-    onAdd?: () => void;
+    onAdd?: (quantity: number) => void;
     onQuantityChange?: (delta: number) => void;
     onRemove?: () => void;
 }
@@ -34,6 +34,9 @@ export const ModuleInventoryItem: React.FC<ModuleInventoryItemProps> = ({
     const modelLower = module.model.toLowerCase();
     const isMono = modelLower.includes('mono') || modelLower.includes('m10') || modelLower.includes('m12') || modelLower.includes('p-type');
     const typeLabel = isMono ? 'MONO' : 'POLY';
+    
+    // State local para quantidade ao adicionar no modo catálogo
+    const [localQuantity, setLocalQuantity] = useState(1);
     
     const rawImageUrl = (module as any).imageUrl;
     const imageUrl = rawImageUrl ? (rawImageUrl.startsWith('http') ? rawImageUrl : `${API_URL}${rawImageUrl}`) : FALLBACK_IMAGE;
@@ -129,19 +132,35 @@ export const ModuleInventoryItem: React.FC<ModuleInventoryItemProps> = ({
             {/* ── ACTIONS ── */}
             <div className="p-2 pt-0 mt-auto">
                 {mode === 'catalog' ? (
-                    <button
-                        onClick={(e) => { e.stopPropagation(); onAdd?.(); }}
-                        className={cn(
-                            "w-full h-8 flex items-center justify-center gap-1.5 rounded-lg transition-all duration-200",
-                            "bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-sm shadow-emerald-500/20",
-                            "hover:from-emerald-500 hover:to-emerald-400 hover:shadow-md hover:shadow-emerald-500/30",
-                            "active:scale-[0.97]",
-                            "text-[10px] font-bold tracking-wide uppercase"
-                        )}
-                    >
-                        <Plus size={13} className="stroke-[2.5]" />
-                        Adicionar
-                    </button>
+                    <div className="flex items-center gap-1.5 h-8">
+                        <div className="flex items-center border border-slate-600 rounded-lg bg-slate-800/80 overflow-hidden h-full">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setLocalQuantity(Math.max(1, localQuantity - 1)); }}
+                                className="px-2 py-1 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors h-full"
+                            >
+                                <Minus size={12} />
+                            </button>
+                            <span className="w-8 text-center text-[10px] font-bold text-white shrink-0">{localQuantity}</span>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setLocalQuantity(localQuantity + 1); }}
+                                className="px-2 py-1 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors h-full"
+                            >
+                                <Plus size={12} />
+                            </button>
+                        </div>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onAdd?.(localQuantity); setLocalQuantity(1); }}
+                            className={cn(
+                                "flex-1 h-full flex items-center justify-center gap-1.5 rounded-lg transition-all duration-200",
+                                "bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-sm shadow-emerald-500/20",
+                                "hover:from-emerald-500 hover:to-emerald-400 hover:shadow-md hover:shadow-emerald-500/30",
+                                "active:scale-[0.97]",
+                                "text-[10px] font-bold tracking-wide uppercase"
+                            )}
+                        >
+                            Adicionar
+                        </button>
+                    </div>
                 ) : (
                     <div className="flex items-center gap-1.5">
                         <div className="flex items-center border border-slate-600 rounded-lg bg-slate-800/80 overflow-hidden">

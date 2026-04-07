@@ -1,24 +1,16 @@
 import React from 'react';
 import { RotateCcw, Filter, X } from 'lucide-react';
-import {
-    DenseInput,
-    DenseSelect,
-    DenseFormGrid
-} from '@/components/ui/dense-form';
+import { DenseInput, DenseSelect, DenseFormGrid } from '@/components/ui/dense-form';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
 export interface InverterFilters {
     search: string;
-    manufacturer: string;
-    minPower: string;
-    maxPower: string;
+    powerCategory: 'ALL' | 'RESIDENTIAL' | 'COMMERCIAL' | 'UTILITY';
     phase: string;
-    minMppts: string;
 }
 
 interface InverterFilterPanelProps {
-    uniqueBrands: string[];
     activeFilters: InverterFilters;
     onFilterChange: (filters: InverterFilters) => void;
     onClear: () => void;
@@ -29,15 +21,11 @@ interface InverterFilterPanelProps {
 
 export const INITIAL_FILTERS: InverterFilters = {
     search: '',
-    manufacturer: '',
-    minPower: '',
-    maxPower: '',
-    phase: '',
-    minMppts: ''
+    powerCategory: 'ALL',
+    phase: ''
 };
 
 export const InverterFilterPanel: React.FC<InverterFilterPanelProps> = ({
-    uniqueBrands,
     activeFilters,
     onFilterChange,
     onClear,
@@ -45,14 +33,14 @@ export const InverterFilterPanel: React.FC<InverterFilterPanelProps> = ({
     isOpen,
     onClose
 }) => {
-    // Local state for immediate feedback before debounce (optional, but good for inputs)
-    // For now, we'll drive directly from props to keep it simple and controlled.
-
     const handleChange = (key: keyof InverterFilters, value: string) => {
         onFilterChange({ ...activeFilters, [key]: value });
     };
 
-    const activeCount = Object.values(activeFilters).filter(Boolean).length;
+    const activeCount = 
+        (activeFilters.search !== '' ? 1 : 0) + 
+        (activeFilters.powerCategory !== 'ALL' ? 1 : 0) + 
+        (activeFilters.phase !== '' ? 1 : 0);
 
     if (!isOpen) return null;
 
@@ -70,7 +58,7 @@ export const InverterFilterPanel: React.FC<InverterFilterPanelProps> = ({
                         </Badge>
                     )}
                 </div>
-                <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+                <button onClick={onClose} className="text-slate-400 hover:text-slate-600 hidden">
                     <X size={14} />
                 </button>
             </div>
@@ -78,47 +66,18 @@ export const InverterFilterPanel: React.FC<InverterFilterPanelProps> = ({
             {/* Grid de Filtros */}
             <DenseFormGrid className="gap-2">
                 
-                {/* 1. Busca Textual */}
-                <div className="col-span-12 md:col-span-6 lg:col-span-4">
+                {/* 1. Busca Universal */}
+                <div className="col-span-12 md:col-span-8 lg:col-span-8">
                     <DenseInput
-                        placeholder="Buscar modelo..."
+                        placeholder="Buscar modelo ou fabricante..."
                         value={activeFilters.search}
                         onChange={(e) => handleChange('search', e.target.value)}
                         colSpan={12}
                     />
                 </div>
 
-                 {/* 2. Fabricante */}
-                 <div className="col-span-6 md:col-span-3 lg:col-span-2">
-                    <DenseSelect
-                        options={uniqueBrands.map(b => ({ value: b, label: b }))}
-                        value={activeFilters.manufacturer}
-                        onChange={(e) => handleChange('manufacturer', e.target.value)}
-                        placeholder="Fabricante"
-                        colSpan={12}
-                    />
-                </div>
-
-                {/* 3. Potência (Min/Max) */}
-                <div className="col-span-6 md:col-span-3 lg:col-span-2 flex gap-1">
-                     <DenseInput
-                        type="number"
-                        placeholder="Min kW"
-                        value={activeFilters.minPower}
-                        onChange={(e) => handleChange('minPower', e.target.value)}
-                        colSpan={6}
-                    />
-                    <DenseInput
-                        type="number"
-                        placeholder="Max kW"
-                        value={activeFilters.maxPower}
-                        onChange={(e) => handleChange('maxPower', e.target.value)}
-                        colSpan={6}
-                    />
-                </div>
-               
-               {/* 4. Fases */}
-                <div className="col-span-6 md:col-span-3 lg:col-span-2">
+                {/* 2. Fases */}
+                <div className="col-span-12 md:col-span-4 lg:col-span-4">
                     <DenseSelect
                         options={[
                             { value: 'MONOFÁSICO', label: 'Monofásico' },
@@ -127,20 +86,32 @@ export const InverterFilterPanel: React.FC<InverterFilterPanelProps> = ({
                         ]}
                         value={activeFilters.phase}
                         onChange={(e) => handleChange('phase', e.target.value)}
-                        placeholder="Fase"
+                        placeholder="Qualquer Fase"
                         colSpan={12}
                     />
                 </div>
-
-                {/* 5. MPPTs */}
-                <div className="col-span-6 md:col-span-3 lg:col-span-2">
-                     <DenseInput
-                        type="number"
-                        placeholder="Min MPPTs"
-                        value={activeFilters.minMppts}
-                        onChange={(e) => handleChange('minMppts', e.target.value)}
-                        colSpan={12}
-                    />
+                
+                {/* 3. Escala de Potência (Chips) */}
+                <div className="col-span-12 flex flex-wrap gap-2 mt-1">
+                    {[
+                        { id: 'ALL', label: 'Todos' },
+                        { id: 'RESIDENTIAL', label: 'Residencial (<10kW)' },
+                        { id: 'COMMERCIAL', label: 'Comercial (10-50kW)' },
+                        { id: 'UTILITY', label: 'Usina (>50kW)' }
+                    ].map(cat => (
+                        <button
+                            key={cat.id}
+                            onClick={() => handleChange('powerCategory', cat.id)}
+                            className={cn(
+                                "px-3 py-1.5 rounded-full text-[11px] font-bold transition-colors border",
+                                activeFilters.powerCategory === cat.id 
+                                    ? "bg-slate-800 text-white border-slate-800"
+                                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
+                            )}
+                        >
+                            {cat.label}
+                        </button>
+                    ))}
                 </div>
 
             </DenseFormGrid>

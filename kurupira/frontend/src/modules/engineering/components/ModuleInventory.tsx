@@ -40,7 +40,7 @@ export const ModuleInventory: React.FC<ModuleInventoryProps> = ({ className }) =
     // Refs for Scroll Handling
     const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
-    const handleAdd = (catalogItem: ModuleCatalogItem) => {
+    const handleAdd = (catalogItem: ModuleCatalogItem, quantity: number = 1) => {
         const newId = Math.random().toString(36).substr(2, 9);
         const mappedItem = mapCatalogToSpecs(catalogItem);
 
@@ -49,6 +49,10 @@ export const ModuleInventory: React.FC<ModuleInventoryProps> = ({ className }) =
             ...mappedItem,
             id: newId,
         });
+        
+        if (quantity > 1) {
+            updateModuleQty(newId, quantity); // SolarStore criará clones deste item
+        }
         
         setSelectedModuleId(newId);
     };

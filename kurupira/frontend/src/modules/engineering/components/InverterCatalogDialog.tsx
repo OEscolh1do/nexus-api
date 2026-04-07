@@ -11,7 +11,7 @@ import type { Inverter } from '../store/useTechStore';
 interface InverterCatalogDialogProps {
     isOpen: boolean;
     onClose: () => void;
-    onAddInverter: (inverter: any) => void;
+    onAddInverter: (inverter: any, quantity: number) => void;
 }
 
 export const InverterCatalogDialog: React.FC<InverterCatalogDialogProps> = ({ isOpen, onClose, onAddInverter }) => {
@@ -46,33 +46,25 @@ export const InverterCatalogDialog: React.FC<InverterCatalogDialogProps> = ({ is
     // Local Filter State
     const [filters, setFilters] = useState<InverterFilters>(INITIAL_FILTERS);
 
-    // 1. Extract Unique Brands from Catalog
-    const uniqueBrands = useMemo(() => {
-        const brands = new Set(adaptedInverters.map(m => m.manufacturer));
-        return Array.from(brands).sort();
-    }, [adaptedInverters]);
+
 
     // 2. Final Filtered List
     const filteredCatalog = useMemo(() => {
         return adaptedInverters.filter(item => {
-            // A. Manufacturer (Exact)
-            if (filters.manufacturer && item.manufacturer !== filters.manufacturer) return false;
-
-            // B. Search (Model - Partial/Case Insensitive)
+            // A. Search (Model + Manufacturer)
             if (filters.search) {
                 const searchLower = filters.search.toLowerCase();
-                if (!item.model.toLowerCase().includes(searchLower)) return false;
+                const fullString = `${item.manufacturer} ${item.model}`.toLowerCase();
+                if (!fullString.includes(searchLower)) return false;
             }
 
-            // C. Power Range (Min/Max kW)
-            if (filters.minPower && item.nominalPower < parseFloat(filters.minPower)) return false;
-            if (filters.maxPower && item.nominalPower > parseFloat(filters.maxPower)) return false;
+            // B. Power Category
+            if (filters.powerCategory === 'RESIDENTIAL' && item.nominalPower >= 10) return false;
+            if (filters.powerCategory === 'COMMERCIAL' && (item.nominalPower < 10 || item.nominalPower > 50)) return false;
+            if (filters.powerCategory === 'UTILITY' && item.nominalPower <= 50) return false;
 
-            // D. Phase (Exact)
+            // C. Phase
             if (filters.phase && item.connectionType !== filters.phase) return false;
-
-            // E. MPPTs (P8: agora disponível via useCatalogStore)
-            if (filters.minMppts && (item.mppts || 1) < parseInt(filters.minMppts)) return false;
 
             return true;
         });
@@ -82,10 +74,10 @@ export const InverterCatalogDialog: React.FC<InverterCatalogDialogProps> = ({ is
     // Decision: Keep open to allow adding multiple, maybe show toast? 
     // For now, simple add. User can close manually.
     // For now, simple add. User can close manually or it closes automatically depending on parent.
-    const handleAdd = (item: any) => {
+    const handleAdd = (item: any, quantity: number = 1) => {
         // Pass the ORIGINAL catalog item (full data), not the stripped adapter
         const original = catalogInverters.find(ci => ci.id === item.id || ci.id === item._catalogId);
-        onAddInverter(original || item);
+        onAddInverter(original || item, quantity);
     };
 
     return (
@@ -119,7 +111,6 @@ export const InverterCatalogDialog: React.FC<InverterCatalogDialogProps> = ({ is
                     {/* 2. Filters (Sticky Top) */}
                     <div className="border-b border-slate-700/50 bg-slate-800/30 p-2 shrink-0 z-10">
                          <InverterFilterPanel 
-                            uniqueBrands={uniqueBrands}
                             activeFilters={filters}
                             onFilterChange={setFilters}
                             onClear={() => setFilters(INITIAL_FILTERS)}
@@ -154,11 +145,11 @@ export const InverterCatalogDialog: React.FC<InverterCatalogDialogProps> = ({ is
                         ) : (
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                                 {filteredCatalog.map((item) => (
-                                    <InverterInventoryItem
+                                     <InverterInventoryItem
                                         key={item.id}
                                         inverter={item}
                                         mode="catalog"
-                                        onAdd={() => handleAdd(item)}
+                                        onAdd={(quantity) => handleAdd(item, quantity)}
                                     />
                                 ))}
                             </div>
