@@ -11,6 +11,7 @@ import { useTechStore } from '../store/useTechStore';
 import { cn } from '@/lib/utils';
 import { ModuleInventoryItem } from './ModuleInventoryItem';
 import { ModuleCatalogDialog } from './ModuleCatalogDialog'; // New Dialog
+import { useCatalogStore } from '../store/useCatalogStore';
 import type { ModuleCatalogItem } from '@/core/schemas/moduleSchema';
 import { mapCatalogToSpecs } from '../utils/catalogMappers';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -21,10 +22,7 @@ interface ModuleInventoryProps {
 }
 
 export const ModuleInventory: React.FC<ModuleInventoryProps> = ({ className }) => {
-    // Store mock
-    const availableModules: ModuleCatalogItem[] = [];
-    const isLoading = false;
-    const error = null;
+    const { modules: availableModules, isLoading, error } = useCatalogStore();
     
     const modules = useSolarStore(selectModules);
     const addModule = useSolarStore(state => state.addModule);
@@ -144,7 +142,7 @@ export const ModuleInventory: React.FC<ModuleInventoryProps> = ({ className }) =
                                 const m = group.baseItem;
                                 const qty = group.count;
                                 const isSelected = m.id === selectedModuleId;
-                                const catalogItem = availableModules.find(cat => cat.model === m.model);
+                                const catalogItem = availableModules.find((cat: any) => cat.model === m.model);
                                 if (!catalogItem) return null; // Handle missing catalog item
 
                                 return (

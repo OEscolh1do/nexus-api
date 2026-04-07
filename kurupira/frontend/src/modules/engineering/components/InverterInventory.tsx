@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { InverterInventoryItem } from './InverterInventoryItem';
 import { InverterCatalogDialog } from './InverterCatalogDialog';
 import { useSolarStore } from '@/core/state/solarStore';
+import { useCatalogStore } from '../store/useCatalogStore';
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle, Loader2 } from 'lucide-react';
@@ -25,9 +26,7 @@ export const InverterInventory: React.FC<InverterInventoryProps> = ({ className 
     const addProjectInverter = useSolarStore(state => state.addInverter);
     const { inverters: invertersNormalized, removeInverter, updateInverterQuantity, addInverter: addTechInverter } = useTechStore();
     const selectedInverters = toArray(invertersNormalized);
-    const catalogInverters: any[] = [];
-    const isLoading = false;
-    const error = null;
+    const { inverters: catalogInverters, isLoading, error } = useCatalogStore();
     
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -115,7 +114,7 @@ export const InverterInventory: React.FC<InverterInventoryProps> = ({ className 
                             return (
                                 <div key={invInstance.id}>
                                     <InverterInventoryItem
-                                        inverter={catalogItem}
+                                        inverter={catalogItem as any}
                                         mode="inventory"
                                         quantity={invInstance.quantity}
                                         onQuantityChange={(delta) => {
