@@ -68,7 +68,7 @@ export const useCatalogStore = create<CatalogState>((set) => ({
             minMpptVoltage: ed.minInputV || 40,
             maxMpptVoltage: i.maxInputV || 600,
             maxInputVoltage: i.maxInputV || 600,
-            maxCurrentPerMPPT: defaultMaxI / count,
+            maxCurrentPerMPPT: defaultMaxI, // Conservador: assume valor do datasheet é por-MPPT
             stringsAllowed: 1
         }));
 

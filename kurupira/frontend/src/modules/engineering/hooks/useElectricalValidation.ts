@@ -89,10 +89,12 @@ export const useElectricalValidation = (): UnifiedValidationResult => {
 
             const mpptInputs: MPPTInput[] = techInverters.flatMap(inv => {
                 const catalogSpec = catalogInverters.find((c: any) => c.id === inv.catalogId);
-                if (!catalogSpec) return [];
+                if (!catalogSpec) {
+                    console.warn(`[ElectricalValidation] Inversor ${inv.id} (catalogId: ${inv.catalogId}) sem spec no catálogo — usando fallbacks conservadores.`);
+                }
 
                 return inv.mpptConfigs.map(cfg => {
-                    const specMppt = catalogSpec.mppts?.find((mp: any) => mp.mpptId === cfg.mpptId) || catalogSpec.mppts?.[0];
+                    const specMppt = catalogSpec?.mppts?.find((mp: any) => mp.mpptId === cfg.mpptId) || catalogSpec?.mppts?.[0];
                     
                     // Em P6.4, cfg.stringIds contém as strings LÓGICAS reais atribuídas ao MPPT
                     const assignedStrings = cfg.stringIds
@@ -108,10 +110,10 @@ export const useElectricalValidation = (): UnifiedValidationResult => {
                         mpptId: cfg.mpptId,
                         modulesPerString: maxModulesInAString,
                         stringsCount: activeStringsCount,
-                        maxInputVoltage: specMppt?.maxInputVoltage ?? 800,
-                        minMpptVoltage: specMppt?.minMpptVoltage ?? 100,
-                        maxMpptVoltage: specMppt?.maxMpptVoltage ?? 600,
-                        maxCurrentPerMPPT: specMppt?.maxCurrentPerMPPT ?? 30,
+                        maxInputVoltage: specMppt?.maxInputVoltage ?? 500,
+                        minMpptVoltage: specMppt?.minMpptVoltage ?? 150,
+                        maxMpptVoltage: specMppt?.maxMpptVoltage ?? 500,
+                        maxCurrentPerMPPT: specMppt?.maxCurrentPerMPPT ?? 15,
                     } as MPPTInput;
                 }).filter(input => input.stringsCount > 0 && input.modulesPerString > 0);
             });

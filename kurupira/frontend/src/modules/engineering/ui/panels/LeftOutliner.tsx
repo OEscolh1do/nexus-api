@@ -300,7 +300,7 @@ export const LeftOutliner: React.FC = () => {
   // ── Tree Construction ──
 
   const electricalNodes: TreeNode[] = useMemo(() => inverters.map(inv => {
-    const techInv = techInverters.find(ti => ti.catalogId === inv.id || ti.id === inv.id);
+    const techInv = techInverters.find(ti => ti.id === inv.id) || techInverters.find(ti => ti.catalogId === inv.id);
     const hasError = electrical?.entries?.some(e => e.inverterId === techInv?.id && e.status === 'error');
     const hasWarning = electrical?.entries?.some(e => e.inverterId === techInv?.id && e.status === 'warning');
     const inverterStatus = hasError ? 'error' : hasWarning ? 'warning' : 'ok';
@@ -313,7 +313,14 @@ export const LeftOutliner: React.FC = () => {
         // Verificar validação deste MPPT
         const validationEntry = electrical?.entries?.find(e => e.inverterId === techInv.id && e.mpptId === mppt.mpptId);
 
-        const errorMessage = validationEntry?.messages?.[0]?.includes('Voc') ? 'Sobretensão!' : 'Isc Alta!';
+        const hasVoc = validationEntry?.messages?.some(m => m.includes('Voc'));
+        const hasIsc = validationEntry?.messages?.some(m => m.includes('Isc'));
+        const hasVmp = validationEntry?.messages?.some(m => m.includes('Vmp'));
+        const errorMessage = [
+          hasVoc && 'Sobretensão!',
+          hasIsc && 'Isc Alta!',
+          hasVmp && 'Faixa MPPT!'
+        ].filter(Boolean).join(' + ') || 'Violação!';
 
         const stringChildren: TreeNode[] = mpptStrings.map(str => {
           const strModules = str.moduleIds.map(mid => modules.find(m => m.id === mid)).filter(Boolean) as any[];
