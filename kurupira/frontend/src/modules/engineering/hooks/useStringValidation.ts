@@ -90,10 +90,12 @@ export const useStringValidation = (
             limit: maxIsc
         };
 
+        /* TODO: Reimplementar lógica de Isc Alta futuramente
         if (totalIsc > maxIsc) {
             iscStatus.status = 'error';
             iscStatus.message = `Corrente de curto (${totalIsc.toFixed(1)}A) excede o limite da entrada (${maxIsc}A).`;
         }
+        */
         
         return {
             vocMax: vocStatus,

@@ -318,7 +318,7 @@ export const LeftOutliner: React.FC = () => {
         const hasVmp = validationEntry?.messages?.some(m => m.includes('Vmp'));
         const errorMessage = [
           hasVoc && 'Sobretensão!',
-          hasIsc && 'Isc Alta!',
+          // hasIsc && 'Isc Alta!', // TODO: Reimplementar Isc Alta
           hasVmp && 'Faixa MPPT!'
         ].filter(Boolean).join(' + ') || 'Violação!';
 

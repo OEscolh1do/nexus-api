@@ -200,12 +200,14 @@ export const validateSystemStrings = (
 
         // 4. Isc Total vs Max Current Per MPPT
         const iscTotal = moduleSpecs.isc * input.stringsCount;
+        /* TODO: Reimplementar lógica de Isc Alta futuramente
         if (iscTotal > input.maxCurrentPerMPPT) {
             status = 'error';
             messages.push(
                 `Isc(${iscTotal.toFixed(1)}A) > limite(${input.maxCurrentPerMPPT}A).`
             );
         }
+        */
 
         return {
             inverterId: input.inverterId,
