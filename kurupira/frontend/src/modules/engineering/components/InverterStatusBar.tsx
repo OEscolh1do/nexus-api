@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import { useTechKPIs } from '../hooks/useTechKPIs';
 import { useTechStore } from '../store/useTechStore';
 import { toArray } from '@/core/types/normalized.types';
-import { FDI_LOW_PERCENT, FDI_HIGH_PERCENT, getFdiStatus, FDI_STATUS_CONFIG } from '../constants/thresholds';
+import { getFdiStatus, FDI_STATUS_CONFIG } from '../constants/thresholds';
 
 export const InverterStatusBar: React.FC<{ className?: string }> = ({ className }) => {
     const { kpi } = useTechKPIs();
