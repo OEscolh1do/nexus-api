@@ -105,8 +105,18 @@ export const InverterInventory: React.FC<InverterInventoryProps> = ({ className 
                     </div>
                 ) : (
                     <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2 pb-2">
-                        {selectedInverters.map(invInstance => {
+                        {Object.values(selectedInverters.reduce((acc, inv) => {
+                            const model = inv.snapshot?.model || inv.catalogId;
+                            if (!acc[model]) {
+                                acc[model] = { baseItem: inv, count: 0 };
+                            }
+                            acc[model].count += 1;
+                            return acc;
+                        }, {} as Record<string, { baseItem: any; count: number }>)).map(group => {
+                            const invInstance = group.baseItem;
+                            const qty = group.count;
                             const catalogItem = catalogInverters.find(cat => cat.id === invInstance.catalogId);
+                            
                             // Fallback if catalog item is missing (offline sync issue?)
                             // We construct a temporary display object or handle null
                             if (!catalogItem) return null; 
@@ -116,9 +126,9 @@ export const InverterInventory: React.FC<InverterInventoryProps> = ({ className 
                                     <InverterInventoryItem
                                         inverter={catalogItem as any}
                                         mode="inventory"
-                                        quantity={invInstance.quantity}
+                                        quantity={qty}
                                         onQuantityChange={(delta) => {
-                                            const newQty = Math.max(1, invInstance.quantity + delta);
+                                            const newQty = Math.max(1, qty + delta);
                                             updateInverterQuantity(invInstance.id, newQty);
                                         }}
                                         onRemove={() => removeInverter(invInstance.id)}

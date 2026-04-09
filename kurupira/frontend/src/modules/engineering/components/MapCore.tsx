@@ -23,6 +23,7 @@ import 'leaflet/dist/leaflet.css';
 
 import { useCanvasSize } from '../components/CanvasContainer';
 import { useSolarStore } from '@/core/state/solarStore';
+import { useCenterContent } from '../store/panelStore';
 import { selectCoordinates, selectZoom } from '@/core/state/solarSelectors';
 import { SolarLayer } from './SolarLayer';
 import { MapMeasureTool } from './MapMeasureTool';
@@ -64,6 +65,61 @@ const MapInvalidator: React.FC = () => {
     }, 50);
     return () => clearTimeout(timer);
   }, [map, canvasSize.width, canvasSize.height]);
+
+  return null;
+};
+
+/**
+ * MapVisibilityObserver — Auto-invalida o tamanho do Leaflet quando o mapa
+ * transiciona de oculto para visível (display:none → block durante center swap).
+ * Usa IntersectionObserver para desacoplar MapCore do panelStore (SPEC-000 §Conflito 4).
+ */
+const MapVisibilityObserver: React.FC = () => {
+  const map = useMap();
+
+  useEffect(() => {
+    const container = map.getContainer();
+    if (!container) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          // Leaflet precisa recalcular tamanho após display:none → block
+          setTimeout(() => map.invalidateSize(), 50);
+        }
+      },
+      { threshold: 0.1 },
+    );
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [map]);
+
+  return null;
+};
+
+/**
+ * MapMinimapObserver — Escuta o estado isMinimap e trava interações
+ * do Leaflet quando ele está encapsulado na doca (evitando bugs de scroll).
+ */
+const MapMinimapObserver: React.FC = () => {
+  const map = useMap();
+  const centerContent = useCenterContent();
+  const isMinimap = centerContent !== 'map';
+
+  useEffect(() => {
+    if (isMinimap) {
+      map.dragging.disable();
+      map.scrollWheelZoom.disable();
+      map.doubleClickZoom.disable();
+      setTimeout(() => map.invalidateSize(), 150);
+    } else {
+      map.dragging.enable();
+      map.scrollWheelZoom.enable();
+      map.doubleClickZoom.enable();
+      setTimeout(() => map.invalidateSize(), 150);
+    }
+  }, [map, isMinimap]);
 
   return null;
 };
@@ -152,8 +208,10 @@ const MapCoreInner: React.FC<MapCoreProps> = ({ activeTool }) => {
         crossOrigin={true}
       />
 
-      {/* Sincronização de resize e viewport */}
+      {/* Sincronização de resize, visibilidade e viewport */}
       <MapInvalidator />
+      <MapVisibilityObserver />
+      <MapMinimapObserver />
       <MapViewSync />
       <MapFlyToSync />
 

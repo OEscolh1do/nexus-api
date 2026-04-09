@@ -12,7 +12,7 @@
 │                     TOP RIBBON                           │
 ├──────────┬──────────────────────────┬────────────────────┤
 │          │                          │                    │
-│   LEFT   │      CENTER CANVAS      │      RIGHT         │
+│   LEFT   │      CENTER CANVAS       │      RIGHT         │
 │ OUTLINER │       (Mapa + WebGL)     │    INSPECTOR       │
 │          │                          │                    │
 │          │                          ├────────────────────┤

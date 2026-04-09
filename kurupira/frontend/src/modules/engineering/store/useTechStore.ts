@@ -135,7 +135,7 @@ export const useTechStore = create<TechState>((set, get) => ({
 
   setSelectedModuleId: (id) => set({ selectedModuleId: id }),
 
-  addInverter: (equipment, providedId) => {
+  addInverter: (equipment, providedId) => set(state => {
       // Defensivo: mppts pode vir como array (CatalogStore) ou number (adapter/SolarStore)
       const mpptCount = Array.isArray(equipment.mppts)
           ? equipment.mppts.length
@@ -144,25 +144,34 @@ export const useTechStore = create<TechState>((set, get) => ({
       const nominalPower = equipment.nominalPower
           || (equipment.nominalPowerW ? equipment.nominalPowerW / 1000 : 0);
 
-      const newInverter: InverterState = {
-          id: providedId || Math.random().toString(36).substr(2, 9),
-          catalogId: equipment.id || '',
-          quantity: equipment.quantity || 1,
-          mpptConfigs: createDefaultMPPTConfig(mpptCount),
-          snapshot: {
-              model: equipment.model,
-              nominalPower,
-              mppts: mpptCount,
-          },
-      };
+      const qty = equipment.quantity || 1;
+      const newEntities = { ...state.inverters.entities };
+      const newIds = [...state.inverters.ids];
 
-      set(state => ({
+      for (let i = 0; i < qty; i++) {
+          const instanceId = i === 0 && providedId ? providedId : Math.random().toString(36).substr(2, 9);
+          const newInverter: InverterState = {
+              id: instanceId,
+              catalogId: equipment.id || '',
+              quantity: 1, // Fix: O inventário será sempre 1 por unidade para inverters
+              mpptConfigs: createDefaultMPPTConfig(mpptCount),
+              snapshot: {
+                  model: equipment.model,
+                  nominalPower,
+                  mppts: mpptCount,
+              },
+          };
+          newIds.push(instanceId);
+          newEntities[instanceId] = newInverter;
+      }
+
+      return {
         inverters: {
-          ids: [...state.inverters.ids, newInverter.id],
-          entities: { ...state.inverters.entities, [newInverter.id]: newInverter },
+          ids: newIds,
+          entities: newEntities,
         },
-      }));
-  },
+      };
+  }),
 
   removeInverter: (id) => set(state => {
       const { [id]: _, ...remaining } = state.inverters.entities;
@@ -197,15 +206,48 @@ export const useTechStore = create<TechState>((set, get) => ({
       };
   }),
 
-  updateInverterQuantity: (id, qty) => set(state => ({
-      inverters: {
-        ...state.inverters,
-        entities: {
-          ...state.inverters.entities,
-          [id]: { ...state.inverters.entities[id], quantity: Math.max(1, qty) },
+  updateInverterQuantity: (id, targetQty) => set(state => {
+      const baseInstance = state.inverters.entities[id];
+      if (!baseInstance) return state;
+
+      const modelName = baseInstance.snapshot?.model || baseInstance.catalogId;
+      const allInstancesOfModel = state.inverters.ids.filter(
+          i => (state.inverters.entities[i]?.snapshot?.model || state.inverters.entities[i]?.catalogId) === modelName
+      );
+      const currentQty = allInstancesOfModel.length;
+
+      if (targetQty === currentQty) return state;
+
+      const newEntities = { ...state.inverters.entities };
+      let newIds = [...state.inverters.ids];
+
+      if (targetQty > currentQty) {
+          const diff = targetQty - currentQty;
+          for (let i = 0; i < diff; i++) {
+              const newId = Math.random().toString(36).substr(2, 9);
+              newIds.push(newId);
+              newEntities[newId] = { 
+                  ...baseInstance, 
+                  id: newId,
+                  // Reseta o mpptConfigs criando um deep clone fresquinho
+                  mpptConfigs: baseInstance.mpptConfigs.map(m => ({ ...m, stringIds: [] }))
+              };
+          }
+      } else {
+          // Remove LIFO (Last In First Out)
+          const diff = currentQty - targetQty;
+          const idsToRemove = allInstancesOfModel.slice(-diff);
+          newIds = newIds.filter(i => !idsToRemove.includes(i));
+          idsToRemove.forEach(i => delete newEntities[i]);
+      }
+
+      return {
+        inverters: {
+          ids: newIds,
+          entities: newEntities,
         },
-      },
-  })),
+      };
+  }),
 
 
 

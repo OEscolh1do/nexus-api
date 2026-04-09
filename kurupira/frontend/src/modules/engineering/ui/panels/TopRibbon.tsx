@@ -12,13 +12,13 @@
  */
 
 import {
-  MousePointer2, Pentagon, Ruler, LayoutGrid,
   Sun, Zap, Info, CheckCircle2, AlertTriangle, Scale,
   PanelLeftClose, PanelLeftOpen,
   PanelRightClose, PanelRightOpen,
   Undo2, Redo2, Download, LayoutDashboard,
-  Activity, ChevronDown, Flag, Check, User, type LucideIcon
+  Activity, ChevronDown, Flag, Check, User
 } from 'lucide-react';
+import { usePanelStore } from '../../store/panelStore';
 import { ClientDataModal } from '../components/ClientDataModal';
 import React from 'react';
 import { useSolarStore, selectModules, selectInverters, selectClientData } from '@/core/state/solarStore';
@@ -27,26 +27,9 @@ import { useTechKPIs } from '../../hooks/useTechKPIs';
 import { useElectricalValidation } from '../../hooks/useElectricalValidation';
 import { useProjectContext } from '@/hooks/useProjectContext';
 import { cn } from '@/lib/utils';
-import { useUIStore, type Tool } from '@/core/state/uiStore';
+import { useUIStore } from '@/core/state/uiStore';
 import { getFdiStatus, FDI_STATUS_CONFIG } from '../../constants/thresholds';
 
-// =============================================================================
-// TOOL CONFIG
-// =============================================================================
-
-interface ToolConfig {
-  id: Tool;
-  icon: LucideIcon;
-  label: string;
-  shortcut: string;
-}
-
-const TOOLS: ToolConfig[] = [
-  { id: 'SELECT', icon: MousePointer2, label: 'Selecionar', shortcut: 'V' },
-  { id: 'POLYGON', icon: Pentagon, label: 'Desenhar Polígono', shortcut: 'P' },
-  { id: 'MEASURE', icon: Ruler, label: 'Medir Distância', shortcut: 'M' },
-  { id: 'PLACE_MODULE', icon: LayoutGrid, label: 'Colocar Módulos', shortcut: 'L' },
-];
 
 // =============================================================================
 // PROPS
@@ -71,8 +54,6 @@ export const TopRibbon: React.FC<TopRibbonProps> = ({
 }) => {
   const setActiveModule = useSolarStore(state => state.setActiveModule);
   const clientData = useSolarStore(selectClientData);
-  const activeTool = useUIStore(s => s.activeTool);
-  const setActiveTool = useUIStore(s => s.setActiveTool);
   const [isClientModalOpen, setIsClientModalOpen] = React.useState(false);
 
   // Zundo Temporal Store for Undo/Redo
@@ -135,30 +116,6 @@ export const TopRibbon: React.FC<TopRibbonProps> = ({
         >
           {rightOpen ? <PanelRightClose size={14} /> : <PanelRightOpen size={14} />}
         </button>
-      </div>
-
-      {/* ── CENTER: Tool Palette ── */}
-      {/* P2-1: Tool Buttons */}
-      <div className="flex items-center gap-1 bg-slate-900 rounded-lg p-1 border border-slate-800">
-        {TOOLS.map((tool) => {
-          const Icon = tool.icon;
-          return (
-            <button
-              key={tool.id}
-              onClick={() => setActiveTool(tool.id)}
-              title={`${tool.label} (${tool.shortcut})`}
-              className={cn(
-                "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold transition-all",
-                activeTool === tool.id
-                  ? "bg-emerald-500 text-slate-950 shadow-sm"
-                  : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-              )}
-            >
-              <Icon size={12} className={activeTool === tool.id ? "text-slate-900" : "text-slate-500"} />
-              <span className="hidden xl:inline">{tool.label}</span>
-            </button>
-          );
-        })}
       </div>
 
       {/* ── METRICS WIDGETS (P1-2) ── */}
@@ -231,6 +188,13 @@ export const TopRibbon: React.FC<TopRibbonProps> = ({
             if (isExporting) return;
             setIsExporting(true);
             try {
+              // SPEC-000 §Inconsistência 1: Garante mapa visível antes de capturar
+              const panelState = usePanelStore.getState();
+              if (panelState.centerContent !== 'map') {
+                panelState.restoreMap();
+                await new Promise(r => setTimeout(r, 300)); // Aguarda Leaflet re-render
+              }
+
               console.log('[TopRibbon] Iniciando geração da proposta...');
               const { captureViewport } = await import('@/modules/proposal/utils/captureViewport');
               const { ProjectService } = await import('@/services/ProjectService');
@@ -505,3 +469,5 @@ const EngineeringGuidelinesWidget: React.FC = () => {
         </div>
     );
 };
+
+

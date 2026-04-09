@@ -1,20 +1,20 @@
 /**
  * =============================================================================
- * WORKSPACE LAYOUT — Esqueleto CSS Grid (Fase 3 do UX-001)
+ * WORKSPACE LAYOUT — Esqueleto CSS Grid (UX-002 SPEC-004)
  * =============================================================================
  *
- * Esqueleto rígido e absoluto que organiza os 4 órgãos vitais do workspace
- * de engenharia em áreas fixas de CSS Grid (100vh, 100vw, overflow: hidden).
+ * Esqueleto rígido que organiza os 3 órgãos vitais do workspace de engenharia
+ * em áreas fixas de CSS Grid.
  *
- * NÃO guarda estado de domínio. Seu único trabalho é manter os painéis
- * fixos e gerenciar o redimensionamento.
+ * REFATORADO: Grid simplificado de 4 → 3 colunas.
+ * O PropertiesDrawer foi absorvido como PanelGroup dentro do dock (RightInspector).
  *
  * Layout:
  * ┌────────────────────────────────────────────┐
  * │              TOP RIBBON                     │
  * ├────────┬───────────────────────┬────────────┤
- * │  LEFT  │                       │   RIGHT    │
- * │OUTLINER│    CENTER CANVAS      │ INSPECTOR  │
+ * │  LEFT  │                       │   DOCK     │
+ * │OUTLINER│    CENTER CANVAS      │ (Inspector)│
  * │        │                       │            │
  * ├────────┴───────────────────────┴────────────┤
  * └────────────────────────────────────────────┘
@@ -28,10 +28,8 @@ import { CenterCanvas } from '../panels/CenterCanvas';
 import { CanvasContainer } from '../panels/CanvasContainer';
 import { LeftOutliner } from '../panels/LeftOutliner';
 import { RightInspector } from '../panels/RightInspector';
-import { PropertiesDrawer } from '../panels/properties/PropertiesDrawer';
 import { useSolarStore, selectModules } from '@/core/state/solarStore';
 import { useTechStore } from '../../store/useTechStore';
-import { useSelectedEntity } from '@/core/state/uiStore';
 import { useCatalogStore } from '../../store/useCatalogStore';
 
 // =============================================================================
@@ -106,14 +104,10 @@ export const WorkspaceLayout: React.FC = () => {
     }
   }, [catalogModules, catalogInverters, userModules.length, addModule]);
 
-  // Detect if an entity is selected to show the Properties Drawer
-  const selectedEntity = useSelectedEntity();
-  const isDrawerOpen = selectedEntity.type !== 'none';
-
-  // Grid template columns — dynamic based on panel visibility + drawer
+  // Grid template columns — dynamic based on panel visibility
+  // Simplified from 4 → 3 columns (PropertiesDrawer absorbed into dock)
   const gridCols = [
     leftOpen ? '240px' : '0px',
-    isDrawerOpen ? '280px' : '0px',
     '1fr',
     rightOpen ? '300px' : '0px',
   ].join(' ');
@@ -126,8 +120,8 @@ export const WorkspaceLayout: React.FC = () => {
         gridTemplateRows: '40px 1fr',
         gridTemplateColumns: gridCols,
         gridTemplateAreas: `
-          "ribbon ribbon ribbon ribbon"
-          "outliner drawer canvas inspector"
+          "ribbon ribbon ribbon"
+          "outliner canvas dock"
         `,
       }}
     >
@@ -151,27 +145,17 @@ export const WorkspaceLayout: React.FC = () => {
         </div>
       )}
 
-      {/* ── PROPERTIES DRAWER (row 2, col 2 — conditional) ── */}
-      {isDrawerOpen && (
-        <div
-          style={{ gridArea: 'drawer' }}
-          className="overflow-hidden border-r border-slate-800/50 z-10"
-        >
-          <PropertiesDrawer />
-        </div>
-      )}
-
-      {/* ── CENTER CANVAS (row 2, col 3) ── */}
+      {/* ── CENTER CANVAS (row 2, col 2) ── */}
       <div id="engineering-viewport" style={{ gridArea: 'canvas' }} className="overflow-hidden relative z-0">
         <CanvasContainer>
           <CenterCanvas />
         </CanvasContainer>
       </div>
 
-      {/* ── RIGHT INSPECTOR (row 2, col 3) ── */}
+      {/* ── DOCK / RIGHT INSPECTOR (row 2, col 3) ── */}
       {rightOpen && (
         <div
-          style={{ gridArea: 'inspector' }}
+          style={{ gridArea: 'dock' }}
           className="overflow-hidden border-l border-slate-800/50 z-10"
         >
           <RightInspector />

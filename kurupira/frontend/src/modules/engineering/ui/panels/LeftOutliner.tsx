@@ -314,7 +314,6 @@ export const LeftOutliner: React.FC = () => {
         const validationEntry = electrical?.entries?.find(e => e.inverterId === techInv.id && e.mpptId === mppt.mpptId);
 
         const hasVoc = validationEntry?.messages?.some(m => m.includes('Voc'));
-        const hasIsc = validationEntry?.messages?.some(m => m.includes('Isc'));
         const hasVmp = validationEntry?.messages?.some(m => m.includes('Vmp'));
         const errorMessage = [
           hasVoc && 'Sobretensão!',
