@@ -1,345 +1,193 @@
-import React, { useState, useMemo } from 'react';
-import { 
-  BarChart3, Plus, Trash2, BatteryCharging,
-  Zap, Target, Info
-} from 'lucide-react';
-import { 
-  ComposedChart, Bar, Line, Area, XAxis, YAxis, 
-  CartesianGrid, Tooltip, Legend, ResponsiveContainer 
-} from 'recharts';
+import React, { useMemo } from 'react';
 import { useSolarStore } from '@/core/state/solarStore';
 import { useTechStore } from '../../../store/useTechStore';
-
-// Tipagem da sandbox transiente
-type UsageProfile = 'constant' | 'summer' | 'winter';
-
-interface VirtualLoad {
-  id: string;
-  name: string;
-  kwH_per_month: number;
-  profile: UsageProfile;
-}
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  RadialBarChart, RadialBar, PolarAngleAxis
+} from 'recharts';
+import { BarChart3 } from 'lucide-react'; 
 
 const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
 export const SimulationCanvasView: React.FC = () => {
-  // Global Data
+  // Store Global Data
   const monthlyConsumption = useSolarStore((state) => state.clientData.invoices[0]?.monthlyHistory || Array(12).fill(state.clientData.averageConsumption || 0));
   const hsp = useSolarStore((state) => state.clientData.monthlyIrradiation || Array(12).fill(0));
-  const tariffRate = useSolarStore((state) => state.clientData.tariffRate || 0.92);
-  const connectionType = useSolarStore((state) => state.clientData.connectionType || 'monofasico');
   const getPerformanceRatio = useTechStore((state) => state.getPerformanceRatio);
 
-  // Local Sandbox State for Virtual Loads
-  const [virtualLoads, setVirtualLoads] = useState<VirtualLoad[]>([]);
-  const [newLoadName, setNewLoadName] = useState('');
-  const [newLoadKwh, setNewLoadKwh] = useState<number | ''>('');
-  const [newLoadProfile, setNewLoadProfile] = useState<UsageProfile>('constant');
-
   const prDecimal = getPerformanceRatio();
-  const P_NOMINAL = 5.0; // Placeholder kWp: Em um backend full isso viria da soma real dos módulos. Usei 5kWp hardcoded simulado.
+  const P_NOMINAL = 5.0; // Placeholder kWp: Em um backend full isso viria da soma real dos módulos.
 
-  // Helper de sazonalidade
-  const isSummer = (monthIdx: number) => [0, 1, 2, 9, 10, 11].includes(monthIdx);
-  const isWinter = (monthIdx: number) => [4, 5, 6, 7].includes(monthIdx);
+  // Calculadora de Inteligência (BI Aggregators)
+  const dashboardStats = useMemo(() => {
+    let sumConsumption = 0;
+    let sumGeneration = 0;
 
-  // Helper financeiro (Art 624 ANEEL)
-  const minChargeKwh = useMemo(() => {
-    if (connectionType === 'trifasico') return 100;
-    if (connectionType === 'bifasico') return 50;
-    return 30; // monofasico
-  }, [connectionType]);
-
-  // Dataset generation for Recharts
-  const chartData = useMemo(() => {
-    let accumulatedCredits = 0; // "Bateria Virtual" que reseta no inicio do ano fiscal.
-    let totalAnnualSavings = 0; // Lógica financeira C-Level
-
-    const data = MONTHS.map((month, index) => {
-      const baseConsumption = monthlyConsumption[index] || 0;
+    const barData = MONTHS.map((month, index) => {
+      const consumoMensal = monthlyConsumption[index] || 0;
       
-      // Simulador Sazonal Dinâmico
-      const virtualThisMonth = virtualLoads.reduce((sum, load) => {
-        if (load.profile === 'summer' && !isSummer(index)) return sum;
-        if (load.profile === 'winter' && !isWinter(index)) return sum;
-        return sum + load.kwH_per_month;
-      }, 0);
-      
-      // Geração Normativa = P_nom * HSP(mes) * DiasExatosDoMes * PR
       const hspValue = hsp[index] || 0;
-      const estimatedGeneration = P_NOMINAL * hspValue * DAYS_IN_MONTH[index] * prDecimal;
+      // Geração Normativa Mes a Mes = Potência * HSP Medio * Dias do Mês * Eficiencia Total
+      const geracaoEstimada = P_NOMINAL * hspValue * DAYS_IN_MONTH[index] * prDecimal;
 
-      // Balanço do Mês e Estocagem
-      const totalConsumption = baseConsumption + virtualThisMonth;
-      
-      // Financeiro (Com FV vs Sem FV)
-      const costWithoutSolar = totalConsumption * tariffRate;
-      
-      // O excedente abateria o consumo até zerar, mas a ANEEL cobra a rede.
-      // Estando o sistema grid-tied, a cobrança KWh mínima sempre incide se o excedente zerar o relógio.
-      const rawBilled = Math.max(0, totalConsumption - estimatedGeneration);
-      const kwhBilledPostSolar = Math.max(minChargeKwh, rawBilled);
-      const costWithSolar = kwhBilledPostSolar * tariffRate;
-      
-      totalAnnualSavings += Math.max(0, costWithoutSolar - costWithSolar);
-
-      const monthlyBalance = estimatedGeneration - totalConsumption;
-      accumulatedCredits = Math.max(0, accumulatedCredits + monthlyBalance);
+      sumConsumption += consumoMensal;
+      sumGeneration += geracaoEstimada;
 
       return {
-        name: month,
-        "Consumo Real": baseConsumption,
-        "Nova Carga Simulada": virtualThisMonth,
-        "Geração Estimada": estimatedGeneration,
-        "Saldo de Créditos": accumulatedCredits
+        month,
+        "Consumo (kWh)": consumoMensal,
+        "Geração (kWh)": geracaoEstimada
       };
     });
 
-    // Anexar o Savings global numa prop do array pra ser lida depois facilmente
-    return { data, totalAnnualSavings };
-  }, [monthlyConsumption, hsp, prDecimal, virtualLoads, tariffRate, minChargeKwh]);
+    const netBalance = sumGeneration - sumConsumption;
+    const coveragePercentage = sumConsumption > 0 ? (sumGeneration / sumConsumption) * 100 : 0;
 
-  // Resumo anual em dezembro
-  const finalYearCredit = chartData.data[11]?.["Saldo de Créditos"] || 0;
+    // Capping Cobertura a max 150% pro gráfico de rosca pra nao estourar loop.
+    const radialData = [{
+      name: 'Cobertura',
+      value: Math.min(coveragePercentage, 150),
+      fill: coveragePercentage >= 100 ? '#10b981' : '#f43f5e'
+    }];
 
-  // Ações do Sandbox
-  const handleAddLoad = () => {
-    if (!newLoadName.trim() || newLoadKwh === '' || newLoadKwh <= 0) return;
-    setVirtualLoads([
-      ...virtualLoads, 
-      { id: Date.now().toString(), name: newLoadName, kwH_per_month: Number(newLoadKwh), profile: newLoadProfile }
-    ]);
-    setNewLoadName('');
-    setNewLoadKwh('');
-    setNewLoadProfile('constant');
-  };
+    return { 
+      barData, 
+      radialData,
+      totalConsumption: sumConsumption, 
+      totalGeneration: sumGeneration, 
+      netBalance, 
+      coveragePercentage 
+    };
+  }, [monthlyConsumption, hsp, prDecimal]);
 
-  const handleRemoveLoad = (id: string) => {
-    setVirtualLoads(virtualLoads.filter(l => l.id !== id));
-  };
-
+  // UI Helpers
+  const isPositiveBalance = dashboardStats.netBalance >= 0;
 
   return (
-    <div className="w-full h-full p-6 md:p-10 flex flex-col items-center">
-      <div className="w-full max-w-7xl space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="w-full min-h-full p-6 md:p-10 flex flex-col items-center overflow-y-auto">
+      <div className="w-full max-w-7xl animate-in fade-in slide-in-from-bottom-4 duration-500">
         
         {/* HEADER */}
-        <header className="flex flex-col md:flex-row md:items-end justify-between border-b border-slate-800 pb-6 gap-4">
+        <header className="flex flex-col md:flex-row md:items-end justify-between border-b border-slate-800 pb-6 mb-8 gap-4">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2.5 rounded-xl bg-teal-500/10 border border-teal-500/20">
-                <BarChart3 size={24} className="text-teal-400" />
+              <div className="p-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
+                <BarChart3 size={24} className="text-indigo-400" />
               </div>
-              <h1 className="text-3xl font-black text-slate-100 tracking-tight">Motor Analítico de Simulação</h1>
+              <h1 className="text-3xl font-black text-slate-100 tracking-tight">Dashboard de Geração</h1>
             </div>
             <p className="text-slate-500 font-medium max-w-xl">
-              Cenários de dimensionamento preditivo. Análise de cobertura técnica isolada de faturamentos contábeis.
+              Comparativo paramétrico de geração projetada contra fatura histórica atual.
             </p>
-          </div>
-
-          <div className="flex gap-3">
-            <div className="px-4 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex flex-col justify-center gap-0.5">
-              <span className="text-[10px] uppercase font-bold text-emerald-500/70 tracking-widest leading-none">Economia Projetada Ano 1</span>
-              <span className="text-emerald-400 font-extrabold text-lg leading-none">
-                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(chartData.totalAnnualSavings)}
-              </span>
-            </div>
-            <div className="px-4 py-2 rounded-lg bg-teal-500/10 border border-teal-500/20 text-teal-400 text-sm font-bold flex flex-col justify-center items-center">
-              <div className="flex items-center gap-2"><Target size={16} /> Sandbox Transiente</div>
-            </div>
           </div>
         </header>
 
-        {/* MAIN LAYOUT */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* TOP ROW: KPIs */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           
-          {/* ==========================================================
-              COLUNA 1: LOAD SIMULATOR (CARRINHO DE CARGAS ESTÁTICAS)
-              ========================================================== */}
-          <div className="col-span-1 space-y-6">
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/50 backdrop-blur-xl p-6 shadow-xl flex flex-col h-full shrink-0">
-               <div className="flex items-center gap-3 mb-6">
-                <BatteryCharging size={18} className="text-amber-400" />
-                <h3 className="text-lg font-bold text-slate-200">Load Simulator</h3>
-              </div>
-              
-              <p className="text-sm text-slate-400 mb-6 font-medium">
-                Adicione cargas futuras estimadas à planilha do cliente (ex: carro elétrico, nova geladeira) sem contaminar permanentemente os dados do medidor local.
-              </p>
-
-              {/* Formulário de Adição */}
-              <div className="space-y-3 mb-6 p-4 rounded-xl border border-slate-800 bg-slate-950">
-                <div className="flex flex-col gap-1.5 focus-within:text-teal-400 text-slate-400">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-inherit">Descrição da Carga</label>
-                  <input 
-                    type="text" value={newLoadName} onChange={(e) => setNewLoadName(e.target.value)}
-                    placeholder="Ex: Ar Condicionado 12k BTU"
-                    className="bg-transparent border-b border-slate-800 hover:border-slate-700 focus:border-teal-500 focus:outline-none text-sm font-medium text-slate-200 transition-colors pb-1"
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5 focus-within:text-teal-400 text-slate-400">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-inherit">Consumo Adicional (kWh/mês)</label>
-                  <div className="flex gap-2">
-                    <input 
-                      type="number" value={newLoadKwh} onChange={(e) => setNewLoadKwh(e.target.value === '' ? '' : Number(e.target.value))}
-                      placeholder="Ex: 120"
-                      className="bg-transparent border-b border-slate-800 hover:border-slate-700 focus:border-teal-500 focus:outline-none text-sm font-medium text-slate-200 transition-colors pb-1 w-full"
-                    />
-                    <button 
-                      onClick={handleAddLoad}
-                      disabled={!newLoadName.trim() || newLoadKwh === '' || newLoadKwh <= 0}
-                      className="p-1.5 rounded-md bg-teal-500/20 text-teal-400 border border-teal-500/50 hover:bg-teal-500 hover:text-slate-900 transition-colors disabled:opacity-30 disabled:pointer-events-none shrink-0"
-                    >
-                      <Plus size={18} />
-                    </button>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-1.5 focus-within:text-teal-400 text-slate-400 mt-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-inherit">Sazonalidade</label>
-                  <select 
-                    value={newLoadProfile} onChange={(e) => setNewLoadProfile(e.target.value as UsageProfile)}
-                    className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 focus:outline-none focus:border-teal-500 text-slate-200 text-sm font-medium transition-colors"
-                  >
-                    <option value="constant">Ano Todo (Contínuo)</option>
-                    <option value="summer">Somente Verão (Nov-Mar)</option>
-                    <option value="winter">Somente Inverno (Mai-Ago)</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Lista Transiente */}
-              <div className="flex-1 space-y-2 overflow-y-auto min-h-[100px]">
-                {virtualLoads.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-slate-500 border border-dashed border-slate-800 rounded-lg p-4">
-                     <span className="text-xs font-bold uppercase tracking-widest text-center mt-2">Nenhuma Carga Extra</span>
-                  </div>
-                ) : (
-                  virtualLoads.map((load) => (
-                    <div key={load.id} className="flex items-center justify-between p-3 rounded-lg bg-emerald-950/20 border border-emerald-500/10">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-bold text-slate-300">{load.name}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">+{load.kwH_per_month} kWh/mês</span>
-                          <span className="text-[10px] font-bold text-slate-500 uppercase">
-                            ({load.profile === 'summer' ? 'Verão' : load.profile === 'winter' ? 'Inverno' : 'Contínuo'})
-                          </span>
-                        </div>
-                      </div>
-                      <button 
-                        onClick={() => handleRemoveLoad(load.id)}
-                        className="text-slate-500 hover:text-red-400 transition-colors p-1"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
+          {/* Card Consumo */}
+          <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col justify-center">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Total Consolidado (Base)</span>
+            <span className="text-3xl font-black text-slate-300">
+               {Math.round(dashboardStats.totalConsumption).toLocaleString('pt-BR')} <span className="text-base text-slate-500 font-bold">kWh/ano</span>
+            </span>
           </div>
 
+          {/* Card Geração */}
+          <div className="p-6 rounded-2xl bg-emerald-950/20 border border-emerald-500/20 flex flex-col justify-center">
+            <span className="text-xs font-bold text-emerald-500/70 uppercase tracking-widest mb-2">Energia Estimada Produzida</span>
+            <span className="text-3xl font-black text-emerald-400">
+               {Math.round(dashboardStats.totalGeneration).toLocaleString('pt-BR')} <span className="text-base text-emerald-600 font-bold">kWh/ano</span>
+            </span>
+          </div>
 
-          {/* ==========================================================
-              COLUNA 2 & 3: RECHARTS CANVAS (PERFORMANCE GRID)
-              ========================================================== */}
-           <div className="col-span-1 lg:col-span-2 space-y-6">
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/50 backdrop-blur-xl p-6 shadow-xl flex flex-col h-[500px]">
-              
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <Zap size={18} className="text-emerald-400" />
-                  <h3 className="text-lg font-bold text-slate-200">Taxa de Cobertura Energética</h3>
-                </div>
-                
-                {/* Stats */}
-                <div className="flex items-center gap-4 bg-slate-950/50 p-2 rounded-lg border border-slate-800">
-                  <div className="flex items-center gap-2 px-2 border-r border-slate-800">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase">Pot. Nominal</span>
-                    <span className="text-sm font-black text-slate-300 font-mono">{P_NOMINAL.toFixed(1)} kWp</span>
-                  </div>
-                  <div className="flex items-center gap-2 px-2 border-r border-slate-800">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase">Performance (PR)</span>
-                    <span className="text-sm font-black text-indigo-400 font-mono">{(prDecimal * 100).toFixed(1)}%</span>
-                  </div>
-                  <div className={`flex items-center gap-2 pr-2 ${finalYearCredit > 0 ? 'text-teal-400' : 'text-rose-400'}`}>
-                    <span className="text-[10px] font-bold text-slate-500 uppercase">Banco em 31/Dez</span>
-                    <span className="text-sm font-black font-mono">{finalYearCredit > 0 ? '+' : ''}{Math.round(finalYearCredit)} kWh</span>
-                  </div>
-                </div>
-              </div>
-
-               <p className="text-sm font-medium text-slate-400 pb-4">
-                 Gráfico mesclado empilhando dados contabilizados (Conta Domiciliar Média) com o stress de consumo (Sandbox) para forçar rupturas na capacidade fotovoltaica gerada (Threshold Verde).
-              </p>
-
-              {/* RECHARTS COMPONENT */}
-              <div className="flex-1 w-full min-h-[250px] min-w-0" style={{ containerType: 'inline-size' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart
-                    data={chartData.data}
-                    margin={{ top: 20, right: 0, left: -20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                    <XAxis 
-                      dataKey="name" 
-                      stroke="#475569" 
-                      tick={{ fill: '#64748b', fontSize: 12, fontWeight: 'bold' }} 
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis 
-                      stroke="#475569" 
-                      tick={{ fill: '#64748b', fontSize: 12 }} 
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px' }}
-                      itemStyle={{ fontWeight: 'bold' }}
-                      cursor={{ fill: '#1e293b', opacity: 0.4 }}
-                    />
-                    <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 'bold', color: '#cbd5e1' }} />
-                    
-                    {/* Bateria Virtual (Area) Renderiza ao Fundo */}
-                    <Area 
-                      type="monotone" 
-                      dataKey="Saldo de Créditos" 
-                      fill="#3b82f6" 
-                      stroke="#3b82f6" 
-                      fillOpacity={0.10} 
-                      strokeWidth={1}
-                      strokeDasharray="4 4"
-                    />
-
-                    {/* Barra de Consumo Empilhada (Stacked) */}
-                    <Bar dataKey="Consumo Real" stackId="a" fill="#475569" radius={[0, 0, 4, 4]} maxBarSize={40} />
-                    <Bar dataKey="Nova Carga Simulada" stackId="a" fill="#f59e0b" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                    
-                    {/* Linha/Barra de Geração (Trend de Cobertura) */}
-                    <Line 
-                      type="monotone" 
-                      dataKey="Geração Estimada" 
-                      stroke="#10b981" 
-                      strokeWidth={3} 
-                      dot={{ r: 4, strokeWidth: 2, fill: '#0f172a' }} 
-                      activeDot={{ r: 6, fill: '#10b981' }} 
-                    />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </div>
-
-               <div className="mt-4 pt-4 border-t border-slate-800 flex items-start gap-2">
-                <Info size={14} className="text-slate-500 shrink-0 mt-0.5" />
-                <p className="text-[10px] text-slate-500 font-medium">
-                  A Geração Estimada utiliza valor genérico padrão de Topologia. O algoritmo definitivo exige conexão com Módulos Reais instanciados pela loja e fatores de *mismatch* angulares de rastreadores para atingir precisão forense.
-                </p>
-              </div>
-
-            </div>
+          {/* Card Balanço Líquido */}
+          <div className={`p-6 rounded-2xl border flex flex-col justify-center ${isPositiveBalance ? 'bg-teal-950/20 border-teal-500/30' : 'bg-rose-950/20 border-rose-500/20'}`}>
+            <span className={`text-xs font-bold uppercase tracking-widest mb-2 ${isPositiveBalance ? 'text-teal-500/70' : 'text-rose-500/70'}`}>
+              Balanço Físico (Sobra/Falta)
+            </span>
+            <span className={`text-3xl font-black ${isPositiveBalance ? 'text-teal-400' : 'text-rose-400'}`}>
+               {isPositiveBalance ? '+' : ''}{Math.round(dashboardStats.netBalance).toLocaleString('pt-BR')} <span className="text-base opacity-70 font-bold">kWh/ano</span>
+            </span>
           </div>
 
         </div>
+
+        {/* MIDDLE ROW: CHARTS */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* Main Chart (BarCharts Lado-a-Lado) */}
+          <div className="lg:col-span-2 p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl flex flex-col h-[400px]">
+             <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6">Matriz Mensal: Consumo vs Geração</h3>
+             
+             <div className="flex-1 w-full min-h-0">
+               <ResponsiveContainer width="100%" height="100%">
+                 <BarChart data={dashboardStats.barData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                   <XAxis dataKey="month" stroke="#475569" tick={{ fill: '#64748b', fontSize: 12, fontWeight: '600' }} axisLine={false} tickLine={false} />
+                   <YAxis stroke="#475569" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
+                   <Tooltip 
+                     contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', color: '#f8fafc' }}
+                     itemStyle={{ fontWeight: 'bold' }}
+                     cursor={{ fill: '#1e293b', opacity: 0.4 }}
+                   />
+                   <Legend iconType="circle" wrapperStyle={{ fontSize: '13px', fontWeight: 'bold', color: '#cbd5e1', paddingTop: '10px' }} />
+                   
+                   {/* Barras Gêmeas - NÃO SÃO STACKED, SÃO SIDE-BY-SIDE NATIVO */}
+                   <Bar dataKey="Consumo (kWh)" fill="#475569" radius={[4, 4, 0, 0]} maxBarSize={45} />
+                   <Bar dataKey="Geração (kWh)" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={45} />
+                 </BarChart>
+               </ResponsiveContainer>
+             </div>
+          </div>
+
+          {/* Secondary Chart (Radial Donut) */}
+          <div className="col-span-1 p-6 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col h-[400px] items-center text-center relative shadow-xl">
+             <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-2 w-full text-left">Índice de Cobertura</h3>
+             
+             <div className="flex-1 w-full max-w-[250px] relative mt-4">
+               <ResponsiveContainer width="100%" height="100%">
+                 <RadialBarChart 
+                   cx="50%" 
+                   cy="50%" 
+                   innerRadius="70%" 
+                   outerRadius="100%" 
+                   barSize={20} 
+                   data={dashboardStats.radialData}
+                   startAngle={180}
+                   endAngle={-180}
+                 >
+                   {/* Background track circle */}
+                   <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
+                   <RadialBar
+                     background={{ fill: '#1e293b' }}
+                     dataKey="value"
+                     cornerRadius={10}
+                   />
+                 </RadialBarChart>
+               </ResponsiveContainer>
+
+               {/* Absolute Center Text Inside Donut */}
+               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                 <span className={`text-4xl font-black ${dashboardStats.coveragePercentage >= 100 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                   {Math.round(dashboardStats.coveragePercentage)}<span className="text-xl">%</span>
+                 </span>
+                 <span className="text-xs font-bold text-slate-500 mt-1 uppercase">Taxa Alvo</span>
+               </div>
+             </div>
+
+             <div className="mt-6 w-full p-4 rounded-xl bg-slate-950 border border-slate-800 text-left">
+                <p className="text-xs text-slate-400 leading-relaxed font-medium">
+                  {dashboardStats.coveragePercentage >= 100 
+                    ? "Inversão ideal alcançada. A usina suprirá todo o ano passivo injetando créditos à rede compensadora." 
+                    : "Atenção: A potência especificada não cobrirá o passivo total 12-meses. Sistema em subdimensionamento em relação ao consumo base."}
+                </p>
+             </div>
+          </div>
+
+        </div>
+
       </div>
     </div>
   );
