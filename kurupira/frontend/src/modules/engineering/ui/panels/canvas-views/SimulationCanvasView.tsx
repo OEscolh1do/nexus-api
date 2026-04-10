@@ -4,7 +4,7 @@ import {
   Zap, Target, Info
 } from 'lucide-react';
 import { 
-  ComposedChart, Bar, Line, XAxis, YAxis, 
+  ComposedChart, Bar, Line, Area, XAxis, YAxis, 
   CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
 import { useSolarStore } from '@/core/state/solarStore';
@@ -44,6 +44,8 @@ export const SimulationCanvasView: React.FC = () => {
 
   // Dataset generation for Recharts
   const chartData = useMemo(() => {
+    let accumulatedCredits = 0; // "Bateria Virtual" que reseta no inicio do ano fiscal.
+
     return MONTHS.map((month, index) => {
       const baseConsumption = monthlyConsumption[index] || 0;
       
@@ -58,14 +60,24 @@ export const SimulationCanvasView: React.FC = () => {
       const hspValue = hsp[index] || 0;
       const estimatedGeneration = P_NOMINAL * hspValue * DAYS_IN_MONTH[index] * prDecimal;
 
+      // Balanço do Mês: Positivo vira caixa, Negativo drena do acumulado.
+      const totalConsumption = baseConsumption + virtualThisMonth;
+      const monthlyBalance = estimatedGeneration - totalConsumption;
+      
+      accumulatedCredits = Math.max(0, accumulatedCredits + monthlyBalance);
+
       return {
         name: month,
         "Consumo Real": baseConsumption,
         "Nova Carga Simulada": virtualThisMonth,
-        "Geração Estimada": estimatedGeneration
+        "Geração Estimada": estimatedGeneration,
+        "Saldo de Créditos": accumulatedCredits
       };
     });
   }, [monthlyConsumption, hsp, prDecimal, virtualLoads]);
+
+  // Resumo anual em dezembro
+  const finalYearCredit = chartData[11]?.["Saldo de Créditos"] || 0;
 
   // Ações do Sandbox
   const handleAddLoad = () => {
@@ -212,13 +224,17 @@ export const SimulationCanvasView: React.FC = () => {
                 
                 {/* Stats */}
                 <div className="flex items-center gap-4 bg-slate-950/50 p-2 rounded-lg border border-slate-800">
-                   <div className="flex items-center gap-2 px-2 border-r border-slate-800">
+                  <div className="flex items-center gap-2 px-2 border-r border-slate-800">
                     <span className="text-[10px] font-bold text-slate-500 uppercase">Pot. Nominal</span>
                     <span className="text-sm font-black text-slate-300 font-mono">{P_NOMINAL.toFixed(1)} kWp</span>
                   </div>
-                  <div className="flex items-center gap-2 pr-2">
+                  <div className="flex items-center gap-2 px-2 border-r border-slate-800">
                     <span className="text-[10px] font-bold text-slate-500 uppercase">Performance (PR)</span>
                     <span className="text-sm font-black text-indigo-400 font-mono">{(prDecimal * 100).toFixed(1)}%</span>
+                  </div>
+                  <div className={`flex items-center gap-2 pr-2 ${finalYearCredit > 0 ? 'text-teal-400' : 'text-rose-400'}`}>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">Banco em 31/Dez</span>
+                    <span className="text-sm font-black font-mono">{finalYearCredit > 0 ? '+' : ''}{Math.round(finalYearCredit)} kWh</span>
                   </div>
                 </div>
               </div>
@@ -255,6 +271,17 @@ export const SimulationCanvasView: React.FC = () => {
                     />
                     <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 'bold', color: '#cbd5e1' }} />
                     
+                    {/* Bateria Virtual (Area) Renderiza ao Fundo */}
+                    <Area 
+                      type="monotone" 
+                      dataKey="Saldo de Créditos" 
+                      fill="#3b82f6" 
+                      stroke="#3b82f6" 
+                      fillOpacity={0.10} 
+                      strokeWidth={1}
+                      strokeDasharray="4 4"
+                    />
+
                     {/* Barra de Consumo Empilhada (Stacked) */}
                     <Bar dataKey="Consumo Real" stackId="a" fill="#475569" radius={[0, 0, 4, 4]} maxBarSize={40} />
                     <Bar dataKey="Nova Carga Simulada" stackId="a" fill="#f59e0b" radius={[4, 4, 0, 0]} maxBarSize={40} />
