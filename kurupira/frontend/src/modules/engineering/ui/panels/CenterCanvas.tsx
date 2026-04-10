@@ -26,20 +26,20 @@ import { VoltageRangeChart } from '../../components/VoltageRangeChart';
 import { MapCore } from '../../components/MapCore';
 import { WebGLOverlay } from '../../components/WebGLOverlay';
 
-// Panel Groups (for promoted rendering)
-import { SiteContextGroup } from './groups/SiteContextGroup';
-import { SimulationGroup } from './groups/SimulationGroup';
-import { ElectricalGroup } from './groups/ElectricalGroup';
-import { PropertiesGroup } from './groups/PropertiesGroup';
+// Canvas Views (for promoted rendering)
+import { SiteCanvasView } from './canvas-views/SiteCanvasView';
+import { SimulationCanvasView } from './canvas-views/SimulationCanvasView';
+import { ElectricalCanvasView } from './canvas-views/ElectricalCanvasView';
+import { PropertiesGroup } from './groups/PropertiesGroup'; // Fallback contextual
 
 // =============================================================================
 // REGISTRY — Grupos renderizáveis no center
 // =============================================================================
 
-const GROUP_REGISTRY: Partial<Record<PanelGroupId, React.FC>> = {
-  site: SiteContextGroup,
-  simulation: SimulationGroup,
-  electrical: ElectricalGroup,
+const CANVAS_VIEWS_REGISTRY: Partial<Record<PanelGroupId, React.FC>> = {
+  site: SiteCanvasView,
+  simulation: SimulationCanvasView,
+  electrical: ElectricalCanvasView,
   properties: PropertiesGroup,
 };
 
@@ -93,7 +93,7 @@ MapLayer.displayName = 'MapLayer';
 
 const PromotedPanelView: React.FC<{ groupId: PanelGroupId }> = ({ groupId }) => {
   const restoreMap = usePanelStore((s) => s.restoreMap);
-  const GroupComponent = GROUP_REGISTRY[groupId];
+  const GroupComponent = CANVAS_VIEWS_REGISTRY[groupId];
 
   if (!GroupComponent) return null;
 
