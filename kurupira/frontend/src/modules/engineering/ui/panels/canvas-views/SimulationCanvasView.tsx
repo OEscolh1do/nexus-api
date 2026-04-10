@@ -152,6 +152,7 @@ export const SimulationCanvasView: React.FC = () => {
                       <Plus size={18} />
                     </button>
                   </div>
+                </div>
                 <div className="flex flex-col gap-1.5 focus-within:text-teal-400 text-slate-400 mt-2">
                   <label className="text-[10px] font-bold uppercase tracking-widest text-inherit">Sazonalidade</label>
                   <select 
