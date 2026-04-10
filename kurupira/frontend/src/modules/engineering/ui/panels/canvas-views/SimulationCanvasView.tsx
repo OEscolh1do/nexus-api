@@ -27,6 +27,8 @@ export const SimulationCanvasView: React.FC = () => {
   // Global Data
   const monthlyConsumption = useSolarStore((state) => state.clientData.invoices[0]?.monthlyHistory || Array(12).fill(state.clientData.averageConsumption || 0));
   const hsp = useSolarStore((state) => state.clientData.monthlyIrradiation || Array(12).fill(0));
+  const tariffRate = useSolarStore((state) => state.clientData.tariffRate || 0.92);
+  const connectionType = useSolarStore((state) => state.clientData.connectionType || 'monofasico');
   const getPerformanceRatio = useTechStore((state) => state.getPerformanceRatio);
 
   // Local Sandbox State for Virtual Loads
@@ -42,11 +44,19 @@ export const SimulationCanvasView: React.FC = () => {
   const isSummer = (monthIdx: number) => [0, 1, 2, 9, 10, 11].includes(monthIdx);
   const isWinter = (monthIdx: number) => [4, 5, 6, 7].includes(monthIdx);
 
+  // Helper financeiro (Art 624 ANEEL)
+  const minChargeKwh = useMemo(() => {
+    if (connectionType === 'trifasico') return 100;
+    if (connectionType === 'bifasico') return 50;
+    return 30; // monofasico
+  }, [connectionType]);
+
   // Dataset generation for Recharts
   const chartData = useMemo(() => {
     let accumulatedCredits = 0; // "Bateria Virtual" que reseta no inicio do ano fiscal.
+    let totalAnnualSavings = 0; // Lógica financeira C-Level
 
-    return MONTHS.map((month, index) => {
+    const data = MONTHS.map((month, index) => {
       const baseConsumption = monthlyConsumption[index] || 0;
       
       // Simulador Sazonal Dinâmico
@@ -60,10 +70,21 @@ export const SimulationCanvasView: React.FC = () => {
       const hspValue = hsp[index] || 0;
       const estimatedGeneration = P_NOMINAL * hspValue * DAYS_IN_MONTH[index] * prDecimal;
 
-      // Balanço do Mês: Positivo vira caixa, Negativo drena do acumulado.
+      // Balanço do Mês e Estocagem
       const totalConsumption = baseConsumption + virtualThisMonth;
-      const monthlyBalance = estimatedGeneration - totalConsumption;
       
+      // Financeiro (Com FV vs Sem FV)
+      const costWithoutSolar = totalConsumption * tariffRate;
+      
+      // O excedente abateria o consumo até zerar, mas a ANEEL cobra a rede.
+      // Estando o sistema grid-tied, a cobrança KWh mínima sempre incide se o excedente zerar o relógio.
+      const rawBilled = Math.max(0, totalConsumption - estimatedGeneration);
+      const kwhBilledPostSolar = Math.max(minChargeKwh, rawBilled);
+      const costWithSolar = kwhBilledPostSolar * tariffRate;
+      
+      totalAnnualSavings += Math.max(0, costWithoutSolar - costWithSolar);
+
+      const monthlyBalance = estimatedGeneration - totalConsumption;
       accumulatedCredits = Math.max(0, accumulatedCredits + monthlyBalance);
 
       return {
@@ -74,10 +95,13 @@ export const SimulationCanvasView: React.FC = () => {
         "Saldo de Créditos": accumulatedCredits
       };
     });
-  }, [monthlyConsumption, hsp, prDecimal, virtualLoads]);
+
+    // Anexar o Savings global numa prop do array pra ser lida depois facilmente
+    return { data, totalAnnualSavings };
+  }, [monthlyConsumption, hsp, prDecimal, virtualLoads, tariffRate, minChargeKwh]);
 
   // Resumo anual em dezembro
-  const finalYearCredit = chartData[11]?.["Saldo de Créditos"] || 0;
+  const finalYearCredit = chartData.data[11]?.["Saldo de Créditos"] || 0;
 
   // Ações do Sandbox
   const handleAddLoad = () => {
@@ -115,8 +139,14 @@ export const SimulationCanvasView: React.FC = () => {
           </div>
 
           <div className="flex gap-3">
-            <div className="px-4 py-2 rounded-lg bg-teal-500/10 border border-teal-500/20 text-teal-400 text-sm font-bold flex items-center gap-2">
-              <Target size={16} /> Sandbox Transiente: Ativo
+            <div className="px-4 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex flex-col justify-center gap-0.5">
+              <span className="text-[10px] uppercase font-bold text-emerald-500/70 tracking-widest leading-none">Economia Projetada Ano 1</span>
+              <span className="text-emerald-400 font-extrabold text-lg leading-none">
+                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(chartData.totalAnnualSavings)}
+              </span>
+            </div>
+            <div className="px-4 py-2 rounded-lg bg-teal-500/10 border border-teal-500/20 text-teal-400 text-sm font-bold flex flex-col justify-center items-center">
+              <div className="flex items-center gap-2"><Target size={16} /> Sandbox Transiente</div>
             </div>
           </div>
         </header>
@@ -247,7 +277,7 @@ export const SimulationCanvasView: React.FC = () => {
               <div className="flex-1 w-full min-h-[250px] min-w-0" style={{ containerType: 'inline-size' }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart
-                    data={chartData}
+                    data={chartData.data}
                     margin={{ top: 20, right: 0, left: -20, bottom: 5 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
