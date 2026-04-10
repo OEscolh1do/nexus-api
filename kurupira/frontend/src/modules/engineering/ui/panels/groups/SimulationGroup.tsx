@@ -12,13 +12,15 @@
 import React, { useMemo } from 'react';
 import {
   BarChart3, ArrowUpRight, ArrowDownRight,
-  CheckCircle2, AlertTriangle, Activity,
+  CheckCircle2, AlertTriangle, Activity, Zap, Sun,
 } from 'lucide-react';
 import { useSolarStore, selectModules } from '@/core/state/solarStore';
 import { useTechStore } from '../../../store/useTechStore';
 import { useTechKPIs } from '../../../hooks/useTechKPIs';
 import { getFdiStatus } from '../../../constants/thresholds';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { CRESESB_DB } from '@/data/irradiation/cresesbData';
+import { SectionHeader, PropRow, PropRowEditable } from '../properties/shared';
 
 // =============================================================================
 // CONSTANTS
@@ -176,6 +178,147 @@ export const SimulationGroup: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* ── ENERGIA (CONSUMO E TARIFA) ── */}
+      <section className="mt-4 pt-4 border-t border-slate-800">
+        <SectionHeader icon={<Zap size={10} />} label="Energia (Consumo)" />
+        <MonthlyConsumptionGrid />
+      </section>
+
+      {/* ── IRRADIAÇÃO CRESESB (HSP) ── */}
+      <section className="mt-4">
+        <div className="flex items-center justify-between mb-2">
+          <SectionHeader icon={<Sun size={10} />} label="Irradiação CRESESB (HSP)" />
+        </div>
+        <MonthlyIrradiationGrid />
+      </section>
+    </div>
+  );
+};
+
+// =============================================================================
+// GRID: CONSUMO MENSAL
+// =============================================================================
+
+const MonthlyConsumptionGrid: React.FC = () => {
+  const clientData = useSolarStore((state) => state.clientData);
+  const updateMonthly = useSolarStore((state) => state.updateMonthlyConsumption);
+
+  const history = clientData.invoices?.[0]?.monthlyHistory || Array(12).fill(clientData.averageConsumption || 0);
+
+  return (
+    <div className="mt-2 space-y-2">
+      <div className="grid grid-cols-2 gap-x-2 gap-y-1 p-2 bg-slate-900/50 rounded-lg border border-slate-800">
+        {MONTHS.map((month, idx) => (
+          <PropRowEditable
+            key={`cons-${month}`}
+            label={month}
+            value={String(history[idx])}
+            type="number"
+            onCommit={(val) => {
+              const num = parseFloat(val);
+              if (!isNaN(num) && num >= 0) {
+                updateMonthly(idx, num);
+                return true;
+              }
+              return false;
+            }}
+          />
+        ))}
+      </div>
+      <div className="mt-2 space-y-1.5">
+        <PropRow label="Consumo Calculado" value={`${clientData.averageConsumption?.toFixed(0) || 0} kWh (Média)`} />
+        <PropRow label="Tarifa R$/kWh" value={clientData.tariffRate ? `R$ ${clientData.tariffRate.toFixed(2)}` : '—'} accent />
+      </div>
+    </div>
+  );
+};
+
+// =============================================================================
+// GRID: IRRADIAÇÃO MENSAL (CRESESB / HSP)
+// =============================================================================
+
+const MonthlyIrradiationGrid: React.FC = () => {
+  const clientData = useSolarStore((state) => state.clientData);
+  const setIrradiationData = useSolarStore((state) => state.setIrradiationData);
+  const weatherData = useSolarStore((state) => state.weatherData);
+
+  const hspArray =
+    clientData.monthlyIrradiation &&
+    clientData.monthlyIrradiation.length === 12 &&
+    clientData.monthlyIrradiation.some((v) => v > 0)
+      ? clientData.monthlyIrradiation
+      : Array(12).fill(4.5);
+
+  const avgHsp = hspArray.reduce((acc, curr) => acc + curr, 0) / 12;
+  const sourceLabel = clientData.irradiationCity || weatherData?.irradiation_source || 'Média Genérica';
+
+  // Auto-Assign / Fallback Logic
+  React.useEffect(() => {
+    if (clientData.irradiationCity && CRESESB_DB[clientData.irradiationCity]) {
+      return;
+    }
+
+    let matchedKey: string | null = null;
+    if (clientData.city && clientData.state) {
+      const candidate = `${clientData.city.toUpperCase()} - ${clientData.state.toUpperCase()}`;
+      if (CRESESB_DB[candidate]) {
+        matchedKey = candidate;
+      }
+    }
+
+    if (!matchedKey) {
+      if (clientData.state?.toUpperCase() === 'PA') {
+        matchedKey = 'DEFAULT_PA';
+      } else {
+        matchedKey = 'PARAUAPEBAS - PA';
+      }
+    }
+
+    if (matchedKey) {
+      setIrradiationData(CRESESB_DB[matchedKey].hsp_monthly, matchedKey);
+    }
+  }, [clientData.city, clientData.state, clientData.irradiationCity, setIrradiationData]);
+
+  const cityOptions = Object.keys(CRESESB_DB);
+
+  return (
+    <div className="mt-2 space-y-2">
+      {/* Seletor de Cidade (CRESESB) */}
+      <div className="flex flex-col gap-1">
+        <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider px-1">
+          Selecione a Cidade:
+        </label>
+        <select
+          className="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-[10px] text-slate-300 outline-none focus:border-emerald-500/50"
+          value={clientData.irradiationCity || ''}
+          onChange={(e) => {
+            const key = e.target.value;
+            if (CRESESB_DB[key]) {
+              setIrradiationData(CRESESB_DB[key].hsp_monthly, key);
+            }
+          }}
+        >
+          <option value="" disabled>
+            Selecione uma cidade do CRESESB
+          </option>
+          {cityOptions.map((cityKey) => (
+            <option key={cityKey} value={cityKey}>
+              {cityKey}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="grid grid-cols-2 gap-x-2 gap-y-1 p-2 bg-slate-900/50 rounded-lg border border-emerald-900/40">
+        {MONTHS.map((month, idx) => (
+          <PropRow key={`hsp-${month}`} label={month} value={String(hspArray[idx].toFixed(2))} />
+        ))}
+      </div>
+      <div className="mt-2 space-y-1.5">
+        <PropRow label="Média Anual" value={`${avgHsp.toFixed(2)} kWh/m²/dia`} accent />
+        <PropRow label="Fonte" value={sourceLabel} />
+      </div>
     </div>
   );
 };

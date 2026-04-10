@@ -127,178 +127,72 @@
 
 | # | Nome Canônico | Função |
 |---|--------------|--------|
-| 3.3.1 | **"Abrir Dimensionamento"** | Pill emerald com ícone `ArrowUpRight`. Aparece centralizado com animação slide-up no hover do cartão. Click → navega para o Workspace |
+| 3.3.1 | **"Abrir Dimensionamento"** | Pill emerald com ícone `ArrowUpRight`. Aparece centralizado com animação slide-up no hover do cartão. Click → abre o `SiteContextModal` para prévia espacial antes do Workspace. |
 
 ### 3.4 Zona de Informações (Área Inferior)
 
 | # | Nome Canônico | Dados |
 |---|--------------|-------|
 | 3.4.1 | **Nome do Cliente** | Texto principal (bold, branco). Trunca com `…` se longo. Fica emerald no hover |
-| 3.4.2 | **Botão Editar** | Ícone `Edit2`, visível apenas no hover. Abre `ProjectQuickEditModal` |
+| 3.4.2 | **Botão Editar** | Ícone `Edit2`. Abre `ProjectFormModal` no modo de Edição. |
 | 3.4.3 | **Potência Meta** | Ícone `Zap` (laranja) + "12.5 kWp" ou "— kWp" se não definida |
 | 3.4.4 | **Consumo Médio** | Ícone `Battery` (azul) + "850 kWh" ou "— kWh" se não fornecido |
-| 3.4.5 | **Timestamp** | Ícone `Clock` + data formatada (ex: "02 abr. 2026") — baseada em `updatedAt` |
+| 3.4.5 | **Timestamp** | Ícone `Clock` + data formatada baseado em `updatedAt` |
 
 ### 3.5 Interações do Cartão
 
 | Ação | Trigger | Efeito |
 |------|---------|--------|
-| **Click** | Corpo do cartão | `onSelectProject(projectId)` → carrega o projeto e abre o Workspace de Dimensionamento |
-| **Hover** | Corpo do cartão | Elevação (-1px translate-y, scale 1.02), borda emerald, sombra emerald. Revela CTA e botão Editar |
-| **Enter** | Teclado (foco) | Mesmo efeito do click (acessibilidade) |
-| **Click botão ✏️** | Botão Editar | `stopPropagation` + abre `ProjectQuickEditModal` (não navega) |
+| **Click** | Corpo do cartão | Aciona `setContextProjectId` → abre a vista `SiteContextModal`. |
+| **Hover** | Corpo do cartão | Elevação (-1px translate-y), borda/sombra emerald. Revela CTA e botão Editar. |
+| **Enter** | Teclado (foco) | Mesmo efeito do click. |
+| **Click botão ✏️** | Botão Editar | `stopPropagation` + aciona modal de edição (`ProjectFormModal`). |
 
 ---
 
-## 4. MODAL: WIZARD DE NOVO PROJETO
+## 4. MODAL UNIFICADO (PROJECT FORM MODAL)
 
-> **Componente**: `ProjectInitWizardModal.tsx`  
-> **Função**: Formulário para criação de projeto autônomo (Eng-First, sem depender do CRM Iaçã).
+> **Componente**: `ProjectFormModal.tsx`  
+> **Função**: Modal dinâmico unificado que mesclou a Criação (Wizard) e a Edição Rápida.  
+> **Diferencial**: Integra mini-mapa interativo Leaflet nativamente para extração de lat/lng via clique.
 
-### Layout do Modal
+### 4.1 Layout e Seções
 
-```
-┌──────────────────────────────────┐
-│ 🟢 Novo Projeto Autônomo    [✕]  │  ← Header
-│    Kurupira Engineering-First    │
-├──────────────────────────────────┤
-│                                  │
-│  § IDENTIFICAÇÃO E LOCAL         │  ← Seção 1
-│  ┌─────────────┬─────────────┐   │
-│  │ Cliente *   │ Título Int. │   │
-│  └─────────────┴─────────────┘   │
-│  ┌─────────────────────┬──────┐  │
-│  │ Cidade *            │ UF * │  │
-│  └─────────────────────┴──────┘  │
-│  ─────────────────────────────   │
-│  § INFRAESTRUTURA & FATURA       │  ← Seção 2
-│  ┌─────────────┬─────────────┐   │
-│  │ Conexão     │ Tarifa R$/  │   │
-│  │ Nominal     │ kWh         │   │
-│  └─────────────┴─────────────┘   │
-│  ┌─ Modo de Consumo ──────────┐  │
-│  │ ◉ Média Simplificada       │  │
-│  │ ○ Fatura Detalhada (12m)   │  │
-│  │ ┌────────────────────────┐ │  │
-│  │ │ [input kWh/mês]       │ │  │
-│  │ └────────────────────────┘ │  │
-│  └────────────────────────────┘  │
-├──────────────────────────────────┤
-│              [Cancelar] [Lançar] │  ← Footer
-└──────────────────────────────────┘
-```
+1. **Seção 1: Identificação e Local**
+   - Nome do Cliente e Nome Interno (Opcional).
+   - Endereço completo com suporte em tempo real a requisições automáticas a API do ViaCEP (auto-preenchimento de Logradouro, Bairro, Cidade, UF e pinagem via texto).
+2. **Seção 2: Mapa Interativo (Pinagem Geográfica)**
+   - Viewport Leaflet. Permite pinar a localização exata ou usar busca textual via Nominatim (OSM).
+   - Botão "Localização Atual" que solicita permissão de Geolocation da máquina/celular.
+   - Inputs espelhados e reativos de Latitude/Longitude.
+3. **Seção 3: Infraestrutura & Fatura**
+   - Conexão Nominal e Tarifa Unitária R$/kWh.
+   - Alternância de consumo: "Média Simplificada" vs "Fatura Detalhada". O modo Detalhado exibe matriz de 12 inputs mensais permitindo variação da curva de sazonalidade.
 
-### 4.1 Header
+### 4.2 Modos do Componente
 
-| # | Nome Canônico | Função |
-|---|--------------|--------|
-| 4.1.1 | **Ícone Play** | Badge visual emerald com ícone `Play` (filled) |
-| 4.1.2 | **Título "Novo Projeto Autônomo"** | Identifica a ação |
-| 4.1.3 | **Subtitle "Engineering-First Flow"** | Indica que é independente do CRM |
-| 4.1.4 | **Botão Fechar** | Ícone `X`, desabilitado durante loading |
-
-### 4.2 Seção 1: Identificação e Local
-
-| # | Nome Canônico | Campo | Obrigatório | Placeholder |
-|---|--------------|-------|:-----------:|-------------|
-| 4.2.1 | **Nome do Cliente** | `clientName` | ✅ | "Ex: Supermercado Central" |
-| 4.2.2 | **Título Interno** | `projectName` | ❌ | "Ex: Matriz - Fase 1" |
-| 4.2.3 | **Cidade** | `city` | ✅ | "Ex: Manaus" |
-| 4.2.4 | **Estado (UF)** | `stateUF` | ✅ (2 letras) | "AM" |
-
-### 4.3 Seção 2: Infraestrutura & Fatura
-
-| # | Nome Canônico | Campo | Tipo | Opções / Default |
-|---|--------------|-------|------|------------------|
-| 4.3.1 | **Tipo de Conexão Nominal** | `connectionType` | `select` | Monofásico / Bifásico / Trifásico (default: Monofásico) |
-| 4.3.2 | **Tarifa Unitária** | `tariffRate` | `number` | R$/kWh (default: 0.92) |
-
-### 4.4 Bloco de Consumo
-
-| # | Nome Canônico | Função |
-|---|--------------|--------|
-| 4.4.1 | **Radio "Média Simplificada"** | Modo padrão. Exibe um único input numérico para kWh/mês médio |
-| 4.4.2 | **Radio "Fatura Detalhada (12 Meses)"** | Modo avançado. Exibe grid 6×2 com 12 inputs mensais (Jan–Dez) |
-| 4.4.3 | **Input Média Geral** | Visível no modo "Média". Campo numérico com unidade "kWh/mês" |
-| 4.4.4 | **Grid Fatura Mensal** | Visível no modo "Detalhada". 12 mini-cards com label do mês + input numérico |
-
-### 4.5 Alerta de Erro
-
-| # | Nome Canônico | Função |
-|---|--------------|--------|
-| 4.5.1 | **Banner de Validação** | Box vermelho com ícone `AlertCircle`. Mensagens: "Nome do Cliente é obrigatório", "Insira um consumo médio válido", etc. |
-
-### 4.6 Footer
-
-| # | Nome Canônico | Função |
-|---|--------------|--------|
-| 4.6.1 | **Botão "Cancelar"** | Fecha o modal sem salvar |
-| 4.6.2 | **Botão "Lançar Projeto"** | Valida campos → chama `ProjectService.createStandaloneProject()` → fecha modal → navega ao Workspace. Glow emerald. Mostra spinner durante loading |
-
-### 4.7 Validações
-
-| Regra | Mensagem de Erro |
-|-------|-----------------|
-| `clientName` vazio | "Nome do Cliente é obrigatório." |
-| `city` vazio ou `stateUF` ≠ 2 chars | "Cidade e UF (2 letras) são obrigatórios." |
-| Modo Média + consumo ≤ 0 | "Insira um consumo médio válido." |
-| Modo Detalhado + todos zeros | "Insira pelo menos um mês de consumo na tabela." |
+- **Modo CREATE (`projectId = null`)**: Botão de salvar assume estado "Lançar Projeto" (Ícone `Play` verde/emerald), efetuando POST. Navega posteriormente ao painel.
+- **Modo EDIT (`projectId = string`)**: Input preenchido pós `GET /designs/:id`; botão passa a "Gravar Alterações" (Ícone `Save` azul), rodando um PATCH no db.
 
 ---
 
-## 5. MODAL: EDIÇÃO RÁPIDA DO PROJETO
+## 5. MODAL DE CONTEXTO (SITE CONTEXT MODAL)
 
-> **Componente**: `ProjectQuickEditModal.tsx`  
-> **Função**: Edição inline de metadados de um projeto existente (sem abrir o Workspace).
+> **Componente**: `SiteContextModal.tsx`  
+> **Função**: Vista Split-View sobreposta. É a parada intermediária entre o clique no Hub e o Carregamento Pesado da Tela de Engenharia. Evidencia leitura técnica 360º em modo read-only.
 
-### Layout do Modal
+### 5.1 Elementos da Interface
 
-```
-┌──────────────────────────────┐
-│ Edição Rápida do Projeto [✕] │  ← Header
-├──────────────────────────────┤
-│                              │
-│ Nome do Projeto (Interno)    │
-│ [________________________]   │
-│                              │
-│ Nome do Cliente              │
-│ [________________________]   │
-│                              │
-│ ┌────────────┬─────────────┐ │
-│ │ Cidade     │ Estado (UF) │ │
-│ └────────────┴─────────────┘ │
-│ ┌────────────┬─────────────┐ │
-│ │ Consumo    │  Conexão    │ │
-│ │ (kWh/mês)  │  Nominal    │ │
-│ └────────────┴─────────────┘ │
-├──────────────────────────────┤
-│       [Cancelar] [Gravar]    │  ← Footer
-└──────────────────────────────┘
-```
+- **Lado Esquerdo: Localização**
+  - Preview espacial em grid com coordenadas da implantação (`lat`, `lng`).
+  - Grade de Data-Chips: Endereço, Nome, Tensão, Ligação Elétrica.
+- **Lado Direito: Perfil de Carga (Gráfico)**
+  - Gráfico BarChart customizado. Reflete a variação dos 12 meses, calculando proporção baseada na barra de maior montante.
+  - Pico destacado com gradiente divergente (`orange-500`).
+  - Painéis informativos: Consumo Médio da matriz, Mês correspondente ao pico, valor da tarifa R$/kWh vigente.
 
-### 5.1 Campos Editáveis
-
-| # | Nome Canônico | Campo | Tipo | Dados de Origem |
-|---|--------------|-------|------|-----------------|
-| 5.1.1 | **Nome do Projeto** | `projectName` | `text` | `design.name` |
-| 5.1.2 | **Nome do Cliente** | `clientName` | `text` | `designData.solar.clientData.clientName` |
-| 5.1.3 | **Cidade** | `city` | `text` | `designData.solar.clientData.city` |
-| 5.1.4 | **Estado (UF)** | `stateUF` | `text` (2 chars, uppercase) | `designData.solar.clientData.state` |
-| 5.1.5 | **Consumo (kWh/mês)** | `consumption` | `number` | `designData.solar.clientData.averageConsumption` |
-| 5.1.6 | **Conexão Nominal** | `connectionType` | `select` | Monofásico / Bifásico / Trifásico |
-
-### 5.2 Footer
-
-| # | Nome Canônico | Função |
-|---|--------------|--------|
-| 5.2.1 | **Botão "Cancelar"** | Fecha o modal sem salvar |
-| 5.2.2 | **Botão "Gravar Alterações"** | PATCH via `KurupiraClient.designs.update()`. Glow emerald. Spinner durante salvamento. Após sucesso: fecha modal + recarrega lista |
-
-### 5.3 Comportamento da API
-
-- **Carregamento**: `GET /designs/:id` → preenche os campos com dados existentes
-- **Salvamento**: `PATCH /designs/:id` → atualiza `name` + `designData.solar.clientData`
-- Auto-cria invoice padrão se não existir, distribuindo o consumo médio uniformemente em 12 meses
+### 5.2 Ação Primária
+- **Botão "Dimensionar Projeto"**: O real engatilho de roteamento. Dispara o `onDimensionar(id)` que, em background e sem travamentos visuais bruscos, transiciona o usuário do Hub para o `CenterCanvas` / Workspace WebGL principal.
 
 ---
 

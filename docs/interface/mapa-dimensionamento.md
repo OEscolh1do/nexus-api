@@ -40,32 +40,23 @@
 | 1.1.3 | **Toggle Outliner** | `PanelLeftClose` / `PanelLeftOpen` | Mostra/oculta o painel LeftOutliner |
 | 1.1.4 | **Toggle Inspector** | `PanelRightClose` / `PanelRightOpen` | Mostra/oculta o painel RightInspector |
 
-### 1.2 Setor Central — Paleta de Ferramentas
-
-| # | Nome Canônico | Atalho | Função |
-|---|--------------|--------|--------|
-| 1.2.1 | **Ferramenta Selecionar** | `V` | Cursor padrão. Seleciona elementos no mapa e na árvore |
-| 1.2.2 | **Ferramenta Polígono** | `P` | Desenha polígonos de telhado sobre o mapa (GeoJSON) |
-| 1.2.3 | **Ferramenta Medir** | `M` | Mede distância entre dois pontos no mapa |
-| 1.2.4 | **Ferramenta Módulos** | `L` | Posiciona módulos fotovoltaicos sobre polígonos de telhado |
-
-### 1.3 Setor Centro-Direita — Widgets de KPI
+### 1.2 Setor Central — Widgets de KPI
 
 | # | Nome Canônico | Métrica | Descrição |
 |---|--------------|---------|-----------|
-| 1.3.1 | **Widget Potência DC** | `kWp` | Soma da potência pico de todos os módulos do projeto |
-| 1.3.2 | **Widget FDI** | `DC/AC ratio` | Fator de Dimensionamento do Inversor (razão potência DC / potência AC nominal). Ideal: 1.0–1.3x |
-| 1.3.3 | **Widget Performance** | `PR %` | Performance Ratio — rendimento líquido após todas as perdas |
+| 1.2.1 | **Widget Potência DC** | `kWp` | Soma da potência pico de todos os módulos do projeto |
+| 1.2.2 | **Widget FDI** | `DC/AC ratio` | Fator de Dimensionamento do Inversor (razão potência DC / potência AC nominal). Ideal: 1.0–1.3x |
+| 1.2.3 | **Widget Performance** | `PR %` | Performance Ratio — rendimento líquido após todas as perdas |
 
-### 1.4 Setor Direito — Validação e Ações
+### 1.3 Setor Direito — Validação e Ações
 
 | # | Nome Canônico | Função |
 |---|--------------|--------|
-| 1.4.1 | **Diretrizes de Projeto** | Popover com contagem mínima de módulos para atingir meta, área e peso no telhado |
-| 1.4.2 | **Health Check** | Indicador de saúde do sistema (verde/amarelo/vermelho pulsante). Popover detalha: FDI, Voc, Isc e sincronia físico-lógica |
-| 1.4.3 | **Fluxo de Aprovação** | Dropdown com estados `Rascunho (Destravado)` e `Aprovado (Travado)`. Aprovação com erros elétricos exige confirmação |
-| 1.4.4 | **Desfazer / Refazer** | Undo/Redo via Zundo temporal store. Atalhos: `Ctrl+Z` / `Ctrl+Shift+Z` |
-| 1.4.5 | **Exportar API** | Captura o viewport, salva o design no backend e redireciona ao módulo de Proposta |
+| 1.3.1 | **Diretrizes de Projeto** | Popover com contagem mínima de módulos para atingir meta, área e peso no telhado |
+| 1.3.2 | **Health Check** | Indicador de saúde do sistema (verde/amarelo/vermelho pulsante). Popover detalha: FDI, Voc, Isc e sincronia físico-lógica |
+| 1.3.3 | **Fluxo de Aprovação** | Dropdown com estados `Rascunho (Destravado)` e `Aprovado (Travado)`. Aprovação com erros elétricos exige confirmação |
+| 1.3.4 | **Desfazer / Refazer** | Undo/Redo via Zundo temporal store. Atalhos: `Ctrl+Z` / `Ctrl+Shift+Z` |
+| 1.3.5 | **Exportar API** | Captura o viewport, salva o design no backend e redireciona ao módulo de Proposta |
 
 ---
 
@@ -134,21 +125,32 @@
 | 3.1.3 | **Módulos Colocados** | Leaflet Markers / Canvas | Painéis fotovoltaicos posicionados sobre os polígonos |
 | 3.1.4 | **WebGL Overlay** | React Three Fiber (R3F) | Camada 3D transparente sobre o mapa — visualização avançada futura |
 
-### 3.2 HUDs Flutuantes
+### 3.2 Ferramentas e HUDs (Contexto Espacial)
 
 | # | Nome Canônico | Posição | Função |
 |---|--------------|---------|--------|
-| 3.2.1 | **Indicador de Ferramenta** | Inferior esquerdo | Mostra a ferramenta ativa com ícone e label |
-| 3.2.2 | **Gráfico de Tensão (Voltage Range Chart)** | Inferior centro | Aparece quando uma String é selecionada. Mostra Vmp, Voc e limites MPPT |
+| 3.2.1 | **Floating Map Tools (Toolbar CAD)** | Extrema Esquerda | Barra interativa estilo AutoCAD exclusiva do mapa (migrada do header no UX-003). Ferramentas: Selecionar (V), Polígono (P), Régua (M), Módulos (L). Fica inativa/oculta quando minimizando o mapa. |
+| 3.2.2 | **Gráfico de Tensão (Voltage Chart)** | Inferior centro | Aparece quando uma String é selecionada. Mostra Vmp, Voc e limites MPPT |
+
+### 3.3 Transporte Dimensional (Portals)
+Em UX-003, o `CenterCanvas` tornou-se um Slot Vazio Polimórfico. Ele transita entre exibir o Mapa Principal e exibir Painéis da Doca (Simulação, Contexto) sem desmontar a geometria do WebGL ou recarregar shaders, injetando o mapa (via API `createPortal` do React) diretamente no painel minimapa do `RightInspector`.
 
 ---
 
 ## 4. RIGHT INSPECTOR (Painel de Dados e Configurações)
 
 > **Componente**: `RightInspector.tsx`  
-> **Função**: Exibe dados contextuais do projeto (sempre visível) e controles de engenharia.
+> **Função**: Exibe dados contextuais do projeto aglomerados em uma arquitetura de pilha (`PanelGroup`). Possui capacidade de enviar painéis ao **CenterCanvas** e receber o Mapa como miniatura estática.
 
-### 4.1 Seção: Cliente
+### Painéis de Contexto (PanelGroups)
+A árvore direita é segmentada em sub-painéis (`PanelSlot`) independentes que suportam colapso e maximização limitados pela prop de estado:
+*   `Site` (Contexto do Local)
+*   `Simulation` (Simulação e Consumo)
+*   `Electrical` (Configuração Elétrica)
+*   `Properties` (Propriedades Contextuais)
+*   `Minimap` (Alvo do teletransporte espacial do WebGL da tela principal via Portal; UX-003)
+
+### 4.1 Seção: Site Context (Local e Cliente)
 
 | # | Nome Canônico | Dados |
 |---|--------------|-------|
@@ -233,6 +235,17 @@
 |---|--------------|-------------|-------|-----------|
 | 4.9.1 | **Temperatura Mínima Histórica** | `minHistoricalTemp` | -20°C a 30°C | Menor temperatura registrada na região. Afeta cálculo de Voc máximo (NEC 690.7) |
 | 4.9.2 | **Coeficiente de Voc** | `vocTempCoefficient` | -0.5 a 0 %/°C | Coeficiente térmico de tensão de circuito aberto do módulo |
+
+### 4.10 Seção: Minimapa (Portal Docking)
+
+> **Componente**: `RightInspector.tsx` (`#minimap-portal-target`)  
+> **Função**: Exibe a miniatura do mapa interativo quando outra tela toma o Center Canvas, mantendo contexto geoespacial (UX-003).
+
+| # | Nome Canônico | Descrição / Comportamento (UX-003) |
+|---|--------------|------------------------------------|
+| 4.10.1 | **Target Div** | Receptáculo estrito do DOM gerado pelo `createPortal` do React. Recebe o conteúdo inteiro do MapCore. |
+| 4.10.2 | **Poka-Yoke de Input** | O comportamento de scroll/drag nativo do mapa Leaflet é travado através do `MapMinimapObserver` no Dock, impedindo acidentes. |
+| 4.10.3 | **Trigger Maximizar** | Ação `[↗]` nativa do painel `minimap`; inverte o estado `centerContent` e volta o mapa em resolução Total. |
 
 ---
 
