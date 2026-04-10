@@ -92,6 +92,33 @@ Verificar:
 - [ ] O sistema avisa o usuário quando o resultado automático exige ajuste manual?
 - [ ] Considera restrições de área de telhado na seleção de módulos?
 
+### Eixo 6 — Experiência de Uso pelo Engenheiro
+
+Este eixo exige **usar o software como usuário** (ou inspecionar os componentes de UI com olhar de engenheiro). Avaliar:
+
+**Confiança nos números:**
+- [ ] Os cálculos são transparentes? O usuário consegue ver a fórmula/premissas usadas?
+- [ ] As premissas implícitas (PR fixo, Tmin hardcoded, fator de perdas default) estão visíveis?
+- [ ] O sistema distingue "resultado calculado" de "estimativa"?
+
+**Fluxo de trabalho:**
+- [ ] A navegação segue a ordem natural: consumo → local → kWp → equipamentos → elétrica → BOS → documentação?
+- [ ] O usuário consegue ver os dados de etapas anteriores enquanto trabalha na etapa atual?
+- [ ] Há pontos no fluxo onde o usuário fica sem saber o que fazer a seguir?
+
+**Feedback de validação:**
+- [ ] Os alertas do SystemHealthCheck dizem o que está errado, por quê, e o que fazer?
+- [ ] Há hierarquia clara entre alertas críticos, avisos e informativos?
+- [ ] Os alertas aparecem no momento certo (não cedo demais, não tarde demais)?
+
+**Terminologia:**
+- [ ] Os rótulos usam terminologia de engenharia ou de leigo?
+- [ ] Há algum termo impreciso que pode levar o engenheiro a interpretar errado um resultado?
+- [ ] Unidades estão sempre explícitas nos campos e resultados (V, A, kWp, kWh/mês)?
+
+**O que já ajuda:**
+- [ ] Identificar 3 a 5 comportamentos/elementos que funcionam bem para o projetista
+
 ---
 
 ## Passo 3 — Geração do Parecer Técnico
@@ -130,6 +157,10 @@ principais riscos identificados]
 
 ### Eixo 5 — Auto-Sizing
 ...
+
+### Eixo 6 — Experiência de Uso pelo Engenheiro
+**Status:** [✅ Claro e confiável / ⚠️ Parcialmente confuso / ❌ Cria desconfiança]
+[O que ajuda / O que gera desconforto / O que está confuso — conforme formato da skill]
 
 ---
 

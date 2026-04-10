@@ -11,13 +11,17 @@ import { useSolarStore } from '@/core/state/solarStore';
 import { useTechStore } from '../../../store/useTechStore';
 
 // Tipagem da sandbox transiente
+type UsageProfile = 'constant' | 'summer' | 'winter';
+
 interface VirtualLoad {
   id: string;
   name: string;
   kwH_per_month: number;
+  profile: UsageProfile;
 }
 
 const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
 export const SimulationCanvasView: React.FC = () => {
   // Global Data
@@ -29,41 +33,50 @@ export const SimulationCanvasView: React.FC = () => {
   const [virtualLoads, setVirtualLoads] = useState<VirtualLoad[]>([]);
   const [newLoadName, setNewLoadName] = useState('');
   const [newLoadKwh, setNewLoadKwh] = useState<number | ''>('');
+  const [newLoadProfile, setNewLoadProfile] = useState<UsageProfile>('constant');
 
   const prDecimal = getPerformanceRatio();
   const P_NOMINAL = 5.0; // Placeholder kWp: Em um backend full isso viria da soma real dos módulos. Usei 5kWp hardcoded simulado.
 
-  // Calculo de somas
-  const totalVirtualKwH = virtualLoads.reduce((sum, load) => sum + load.kwH_per_month, 0);
+  // Helper de sazonalidade
+  const isSummer = (monthIdx: number) => [0, 1, 2, 9, 10, 11].includes(monthIdx);
+  const isWinter = (monthIdx: number) => [4, 5, 6, 7].includes(monthIdx);
 
   // Dataset generation for Recharts
   const chartData = useMemo(() => {
     return MONTHS.map((month, index) => {
       const baseConsumption = monthlyConsumption[index] || 0;
       
-      // Geração = P_nom * HSP(mes) * DiasNoMes * PR
-      // Assumindo 30 dias médios
+      // Simulador Sazonal Dinâmico
+      const virtualThisMonth = virtualLoads.reduce((sum, load) => {
+        if (load.profile === 'summer' && !isSummer(index)) return sum;
+        if (load.profile === 'winter' && !isWinter(index)) return sum;
+        return sum + load.kwH_per_month;
+      }, 0);
+      
+      // Geração Normativa = P_nom * HSP(mes) * DiasExatosDoMes * PR
       const hspValue = hsp[index] || 0;
-      const estimatedGeneration = P_NOMINAL * hspValue * 30 * prDecimal;
+      const estimatedGeneration = P_NOMINAL * hspValue * DAYS_IN_MONTH[index] * prDecimal;
 
       return {
         name: month,
         "Consumo Real": baseConsumption,
-        "Nova Carga Simulada": totalVirtualKwH,
+        "Nova Carga Simulada": virtualThisMonth,
         "Geração Estimada": estimatedGeneration
       };
     });
-  }, [monthlyConsumption, hsp, prDecimal, totalVirtualKwH]);
+  }, [monthlyConsumption, hsp, prDecimal, virtualLoads]);
 
   // Ações do Sandbox
   const handleAddLoad = () => {
     if (!newLoadName.trim() || newLoadKwh === '' || newLoadKwh <= 0) return;
     setVirtualLoads([
       ...virtualLoads, 
-      { id: Date.now().toString(), name: newLoadName, kwH_per_month: Number(newLoadKwh) }
+      { id: Date.now().toString(), name: newLoadName, kwH_per_month: Number(newLoadKwh), profile: newLoadProfile }
     ]);
     setNewLoadName('');
     setNewLoadKwh('');
+    setNewLoadProfile('constant');
   };
 
   const handleRemoveLoad = (id: string) => {
@@ -139,6 +152,16 @@ export const SimulationCanvasView: React.FC = () => {
                       <Plus size={18} />
                     </button>
                   </div>
+                <div className="flex flex-col gap-1.5 focus-within:text-teal-400 text-slate-400 mt-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-inherit">Sazonalidade</label>
+                  <select 
+                    value={newLoadProfile} onChange={(e) => setNewLoadProfile(e.target.value as UsageProfile)}
+                    className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 focus:outline-none focus:border-teal-500 text-slate-200 text-sm font-medium transition-colors"
+                  >
+                    <option value="constant">Ano Todo (Contínuo)</option>
+                    <option value="summer">Somente Verão (Nov-Mar)</option>
+                    <option value="winter">Somente Inverno (Mai-Ago)</option>
+                  </select>
                 </div>
               </div>
 
@@ -153,7 +176,12 @@ export const SimulationCanvasView: React.FC = () => {
                     <div key={load.id} className="flex items-center justify-between p-3 rounded-lg bg-emerald-950/20 border border-emerald-500/10">
                       <div className="flex flex-col">
                         <span className="text-sm font-bold text-slate-300">{load.name}</span>
-                        <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">+{load.kwH_per_month} kWh/mês</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">+{load.kwH_per_month} kWh/mês</span>
+                          <span className="text-[10px] font-bold text-slate-500 uppercase">
+                            ({load.profile === 'summer' ? 'Verão' : load.profile === 'winter' ? 'Inverno' : 'Contínuo'})
+                          </span>
+                        </div>
                       </div>
                       <button 
                         onClick={() => handleRemoveLoad(load.id)}
@@ -178,7 +206,7 @@ export const SimulationCanvasView: React.FC = () => {
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <Zap size={18} className="text-emerald-400" />
-                  <h3 className="text-lg font-bold text-slate-200">Sobrevivência Dinâmica Anual</h3>
+                  <h3 className="text-lg font-bold text-slate-200">Taxa de Cobertura Energética</h3>
                 </div>
                 
                 {/* Stats */}
@@ -188,7 +216,7 @@ export const SimulationCanvasView: React.FC = () => {
                     <span className="text-sm font-black text-slate-300 font-mono">{P_NOMINAL.toFixed(1)} kWp</span>
                   </div>
                   <div className="flex items-center gap-2 pr-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase">PR Tático</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">Performance (PR)</span>
                     <span className="text-sm font-black text-indigo-400 font-mono">{(prDecimal * 100).toFixed(1)}%</span>
                   </div>
                 </div>
