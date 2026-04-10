@@ -8,7 +8,7 @@ import { useSolarStore } from '@/core/state/solarStore';
 /**
  * Helper componente pra mini-linhas do Checklist
  */
-const ChecklistRow = ({ label, value, icon: Icon }: { label: string, value: string, icon: React.ElementType }) => (
+const ChecklistRow = ({ label, value, icon: Icon }: { label: string, value: string, icon: React.FC<any> }) => (
   <div className="flex items-center justify-between p-3 rounded-lg border border-slate-800/50 bg-slate-900/50 hover:bg-slate-800/50 transition-colors">
     <div className="flex items-center gap-3">
       <div className="p-2 rounded-md bg-slate-800">

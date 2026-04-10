@@ -4,12 +4,10 @@ import {
   ArrowRight, ShieldAlert, Cpu
 } from 'lucide-react';
 import { useSolarStore } from '@/core/state/solarStore';
-import { useTechStore } from '../../../store/useTechStore';
 
 export const ElectricalCanvasView: React.FC = () => {
   // Store Global Data
   const settings = useSolarStore((state) => state.settings);
-  const { lossProfile } = useTechStore();
 
   // Local State: Cable Sizing Form (Mock Parameters)
   const [acParams, setAcParams] = useState({

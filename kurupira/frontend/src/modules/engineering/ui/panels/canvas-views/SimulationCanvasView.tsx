@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { 
   BarChart3, Plus, Trash2, BatteryCharging,
-  Zap, Settings2, Target, Info
+  Zap, Target, Info
 } from 'lucide-react';
 import { 
   ComposedChart, Bar, Line, XAxis, YAxis, 
@@ -21,8 +21,8 @@ const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', '
 
 export const SimulationCanvasView: React.FC = () => {
   // Global Data
-  const monthlyConsumption = useSolarStore((state) => state.monthlyConsumption);
-  const hsp = useSolarStore((state) => state.hsp);
+  const monthlyConsumption = useSolarStore((state) => state.clientData.invoices[0]?.monthlyHistory || Array(12).fill(state.clientData.averageConsumption || 0));
+  const hsp = useSolarStore((state) => state.clientData.monthlyIrradiation || Array(12).fill(0));
   const getPerformanceRatio = useTechStore((state) => state.getPerformanceRatio);
 
   // Local Sandbox State for Virtual Loads
