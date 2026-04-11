@@ -1,11 +1,12 @@
 import React, { useMemo } from 'react';
-import { useSolarStore } from '@/core/state/solarStore';
+import { useSolarStore, selectModules } from '@/core/state/solarStore';
 import { useTechStore } from '../../../store/useTechStore';
+import { CRESESB_DB } from '@/data/irradiation/cresesbData';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   RadialBarChart, RadialBar, PolarAngleAxis
 } from 'recharts';
-import { BarChart3 } from 'lucide-react'; 
+import { BarChart3, Sun, Zap } from 'lucide-react'; 
 
 const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
@@ -14,10 +15,17 @@ export const SimulationCanvasView: React.FC = () => {
   // Store Global Data
   const monthlyConsumption = useSolarStore((state) => state.clientData.invoices[0]?.monthlyHistory || Array(12).fill(state.clientData.averageConsumption || 0));
   const hsp = useSolarStore((state) => state.clientData.monthlyIrradiation || Array(12).fill(0));
+  const irradiationCity = useSolarStore((state) => state.clientData.irradiationCity);
+  
+  // Handlers
+  const updateMonthlyConsumption = useSolarStore((state) => state.updateMonthlyConsumption);
+  const setIrradiationData = useSolarStore((state) => state.setIrradiationData);
+  
+  const modules = useSolarStore(selectModules);
   const getPerformanceRatio = useTechStore((state) => state.getPerformanceRatio);
 
   const prDecimal = getPerformanceRatio();
-  const P_NOMINAL = 5.0; // Placeholder kWp: Em um backend full isso viria da soma real dos módulos.
+  const totalPowerKw = modules.reduce((acc, m) => acc + m.power, 0) / 1000;
 
   // Calculadora de Inteligência (BI Aggregators)
   const dashboardStats = useMemo(() => {
@@ -28,8 +36,8 @@ export const SimulationCanvasView: React.FC = () => {
       const consumoMensal = monthlyConsumption[index] || 0;
       
       const hspValue = hsp[index] || 0;
-      // Geração Normativa Mes a Mes = Potência * HSP Medio * Dias do Mês * Eficiencia Total
-      const geracaoEstimada = P_NOMINAL * hspValue * DAYS_IN_MONTH[index] * prDecimal;
+      // Geração Normativa Mes a Mes = Potência Real DC * HSP Medio * Dias do Mês * Eficiencia Total
+      const geracaoEstimada = totalPowerKw * hspValue * DAYS_IN_MONTH[index] * prDecimal;
 
       sumConsumption += consumoMensal;
       sumGeneration += geracaoEstimada;
@@ -59,7 +67,7 @@ export const SimulationCanvasView: React.FC = () => {
       netBalance, 
       coveragePercentage 
     };
-  }, [monthlyConsumption, hsp, prDecimal]);
+  }, [monthlyConsumption, hsp, prDecimal, totalPowerKw]);
 
   // UI Helpers
   const isPositiveBalance = dashboardStats.netBalance >= 0;
@@ -183,6 +191,74 @@ export const SimulationCanvasView: React.FC = () => {
                     ? "Inversão ideal alcançada. A usina suprirá todo o ano passivo injetando créditos à rede compensadora." 
                     : "Atenção: A potência especificada não cobrirá o passivo total 12-meses. Sistema em subdimensionamento em relação ao consumo base."}
                 </p>
+             </div>
+          </div>
+
+        </div>
+
+        {/* BOTTOM ROW: EDITORES DE MATRIZ DE GERAÇÃO E CONSUMO */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+          
+          {/* Painel de Consumo Elétrico */}
+          <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl flex flex-col justify-between">
+             <div className="flex items-center gap-2 mb-6">
+               <Zap className="text-amber-400" size={16} />
+               <h3 className="text-sm font-bold text-slate-300 uppercase tracking-widest">Matriz de Consumo (kWh)</h3>
+             </div>
+             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+               {MONTHS.map((month, idx) => (
+                 <div key={`cons-${month}`} className="flex flex-col gap-1.5 focus-within:text-amber-400 text-slate-500 transition-colors">
+                    <label className="text-[10px] font-bold uppercase text-inherit">{month}</label>
+                    <input 
+                      type="number"
+                      className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-xs text-slate-300 focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 focus:outline-none transition-all placeholder:text-slate-700"
+                      value={monthlyConsumption[idx] || 0}
+                      onChange={(e) => {
+                         const val = parseFloat(e.target.value);
+                         if (!isNaN(val) && val >= 0) {
+                           updateMonthlyConsumption(idx, val);
+                         }
+                      }}
+                    />
+                 </div>
+               ))}
+             </div>
+          </div>
+
+          {/* Painel de Radiação (HSP) CRESESB */}
+          <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl flex flex-col justify-between">
+             <div className="flex items-center gap-2 mb-4">
+               <Sun className="text-yellow-400" size={16} />
+               <h3 className="text-sm font-bold text-slate-300 uppercase tracking-widest">Irradiação (HSP / CRESESB)</h3>
+             </div>
+             
+             <div className="mb-6">
+               <select
+                 className="w-full bg-slate-950 border border-slate-800 rounded p-2.5 text-xs font-bold text-slate-300 outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500/50 transition-all cursor-pointer"
+                 value={irradiationCity || ''}
+                 onChange={(e) => {
+                   const key = e.target.value;
+                   if (CRESESB_DB[key]) {
+                     setIrradiationData(CRESESB_DB[key].hsp_monthly, key);
+                   }
+                 }}
+               >
+                 <option value="" disabled>Selecione a Estação CRESESB Base da Cidade...</option>
+                 {Object.keys(CRESESB_DB).map(city => (
+                   <option key={city} value={city}>{city}</option>
+                 ))}
+               </select>
+             </div>
+
+             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+               {MONTHS.map((month, idx) => (
+                 <div key={`hsp-${month}`} className="flex flex-col gap-1.5">
+                    <label className="text-[10px] text-slate-500 font-bold uppercase">{month}</label>
+                    <div className="w-full bg-slate-950/50 border border-slate-800/80 border-dashed rounded px-2 py-1.5 text-xs font-mono text-yellow-500/90 text-center tracking-tight">
+                      {hsp[idx] ? hsp[idx].toFixed(2) : '0.00'}
+                    </div>
+                 </div>
+               ))}
              </div>
           </div>
 
