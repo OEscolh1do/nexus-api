@@ -10,6 +10,12 @@
 export const FDI_LOW_PERCENT = 75;   // Abaixo = Oversized AC (warning)
 export const FDI_HIGH_PERCENT = 130; // Acima = Clipping Anual (error)
 
+// Isc (Corrente de Curto-Circuito) — tolerância MPPT
+// IEC 60364-7-712 §712.443 permite que a corrente de curto exceda o
+// limite nominal do MPPT em até 25% antes de representar risco real.
+// Abaixo deste multiplicador → warning não-bloqueante; acima → warning crítico.
+export const ISC_SAFETY_MULTIPLIER = 1.25;
+
 export type FdiStatus = 'ideal' | 'oversized' | 'clipping';
 
 /**

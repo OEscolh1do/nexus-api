@@ -90,12 +90,12 @@ export const useStringValidation = (
             limit: maxIsc
         };
 
-        /* TODO: Reimplementar lógica de Isc Alta futuramente
-        if (totalIsc > maxIsc) {
-            iscStatus.status = 'error';
-            iscStatus.message = `Corrente de curto (${totalIsc.toFixed(1)}A) excede o limite da entrada (${maxIsc}A).`;
+        // Isc reativado como warning não-bloqueante (E-01 / TRL 7-8).
+        // Tolerância 1.25× sobre o limite nominal — IEC 60364-7-712 §712.443.
+        if (totalIsc > maxIsc * 1.25) {
+            iscStatus.status = 'warning';
+            iscStatus.message = `Corrente de curto (${totalIsc.toFixed(1)}A) excede 1.25× o limite da entrada (${(maxIsc * 1.25).toFixed(1)}A). Verifique o datasheet.`;
         }
-        */
         
         return {
             vocMax: vocStatus,

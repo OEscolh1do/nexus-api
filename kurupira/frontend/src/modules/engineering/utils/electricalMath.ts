@@ -198,16 +198,18 @@ export const validateSystemStrings = (
             );
         }
 
-        // 4. Isc Total vs Max Current Per MPPT
+        // 4. Isc Total vs Max Current Per MPPT (IEC 60364-7-712 §712.443)
+        // Tolerância de 1.25× sobre o limite nominal antes de emitir aviso.
+        // Re-ativado como warning não-bloqueante (E-01 / TRL 7-8).
         const iscTotal = moduleSpecs.isc * input.stringsCount;
-        /* TODO: Reimplementar lógica de Isc Alta futuramente
-        if (iscTotal > input.maxCurrentPerMPPT) {
-            status = 'error';
+        const ISC_TOLERANCE = 1.25;
+        const iscLimit = input.maxCurrentPerMPPT * ISC_TOLERANCE;
+        if (iscTotal > iscLimit) {
+            if (status !== 'error') status = 'warning';
             messages.push(
-                `Isc(${iscTotal.toFixed(1)}A) > limite(${input.maxCurrentPerMPPT}A).`
+                `Isc(${iscTotal.toFixed(1)}A) > ${ISC_TOLERANCE}× limite MPPT(${(iscLimit).toFixed(1)}A). Verifique o datasheet do inversor.`
             );
         }
-        */
 
         return {
             inverterId: input.inverterId,
