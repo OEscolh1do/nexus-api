@@ -7,7 +7,7 @@
 
 ## Visão Geral do Layout
 
-```
+```text
 ┌──────────────────────────────────────────────────────────┐
 │                     TOP RIBBON                           │
 ├──────────┬──────────────────────────┬────────────────────┤
@@ -15,13 +15,13 @@
 │   LEFT   │      CENTER CANVAS       │      RIGHT         │
 │ OUTLINER │(Mapa, Simulação, Site...)│    INSPECTOR       │
 │          │                          │    (Minimapa)      │
-│          │                          ├────────────────────┤
-│          │                          │   PROPERTIES       │
-│          │                          │   DRAWER (*)       │
+│          │                          ├┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┤
+│          │                          │ [+] Properties (*) │
 ├──────────┴──────────────────────────┴────────────────────┤
 └──────────────────────────────────────────────────────────┘
 
-(*) O Properties Drawer aparece sobre o Inspector quando um elemento é selecionado.
+(*) O antigo "Properties Drawer" foi unificado. O "Properties" agora é um `PanelSlot` (contextual) 
+que surge incorporado nativamente ao final do Right Inspector quando um componente é selecionado.
 ```
 
 ---
@@ -142,10 +142,10 @@ Foco: Dimensionamento paramétrico de proteção e condutores.
 
 ---
 
-## 5. PROPERTIES DRAWER (Gaveta de Propriedades)
+## 5. PROPERTIES GROUP (Propriedades Contextuais)
 
-> **Componente**: `PropertiesDrawer.tsx` → `InverterProperties`, `ModuleProperties`, `StringProperties`
-> **Função**: UI Interativa e flutuante ancorada à direita (acima do Minimapa). Renderiza apenas quando um componente elétrico físico é ativo na árvore Tópica (LeftOutliner) ou no Mapa Base.
+> **Componente**: `PropertiesGroup.tsx` → `InverterProperties`, `ModuleProperties`, `StringProperties`
+> **Função**: UI interativa ancorada no **Right Inspector** (como a aba Properties). Renderiza apenas quando um componente físico é ativo na árvore (LeftOutliner) ou no Mapa Base.
 
 | Componente Alvo | Dados Críticos Apresentados |
 |-----------------|---------------------------|
