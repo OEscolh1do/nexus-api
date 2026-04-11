@@ -169,15 +169,16 @@ export const SimulationCanvasView: React.FC = () => {
         </header>
 
         {/* KPI Strip - Reagrupado */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-6 gap-4">
           
           {/* Grupo 1: Visão Geral */}
-          <div className="lg:col-span-3 rounded-xl border border-slate-800 bg-slate-900/50 p-3 flex flex-col gap-3">
+          <div className="lg:col-span-4 rounded-xl border border-slate-800 bg-slate-900/50 p-3 flex flex-col gap-3">
             <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Visão Geral do Sistema</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
               <KpiPill label="Consumo Anual" value={Math.round(stats.totalCons).toLocaleString('pt-BR')} unit="kWh" color="text-teal-400" subtitle={`${Math.round(stats.totalCons / 12).toLocaleString('pt-BR')} kWh/mês`} />
               <KpiPill label="Geração Estimada" value={Math.round(stats.totalGen).toLocaleString('pt-BR')} unit="kWh" color="text-amber-400" subtitle={`${totalPowerKw.toFixed(2)} kWp instalado`} />
               <KpiPill label="Cobertura" value={`${Math.round(stats.coverage)}`} unit="%" color={stats.coverage >= 100 ? 'text-emerald-400' : 'text-rose-400'} subtitle={`Balanço: ${isPositive ? '+' : ''}${Math.round(stats.balance).toLocaleString('pt-BR')} kWh`} />
+              <KpiPill label="Performance Ratio" value={(prDecimal * 100).toFixed(1)} unit="%" color="text-slate-300" subtitle={`HSP médio: ${avgHsp.toFixed(2)}`} />
             </div>
           </div>
 
@@ -185,8 +186,8 @@ export const SimulationCanvasView: React.FC = () => {
           <div className="lg:col-span-2 rounded-xl border border-indigo-500/20 bg-indigo-950/10 p-3 flex flex-col gap-3">
             <h3 className="text-[10px] font-bold text-indigo-400/80 uppercase tracking-widest px-1">Guia de Dimensionamento</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <KpiPill label="Potência Mín (100%)" value={minPower.yieldPerKwp > 0 ? minPower.roundedKwp.toFixed(2) : '—'} unit="kWp" color="text-indigo-400" subtitle={minPower.estimatedModules ? `≈ ${minPower.estimatedModules} módulos` : undefined} />
-              <KpiPill label="Performance Ratio" value={(prDecimal * 100).toFixed(1)} unit="%" color="text-amber-400" subtitle={`HSP médio: ${avgHsp.toFixed(2)}`} />
+              <KpiPill label="Potência Mín (100%)" value={minPower.yieldPerKwp > 0 ? minPower.roundedKwp.toFixed(2) : '—'} unit="kWp" color="text-indigo-400" subtitle="Recomendado" />
+              <KpiPill label="Módulos Necessários" value={minPower.estimatedModules ? minPower.estimatedModules.toString() : '—'} unit="un." color="text-indigo-400" subtitle={modulePowerW ? `Referência: ${modulePowerW}W` : 'Sem módulo selec.'} />
             </div>
           </div>
 
