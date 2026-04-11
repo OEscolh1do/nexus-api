@@ -9,7 +9,7 @@ import {
   RadialBarChart, RadialBar, PolarAngleAxis, AreaChart, Area,
 } from 'recharts';
 import {
-  BarChart3, Sun, Zap, ChevronDown, ChevronUp,
+  Sun, Zap, ChevronDown, ChevronUp,
   Layers, TrendingUp, Table2, Clock, Settings2,
 } from 'lucide-react';
 
@@ -157,16 +157,7 @@ export const SimulationCanvasView: React.FC = () => {
             FAIXA 1 — RESUMO EXECUTIVO
         ═══════════════════════════════════════════════════════════════════ */}
 
-        {/* Header */}
-        <header className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
-            <BarChart3 size={22} className="text-indigo-400" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-black text-slate-100 tracking-tight">Simulação de Geração</h1>
-            <p className="text-xs text-slate-500 font-medium">Balanço energético paramétrico do arranjo fotovoltaico</p>
-          </div>
-        </header>
+
 
         {/* KPI Strip - Reagrupado */}
         <div className="grid grid-cols-1 lg:grid-cols-6 gap-4">

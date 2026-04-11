@@ -1,6 +1,6 @@
 import React from 'react';
 import { 
-  MapPin, User, ThermometerSun, Zap, Waves, Server, 
+  User, ThermometerSun, Zap, Waves, Server, 
   Map, Sunrise, CloudRain, ShieldCheck, HardHat, Compass
 } from 'lucide-react';
 import { useSolarStore } from '@/core/state/solarStore';
@@ -30,29 +30,7 @@ export const SiteCanvasView: React.FC = () => {
     <div className="w-full h-full p-6 md:p-10 flex flex-col items-center">
       <div className="w-full max-w-7xl space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         
-        {/* HEADER */}
-        <header className="flex flex-col md:flex-row md:items-end justify-between border-b border-slate-800 pb-6 gap-4">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                <MapPin size={24} className="text-emerald-400" />
-              </div>
-              <h1 className="text-3xl font-black text-slate-100 tracking-tight">Dossiê de Implantação</h1>
-            </div>
-            <p className="text-slate-500 font-medium max-w-xl">
-              Central de inteligência para vistoria técnica, análise climática local e detalhamento de infraestrutura física.
-            </p>
-          </div>
 
-          <div className="flex gap-3">
-            <div className="px-4 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-bold flex items-center gap-2">
-              <ShieldCheck size={16} /> Status: Ativo
-            </div>
-            <div className="px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-sm font-medium flex items-center gap-2">
-              <HardHat size={16} /> RT Ppendente
-            </div>
-          </div>
-        </header>
 
         {/* MAIN GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

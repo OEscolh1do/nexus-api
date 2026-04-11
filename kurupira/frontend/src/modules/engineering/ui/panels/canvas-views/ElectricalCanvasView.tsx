@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
-  Activity, Flame, Zap, Scale, 
-  ArrowRight, ShieldAlert, Cpu
+  Flame, Zap, Scale, 
+  ArrowRight, ShieldAlert
 } from 'lucide-react';
 import { useSolarStore } from '@/core/state/solarStore';
 
@@ -38,26 +38,7 @@ export const ElectricalCanvasView: React.FC = () => {
     <div className="w-full h-full p-6 md:p-10 flex flex-col items-center">
       <div className="w-full max-w-7xl space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         
-        {/* HEADER */}
-        <header className="flex flex-col md:flex-row md:items-end justify-between border-b border-slate-800 pb-6 gap-4">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
-                <Activity size={24} className="text-indigo-400" />
-              </div>
-              <h1 className="text-3xl font-black text-slate-100 tracking-tight">Laboratório Elétrico</h1>
-            </div>
-            <p className="text-slate-500 font-medium max-w-xl">
-              Análise profunda paramétrica: Dimensionamento de condutores CA/CC e estresse termodinâmico de strings.
-            </p>
-          </div>
 
-          <div className="flex gap-3">
-            <div className="px-4 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-sm font-bold flex items-center gap-2">
-              <Cpu size={16} /> Topology: String Inverter
-            </div>
-          </div>
-        </header>
 
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
