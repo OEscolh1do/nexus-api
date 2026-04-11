@@ -13,8 +13,8 @@
 ├──────────┬──────────────────────────┬────────────────────┤
 │          │                          │                    │
 │   LEFT   │      CENTER CANVAS       │      RIGHT         │
-│ OUTLINER │       (Mapa + WebGL)     │    INSPECTOR       │
-│          │                          │                    │
+│ OUTLINER │(Mapa, Simulação, Site...)│    INSPECTOR       │
+│          │                          │    (Minimapa)      │
 │          │                          ├────────────────────┤
 │          │                          │   PROPERTIES       │
 │          │                          │   DRAWER (*)       │
@@ -53,10 +53,9 @@
 | # | Nome Canônico | Função |
 |---|--------------|--------|
 | 1.3.1 | **Diretrizes de Projeto** | Popover com contagem mínima de módulos para atingir meta, área e peso no telhado |
-| 1.3.2 | **Health Check** | Indicador de saúde do sistema (verde/amarelo/vermelho pulsante). Popover detalha: FDI, Voc, Isc e sincronia físico-lógica |
-| 1.3.3 | **Fluxo de Aprovação** | Dropdown com estados `Rascunho (Destravado)` e `Aprovado (Travado)`. Aprovação com erros elétricos exige confirmação |
-| 1.3.4 | **Desfazer / Refazer** | Undo/Redo via Zundo temporal store. Atalhos: `Ctrl+Z` / `Ctrl+Shift+Z` |
-| 1.3.5 | **Exportar API** | Captura o viewport, salva o design no backend e redireciona ao módulo de Proposta |
+| 1.3.2 | **Fluxo de Aprovação** | Dropdown com estados `Rascunho (Destravado)` e `Aprovado (Travado)` |
+| 1.3.3 | **Desfazer / Refazer** | Undo/Redo via Zundo temporal store. Atalhos: `Ctrl+Z` / `Ctrl+Shift+Z` |
+| 1.3.4 | **Exportar API** | Captura o viewport, salva o design no backend e redireciona ao módulo de Proposta |
 
 ---
 
@@ -98,233 +97,74 @@
 | **Área** (telhado) | `MapPin` | ✅ | ❌ | ❌ | ❌ |
 | **Módulo Colocado** | `Sun` | ✅ | ✅ | ❌ | ❌ |
 
-### 2.3 Interações
+---
 
-| Ação | Trigger | Efeito |
-|------|---------|--------|
-| Click | Nó da árvore | Seleciona o elemento → abre Properties Drawer à direita |
-| Right-click | Nó inversor/módulo | Menu de contexto com "Duplicar" e "Deletar" |
-| `Delete` / `Backspace` | Nó selecionado | Remove o inversor/módulo selecionado |
-| `Ctrl+D` | Nó inversor selecionado | Duplica o inversor com nova ID e MPPTs vazios |
-| Hover | Botão lixeira (inline) | Aparece ícone de delete ao lado do nó |
-| Drag & Drop | String → MPPT | Reatribui uma string para outro MPPT |
+## 3. CENTER CANVAS (Views Dimensionais)
+
+> **Componente**: `CenterCanvas.tsx` -> injeta dinamicamente as **CanvasViews** via arquitetura polimórfica (Slot Vazio Polimórfico).
+> **Função**: Área vital de renderização principal (~70% da tela). Trânsito entre visualização gráfica (Mapa 2D/3D) e Dashboards de Engenharia sem desmontar contextos subjacentes.
+
+O `CenterCanvas` hospeda painéis analíticos robustos, eliminando as antigas tabs estreitas do `RightInspector`.
+
+### 3.1 Arquitetura Geográfica (`MapCore.tsx`)
+A visão nativa. Motor híbrido Leaflet (2D) + WebGL/React Three Fiber (3D).
+*   **Floating Map Tools (Toolbar CAD)**: Esquerda. Polígono, Régua, Módulos (UX-003).
+*   **Camadas**: Mapa Base, Polígonos, Módulos 3D (R3F).
+*   *Nota*: No modo Portal (quando outra view assume o canvas), o MapCore é minimizado e teletransportado para o `RightInspector`.
+
+### 3.2 Dossiê de Implantação (`SiteCanvasView.tsx`)
+Substitui o antigo painel lateral "Site". Foco: Inteligência Local.
+*   **V-Card Identificação**: Cliente, Contrato, Conexão e Distribuidora.
+*   **Weather Dashboard**: Widgets estéticos de Clima (Temperatura Média Anual, Janela Solar, Umidade) consumidos da API de irradiação.
+*   **Prancheta Geo**: Coordenadas exatas e Checklist rápido de "Restrições de Telhado".
+
+### 3.3 Dashboard de Simulação Energética (`SimulationCanvasView.tsx`)
+Painel em 3-faixas semânticas que substitui o antigo gráfico lateral (UX-005 a UX-009).
+*   **Faixa 1 — Visão Geral & Guia de Dimensionamento (KPIs)**: Pílulas de consumo, geração, cobertura e potência mínima baseada na resolução normativa ANEEL.
+*   **Faixa 2 — Tabs Analíticas**: Exibe **apenas um** gráfico por vez: `Composição` (BarChart Mensal W-Full), `Cumulativo` (AreaChart balanço anual), `Curva Diária` (Bell curve paramétrica baseada na temperatura e HSP), `Tabela`.
+*   **Faixa 3 — Acordeão Colapsável**: Grid de inputs mensais (HSP CRESESB e Consumo Faturado) + Motor "Waterfall de Perdas". Mantido oculto por padrão.
+
+### 3.4 Laboratório Elétrico (`ElectricalCanvasView.tsx`)
+Foco: Dimensionamento paramétrico de proteção e condutores.
+*   **Queda de Tensão AC**: Parametrizador de cabos elétricos (bitola, distância, corrente) e indicador termodinâmico de risco de queda.
+*   **Mock Termodinâmico Voc**: Gráfico visual iterativo demonstrando o aumento da tensão de circuito aberto (Voc) operando no inverno (`minHistoricalTemp`) guiado pelas normas de limite (NEC 690.7).
 
 ---
 
-## 3. CENTER CANVAS (Viewport de Mapa)
-
-> **Componente**: `CenterCanvas.tsx` + `MapCore.tsx` + `WebGLOverlay.tsx`  
-> **Função**: Área de renderização principal (~70% da tela). Motor híbrido Leaflet (2D) + WebGL (3D).
-
-### 3.1 Camadas
-
-| # | Nome Canônico | Motor | Função |
-|---|--------------|-------|--------|
-| 3.1.1 | **Mapa Base** | Leaflet (OpenStreetMap/Satélite) | Navegação geográfica, zoom, pan |
-| 3.1.2 | **Polígonos de Telhado** | Leaflet Polygons | Áreas desenhadas pelo engenheiro representando seções do telhado |
-| 3.1.3 | **Módulos Colocados** | Leaflet Markers / Canvas | Painéis fotovoltaicos posicionados sobre os polígonos |
-| 3.1.4 | **WebGL Overlay** | React Three Fiber (R3F) | Camada 3D transparente sobre o mapa — visualização avançada futura |
-
-### 3.2 Ferramentas e HUDs (Contexto Espacial)
-
-| # | Nome Canônico | Posição | Função |
-|---|--------------|---------|--------|
-| 3.2.1 | **Floating Map Tools (Toolbar CAD)** | Extrema Esquerda | Barra interativa estilo AutoCAD exclusiva do mapa (migrada do header no UX-003). Ferramentas: Selecionar (V), Polígono (P), Régua (M), Módulos (L). Fica inativa/oculta quando minimizando o mapa. |
-| 3.2.2 | **Gráfico de Tensão (Voltage Chart)** | Inferior centro | Aparece quando uma String é selecionada. Mostra Vmp, Voc e limites MPPT |
-
-### 3.3 Transporte Dimensional (Portals)
-Em UX-003, o `CenterCanvas` tornou-se um Slot Vazio Polimórfico. Ele transita entre exibir o Mapa Principal e exibir Painéis da Doca (Simulação, Contexto) sem desmontar a geometria do WebGL ou recarregar shaders, injetando o mapa (via API `createPortal` do React) diretamente no painel minimapa do `RightInspector`.
-
----
-
-## 4. RIGHT INSPECTOR (Painel de Dados e Configurações)
+## 4. RIGHT INSPECTOR (Painel de Propriedades e Teleporte)
 
 > **Componente**: `RightInspector.tsx`  
-> **Função**: Exibe dados contextuais do projeto aglomerados em uma arquitetura de pilha (`PanelGroup`). Possui capacidade de enviar painéis ao **CenterCanvas** e receber o Mapa como miniatura estática.
+> **Função**: Relegado especificamente para gerenciar interações e abrigar o Portal do Minimapa, sem menus poluentes. A estrutura de pilhas foi substituída pelos novos Canvas (UX-004 e UX-008). 
 
-### Painéis de Contexto (PanelGroups)
-A árvore direita é segmentada em sub-painéis (`PanelSlot`) independentes que suportam colapso e maximização limitados pela prop de estado:
-*   `Site` (Contexto do Local)
-*   `Simulation` (Simulação e Consumo)
-*   `Electrical` (Configuração Elétrica)
-*   `Properties` (Propriedades Contextuais)
-*   `Minimap` (Alvo do teletransporte espacial do WebGL da tela principal via Portal; UX-003)
-
-### 4.1 Seção: Site Context (Local e Cliente)
-
-| # | Nome Canônico | Dados |
-|---|--------------|-------|
-| 4.1.1 | **Nome** | Nome do cliente (injetado via Modal ou M2M) |
-| 4.1.2 | **Cidade** | Município e estado |
-| 4.1.3 | **Endereço** | Logradouro completo |
-
-### 4.2 Seção: Localização
-
-| # | Dado | Formato |
-|---|------|---------|
-| 4.2.1 | **Latitude** | Graus decimais (ex: -6.0723°) |
-| 4.2.2 | **Longitude** | Graus decimais (ex: -49.9128°) |
-| 4.2.3 | **Área Disponível** | Metros quadrados (m²) |
-
-### 4.3 Seção: Clima
-
-| # | Dado | Fonte |
-|---|------|-------|
-| 4.3.1 | **Temperatura Média** | API climática ou manual |
-| 4.3.2 | **Fonte dos Dados** | Label da estação meteorológica |
-| 4.3.3 | **Local** | Nome da estação de referência |
-
-### 4.4 Seção: Geração vs Consumo
-
-| # | Nome Canônico | Tipo | Descrição |
-|---|--------------|------|-----------|
-| 4.4.1 | **Gráfico de Barras** | Recharts BarChart | 12 barras (uma por mês) comparando consumo (laranja) × geração estimada (turquesa) |
-| 4.4.2 | **Cobertura (%)** | Badge | Percentual de cobertura da geração sobre consumo |
-| 4.4.3 | **Consumo Médio** | Label | kWh/mês médio calculado das faturas |
-| 4.4.4 | **Geração Estimada** | Label | kWh/mês estimado via `kWp × HSP × 30 × PR` |
-
-### 4.5 Seção: FDI (Micro-Dashboard)
-
-| # | Nome Canônico | Descrição |
-|---|--------------|-----------|
-| 4.5.1 | **Percentual FDI** | Razão DC/AC × 100 (ex: 113.5%) |
-| 4.5.2 | **Status Badge** | "Ideal" (verde), "Oversized AC" (amarelo) ou "Clipping Anual" (vermelho) |
-
-### 4.6 Seção: Energia (Consumo)
-
-| # | Nome Canônico | Descrição |
-|---|--------------|-----------|
-| 4.6.1 | **Grid Mensal** | 12 campos editáveis (Jan–Dez) com consumo em kWh/mês |
-| 4.6.2 | **Consumo Calculado** | Média dos 12 meses |
-| 4.6.3 | **Tarifa R$/kWh** | Valor da tarifa de energia |
-
-### 4.7 Seção: Irradiação CRESESB (HSP)
-
-| # | Nome Canônico | Descrição |
-|---|--------------|-----------|
-| 4.7.1 | **Seletor de Cidade** | Dropdown com cidades do banco CRESESB |
-| 4.7.2 | **Grid Mensal HSP** | 12 valores de Hora Solar Pico (kWh/m²/dia) por mês |
-| 4.7.3 | **Média Anual** | Média das 12 leituras de HSP |
-| 4.7.4 | **Fonte** | Nome da cidade/estação selecionada |
-
-### 4.8 Seção: Perdas do Sistema
-
-| # | Nome Canônico | Key (store) | Default | Tipo | Descrição |
-|---|--------------|-------------|---------|------|-----------|
-| 4.8.1 | **Orientação** | `orientation` | 3.0% | Perda | Desvio do azimute ideal |
-| 4.8.2 | **Inclinação** | `inclination` | 4.0% | Perda | Desvio da inclinação ideal (latitude) |
-| 4.8.3 | **Sombreamento** | `shading` | 3.0% | Perda | Sombras próximas (árvores, chaminés) |
-| 4.8.4 | **Horizonte** | `horizon` | 2.0% | Perda | Sombreamento do horizonte distante |
-| 4.8.5 | **Temperatura** | `temperature` | 4.4% | Perda | Aquecimento das células |
-| 4.8.6 | **Sujeira** | `soiling` | 5.0% | Perda | Acúmulo de poeira e detritos |
-| 4.8.7 | **Mismatch** | `mismatch` | 1.5% | Perda | Diferença de potência entre módulos |
-| 4.8.8 | **Cabos CC** | `dcCable` | 0.5% | Perda | Queda de tensão em cabos DC |
-| 4.8.9 | **Cabos CA** | `acCable` | 1.0% | Perda | Queda de tensão em cabos AC |
-| 4.8.10 | **Eficiência Inv.** | `inverterEfficiency` | 98.0% | Eficiência | Rendimento de conversão DC→AC |
-
-> **Controle**: Cada perda tem um **input numérico** (controle primário, clicável) e um **slider** (ajuste rápido). `Enter` confirma. `onFocus` seleciona tudo.
-
-| # | Nome Canônico | Descrição |
-|---|--------------|-----------|
-| 4.8.R | **Botão Reset** | Restaura todas as perdas aos valores default |
-| 4.8.PR | **Badge PR** | Performance Ratio calculado em tempo real a partir das perdas. Cor: verde (≥80%), azul (75-80%), amarelo (<75%) |
-
-### 4.9 Seção: Termodinâmica Local
-
-| # | Nome Canônico | Key (store) | Range | Descrição |
-|---|--------------|-------------|-------|-----------|
-| 4.9.1 | **Temperatura Mínima Histórica** | `minHistoricalTemp` | -20°C a 30°C | Menor temperatura registrada na região. Afeta cálculo de Voc máximo (NEC 690.7) |
-| 4.9.2 | **Coeficiente de Voc** | `vocTempCoefficient` | -0.5 a 0 %/°C | Coeficiente térmico de tensão de circuito aberto do módulo |
-
-### 4.10 Seção: Minimapa (Portal Docking)
-
-> **Componente**: `RightInspector.tsx` (`#minimap-portal-target`)  
-> **Função**: Exibe a miniatura do mapa interativo quando outra tela toma o Center Canvas, mantendo contexto geoespacial (UX-003).
-
-| # | Nome Canônico | Descrição / Comportamento (UX-003) |
-|---|--------------|------------------------------------|
-| 4.10.1 | **Target Div** | Receptáculo estrito do DOM gerado pelo `createPortal` do React. Recebe o conteúdo inteiro do MapCore. |
-| 4.10.2 | **Poka-Yoke de Input** | O comportamento de scroll/drag nativo do mapa Leaflet é travado através do `MapMinimapObserver` no Dock, impedindo acidentes. |
-| 4.10.3 | **Trigger Maximizar** | Ação `[↗]` nativa do painel `minimap`; inverte o estado `centerContent` e volta o mapa em resolução Total. |
+### 4.1 Minimapa (Portal Docking)
+*   **Target Div**: Receptáculo do evento `createPortal`. Minimiza o mapa inteiro do CanvasCenter para manter a ciência posicional espacial quando se navega pelos Dashboards (Ex: `SimulationCanvasView`).
+*   **Poka-Yoke Inercial**: Eventos limitam pans aleatórios quando o mapa está ancorado aqui, retornando-o a res. Total ao apertar `[↗]`.
 
 ---
 
 ## 5. PROPERTIES DRAWER (Gaveta de Propriedades)
 
-> **Componente**: `PropertiesDrawer.tsx` → delega para sub-componentes por tipo  
-> **Função**: Aparece sobre o Inspector quando um elemento é selecionado no Outliner ou no Canvas.
+> **Componente**: `PropertiesDrawer.tsx` → `InverterProperties`, `ModuleProperties`, `StringProperties`
+> **Função**: UI Interativa e flutuante ancorada à direita (acima do Minimapa). Renderiza apenas quando um componente elétrico físico é ativo na árvore Tópica (LeftOutliner) ou no Mapa Base.
 
-### 5.1 Propriedades do Inversor
-
-> **Componente**: `InverterProperties.tsx`
-
-| # | Nome Canônico | Dado | Origem |
-|---|--------------|------|--------|
-| 5.1.1 | **Fabricante** | ex: "PHB Solar" | `solarStore.inverter.manufacturer` |
-| 5.1.2 | **Modelo** | ex: "PHB35KS-MT" | `solarStore.inverter.model` |
-| 5.1.3 | **Potência** | ex: "35kW" | `solarStore.inverter.nominalPower` |
-| 5.1.4 | **Eficiência** | ex: "98.6%" | `solarStore.inverter.maxEfficiency` |
-| 5.1.5 | **Conexão** | "Trifásico" | `solarStore.inverter.connectionType` |
-| 5.1.6 | **V máx. entrada** | ex: "800V" | `solarStore.inverter.maxInputVoltage` |
-| 5.1.7 | **V mín. entrada** | ex: "200V" | `solarStore.inverter.minInputVoltage` |
-| 5.1.8 | **I máx. entrada** | ex: "30A" | `solarStore.inverter.maxInputCurrent` |
-| 5.1.9 | **V saída** | ex: "220V" | `solarStore.inverter.outputVoltage` |
-| 5.1.10 | **I máx. saída** | ex: "96A" | `solarStore.inverter.maxOutputCurrent` |
-| 5.1.11 | **Quantidade** | Editável | `solarStore.inverter.quantity` |
-| 5.1.12 | **Painel MPPT** | Cards por MPPT | `useTechStore.mpptConfigs[]` |
-
-### 5.2 Propriedades do Módulo
-
-> **Componente**: `ModuleProperties.tsx`
-
-| # | Nome Canônico | Dado |
-|---|--------------|------|
-| 5.2.1 | **Fabricante** | "DMEGC" |
-| 5.2.2 | **Modelo** | "DM610G12RT-B66HSW" |
-| 5.2.3 | **Potência** | "610 Wp" |
-| 5.2.4 | **Eficiência** | "22.6%" |
-| 5.2.5 | **Dimensões** | "2382×1134×30mm" |
-| 5.2.6 | **Peso** | "32.3 kg" |
-| 5.2.7 | **Quantidade** | Editável |
-| 5.2.8 | **Parâmetros Elétricos** | Vmp, Imp, Voc, Isc |
-
-### 5.3 Propriedades da String
-
-> **Componente**: `StringProperties.tsx`
-
-| # | Nome Canônico | Dado |
-|---|--------------|------|
-| 5.3.1 | **Inversor vinculado** | Modelo do inversor pai |
-| 5.3.2 | **MPPT** | Número do MPPT |
-| 5.3.3 | **Módulos/String** | Contagem de módulos em série |
-| 5.3.4 | **Status elétrico** | OK / Warning / Error (Voc, Isc) |
+| Componente Alvo | Dados Críticos Apresentados |
+|-----------------|---------------------------|
+| **Inversor** | V_max ENTRADA, limites MPPT e Tensão em tempo real dos rastreadores. |
+| **Módulos** | Dimensões Físicas X/Y, Specs térmicas, Voc/STC, Corrente Imp. | 
+| **Strings** | Gráficos visuais (VoltageRangeChart) avaliando limiar DC Input X MPPT range, advertências de Clipping e contagem limitante. |
 
 ---
 
 ## 6. DIÁLOGOS MODAIS
 
 ### 6.1 InverterCatalogDialog
-
-> **Componente**: `InverterCatalogDialog.tsx`  
-> **Função**: Catálogo visual de inversores disponíveis no banco de dados. O engenheiro filtra e adiciona ao projeto.
-
-| # | Filtro | Tipo |
-|---|--------|------|
-| 6.1.1 | **Busca por modelo** | Texto livre |
-| 6.1.2 | **Potência mín/máx** | Range numérico (kW) |
-| 6.1.3 | **Marca** | Select com brands do banco |
-| 6.1.4 | **Fase** | Monofásico / Trifásico |
-| 6.1.5 | **MPPTs mínimos** | Numérico |
+Catálogo visual de inversores disponíveis. O engenheiro filtra (Trifásico/Monofásico, Range Potência, Marca) e adiciona ao TopOutline. Modela `InverterState`.
 
 ### 6.2 ModuleCatalogDialog
-
-> **Componente**: `ModuleCatalogDialog.tsx`  
-> **Função**: Catálogo visual de módulos fotovoltaicos disponíveis.
+Catálogo visual de painéis de captação. Similar na UI. Importante para o mock do "Area calculation" baseado em suas dimensões `x, y`.
 
 ### 6.3 ClientDataModal
-
-> **Componente**: `ClientDataModal.tsx`  
-> **Função**: Formulário de dados do cliente (nome, endereço, localização, consumo médio, tarifa).
+Formulário inicial. Define a cidade do projeto -> Aciona Fetch Cresesb (HSP/Irradiação) -> Injeta em `SimulationCanvasView`.
 
 ---
 
@@ -334,13 +174,8 @@ A árvore direita é segmentada em sub-painéis (`PanelSlot`) independentes que 
 |-------|-------|-------------|
 | **kWp** | — | Kilowatt-pico. Potência máxima DC do conjunto de módulos em condições STC |
 | **FDI** | — | Fator de Dimensionamento do Inversor. Razão entre potência DC e potência AC nominal |
-| **PR** | — | Performance Ratio. Rendimento global do sistema (0-100%) |
-| **HSP** | — | Hora Solar Pico. Irradiação diária equivalente em kWh/m²/dia |
-| **MPPT** | — | Maximum Power Point Tracker. Circuito do inversor que otimiza a extração de energia |
-| **Voc** | — | Tensão de Circuito Aberto. Tensão máxima do módulo (sem carga) |
-| **Vmp** | — | Tensão no Ponto de Máxima Potência |
-| **Isc** | — | Corrente de Curto-Circuito. Corrente máxima do módulo |
-| **Imp** | — | Corrente no Ponto de Máxima Potência |
-| **NEC 690.7** | — | Norma americana para cálculo de tensão máxima considerando temperatura |
-| **CRESESB** | — | Centro de Referência para Energia Solar e Eólica (base de dados de irradiação) |
+| **PR** | — | Performance Ratio. Rendimento global do sistema compensando o "Waterfall de Perdas"|
+| **HSP** | — | Hora Solar Pico. Irradiação diária equivalente em kWh/m²/dia (CRESESB) |
+| **MPPT** | — | Maximum Power Point Tracker. Canais lógicos de input do inversor |
+| **Voc** | — | Tensão Aberta. Cuidado redobrado atrelado a coeficientes Frios (NEC 690.7) |
 | **STC** | — | Standard Test Conditions (25°C, 1000 W/m², AM 1.5) |
