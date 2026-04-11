@@ -111,18 +111,20 @@ export const SimulationCanvasView: React.FC = () => {
   const stats = useMemo(() => {
     let sumCons = 0, sumGen = 0;
     const barData = MONTHS.map((month, i) => {
-      const cons = monthlyConsumption[i] || 0;
-      const gen = totalPowerKw * (hsp[i] || 0) * DAYS_IN_MONTH[i] * prDecimal;
+      const cons = +(monthlyConsumption[i] || 0).toFixed(2);
+      const gen = +(totalPowerKw * (hsp[i] || 0) * DAYS_IN_MONTH[i] * prDecimal).toFixed(2);
       sumCons += cons; sumGen += gen;
-      return { month, 'Consumo (kWh)': cons, 'Geração (kWh)': gen,
-        autoconsumo: Math.min(gen, cons), injecao: Math.max(0, gen - cons), deficit: Math.max(0, cons - gen) };
+      const autoconsumo = +Math.min(gen, cons).toFixed(2);
+      const injecao = +Math.max(0, gen - cons).toFixed(2);
+      const deficit = +Math.max(0, cons - gen).toFixed(2);
+      return { month, 'Consumo (kWh)': cons, 'Geração (kWh)': gen, autoconsumo, injecao, deficit };
     });
     let saldoAcum = 0;
-    const cumulativeData = barData.map((d) => { saldoAcum += d['Geração (kWh)'] - d['Consumo (kWh)']; return { month: d.month, saldo: saldoAcum }; });
-    const balance = sumGen - sumCons;
-    const coverage = sumCons > 0 ? (sumGen / sumCons) * 100 : 0;
+    const cumulativeData = barData.map((d) => { saldoAcum = +(saldoAcum + d['Geração (kWh)'] - d['Consumo (kWh)']).toFixed(2); return { month: d.month, saldo: saldoAcum }; });
+    const balance = +(sumGen - sumCons).toFixed(2);
+    const coverage = sumCons > 0 ? +(sumGen / sumCons * 100).toFixed(2) : 0;
     const radialData = [{ name: 'Cobertura', value: Math.min(coverage, 150), fill: coverage >= 100 ? '#10b981' : '#f43f5e' }];
-    return { barData, cumulativeData, radialData, totalCons: sumCons, totalGen: sumGen, balance, coverage };
+    return { barData, cumulativeData, radialData, totalCons: +sumCons.toFixed(2), totalGen: +sumGen.toFixed(2), balance, coverage };
   }, [monthlyConsumption, hsp, prDecimal, totalPowerKw]);
 
   const modulePowerW = modules.length > 0 ? modules[0].power : undefined;
@@ -132,7 +134,7 @@ export const SimulationCanvasView: React.FC = () => {
 
   const dailyData = useMemo(() => {
     const profile = getDailyProfile(totalPowerKw, hsp[dailyMonth] || 0, prDecimal);
-    return HOUR_LABELS.map((label, i) => ({ hora: label, 'Geração (kWh)': profile[i] }));
+    return HOUR_LABELS.map((label, i) => ({ hora: label, 'Geração (kWh)': +profile[i].toFixed(2) }));
   }, [totalPowerKw, hsp, prDecimal, dailyMonth]);
 
   const isPositive = stats.balance >= 0;
