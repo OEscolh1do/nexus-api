@@ -18,7 +18,7 @@
 
 import React, { useEffect, useState, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { MousePointer2, Pentagon, Ruler, LayoutGrid, Minimize2, type LucideIcon } from 'lucide-react';
+import { MousePointer2, Pentagon, Ruler, LayoutGrid, type LucideIcon } from 'lucide-react';
 import { useUIStore, useSelectedEntity, type Tool } from '@/core/state/uiStore';
 import { cn } from '@/lib/utils';
 import { useCenterContent, usePanelStore, type PanelGroupId } from '../../store/panelStore';
@@ -92,7 +92,6 @@ MapLayer.displayName = 'MapLayer';
 // =============================================================================
 
 const PromotedPanelView: React.FC<{ groupId: PanelGroupId }> = ({ groupId }) => {
-  const restoreMap = usePanelStore((s) => s.restoreMap);
   const GroupComponent = CANVAS_VIEWS_REGISTRY[groupId];
 
   if (!GroupComponent) return null;
@@ -107,16 +106,7 @@ const PromotedPanelView: React.FC<{ groupId: PanelGroupId }> = ({ groupId }) => 
             {GROUP_LABELS[groupId] || 'Painel'}
           </span>
         </div>
-        <button
-          onClick={restoreMap}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold text-slate-400
-                     bg-slate-800 hover:bg-slate-700 hover:text-white border border-slate-700
-                     transition-colors"
-          title="Restaurar Mapa ao Centro (Esc)"
-        >
-          <Minimize2 size={12} className="text-emerald-400" />
-          <span>Restaurar Mapa</span>
-        </button>
+
       </div>
 
       {/* Group content — full viewport with container query */}
