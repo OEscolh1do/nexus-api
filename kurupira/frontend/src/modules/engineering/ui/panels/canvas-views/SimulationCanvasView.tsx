@@ -6,7 +6,7 @@ import { calculateMinimumPower } from '../../../utils/minimumPower';
 import { getDailyProfile, HOUR_LABELS } from '../../../utils/dailyProfile';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  RadialBarChart, RadialBar, PolarAngleAxis, AreaChart, Area,
+  AreaChart, Area,
 } from 'recharts';
 import {
   Sun, Zap, ChevronDown, ChevronUp,
@@ -123,8 +123,7 @@ export const SimulationCanvasView: React.FC = () => {
     const cumulativeData = barData.map((d) => { saldoAcum = +(saldoAcum + d['Geração (kWh)'] - d['Consumo (kWh)']).toFixed(2); return { month: d.month, saldo: saldoAcum }; });
     const balance = +(sumGen - sumCons).toFixed(2);
     const coverage = sumCons > 0 ? +(sumGen / sumCons * 100).toFixed(2) : 0;
-    const radialData = [{ name: 'Cobertura', value: Math.min(coverage, 150), fill: coverage >= 100 ? '#10b981' : '#f43f5e' }];
-    return { barData, cumulativeData, radialData, totalCons: +sumCons.toFixed(2), totalGen: +sumGen.toFixed(2), balance, coverage };
+    return { barData, cumulativeData, totalCons: +sumCons.toFixed(2), totalGen: +sumGen.toFixed(2), balance, coverage };
   }, [monthlyConsumption, hsp, prDecimal, totalPowerKw]);
 
   const modulePowerW = modules.length > 0 ? modules[0].power : undefined;
@@ -184,51 +183,21 @@ export const SimulationCanvasView: React.FC = () => {
 
         </div>
 
-        {/* Main Chart + Donut */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* BarChart Principal */}
-          <div className="lg:col-span-2 p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl flex flex-col h-[360px]">
-            <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Consumo vs Geração — Mensal</h3>
-            <div className="flex-1 w-full min-h-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats.barData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                  <XAxis dataKey="month" stroke="#475569" tick={{ fill: '#64748b', fontSize: 11, fontWeight: '600' }} axisLine={false} tickLine={false} />
-                  <YAxis stroke="#475569" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <Tooltip {...tooltipStyle} cursor={{ fill: '#1e293b', opacity: 0.4 }} />
-                  <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', color: '#cbd5e1', paddingTop: '6px' }} />
-                  <Bar dataKey="Consumo (kWh)" fill="#2dd4bf" radius={[3, 3, 0, 0]} maxBarSize={38} />
-                  <Bar dataKey="Geração (kWh)" fill="#fbbf24" radius={[3, 3, 0, 0]} maxBarSize={38} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Donut + Balanço */}
-          <div className="col-span-1 p-5 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col h-[360px] items-center text-center relative shadow-xl">
-            <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 w-full text-left">Índice de Cobertura</h3>
-            <div className="flex-1 w-full max-w-[180px] relative">
-              <ResponsiveContainer width="100%" height="100%">
-                <RadialBarChart cx="50%" cy="50%" innerRadius="72%" outerRadius="100%" barSize={16} data={stats.radialData} startAngle={180} endAngle={-180}>
-                  <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
-                  <RadialBar background={{ fill: '#1e293b' }} dataKey="value" cornerRadius={10} />
-                </RadialBarChart>
-              </ResponsiveContainer>
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className={`text-3xl font-black ${stats.coverage >= 100 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  {Math.round(stats.coverage)}<span className="text-lg">%</span>
-                </span>
-              </div>
-            </div>
-            <div className={`w-full p-3 rounded-xl border text-left ${isPositive ? 'bg-emerald-950/20 border-emerald-500/20' : 'bg-rose-950/20 border-rose-500/20'}`}>
-              <span className={`text-[8px] font-bold uppercase tracking-widest block mb-0.5 ${isPositive ? 'text-emerald-500/70' : 'text-rose-500/70'}`}>
-                Balanço Anual
-              </span>
-              <span className={`text-lg font-black ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {isPositive ? '+' : ''}{Math.round(stats.balance).toLocaleString('pt-BR')}
-                <span className="text-[10px] opacity-60 ml-1 font-bold">kWh</span>
-              </span>
-            </div>
+        {/* Main Chart */}
+        <div className="w-full p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl flex flex-col h-[360px]">
+          <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Consumo vs Geração — Mensal</h3>
+          <div className="flex-1 w-full min-h-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={stats.barData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                <XAxis dataKey="month" stroke="#475569" tick={{ fill: '#64748b', fontSize: 11, fontWeight: '600' }} axisLine={false} tickLine={false} />
+                <YAxis stroke="#475569" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <Tooltip {...tooltipStyle} cursor={{ fill: '#1e293b', opacity: 0.4 }} />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', color: '#cbd5e1', paddingTop: '6px' }} />
+                <Bar dataKey="Consumo (kWh)" fill="#2dd4bf" radius={[3, 3, 0, 0]} maxBarSize={38} />
+                <Bar dataKey="Geração (kWh)" fill="#fbbf24" radius={[3, 3, 0, 0]} maxBarSize={38} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
