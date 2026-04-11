@@ -12,7 +12,7 @@
  */
 
 import {
-  Sun, Zap, Info, CheckCircle2, AlertTriangle, Scale,
+  Info, CheckCircle2, AlertTriangle, Scale,
   PanelLeftClose, PanelLeftOpen,
   PanelRightClose, PanelRightOpen,
   Undo2, Redo2, Download, LayoutDashboard,
@@ -68,8 +68,7 @@ export const TopRibbon: React.FC<TopRibbonProps> = ({
   // UI State for P7-2 Backend Persistence
   const [isExporting, setIsExporting] = React.useState(false);
 
-  // Engineering KPIs (P1-2)
-  const { kpi, displayedPr } = useTechKPIs();
+
 
   return (
     <div className="h-full w-full bg-slate-900 border-b border-slate-800 flex items-center justify-between px-2 select-none">
@@ -118,35 +117,7 @@ export const TopRibbon: React.FC<TopRibbonProps> = ({
         </button>
       </div>
 
-      {/* ── METRICS WIDGETS (P1-2) — TRUE CENTER ── */}
-      <div className="flex-none flex items-center justify-center gap-2 hidden lg:flex">
-        {/* kWp Widget */}
-        <div className="flex items-center gap-2 px-2.5 py-1 rounded bg-slate-800/50 border border-slate-700/50 min-w-[110px]">
-           <Sun size={12} className="text-amber-400" />
-           <div className="flex flex-col leading-none">
-             <span className="text-[8px] font-bold text-slate-500 uppercase">Potência DC</span>
-             <span className="text-[10px] font-bold text-slate-200">{kpi.totalDC.toFixed(2)} <span className="font-normal text-slate-500">kWp</span></span>
-           </div>
-        </div>
 
-        {/* FDI Widget */}
-        <div className="flex items-center gap-2 px-2.5 py-1 rounded bg-slate-800/50 border border-slate-700/50 min-w-[110px]">
-           <Zap size={12} className={kpi.dcAcRatio > 1.35 ? "text-red-400" : kpi.dcAcRatio < 0.8 ? "text-amber-400" : "text-emerald-400"} />
-           <div className="flex flex-col leading-none">
-             <span className="text-[8px] font-bold text-slate-500 uppercase">FDI (DC/AC)</span>
-             <span className="text-[10px] font-bold text-slate-200">{kpi.dcAcRatio.toFixed(2)}x <span className="font-normal text-slate-500">({kpi.totalAC.toFixed(1)}kW)</span></span>
-           </div>
-        </div>
-
-        {/* PR Widget */}
-        <div className="flex items-center gap-2 px-2.5 py-1 rounded bg-slate-800/50 border border-slate-700/50 min-w-[110px]">
-           <Activity size={12} className="text-blue-400" />
-           <div className="flex flex-col leading-none">
-             <span className="text-[8px] font-bold text-slate-500 uppercase">Performance</span>
-             <span className="text-[10px] font-bold text-slate-200">PR: {displayedPr}%</span>
-           </div>
-        </div>
-      </div>
 
       {/* ── RIGHT: Validation, Undo/Redo + Export ── */}
       <div className="flex-1 flex items-center justify-end gap-1.5 pr-1">

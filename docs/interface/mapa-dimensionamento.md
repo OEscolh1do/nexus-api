@@ -40,22 +40,14 @@ que surge incorporado nativamente ao final do Right Inspector quando um componen
 | 1.1.3 | **Toggle Outliner** | `PanelLeftClose` / `PanelLeftOpen` | Mostra/oculta o painel LeftOutliner |
 | 1.1.4 | **Toggle Inspector** | `PanelRightClose` / `PanelRightOpen` | Mostra/oculta o painel RightInspector |
 
-### 1.2 Setor Central — Widgets de KPI
-
-| # | Nome Canônico | Métrica | Descrição |
-|---|--------------|---------|-----------|
-| 1.2.1 | **Widget Potência DC** | `kWp` | Soma da potência pico de todos os módulos do projeto |
-| 1.2.2 | **Widget FDI** | `DC/AC ratio` | Fator de Dimensionamento do Inversor (razão potência DC / potência AC nominal). Ideal: 1.0–1.3x |
-| 1.2.3 | **Widget Performance** | `PR %` | Performance Ratio — rendimento líquido após todas as perdas |
-
-### 1.3 Setor Direito — Validação e Ações
+### 1.2 Setor Direito — Validação e Ações
 
 | # | Nome Canônico | Função |
 |---|--------------|--------|
-| 1.3.1 | **Diretrizes de Projeto** | Popover com contagem mínima de módulos para atingir meta, área e peso no telhado |
-| 1.3.2 | **Fluxo de Aprovação** | Dropdown com estados `Rascunho (Destravado)` e `Aprovado (Travado)` |
-| 1.3.3 | **Desfazer / Refazer** | Undo/Redo via Zundo temporal store. Atalhos: `Ctrl+Z` / `Ctrl+Shift+Z` |
-| 1.3.4 | **Exportar API** | Captura o viewport, salva o design no backend e redireciona ao módulo de Proposta |
+| 1.2.1 | **Diretrizes de Projeto** | Popover com contagem mínima de módulos para atingir meta, área e peso no telhado |
+| 1.2.2 | **Fluxo de Aprovação** | Dropdown com estados `Rascunho (Destravado)` e `Aprovado (Travado)` |
+| 1.2.3 | **Desfazer / Refazer** | Undo/Redo via Zundo temporal store. Atalhos: `Ctrl+Z` / `Ctrl+Shift+Z` |
+| 1.2.4 | **Exportar API** | Captura o viewport, salva o design no backend e redireciona ao módulo de Proposta |
 
 ---
 
