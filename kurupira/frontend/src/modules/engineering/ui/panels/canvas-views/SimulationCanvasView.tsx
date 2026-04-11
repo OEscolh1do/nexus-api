@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useSolarStore, selectModules } from '@/core/state/solarStore';
 import { useTechStore } from '../../../store/useTechStore';
 import { CRESESB_DB } from '@/data/irradiation/cresesbData';
@@ -11,7 +11,7 @@ import {
 import {
   Sun, Zap, ChevronDown, ChevronUp,
   Layers, TrendingUp, Table2, Clock, Settings2,
-  DollarSign, BarChart2, Gauge,
+  DollarSign,
 } from 'lucide-react';
 
 // ─── CONSTANTS ──────────────────────────────────────────────────────────────────
@@ -92,58 +92,6 @@ const LossWaterfall: React.FC = () => {
         </div>
       )}
     </div>
-  );
-};
-
-// ─── SIMULATION NAV RAIL ────────────────────────────────────────────────────────
-const SimulationNavRail: React.FC = () => {
-  const [activeSection, setActiveSection] = useState('section-resumo');
-
-  useEffect(() => {
-    const sectionIds = ['section-resumo', 'section-analise', 'section-config'];
-    const observers: IntersectionObserver[] = [];
-
-    sectionIds.forEach((id) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      const obs = new IntersectionObserver(
-        ([entry]) => { if (entry.isIntersecting) setActiveSection(id); },
-        { threshold: 0.2, rootMargin: '-10% 0px -70% 0px' }
-      );
-      obs.observe(el);
-      observers.push(obs);
-    });
-
-    return () => observers.forEach((obs) => obs.disconnect());
-  }, []);
-
-  const scrollTo = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
-  const items: { id: string; icon: React.ReactNode; label: string }[] = [
-    { id: 'section-resumo', icon: <Gauge size={16} />, label: 'Resumo' },
-    { id: 'section-analise', icon: <BarChart2 size={16} />, label: 'Análise' },
-    { id: 'section-config', icon: <Settings2 size={16} />, label: 'Config' },
-  ];
-
-  return (
-    <aside className="sticky top-0 self-start h-screen w-12 flex flex-col items-center gap-1 py-4 bg-slate-950 border-r border-slate-800 z-10 shrink-0">
-      {items.map((item) => (
-        <button
-          key={item.id}
-          onClick={() => scrollTo(item.id)}
-          title={item.label}
-          className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all
-            ${activeSection === item.id
-              ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-              : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
-            }`}
-        >
-          {item.icon}
-        </button>
-      ))}
-    </aside>
   );
 };
 
@@ -236,14 +184,8 @@ export const SimulationCanvasView: React.FC = () => {
   };
 
   return (
-    <div className="w-full min-h-full flex overflow-y-auto">
-
-      {/* ── NavRail ── */}
-      <SimulationNavRail />
-
-      {/* ── Main Content ── */}
-      <div className="flex-1 p-6 md:p-8 flex flex-col items-center">
-        <div className="w-full max-w-7xl animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
+    <div className="w-full min-h-full p-6 md:p-8 flex flex-col items-center overflow-y-auto">
+      <div className="w-full max-w-7xl animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
 
           {/* ═══════════════════════════════════════════════════════════════════
               FAIXA 1 — RESUMO EXECUTIVO
@@ -518,7 +460,6 @@ export const SimulationCanvasView: React.FC = () => {
           </div>
 
         </div>
-      </div>
     </div>
   );
 };
