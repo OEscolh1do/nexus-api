@@ -95,18 +95,18 @@ export const SimulationCanvasView: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           
           {/* Card Consumo */}
-          <div className="p-6 rounded-2xl bg-emerald-950/20 border border-emerald-500/20 flex flex-col justify-center">
-            <span className="text-xs font-bold text-emerald-500/70 uppercase tracking-widest mb-2">Total Consolidado (Base)</span>
-            <span className="text-3xl font-black text-emerald-400">
-               {Math.round(dashboardStats.totalConsumption).toLocaleString('pt-BR')} <span className="text-base text-emerald-600 font-bold">kWh/ano</span>
+          <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col justify-center">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Total Consolidado (Base)</span>
+            <span className="text-3xl font-black text-slate-300">
+               {Math.round(dashboardStats.totalConsumption).toLocaleString('pt-BR')} <span className="text-base text-slate-500 font-bold">kWh/ano</span>
             </span>
           </div>
 
           {/* Card Geração */}
-          <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col justify-center">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Energia Estimada Produzida</span>
-            <span className="text-3xl font-black text-slate-300">
-               {Math.round(dashboardStats.totalGeneration).toLocaleString('pt-BR')} <span className="text-base text-slate-500 font-bold">kWh/ano</span>
+          <div className="p-6 rounded-2xl bg-amber-950/20 border border-amber-500/20 flex flex-col justify-center">
+            <span className="text-xs font-bold text-amber-500/70 uppercase tracking-widest mb-2">Energia Estimada Produzida</span>
+            <span className="text-3xl font-black text-amber-400">
+               {Math.round(dashboardStats.totalGeneration).toLocaleString('pt-BR')} <span className="text-base text-amber-600 font-bold">kWh/ano</span>
             </span>
           </div>
 
@@ -142,9 +142,9 @@ export const SimulationCanvasView: React.FC = () => {
                    />
                    <Legend iconType="circle" wrapperStyle={{ fontSize: '13px', fontWeight: 'bold', color: '#cbd5e1', paddingTop: '10px' }} />
                    
-                   {/* Barras Gêmeas - Invertido conforme solicitação */}
-                   <Bar dataKey="Consumo (kWh)" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={45} />
-                   <Bar dataKey="Geração (kWh)" fill="#475569" radius={[4, 4, 0, 0]} maxBarSize={45} />
+                   {/* Barras Gêmeas Lado-a-Lado */}
+                   <Bar dataKey="Consumo (kWh)" fill="#475569" radius={[4, 4, 0, 0]} maxBarSize={45} />
+                   <Bar dataKey="Geração (kWh)" fill="#fbbf24" radius={[4, 4, 0, 0]} maxBarSize={45} />
                  </BarChart>
                </ResponsiveContainer>
              </div>
