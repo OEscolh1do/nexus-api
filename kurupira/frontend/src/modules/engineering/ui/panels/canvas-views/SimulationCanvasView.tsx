@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useSolarStore, selectModules } from '@/core/state/solarStore';
 import { useTechStore } from '../../../store/useTechStore';
 import { CRESESB_DB } from '@/data/irradiation/cresesbData';
@@ -11,12 +11,24 @@ import {
 import {
   Sun, Zap, ChevronDown, ChevronUp,
   Layers, TrendingUp, Table2, Clock, Settings2,
+  DollarSign, BarChart2, Gauge,
 } from 'lucide-react';
 
 // ─── CONSTANTS ──────────────────────────────────────────────────────────────────
 const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 type AnalysisTab = 'stacked' | 'cumulative' | 'daily' | 'table';
+
+// ─── HELPERS ────────────────────────────────────────────────────────────────────
+function getMinAvailability(conn: string | undefined): number {
+  if (conn === 'trifasico') return 100;
+  if (conn === 'bifasico') return 50;
+  return 30; // monofasico — ANEEL REN 1000/2021 Art. 624
+}
+
+function formatBRL(value: number): string {
+  return value.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
 
 // ─── KPI PILL ───────────────────────────────────────────────────────────────────
 const KpiPill: React.FC<{
@@ -83,6 +95,58 @@ const LossWaterfall: React.FC = () => {
   );
 };
 
+// ─── SIMULATION NAV RAIL ────────────────────────────────────────────────────────
+const SimulationNavRail: React.FC = () => {
+  const [activeSection, setActiveSection] = useState('section-resumo');
+
+  useEffect(() => {
+    const sectionIds = ['section-resumo', 'section-analise', 'section-config'];
+    const observers: IntersectionObserver[] = [];
+
+    sectionIds.forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const obs = new IntersectionObserver(
+        ([entry]) => { if (entry.isIntersecting) setActiveSection(id); },
+        { threshold: 0.2, rootMargin: '-10% 0px -70% 0px' }
+      );
+      obs.observe(el);
+      observers.push(obs);
+    });
+
+    return () => observers.forEach((obs) => obs.disconnect());
+  }, []);
+
+  const scrollTo = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const items: { id: string; icon: React.ReactNode; label: string }[] = [
+    { id: 'section-resumo', icon: <Gauge size={16} />, label: 'Resumo' },
+    { id: 'section-analise', icon: <BarChart2 size={16} />, label: 'Análise' },
+    { id: 'section-config', icon: <Settings2 size={16} />, label: 'Config' },
+  ];
+
+  return (
+    <aside className="sticky top-0 self-start h-screen w-12 flex flex-col items-center gap-1 py-4 bg-slate-950 border-r border-slate-800 z-10 shrink-0">
+      {items.map((item) => (
+        <button
+          key={item.id}
+          onClick={() => scrollTo(item.id)}
+          title={item.label}
+          className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all
+            ${activeSection === item.id
+              ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+              : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
+            }`}
+        >
+          {item.icon}
+        </button>
+      ))}
+    </aside>
+  );
+};
+
 // ═════════════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -92,6 +156,7 @@ export const SimulationCanvasView: React.FC = () => {
   const hsp = useSolarStore((s) => s.clientData.monthlyIrradiation || Array(12).fill(0));
   const irradiationCity = useSolarStore((s) => s.clientData.irradiationCity);
   const connectionType = useSolarStore((s) => s.clientData.connectionType);
+  const tariffRate = useSolarStore((s) => s.clientData.tariffRate || 0);
   const updateMonthlyConsumption = useSolarStore((s) => s.updateMonthlyConsumption);
   const setIrradiationData = useSolarStore((s) => s.setIrradiationData);
   const modules = useSolarStore(selectModules);
@@ -107,24 +172,44 @@ export const SimulationCanvasView: React.FC = () => {
   const [dailyMonth, setDailyMonth] = useState(0);
   const [configOpen, setConfigOpen] = useState(false);
 
-  // ── BI Engine ──
+  // ── BI Engine + Monetização (ANEEL REN 1000/2021) ──
   const stats = useMemo(() => {
-    let sumCons = 0, sumGen = 0;
+    let sumCons = 0, sumGen = 0, sumEconomia = 0;
+    const minCharge = getMinAvailability(connectionType);
+
     const barData = MONTHS.map((month, i) => {
       const cons = +(monthlyConsumption[i] || 0).toFixed(2);
       const gen = +(totalPowerKw * (hsp[i] || 0) * DAYS_IN_MONTH[i] * prDecimal).toFixed(2);
-      sumCons += cons; sumGen += gen;
+      sumCons += cons;
+      sumGen += gen;
       const autoconsumo = +Math.min(gen, cons).toFixed(2);
       const injecao = +Math.max(0, gen - cons).toFixed(2);
       const deficit = +Math.max(0, cons - gen).toFixed(2);
-      return { month, 'Consumo (kWh)': cons, 'Geração (kWh)': gen, autoconsumo, injecao, deficit };
+      // Custo de Disponibilidade: cliente paga o maior entre (cons - gen) e a taxa mínima
+      const billedKwh = Math.max(minCharge, cons - gen);
+      const economiaMes = tariffRate > 0 ? +(Math.max(0, cons - billedKwh) * tariffRate).toFixed(2) : 0;
+      sumEconomia += economiaMes;
+      return { month, 'Consumo (kWh)': cons, 'Geração (kWh)': gen, autoconsumo, injecao, deficit, economiaMes };
     });
+
     let saldoAcum = 0;
-    const cumulativeData = barData.map((d) => { saldoAcum = +(saldoAcum + d['Geração (kWh)'] - d['Consumo (kWh)']).toFixed(2); return { month: d.month, saldo: saldoAcum }; });
+    const cumulativeData = barData.map((d) => {
+      saldoAcum = +(saldoAcum + d['Geração (kWh)'] - d['Consumo (kWh)']).toFixed(2);
+      return { month: d.month, saldo: saldoAcum };
+    });
+
     const balance = +(sumGen - sumCons).toFixed(2);
     const coverage = sumCons > 0 ? +(sumGen / sumCons * 100).toFixed(2) : 0;
-    return { barData, cumulativeData, totalCons: +sumCons.toFixed(2), totalGen: +sumGen.toFixed(2), balance, coverage };
-  }, [monthlyConsumption, hsp, prDecimal, totalPowerKw]);
+    return {
+      barData,
+      cumulativeData,
+      totalCons: +sumCons.toFixed(2),
+      totalGen: +sumGen.toFixed(2),
+      balance,
+      coverage,
+      economiaAnual: +sumEconomia.toFixed(2),
+    };
+  }, [monthlyConsumption, hsp, prDecimal, totalPowerKw, connectionType, tariffRate]);
 
   const modulePowerW = modules.length > 0 ? modules[0].power : undefined;
   const minPower = useMemo(() =>
@@ -145,262 +230,294 @@ export const SimulationCanvasView: React.FC = () => {
     { key: 'table', label: 'Tabela', icon: <Table2 size={12} /> },
   ];
 
-  // ── Tooltip Style ──
-  const tooltipStyle = { contentStyle: { backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', color: '#f8fafc' }, itemStyle: { fontWeight: 'bold' as const } };
+  const tooltipStyle = {
+    contentStyle: { backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', color: '#f8fafc' },
+    itemStyle: { fontWeight: 'bold' as const },
+  };
 
   return (
-    <div className="w-full min-h-full p-6 md:p-8 flex flex-col items-center overflow-y-auto">
-      <div className="w-full max-w-7xl animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
+    <div className="w-full min-h-full flex overflow-y-auto">
 
-        {/* ═══════════════════════════════════════════════════════════════════
-            FAIXA 1 — RESUMO EXECUTIVO
-        ═══════════════════════════════════════════════════════════════════ */}
+      {/* ── NavRail ── */}
+      <SimulationNavRail />
 
+      {/* ── Main Content ── */}
+      <div className="flex-1 p-6 md:p-8 flex flex-col items-center">
+        <div className="w-full max-w-7xl animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
 
+          {/* ═══════════════════════════════════════════════════════════════════
+              FAIXA 1 — RESUMO EXECUTIVO
+          ═══════════════════════════════════════════════════════════════════ */}
+          <div id="section-resumo" className="grid grid-cols-1 lg:grid-cols-6 gap-4">
 
-        {/* KPI Strip - Reagrupado */}
-        <div className="grid grid-cols-1 lg:grid-cols-6 gap-4">
-          
-          {/* Grupo 1: Visão Geral */}
-          <div className="lg:col-span-4 rounded-xl border border-slate-800 bg-slate-900/50 p-3 flex flex-col gap-3">
-            <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Visão Geral do Sistema</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-              <KpiPill label="Consumo Anual" value={Math.round(stats.totalCons).toLocaleString('pt-BR')} unit="kWh" color="text-teal-400" subtitle={`${Math.round(stats.totalCons / 12).toLocaleString('pt-BR')} kWh/mês`} />
-              <KpiPill label="Geração Estimada" value={Math.round(stats.totalGen).toLocaleString('pt-BR')} unit="kWh" color="text-amber-400" subtitle={`${totalPowerKw.toFixed(2)} kWp instalado`} />
-              <KpiPill label="Cobertura" value={`${Math.round(stats.coverage)}`} unit="%" color={stats.coverage >= 100 ? 'text-emerald-400' : 'text-rose-400'} subtitle={`Balanço: ${isPositive ? '+' : ''}${Math.round(stats.balance).toLocaleString('pt-BR')} kWh`} />
-              <KpiPill label="Performance Ratio" value={(prDecimal * 100).toFixed(1)} unit="%" color="text-slate-300" subtitle={`HSP médio: ${avgHsp.toFixed(2)}`} />
-            </div>
-          </div>
-
-          {/* Grupo 2: Dimensionamento */}
-          <div className="lg:col-span-2 rounded-xl border border-indigo-500/20 bg-indigo-950/10 p-3 flex flex-col gap-3">
-            <h3 className="text-[10px] font-bold text-indigo-400/80 uppercase tracking-widest px-1">Guia de Dimensionamento</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <KpiPill label="Potência Mín (100%)" value={minPower.yieldPerKwp > 0 ? minPower.roundedKwp.toFixed(2) : '—'} unit="kWp" color="text-indigo-400" subtitle="Recomendado" />
-              <KpiPill label="Módulos Necessários" value={minPower.estimatedModules ? minPower.estimatedModules.toString() : '—'} unit="un." color="text-indigo-400" subtitle={modulePowerW ? `Referência: ${modulePowerW}W` : 'Sem módulo selec.'} />
-            </div>
-          </div>
-
-        </div>
-
-        {/* Main Chart */}
-        <div className="w-full p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl flex flex-col h-[360px]">
-          <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Consumo vs Geração — Mensal</h3>
-          <div className="flex-1 w-full min-h-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.barData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                <XAxis dataKey="month" stroke="#475569" tick={{ fill: '#64748b', fontSize: 11, fontWeight: '600' }} axisLine={false} tickLine={false} />
-                <YAxis stroke="#475569" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <Tooltip {...tooltipStyle} cursor={{ fill: '#1e293b', opacity: 0.4 }} />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', color: '#cbd5e1', paddingTop: '6px' }} />
-                <Bar dataKey="Consumo (kWh)" fill="#2dd4bf" radius={[3, 3, 0, 0]} maxBarSize={38} />
-                <Bar dataKey="Geração (kWh)" fill="#fbbf24" radius={[3, 3, 0, 0]} maxBarSize={38} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* ═══════════════════════════════════════════════════════════════════
-            FAIXA 2 — ANÁLISE AVANÇADA (Tabs)
-        ═══════════════════════════════════════════════════════════════════ */}
-        <div className="rounded-2xl bg-slate-900 border border-slate-800 shadow-xl overflow-hidden">
-          {/* Tab Bar */}
-          <div className="flex items-center gap-0.5 px-3 pt-3 border-b border-slate-800">
-            {analysisTabs.map(tab => (
-              <button key={tab.key} onClick={() => setAnalysisTab(tab.key)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-t-lg text-[10px] font-bold uppercase tracking-wider transition-all
-                  ${analysisTab === tab.key ? 'bg-slate-800 text-slate-200 border-t border-x border-slate-700' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/30'}`}>
-                {tab.icon} {tab.label}
-              </button>
-            ))}
-
-            {/* Mês selector (só aparece na tab daily) */}
-            {analysisTab === 'daily' && (
-              <div className="ml-auto flex items-center gap-2 pb-1">
-                <select className="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-[10px] font-bold text-slate-300 outline-none cursor-pointer"
-                  value={dailyMonth} onChange={(e) => setDailyMonth(parseInt(e.target.value))}>
-                  {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
-                </select>
-                <span className="text-[9px] text-slate-500">HSP: <span className="text-amber-400 font-bold">{hsp[dailyMonth]?.toFixed(2) || '—'}</span></span>
+            {/* Grupo 1: Visão Geral */}
+            <div className="lg:col-span-4 rounded-xl border border-slate-800 bg-slate-900/50 p-3 flex flex-col gap-3">
+              <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Visão Geral do Sistema</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                <KpiPill label="Consumo Anual" value={Math.round(stats.totalCons).toLocaleString('pt-BR')} unit="kWh" color="text-teal-400" subtitle={`${Math.round(stats.totalCons / 12).toLocaleString('pt-BR')} kWh/mês`} />
+                <KpiPill label="Geração Estimada" value={Math.round(stats.totalGen).toLocaleString('pt-BR')} unit="kWh" color="text-amber-400" subtitle={`${totalPowerKw.toFixed(2)} kWp instalado`} />
+                <KpiPill label="Cobertura" value={`${Math.round(stats.coverage)}`} unit="%" color={stats.coverage >= 100 ? 'text-emerald-400' : 'text-rose-400'} subtitle={`Balanço: ${isPositive ? '+' : ''}${Math.round(stats.balance).toLocaleString('pt-BR')} kWh`} />
+                <KpiPill label="Performance Ratio" value={(prDecimal * 100).toFixed(1)} unit="%" color="text-slate-300" subtitle={`HSP médio: ${avgHsp.toFixed(2)}`} />
               </div>
-            )}
+            </div>
+
+            {/* Grupo 2: Financeiro + Dimensionamento */}
+            <div className="lg:col-span-2 flex flex-col gap-3">
+
+              {/* Economia Anual */}
+              <div className="rounded-xl border border-emerald-500/20 bg-emerald-950/10 p-3 flex flex-col gap-2">
+                <div className="flex items-center gap-1.5 px-1">
+                  <DollarSign size={11} className="text-emerald-400" />
+                  <h3 className="text-[10px] font-bold text-emerald-400/80 uppercase tracking-widest">Economia Projetada</h3>
+                </div>
+                <KpiPill
+                  label="Economia Anual (Ano 1)"
+                  value={tariffRate > 0 ? `R$ ${formatBRL(stats.economiaAnual)}` : '—'}
+                  unit=""
+                  color="text-emerald-400"
+                  subtitle={tariffRate > 0 ? `Tarifa: R$ ${tariffRate.toFixed(2)}/kWh · ${connectionType || 'mono'}` : 'Configure a tarifa nas premissas'}
+                />
+              </div>
+
+              {/* Dimensionamento */}
+              <div className="rounded-xl border border-indigo-500/20 bg-indigo-950/10 p-3 flex flex-col gap-2">
+                <h3 className="text-[10px] font-bold text-indigo-400/80 uppercase tracking-widest px-1">Guia de Dimensionamento</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  <KpiPill label="Potência Mín (100%)" value={minPower.yieldPerKwp > 0 ? minPower.roundedKwp.toFixed(2) : '—'} unit="kWp" color="text-indigo-400" subtitle="Recomendado" />
+                  <KpiPill label="Módulos Necessários" value={minPower.estimatedModules ? minPower.estimatedModules.toString() : '—'} unit="un." color="text-indigo-400" subtitle={modulePowerW ? `Ref: ${modulePowerW}W` : 'Sem módulo selec.'} />
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Tab Content */}
-          <div className="p-5 h-[300px]">
-
-            {/* Composição (Stacked) */}
-            {analysisTab === 'stacked' && (
+          {/* Main Chart */}
+          <div className="w-full p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl flex flex-col h-[360px]">
+            <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Consumo vs Geração — Mensal</h3>
+            <div className="flex-1 w-full min-h-0">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={stats.barData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                   <XAxis dataKey="month" stroke="#475569" tick={{ fill: '#64748b', fontSize: 11, fontWeight: '600' }} axisLine={false} tickLine={false} />
                   <YAxis stroke="#475569" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <Tooltip {...tooltipStyle} />
+                  <Tooltip
+                    {...tooltipStyle}
+                    cursor={{ fill: '#1e293b', opacity: 0.4 }}
+                  />
                   <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', color: '#cbd5e1', paddingTop: '6px' }} />
-                  <Bar dataKey="autoconsumo" name="Autoconsumo" stackId="gen" fill="#059669" maxBarSize={45} />
-                  <Bar dataKey="injecao" name="Injeção na Rede" stackId="gen" fill="#fbbf24" radius={[3, 3, 0, 0]} maxBarSize={45} />
-                  <Bar dataKey="deficit" name="Déficit (Rede)" fill="#f43f5e" radius={[3, 3, 0, 0]} maxBarSize={45} />
+                  <Bar dataKey="Consumo (kWh)" fill="#2dd4bf" radius={[3, 3, 0, 0]} maxBarSize={38} />
+                  <Bar dataKey="Geração (kWh)" fill="#fbbf24" radius={[3, 3, 0, 0]} maxBarSize={38} />
                 </BarChart>
               </ResponsiveContainer>
-            )}
+            </div>
+          </div>
 
-            {/* Cumulativo */}
-            {analysisTab === 'cumulative' && (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={stats.cumulativeData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="gradCum" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                  <XAxis dataKey="month" stroke="#475569" tick={{ fill: '#64748b', fontSize: 11, fontWeight: '600' }} axisLine={false} tickLine={false} />
-                  <YAxis stroke="#475569" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <Tooltip {...tooltipStyle} />
-                  <Area type="monotone" dataKey="saldo" name="Saldo Acumulado (kWh)" stroke="#10b981" fill="url(#gradCum)" strokeWidth={2.5} />
-                </AreaChart>
-              </ResponsiveContainer>
-            )}
+          {/* ═══════════════════════════════════════════════════════════════════
+              FAIXA 2 — ANÁLISE AVANÇADA (Tabs)
+          ═══════════════════════════════════════════════════════════════════ */}
+          <div id="section-analise" className="rounded-2xl bg-slate-900 border border-slate-800 shadow-xl overflow-hidden">
+            {/* Tab Bar */}
+            <div className="flex items-center gap-0.5 px-3 pt-3 border-b border-slate-800">
+              {analysisTabs.map(tab => (
+                <button key={tab.key} onClick={() => setAnalysisTab(tab.key)}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-t-lg text-[10px] font-bold uppercase tracking-wider transition-all
+                    ${analysisTab === tab.key ? 'bg-slate-800 text-slate-200 border-t border-x border-slate-700' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/30'}`}>
+                  {tab.icon} {tab.label}
+                </button>
+              ))}
 
-            {/* Curva Diária */}
-            {analysisTab === 'daily' && (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={dailyData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="gradSol" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#fbbf24" stopOpacity={0.5} />
-                      <stop offset="95%" stopColor="#fbbf24" stopOpacity={0.02} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                  <XAxis dataKey="hora" stroke="#475569" tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} interval={2} />
-                  <YAxis stroke="#475569" tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <Tooltip {...tooltipStyle} />
-                  <Area type="monotone" dataKey="Geração (kWh)" stroke="#fbbf24" fill="url(#gradSol)" strokeWidth={2.5} />
-                </AreaChart>
-              </ResponsiveContainer>
-            )}
+              {/* Mês selector (só aparece na tab daily) */}
+              {analysisTab === 'daily' && (
+                <div className="ml-auto flex items-center gap-2 pb-1">
+                  <select className="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-[10px] font-bold text-slate-300 outline-none cursor-pointer"
+                    value={dailyMonth} onChange={(e) => setDailyMonth(parseInt(e.target.value))}>
+                    {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
+                  </select>
+                  <span className="text-[9px] text-slate-500">HSP: <span className="text-amber-400 font-bold">{hsp[dailyMonth]?.toFixed(2) || '—'}</span></span>
+                </div>
+              )}
+            </div>
 
-            {/* Tabela Analítica */}
-            {analysisTab === 'table' && (
-              <div className="overflow-x-auto h-full">
-                <table className="w-full text-[11px] text-slate-300">
-                  <thead>
-                    <tr className="border-b border-slate-700">
-                      {['Mês', 'Consumo', 'Geração', 'Autocons.', 'Injeção', 'Déficit', 'Saldo Acum.'].map(h => (
-                        <th key={h} className="px-3 py-2 text-left font-bold text-slate-400 uppercase tracking-wider">{h}</th>
+            {/* Tab Content */}
+            <div className="p-5 h-[300px]">
+
+              {/* Composição (Stacked) */}
+              {analysisTab === 'stacked' && (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={stats.barData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                    <XAxis dataKey="month" stroke="#475569" tick={{ fill: '#64748b', fontSize: 11, fontWeight: '600' }} axisLine={false} tickLine={false} />
+                    <YAxis stroke="#475569" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <Tooltip {...tooltipStyle} />
+                    <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', color: '#cbd5e1', paddingTop: '6px' }} />
+                    <Bar dataKey="autoconsumo" name="Autoconsumo" stackId="gen" fill="#059669" maxBarSize={45} />
+                    <Bar dataKey="injecao" name="Injeção na Rede" stackId="gen" fill="#fbbf24" radius={[3, 3, 0, 0]} maxBarSize={45} />
+                    <Bar dataKey="deficit" name="Déficit (Rede)" fill="#f43f5e" radius={[3, 3, 0, 0]} maxBarSize={45} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+
+              {/* Cumulativo */}
+              {analysisTab === 'cumulative' && (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={stats.cumulativeData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="gradCum" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                    <XAxis dataKey="month" stroke="#475569" tick={{ fill: '#64748b', fontSize: 11, fontWeight: '600' }} axisLine={false} tickLine={false} />
+                    <YAxis stroke="#475569" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <Tooltip {...tooltipStyle} />
+                    <Area type="monotone" dataKey="saldo" name="Saldo Acumulado (kWh)" stroke="#10b981" fill="url(#gradCum)" strokeWidth={2.5} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
+
+              {/* Curva Diária */}
+              {analysisTab === 'daily' && (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={dailyData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="gradSol" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#fbbf24" stopOpacity={0.5} />
+                        <stop offset="95%" stopColor="#fbbf24" stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                    <XAxis dataKey="hora" stroke="#475569" tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} interval={2} />
+                    <YAxis stroke="#475569" tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <Tooltip {...tooltipStyle} />
+                    <Area type="monotone" dataKey="Geração (kWh)" stroke="#fbbf24" fill="url(#gradSol)" strokeWidth={2.5} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
+
+              {/* Tabela Analítica */}
+              {analysisTab === 'table' && (
+                <div className="overflow-x-auto h-full">
+                  <table className="w-full text-[11px] text-slate-300">
+                    <thead>
+                      <tr className="border-b border-slate-700">
+                        {['Mês', 'Consumo', 'Geração', 'Autocons.', 'Injeção', 'Déficit', 'Saldo Acum.', 'Economia'].map(h => (
+                          <th key={h} className="px-3 py-2 text-left font-bold text-slate-400 uppercase tracking-wider">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stats.barData.map((d, i) => (
+                        <tr key={d.month} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
+                          <td className="px-3 py-1.5 font-bold text-slate-200">{d.month}</td>
+                          <td className="px-3 py-1.5 text-teal-400 font-mono">{Math.round(d['Consumo (kWh)']).toLocaleString('pt-BR')}</td>
+                          <td className="px-3 py-1.5 text-amber-400 font-mono">{Math.round(d['Geração (kWh)']).toLocaleString('pt-BR')}</td>
+                          <td className="px-3 py-1.5 text-emerald-400 font-mono">{Math.round(d.autoconsumo).toLocaleString('pt-BR')}</td>
+                          <td className="px-3 py-1.5 text-yellow-400 font-mono">{Math.round(d.injecao).toLocaleString('pt-BR')}</td>
+                          <td className="px-3 py-1.5 text-rose-400 font-mono">{Math.round(d.deficit).toLocaleString('pt-BR')}</td>
+                          <td className={`px-3 py-1.5 font-mono font-bold ${stats.cumulativeData[i].saldo >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                            {Math.round(stats.cumulativeData[i].saldo).toLocaleString('pt-BR')}
+                          </td>
+                          <td className="px-3 py-1.5 text-emerald-300 font-mono font-bold">
+                            {tariffRate > 0 ? `R$ ${formatBRL(d.economiaMes)}` : '—'}
+                          </td>
+                        </tr>
                       ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stats.barData.map((d, i) => (
-                      <tr key={d.month} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
-                        <td className="px-3 py-1.5 font-bold text-slate-200">{d.month}</td>
-                        <td className="px-3 py-1.5 text-teal-400 font-mono">{Math.round(d['Consumo (kWh)']).toLocaleString('pt-BR')}</td>
-                        <td className="px-3 py-1.5 text-amber-400 font-mono">{Math.round(d['Geração (kWh)']).toLocaleString('pt-BR')}</td>
-                        <td className="px-3 py-1.5 text-emerald-400 font-mono">{Math.round(d.autoconsumo).toLocaleString('pt-BR')}</td>
-                        <td className="px-3 py-1.5 text-yellow-400 font-mono">{Math.round(d.injecao).toLocaleString('pt-BR')}</td>
-                        <td className="px-3 py-1.5 text-rose-400 font-mono">{Math.round(d.deficit).toLocaleString('pt-BR')}</td>
-                        <td className={`px-3 py-1.5 font-mono font-bold ${stats.cumulativeData[i].saldo >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                          {Math.round(stats.cumulativeData[i].saldo).toLocaleString('pt-BR')}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t-2 border-slate-600 font-bold">
+                        <td className="px-3 py-2 text-slate-200">TOTAL</td>
+                        <td className="px-3 py-2 text-teal-400 font-mono">{Math.round(stats.totalCons).toLocaleString('pt-BR')}</td>
+                        <td className="px-3 py-2 text-amber-400 font-mono">{Math.round(stats.totalGen).toLocaleString('pt-BR')}</td>
+                        <td className="px-3 py-2 text-emerald-400 font-mono">{Math.round(stats.barData.reduce((a, d) => a + d.autoconsumo, 0)).toLocaleString('pt-BR')}</td>
+                        <td className="px-3 py-2 text-yellow-400 font-mono">{Math.round(stats.barData.reduce((a, d) => a + d.injecao, 0)).toLocaleString('pt-BR')}</td>
+                        <td className="px-3 py-2 text-rose-400 font-mono">{Math.round(stats.barData.reduce((a, d) => a + d.deficit, 0)).toLocaleString('pt-BR')}</td>
+                        <td className={`px-3 py-2 font-mono ${stats.balance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {Math.round(stats.balance).toLocaleString('pt-BR')}
+                        </td>
+                        <td className="px-3 py-2 text-emerald-300 font-mono">
+                          {tariffRate > 0 ? `R$ ${formatBRL(stats.economiaAnual)}` : '—'}
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t-2 border-slate-600 font-bold">
-                      <td className="px-3 py-2 text-slate-200">TOTAL</td>
-                      <td className="px-3 py-2 text-teal-400 font-mono">{Math.round(stats.totalCons).toLocaleString('pt-BR')}</td>
-                      <td className="px-3 py-2 text-amber-400 font-mono">{Math.round(stats.totalGen).toLocaleString('pt-BR')}</td>
-                      <td className="px-3 py-2 text-emerald-400 font-mono">{Math.round(stats.barData.reduce((a, d) => a + d.autoconsumo, 0)).toLocaleString('pt-BR')}</td>
-                      <td className="px-3 py-2 text-yellow-400 font-mono">{Math.round(stats.barData.reduce((a, d) => a + d.injecao, 0)).toLocaleString('pt-BR')}</td>
-                      <td className="px-3 py-2 text-rose-400 font-mono">{Math.round(stats.barData.reduce((a, d) => a + d.deficit, 0)).toLocaleString('pt-BR')}</td>
-                      <td className={`px-3 py-2 font-mono ${stats.balance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {Math.round(stats.balance).toLocaleString('pt-BR')}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ═══════════════════════════════════════════════════════════════════
+              FAIXA 3 — CONFIGURAÇÃO (Colapsável)
+          ═══════════════════════════════════════════════════════════════════ */}
+          <div id="section-config" className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden">
+            <button onClick={() => setConfigOpen(!configOpen)}
+              className="w-full flex items-center justify-between p-5 hover:bg-slate-800/30 transition-colors text-left">
+              <div className="flex items-center gap-2.5">
+                <Settings2 size={16} className="text-slate-400" />
+                <span className="text-sm font-bold text-slate-300 uppercase tracking-widest">Parâmetros de Entrada</span>
+                <span className="text-[9px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-500 font-bold">
+                  {irradiationCity || 'Sem cidade'} • {connectionType || 'mono'}
+                </span>
+              </div>
+              {configOpen ? <ChevronUp size={16} className="text-slate-500" /> : <ChevronDown size={16} className="text-slate-500" />}
+            </button>
+
+            {configOpen && (
+              <div className="px-5 pb-5 space-y-5 animate-in fade-in slide-in-from-top-2 duration-200 border-t border-slate-800 pt-5">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                  {/* Consumo */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Zap size={14} className="text-teal-400" />
+                      <span className="text-xs font-bold text-teal-300 uppercase tracking-widest">Fatura Mensal (kWh)</span>
+                    </div>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                      {MONTHS.map((month, idx) => (
+                        <div key={`c-${month}`} className="flex flex-col gap-1 focus-within:text-teal-400 text-slate-500 transition-colors">
+                          <label className="text-[9px] font-bold uppercase text-inherit text-center">{month}</label>
+                          <input type="number"
+                            className="w-full bg-slate-950 border border-slate-800 rounded px-1.5 py-1 text-[11px] text-slate-300 text-center focus:border-teal-500 focus:ring-1 focus:ring-teal-500/50 focus:outline-none transition-all"
+                            value={monthlyConsumption[idx] || 0}
+                            onChange={(e) => { const v = parseFloat(e.target.value); if (!isNaN(v) && v >= 0) updateMonthlyConsumption(idx, v); }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Irradiação */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Sun size={14} className="text-amber-400" />
+                      <span className="text-xs font-bold text-amber-300 uppercase tracking-widest">Irradiação (HSP / CRESESB)</span>
+                    </div>
+                    <select
+                      className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-xs font-bold text-slate-300 outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 transition-all cursor-pointer"
+                      value={irradiationCity || ''}
+                      onChange={(e) => { const k = e.target.value; if (CRESESB_DB[k]) setIrradiationData(CRESESB_DB[k].hsp_monthly, k); }}>
+                      <option value="" disabled>Selecione a cidade...</option>
+                      {Object.keys(CRESESB_DB).map(city => <option key={city} value={city}>{city}</option>)}
+                    </select>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                      {MONTHS.map((month, idx) => (
+                        <div key={`h-${month}`} className="flex flex-col gap-1">
+                          <label className="text-[9px] text-slate-500 font-bold uppercase text-center">{month}</label>
+                          <div className="w-full bg-slate-950/50 border border-amber-800/30 border-dashed rounded px-1.5 py-1 text-[11px] font-mono text-amber-500/90 text-center">
+                            {hsp[idx] ? hsp[idx].toFixed(2) : '—'}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Waterfall */}
+                <LossWaterfall />
               </div>
             )}
           </div>
+
         </div>
-
-        {/* ═══════════════════════════════════════════════════════════════════
-            FAIXA 3 — CONFIGURAÇÃO (Colapsável)
-        ═══════════════════════════════════════════════════════════════════ */}
-        <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden">
-          <button onClick={() => setConfigOpen(!configOpen)}
-            className="w-full flex items-center justify-between p-5 hover:bg-slate-800/30 transition-colors text-left">
-            <div className="flex items-center gap-2.5">
-              <Settings2 size={16} className="text-slate-400" />
-              <span className="text-sm font-bold text-slate-300 uppercase tracking-widest">Parâmetros de Entrada</span>
-              <span className="text-[9px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-500 font-bold">
-                {irradiationCity || 'Sem cidade'} • {connectionType || 'mono'}
-              </span>
-            </div>
-            {configOpen ? <ChevronUp size={16} className="text-slate-500" /> : <ChevronDown size={16} className="text-slate-500" />}
-          </button>
-
-          {configOpen && (
-            <div className="px-5 pb-5 space-y-5 animate-in fade-in slide-in-from-top-2 duration-200 border-t border-slate-800 pt-5">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-                {/* Consumo */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Zap size={14} className="text-teal-400" />
-                    <span className="text-xs font-bold text-teal-300 uppercase tracking-widest">Fatura Mensal (kWh)</span>
-                  </div>
-                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-                    {MONTHS.map((month, idx) => (
-                      <div key={`c-${month}`} className="flex flex-col gap-1 focus-within:text-teal-400 text-slate-500 transition-colors">
-                        <label className="text-[9px] font-bold uppercase text-inherit text-center">{month}</label>
-                        <input type="number"
-                          className="w-full bg-slate-950 border border-slate-800 rounded px-1.5 py-1 text-[11px] text-slate-300 text-center focus:border-teal-500 focus:ring-1 focus:ring-teal-500/50 focus:outline-none transition-all"
-                          value={monthlyConsumption[idx] || 0}
-                          onChange={(e) => { const v = parseFloat(e.target.value); if (!isNaN(v) && v >= 0) updateMonthlyConsumption(idx, v); }}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Irradiação */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Sun size={14} className="text-amber-400" />
-                    <span className="text-xs font-bold text-amber-300 uppercase tracking-widest">Irradiação (HSP / CRESESB)</span>
-                  </div>
-                  <select
-                    className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-xs font-bold text-slate-300 outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 transition-all cursor-pointer"
-                    value={irradiationCity || ''}
-                    onChange={(e) => { const k = e.target.value; if (CRESESB_DB[k]) setIrradiationData(CRESESB_DB[k].hsp_monthly, k); }}>
-                    <option value="" disabled>Selecione a cidade...</option>
-                    {Object.keys(CRESESB_DB).map(city => <option key={city} value={city}>{city}</option>)}
-                  </select>
-                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-                    {MONTHS.map((month, idx) => (
-                      <div key={`h-${month}`} className="flex flex-col gap-1">
-                        <label className="text-[9px] text-slate-500 font-bold uppercase text-center">{month}</label>
-                        <div className="w-full bg-slate-950/50 border border-amber-800/30 border-dashed rounded px-1.5 py-1 text-[11px] font-mono text-amber-500/90 text-center">
-                          {hsp[idx] ? hsp[idx].toFixed(2) : '—'}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Waterfall */}
-              <LossWaterfall />
-            </div>
-          )}
-        </div>
-
       </div>
     </div>
   );
