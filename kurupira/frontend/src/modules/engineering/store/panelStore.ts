@@ -35,7 +35,7 @@ export type PanelGroupId = 'site' | 'simulation' | 'electrical' | 'properties' |
 interface PanelState {
   /**
    * Qual conteúdo está renderizado no Center Slot.
-   * Default: 'map' — o mapa Leaflet/WebGL.
+   * Default: 'simulation' — Simulação Energética. Pode ser 'map' ou outro PanelGroupId.
    */
   centerContent: 'map' | PanelGroupId;
 
@@ -62,7 +62,7 @@ interface PanelState {
 const INITIAL_COLLAPSED: PanelGroupId[] = ['electrical'];
 
 export const usePanelStore = create<PanelState>((set) => ({
-  centerContent: 'map',
+  centerContent: 'simulation',
   collapsedGroups: new Set<PanelGroupId>(INITIAL_COLLAPSED),
 
   promoteToCenter: (groupId) =>
