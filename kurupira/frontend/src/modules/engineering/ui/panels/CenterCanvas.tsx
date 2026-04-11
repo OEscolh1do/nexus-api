@@ -43,20 +43,6 @@ const CANVAS_VIEWS_REGISTRY: Partial<Record<PanelGroupId, React.FC>> = {
   properties: PropertiesGroup,
 };
 
-const GROUP_LABELS: Partial<Record<PanelGroupId, string>> = {
-  site: 'Contexto do Site',
-  simulation: 'Simulação de Geração',
-  electrical: 'Configuração Elétrica',
-  properties: 'Propriedades do Componente',
-};
-
-const GROUP_ICONS: Partial<Record<PanelGroupId, string>> = {
-  site: '📍',
-  simulation: '📊',
-  electrical: '⚡',
-  properties: '📋',
-};
-
 // =============================================================================
 // TOOL HUD CONFIG
 // =============================================================================
@@ -98,22 +84,9 @@ const PromotedPanelView: React.FC<{ groupId: PanelGroupId }> = ({ groupId }) => 
 
   return (
     <div className="absolute inset-0 flex flex-col bg-slate-950 animate-in fade-in duration-200">
-      {/* Restore bar */}
-      <div className="shrink-0 flex items-center justify-between px-4 py-2.5 bg-slate-900 border-b border-slate-800">
-        <div className="flex items-center gap-2">
-          <span className="text-sm">{GROUP_ICONS[groupId]}</span>
-          <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-            {GROUP_LABELS[groupId] || 'Painel'}
-          </span>
-        </div>
-
-      </div>
-
       {/* Group content — full viewport with container query */}
       <div className="flex-1 overflow-y-auto" style={{ containerType: 'inline-size', containerName: 'panel' }}>
-        <div className="max-w-4xl mx-auto">
-          <GroupComponent />
-        </div>
+        <GroupComponent />
       </div>
     </div>
   );
