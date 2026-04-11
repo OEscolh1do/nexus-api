@@ -129,9 +129,11 @@ export const ProfileOrchestrator: React.FC = () => {
     <div className="w-full h-screen bg-slate-900 flex flex-col font-sans overflow-hidden">
 
       {/* ================================================================ */}
-      {/* HEADER — Compacto, focado no projeto ativo                       */}
+      {/* HEADER — Visível apenas fora do workspace de engenharia.         */}
+      {/* No workspace, o TopRibbon assume Logo + Nav + User.              */}
       {/* ================================================================ */}
-      <header className="bg-slate-800 border-b border-slate-700/50 px-3 py-1.5 flex items-center justify-between shrink-0 z-50">
+      <header className="bg-slate-800 border-b border-slate-700/50 px-3 py-1.5 flex items-center justify-between shrink-0 z-50"
+        style={{ display: currentModule === 'engineering' ? 'none' : 'flex' }}>
         <div className="flex items-center gap-3">
           {/* Logo */}
           <div className="flex items-center gap-2">

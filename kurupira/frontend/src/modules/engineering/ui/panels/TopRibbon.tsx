@@ -1,13 +1,16 @@
 /**
  * =============================================================================
- * TOP RIBBON — Comandos O(1) e Contexto Global (UX-001 Fase 3)
+ * TOP RIBBON — Ribbon Consolidado (U-01 / TRL 7-8)
  * =============================================================================
  *
- * Barra horizontal fixada no topo do Workspace.
- * Abriga os controlos globais e disparadores de simulação.
- * Modos de ferramenta: Cursor, Desenhar Polígono, Medir, Colocar Módulos.
+ * Barra única do workspace de engenharia. Após U-01, o header global do
+ * ProfileOrchestrator é ocultado em modo engineering — este componente
+ * assume Logo, navegação de canvas views, ações de engenharia e controles
+ * de usuário em uma única barra de 40px.
  *
- * Consome `activeTool` do Zustand Store (ou via props para isolamento).
+ * Layout True Center (UX-013):
+ * │ LEFT: Logo + Hub + Cliente + Toggles │ CENTER: Canvas Nav │ RIGHT: Tools + User │
+ *
  * =============================================================================
  */
 
@@ -16,9 +19,12 @@ import {
   PanelLeftClose, PanelLeftOpen,
   PanelRightClose, PanelRightOpen,
   Undo2, Redo2, Download, LayoutDashboard,
-  Activity, ChevronDown, Flag, Check, User
+  Activity, ChevronDown, Flag, Check, User,
+  MapPin, BarChart2, Zap, Camera,
+  ShieldCheck, ShieldAlert, Lock, Minimize2, Maximize2,
+  type LucideIcon,
 } from 'lucide-react';
-import { usePanelStore } from '../../store/panelStore';
+import { usePanelStore, PanelGroupId } from '../../store/panelStore';
 import { ClientDataModal } from '../components/ClientDataModal';
 import React from 'react';
 import { useSolarStore, selectModules, selectInverters, selectClientData } from '@/core/state/solarStore';
@@ -29,10 +35,11 @@ import { useProjectContext } from '@/hooks/useProjectContext';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/core/state/uiStore';
 import { getFdiStatus, FDI_STATUS_CONFIG } from '../../constants/thresholds';
+import { useAuth } from '@/core/auth/useAuth';
 
 
 // =============================================================================
-// PROPS
+// TYPES
 // =============================================================================
 
 interface TopRibbonProps {
@@ -41,6 +48,14 @@ interface TopRibbonProps {
   onToggleLeft: () => void;
   onToggleRight: () => void;
 }
+
+// Canvas view navigation items
+const CANVAS_VIEWS: { id: 'map' | PanelGroupId; icon: LucideIcon; label: string }[] = [
+  { id: 'map',        icon: MapPin,    label: 'Mapa'      },
+  { id: 'simulation', icon: BarChart2, label: 'Simulação' },
+  { id: 'electrical', icon: Zap,       label: 'Elétrico'  },
+  { id: 'site',       icon: Camera,    label: 'Site'      },
+];
 
 // =============================================================================
 // COMPONENT
@@ -53,10 +68,21 @@ export const TopRibbon: React.FC<TopRibbonProps> = ({
   onToggleRight,
 }) => {
   const setActiveModule = useSolarStore(state => state.setActiveModule);
+  const userRole = useSolarStore(state => state.userRole);
   const clientData = useSolarStore(selectClientData);
   const [isClientModalOpen, setIsClientModalOpen] = React.useState(false);
+  const [fullscreen, setFullscreen] = React.useState(false);
+  const [isExporting, setIsExporting] = React.useState(false);
 
-  // Zundo Temporal Store for Undo/Redo
+  // @ts-ignore — signOut type varies by auth provider
+  const { signOut } = useAuth();
+
+  // Panel store — canvas view switching
+  const centerContent = usePanelStore(s => s.centerContent);
+  const promoteToCenter = usePanelStore(s => s.promoteToCenter);
+  const restoreMap = usePanelStore(s => s.restoreMap);
+
+  // Zundo Temporal Store
   const pastStates = useTemporalStore((state: any) => state.pastStates);
   const futureStates = useTemporalStore((state: any) => state.futureStates);
   const undo = useTemporalStore((state: any) => state.undo);
@@ -65,76 +91,155 @@ export const TopRibbon: React.FC<TopRibbonProps> = ({
   const canUndo = pastStates.length > 0;
   const canRedo = futureStates.length > 0;
 
-  // UI State for P7-2 Backend Persistence
-  const [isExporting, setIsExporting] = React.useState(false);
+  // ── Canvas view switch ──
+  const handleViewSwitch = (viewId: 'map' | PanelGroupId) => {
+    if (viewId === 'map') {
+      restoreMap();
+    } else {
+      promoteToCenter(viewId as PanelGroupId);
+    }
+  };
 
+  // ── Fullscreen ──
+  const toggleFullscreen = () => {
+    if (!fullscreen) {
+      document.documentElement.requestFullscreen?.();
+    } else {
+      document.exitFullscreen?.();
+    }
+    setFullscreen(!fullscreen);
+  };
 
+  // ── Export to Proposal (P7-1 snapshot interception) ──
+  const handleExport = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    try {
+      const panelState = usePanelStore.getState();
+      if (panelState.centerContent !== 'map') {
+        panelState.restoreMap();
+        await new Promise(r => setTimeout(r, 300));
+      }
+      const { captureViewport } = await import('@/modules/proposal/utils/captureViewport');
+      const { ProjectService } = await import('@/services/ProjectService');
+      const dataUrl = await captureViewport();
+      if (dataUrl) {
+        const success = await ProjectService.saveDesign(dataUrl);
+        if (success) {
+          useUIStore.getState().setViewportSnapshot(dataUrl);
+          setActiveModule('proposal');
+        } else {
+          alert('Erro ao salvar projeto no servidor. Verifique o console.');
+        }
+      } else {
+        console.error('[TopRibbon] Falha ao capturar mapa.');
+        alert('Erro ao gerar imagem térmica do telhado.');
+      }
+    } catch (err) {
+      console.error('[TopRibbon] Erro durante exportação:', err);
+      alert('Erro fatal durante exportação da proposta.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   return (
-    <div className="h-full w-full bg-slate-900 border-b border-slate-800 flex items-center justify-between px-2 select-none">
+    <div className="relative h-full w-full bg-slate-900 border-b border-slate-800 flex items-center px-2 select-none">
 
-      {/* ── LEFT: Panel Toggles + Module Context ── */}
-      <div className="flex-1 flex items-center justify-start gap-1">
+      {/* ── LEFT: Logo + Back to Hub + Client + Panel Toggles ── */}
+      <div className="flex-1 flex items-center justify-start gap-1 min-w-0">
+
+        {/* Logo */}
+        <img
+          src="/logo-neonorte.png"
+          alt="Neonorte"
+          className="h-4 w-auto opacity-75 shrink-0 mr-0.5"
+        />
+
+        <div className="h-5 w-px bg-slate-800 mx-0.5 shrink-0" />
+
         {/* Back to Hub */}
         <button
           onClick={() => setActiveModule('hub')}
-          className="p-1.5 rounded-md hover:bg-slate-800 text-slate-500 hover:text-emerald-400 transition-colors mr-1"
+          className="p-1.5 rounded-md hover:bg-slate-800 text-slate-500 hover:text-emerald-400 transition-colors shrink-0"
           title="Voltar ao Explorador"
         >
           <LayoutDashboard size={14} />
         </button>
 
-        <div className="h-5 w-px bg-slate-800 mx-0.5" />
+        <div className="h-5 w-px bg-slate-800 mx-0.5 shrink-0" />
 
         {/* Client Data Button */}
         <button
           onClick={() => setIsClientModalOpen(true)}
-          className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold transition-colors text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+          className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold transition-colors text-slate-400 hover:bg-slate-800 hover:text-slate-200 min-w-0"
           title="Dados do Cliente & Localização"
         >
-          <User size={12} className={clientData?.clientName ? 'text-emerald-400' : 'text-slate-500'} />
-          <span className="hidden xl:inline max-w-[100px] truncate">
+          <User size={12} className={clientData?.clientName ? 'text-emerald-400 shrink-0' : 'text-slate-500 shrink-0'} />
+          <span className="hidden xl:inline truncate max-w-[120px]">
             {clientData?.clientName || 'Cliente'}
           </span>
         </button>
 
-        <div className="h-5 w-px bg-slate-800 mx-0.5" />
+        <div className="h-5 w-px bg-slate-800 mx-0.5 shrink-0" />
 
         {/* Panel toggles */}
         <button
           onClick={onToggleLeft}
-          className={`p-1.5 rounded-md transition-colors ${leftOpen ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-600 hover:text-slate-400 hover:bg-slate-800'}`}
+          className={`p-1.5 rounded-md transition-colors shrink-0 ${leftOpen ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-600 hover:text-slate-400 hover:bg-slate-800'}`}
           title={leftOpen ? 'Ocultar Outliner' : 'Mostrar Outliner'}
         >
           {leftOpen ? <PanelLeftClose size={14} /> : <PanelLeftOpen size={14} />}
         </button>
         <button
           onClick={onToggleRight}
-          className={`p-1.5 rounded-md transition-colors ${rightOpen ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-600 hover:text-slate-400 hover:bg-slate-800'}`}
+          className={`p-1.5 rounded-md transition-colors shrink-0 ${rightOpen ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-600 hover:text-slate-400 hover:bg-slate-800'}`}
           title={rightOpen ? 'Ocultar Inspector' : 'Mostrar Inspector'}
         >
           {rightOpen ? <PanelRightClose size={14} /> : <PanelRightOpen size={14} />}
         </button>
       </div>
 
+      {/* ── CENTER: Canvas View Navigation (True Center) ── */}
+      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-0.5">
+        {CANVAS_VIEWS.map(({ id, icon: Icon, label }) => {
+          const isActive = centerContent === id;
+          return (
+            <button
+              key={id}
+              onClick={() => handleViewSwitch(id)}
+              title={label}
+              className={cn(
+                'flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-bold transition-all whitespace-nowrap',
+                isActive
+                  ? 'bg-slate-700 text-white border border-slate-600'
+                  : 'text-slate-500 hover:text-slate-200 hover:bg-slate-800/70'
+              )}
+            >
+              <Icon size={11} />
+              <span className="hidden lg:inline">{label}</span>
+            </button>
+          );
+        })}
+      </div>
 
+      {/* ── RIGHT: Engineering Tools + User Controls ── */}
+      <div className="flex-1 flex items-center justify-end gap-1 pr-1">
 
-      {/* ── RIGHT: Validation, Undo/Redo + Export ── */}
-      <div className="flex-1 flex items-center justify-end gap-1.5 pr-1">
-        
         {/* P3-3: Engineering Guidelines */}
         <EngineeringGuidelinesWidget />
 
         {/* P3-2: System Health Check */}
         <HealthCheckWidget />
 
-        <div className="h-5 w-px bg-slate-800 mx-1" />
+        <div className="h-5 w-px bg-slate-800 mx-0.5 shrink-0" />
 
         {/* P3-1: Approval Flow */}
         <ApprovalDropdown />
 
-        <div className="h-5 w-px bg-slate-800 mx-1" />
+        <div className="h-5 w-px bg-slate-800 mx-0.5 shrink-0" />
 
+        {/* Undo / Redo */}
         <div className="flex items-center gap-0.5">
           <button
             onClick={() => canUndo && undo()}
@@ -154,59 +259,51 @@ export const TopRibbon: React.FC<TopRibbonProps> = ({
           </button>
         </div>
 
+        {/* Export */}
         <button
-          onClick={async () => {
-            if (isExporting) return;
-            setIsExporting(true);
-            try {
-              // SPEC-000 §Inconsistência 1: Garante mapa visível antes de capturar
-              const panelState = usePanelStore.getState();
-              if (panelState.centerContent !== 'map') {
-                panelState.restoreMap();
-                await new Promise(r => setTimeout(r, 300)); // Aguarda Leaflet re-render
-              }
-
-              console.log('[TopRibbon] Iniciando geração da proposta...');
-              const { captureViewport } = await import('@/modules/proposal/utils/captureViewport');
-              const { ProjectService } = await import('@/services/ProjectService');
-
-              const dataUrl = await captureViewport();
-              if (dataUrl) {
-                const success = await ProjectService.saveDesign(dataUrl);
-                if (success) {
-                  // Salva a foto em base64 na store de UI para que o ProposalModule possa exibi-la
-                  useUIStore.getState().setViewportSnapshot(dataUrl);
-                  
-                  // Muda a tela para a Tab de Proposta
-                  setActiveModule('proposal');
-                } else {
-                  alert('Erro ao salvar projeto no servidor. Verifique o console.');
-                }
-              } else {
-                console.error('[TopRibbon] Falha ao capturar mapa (dataUrl vazio).');
-                alert('Erro ao gerar imagem térmica do telhado.');
-              }
-            } catch (err) {
-              console.error('[TopRibbon] Erro durante exportação:', err);
-              alert('Erro fatal durante exportação da proposta.');
-            } finally {
-              setIsExporting(false);
-            }
-          }}
+          onClick={handleExport}
           disabled={isExporting}
-          className={`flex items-center gap-1.5 px-3 py-1.5 ml-1 rounded-md text-[11px] font-bold border transition-all ${
-            isExporting 
-              ? 'text-slate-400 bg-slate-800 border-slate-700 cursor-not-allowed opacity-70' 
+          className={cn(
+            'flex items-center gap-1.5 px-3 py-1.5 ml-0.5 rounded-md text-[11px] font-bold border transition-all',
+            isExporting
+              ? 'text-slate-400 bg-slate-800 border-slate-700 cursor-not-allowed opacity-70'
               : 'text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white border-slate-700'
-          }`}
+          )}
           title="Salvar Projeto & Exportar Proposta PDF"
         >
-          {isExporting ? (
-            <div className="w-3 h-3 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <Download size={12} className="text-emerald-400" />
-          )}
-          <span className="hidden xl:inline">{isExporting ? 'Salvando...' : 'Exportar API'}</span>
+          {isExporting
+            ? <div className="w-3 h-3 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+            : <Download size={12} className="text-emerald-400" />}
+          <span className="hidden xl:inline">{isExporting ? 'Salvando...' : 'Exportar'}</span>
+        </button>
+
+        <div className="h-5 w-px bg-slate-800 mx-0.5 shrink-0" />
+
+        {/* User Role Badge */}
+        <div className="flex items-center gap-1 px-2 py-1 bg-slate-800/60 rounded shrink-0">
+          {userRole === 'ADMIN'
+            ? <ShieldAlert size={11} className="text-red-400" />
+            : <ShieldCheck size={11} className="text-emerald-400" />}
+          <span className="text-[10px] font-bold text-slate-400 uppercase hidden xl:inline">{userRole}</span>
+        </div>
+
+        {/* Fullscreen */}
+        <button
+          onClick={toggleFullscreen}
+          className="p-1.5 rounded-md hover:bg-slate-800 text-slate-500 hover:text-white transition-colors shrink-0"
+          title="Modo imersivo"
+        >
+          {fullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+        </button>
+
+        {/* Logout */}
+        <button
+          // @ts-ignore
+          onClick={signOut}
+          className="p-1.5 hover:bg-slate-800 text-slate-500 hover:text-red-400 rounded transition-colors shrink-0"
+          title="Sair"
+        >
+          <Lock size={14} />
         </button>
       </div>
 
@@ -235,28 +332,28 @@ const ApprovalDropdown: React.FC = () => {
 
     return (
         <div className="relative" onMouseLeave={() => setIsOpen(false)}>
-            <button 
+            <button
                 onClick={() => setIsOpen(!isOpen)}
                 className={cn("flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold border transition-colors", current.color, current.bg, current.border)}
             >
                 <Flag size={10} />
-                <span>{current.label}</span>
-                <ChevronDown size={10} className="ml-1 opacity-50" />
+                <span className="hidden xl:inline">{current.label}</span>
+                <ChevronDown size={10} className="ml-0.5 opacity-50" />
             </button>
 
             {isOpen && (
-                <div className="absolute top-full mt-1 right-0 w-36 bg-slate-900 border border-slate-700 rounded-lg shadow-xl overflow-hidden z-50">
+                <div className="absolute top-full mt-1 right-0 w-40 bg-slate-900 border border-slate-700 rounded-lg shadow-xl overflow-hidden z-50">
                     {(Object.keys(STATUS_MAP) as Array<keyof typeof STATUS_MAP>).map(s => (
                         <button
                             key={s}
-                            onClick={() => { 
+                            onClick={() => {
                                 if (s === 'approved' && globalHealth === 'error') {
                                     const confirmMsg = "Atenção Crítica: O sistema apresenta Erros Elétricos (Violando Limites do Inversor) ou Inconsistência Lógica. Tem certeza que deseja TRAVAR e APROVAR o projeto nessas condições?";
                                     if (window.confirm(confirmMsg)) {
-                                        setProjectStatus(s); setIsOpen(false); 
+                                        setProjectStatus(s); setIsOpen(false);
                                     }
                                 } else {
-                                    setProjectStatus(s); setIsOpen(false); 
+                                    setProjectStatus(s); setIsOpen(false);
                                 }
                             }}
                             className="w-full text-left px-3 py-2 text-[10px] font-bold text-slate-300 hover:bg-slate-800 flex items-center justify-between"
@@ -279,19 +376,17 @@ const HealthCheckWidget: React.FC = () => {
     const { kpi } = useTechKPIs();
     const { electrical, inventory } = useElectricalValidation();
 
-    // FDI from unified source
     const fdiStatus = getFdiStatus(kpi.dcAcRatio);
     const fdiConfig = FDI_STATUS_CONFIG[fdiStatus];
     const fdiPercent = kpi.dcAcRatio * 100;
     const isHighOverload = fdiStatus === 'clipping';
     const isLowOverload = fdiStatus === 'oversized';
-    
+
     let isVocUnsafe = false;
     let isCurrentUnsafe = false;
     const currentViolations: string[] = [];
     let maxVocGenerated = 0;
-    
-    // Calculate Component Limits via Thermal Engine Hook (P6.5)
+
     if (electrical?.entries) {
         electrical.entries.forEach(entry => {
             if (entry.vocMax > maxVocGenerated) maxVocGenerated = entry.vocMax;
@@ -305,7 +400,6 @@ const HealthCheckWidget: React.FC = () => {
         });
     }
 
-    // Physical vs Logical Cross-check (Ação 3)
     const isMismatch = !inventory.isSynced;
     const hasCritical = isVocUnsafe || isHighOverload || isCurrentUnsafe;
     const hasWarning = isLowOverload || isMismatch;
@@ -326,7 +420,6 @@ const HealthCheckWidget: React.FC = () => {
                 )}
             </div>
 
-            {/* Popover */}
             <div className="absolute top-full mt-2 right-0 w-64 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 p-3">
                 <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 border-b border-slate-800 pb-1 flex items-center gap-1.5">
                     <Activity size={10} /> Health Check
@@ -336,16 +429,12 @@ const HealthCheckWidget: React.FC = () => {
                     <p className="text-[10px] text-slate-500">Adicione módulos e inversores para ver o status sistêmico.</p>
                 ) : (
                     <div className="space-y-2">
-                        {/* Overload */}
                         <div className="flex flex-col">
                             <span className="text-[9px] text-slate-500">FDI (Fator de Dimensionamento)</span>
-                            <div className="flex flex-col mt-0.5">
-                                <span className={cn("text-xs font-bold", fdiConfig.color)}>
-                                    {fdiPercent.toFixed(1)}% ({fdiConfig.label})
-                                </span>
-                            </div>
+                            <span className={cn("text-xs font-bold mt-0.5", fdiConfig.color)}>
+                                {fdiPercent.toFixed(1)}% ({fdiConfig.label})
+                            </span>
                         </div>
-                        {/* Electrical Integrity */}
                         <div className="flex flex-col">
                             <span className="text-[9px] text-slate-500">Integridade Elétrica</span>
                             <div className="flex flex-col mt-0.5 space-y-1">
@@ -356,24 +445,18 @@ const HealthCheckWidget: React.FC = () => {
                                     Corrente MPPT (Isc): {isCurrentUnsafe ? 'Excedida (Risco!)' : 'Ok'}
                                 </span>
                                 {currentViolations.map((msg, idx) => (
-                                    <span key={idx} className="text-[10px] text-red-400/80 leading-tight">
-                                        • {msg}
-                                    </span>
+                                    <span key={idx} className="text-[10px] text-red-400/80 leading-tight">• {msg}</span>
                                 ))}
                             </div>
                         </div>
-                        {/* Physical vs Logical (Ação 3) */}
                         <div className="flex flex-col border-t border-slate-800 pt-2 mt-2">
                             <span className="text-[9px] text-slate-500">Modelagem Físico-Lógica</span>
-                            <div className="flex flex-col mt-0.5">
-                                <span className={cn("text-xs font-bold", isMismatch ? 'text-amber-400' : 'text-emerald-400')}>
-                                    Módulos Lógicos: {inventory.logicalCount} <br/>
-                                    Módulos no Telhado: {placedModules.length}
-                                    {isMismatch && <span className="block text-[10px] uppercase font-bold text-amber-500/80 mt-1">Status: Inconsistente</span>}
-                                    {!isMismatch && placedModules.length > 0 && <span className="block text-[10px] uppercase font-bold text-emerald-500/80 mt-1">Status: Sincronizado</span>}
-                                    {!isMismatch && placedModules.length === 0 && <span className="block text-[10px] uppercase font-bold text-slate-500/80 mt-1">Status: Físico Vazio</span>}
-                                </span>
-                            </div>
+                            <span className={cn("text-xs font-bold mt-0.5", isMismatch ? 'text-amber-400' : 'text-emerald-400')}>
+                                Lógicos: {inventory.logicalCount} · Telhado: {placedModules.length}
+                                {isMismatch && <span className="block text-[10px] uppercase font-bold text-amber-500/80 mt-1">Inconsistente</span>}
+                                {!isMismatch && placedModules.length > 0 && <span className="block text-[10px] uppercase font-bold text-emerald-500/80 mt-1">Sincronizado</span>}
+                                {!isMismatch && placedModules.length === 0 && <span className="block text-[10px] uppercase font-bold text-slate-500/80 mt-1">Físico Vazio</span>}
+                            </span>
                         </div>
                     </div>
                 )}
@@ -409,12 +492,10 @@ const EngineeringGuidelinesWidget: React.FC = () => {
                 <Info size={14} />
             </div>
 
-            {/* Popover */}
             <div className="absolute top-full mt-2 right-0 w-56 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 p-3">
                 <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 border-b border-slate-800 pb-1 flex items-center gap-1.5">
                     <Scale size={10} className="text-blue-400" /> Diretrizes de Projeto
                 </h4>
-
                 <div className="space-y-2 mt-2">
                     <div className="flex justify-between items-center text-[10px]">
                         <span className="text-slate-500">Min. Módulos p/ Meta:</span>
@@ -440,5 +521,3 @@ const EngineeringGuidelinesWidget: React.FC = () => {
         </div>
     );
 };
-
-
