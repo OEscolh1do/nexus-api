@@ -15,7 +15,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   Search, Plus, MapPin, Zap, SlidersHorizontal,
-  Battery, ArrowUpRight, Clock, Edit2, Loader2, FolderOpen
+  Battery, ArrowUpRight, Clock, Edit2, FolderOpen
 } from 'lucide-react';
 import { KurupiraClient, TechnicalDesignSummary } from '@/services/NexusClient';
 import { ProjectFormModal } from './components/ProjectFormModal';
