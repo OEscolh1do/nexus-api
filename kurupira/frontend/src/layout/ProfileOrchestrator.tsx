@@ -134,12 +134,18 @@ export const ProfileOrchestrator: React.FC = () => {
       {/* ================================================================ */}
       <header className="bg-slate-800 border-b border-slate-700/50 px-3 py-1.5 flex items-center justify-between shrink-0 z-50">
         <div className="flex items-center gap-3">
-          {/* Logo */}
-          <div className="flex items-center gap-2">
+          {/* Logo atuando como botão Home para voltar ao Hub */}
+          <button 
+            onClick={() => setActiveModule('hub')}
+            className="flex items-center gap-2 hover:opacity-100 transition-opacity"
+            title="Voltar para Projetos"
+          >
             <img src="/logo-neonorte.png" alt="Neonorte" className="h-5 w-auto opacity-90" />
-          </div>
+          </button>
 
-          <div className="h-5 w-px bg-slate-700 mx-1" />
+          {currentModule !== 'hub' && (
+            <>
+              <div className="h-5 w-px bg-slate-700 mx-1" />
 
 
 
@@ -178,6 +184,8 @@ export const ProfileOrchestrator: React.FC = () => {
               );
             })}
           </nav>
+            </>
+          )}
         </div>
 
         {/* Right: User + Actions */}

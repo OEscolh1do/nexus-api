@@ -19,14 +19,7 @@ export interface TabConfig {
 
 // Configuração das Abas (workflow de engenharia puro)
 export const DASHBOARD_TABS: readonly TabConfig[] = [
-  {
-    id: 'hub',
-    label: 'Projetos',
-    icon: LayoutGrid,
-    description: 'Explorador de projetos e contexto técnico',
-    color: 'green',
-    order: 0,
-  },
+
   {
     id: 'engineering',
     label: 'Dimensionamento',
