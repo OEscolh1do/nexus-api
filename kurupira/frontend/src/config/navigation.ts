@@ -3,7 +3,7 @@
  * Paradigma Workspace: Dimensionamento → Elétrico → Documentação → Proposta → Premissas
  */
 
-import { LucideIcon, LayoutGrid, SunMedium, Zap, ClipboardCheck, FileText, Settings2 } from 'lucide-react';
+import { LucideIcon, SunMedium, Zap, ClipboardCheck, FileText, Settings2 } from 'lucide-react';
 
 // Tipos
 export type TabId = 'hub' | 'engineering' | 'electrical' | 'documentation' | 'proposal' | 'settings';
