@@ -145,46 +145,48 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelectProjec
   return (
     <div className="h-full flex flex-col bg-slate-950 overflow-hidden">
 
-      {/* ── HEADER STRIP ── */}
-      <div className="shrink-0 border-b border-slate-800 px-5 py-3">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h1 className="text-sm font-bold text-white tracking-tight">
+      {/* ── HEADER STRIP CONFIDENTIAL / GLASS ── */}
+      <div className="shrink-0 border-b border-slate-800/80 bg-slate-900/40 backdrop-blur-xl px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 z-10">
+        <div className="flex items-center gap-4">
+          <div className="flex flex-col">
+            <h1 className="text-base font-extrabold text-white tracking-tight flex items-center gap-2">
+              <FolderOpen size={16} className="text-emerald-500" />
               Explorador de Projetos
             </h1>
-            <p className="text-[10px] text-slate-500 mt-0.5">
-              {filteredProjects.length} projeto{filteredProjects.length !== 1 ? 's' : ''} encontrado{filteredProjects.length !== 1 ? 's' : ''}
+            <p className="text-[11px] font-medium text-slate-400 mt-0.5">
+              {loading ? 'Sincronizando...' : `${filteredProjects.length} projeto${filteredProjects.length !== 1 ? 's' : ''} indexado${filteredProjects.length !== 1 ? 's' : ''}`}
             </p>
           </div>
-          <button onClick={() => setFormProjectId('NEW')} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 text-xs font-bold hover:bg-emerald-500/20 transition-all border border-emerald-500/20">
-            <Plus size={14} />
-            Novo Projeto
-          </button>
+          <div className="w-px h-8 bg-slate-800 hidden md:block mx-2" />
         </div>
 
-        {/* Search + Filters */}
-        <div className="flex items-center gap-2">
-          <div className="flex-1 relative">
+        {/* Search, Filters + CTA no mesmo alinhamento */}
+        <div className="flex items-center gap-3 flex-1 md:max-w-xl justify-end">
+          <div className="flex-1 relative max-w-sm">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar por nome, cidade ou potência..."
-              className="w-full h-8 pl-9 pr-3 rounded-lg bg-slate-900 border border-slate-800 text-xs text-white placeholder:text-slate-600 focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/20 outline-none transition-all"
+              placeholder="Buscar cliente, cidade..."
+              className="w-full h-9 pl-9 pr-3 rounded-lg bg-slate-950/50 border border-slate-800/80 text-xs text-white placeholder:text-slate-600 focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/20 outline-none transition-all"
             />
           </div>
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`p-2 rounded-lg border transition-all ${showFilters
+            className={`p-2.5 rounded-lg border transition-all ${showFilters
               ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-              : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300'
+              : 'bg-slate-950/50 border-slate-800/80 text-slate-500 hover:text-slate-300'
               }`}
           >
             <SlidersHorizontal size={14} />
           </button>
+          
+          <button onClick={() => setFormProjectId('NEW')} className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)]">
+            <Plus size={14} />
+            Novo Projeto
+          </button>
         </div>
-
         {/* Filter chips (expandável) */}
         {showFilters && (
           <div className="flex flex-wrap gap-1.5 mt-3 animate-in fade-in slide-in-from-top-1 duration-200">
@@ -209,11 +211,10 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelectProjec
       </div>
 
       {/* ── GRID DE PROJETOS (Visual-First) ── */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-6 bg-slate-950 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(16,185,129,0.03),transparent)]">
         {loading ? (
-          <div className="flex flex-col items-center justify-center h-full text-center text-slate-500 gap-3">
-             <Loader2 size={32} className="animate-spin text-emerald-500/50" />
-             <p className="text-sm font-semibold">Carregando Projetos...</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+             {Array(8).fill(0).map((_, i) => <ProjectSkeletonCard key={i} />)}
           </div>
         ) : filteredProjects.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
@@ -222,7 +223,7 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelectProjec
             <p className="text-xs text-slate-600 mt-1">Tente ajustar os filtros ou criar um novo projeto.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-5">
             {filteredProjects.map(project => (
               <ProjectCardComponent
                 key={project.projectId}
@@ -277,6 +278,35 @@ const getPatternSeed = (name: string) => {
 };
 
 // =============================================================================
+// PROJECT SKELETON CARD (Loader Premium)
+// =============================================================================
+
+const ProjectSkeletonCard: React.FC = () => {
+  return (
+    <div className="relative bg-slate-900/40 backdrop-blur-md border border-slate-800/60 rounded-xl overflow-hidden h-[240px] animate-pulse">
+      {/* Thumbnail skeleton */}
+      <div className="h-32 w-full bg-slate-800/50" />
+      
+      {/* Content skeleton */}
+      <div className="p-4 pt-3 flex flex-col gap-3">
+        <div className="h-4 w-3/4 bg-slate-800/50 rounded" />
+        
+        <div className="flex gap-3 mt-2">
+          <div className="h-4 w-12 bg-slate-800/50 rounded" />
+          <div className="h-4 w-16 bg-slate-800/50 rounded" />
+        </div>
+        
+        <div className="h-3 w-1/3 bg-slate-800/50 rounded mt-2" />
+      </div>
+      
+      {/* Floating pills skeleton */}
+      <div className="absolute top-2.5 right-2.5 h-4 w-16 bg-slate-800/80 rounded-full" />
+      <div className="absolute bottom-32 left-2.5 h-4 w-24 bg-slate-800/80 rounded-full translate-y-[-10px]" />
+    </div>
+  );
+};
+
+// =============================================================================
 // PROJECT CARD (Premium Dark Glass — Visual-First)
 // =============================================================================
 
@@ -302,7 +332,7 @@ const ProjectCardComponent: React.FC<{
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === 'Enter' && onClick()}
-      className="group relative bg-gradient-to-b from-slate-800 to-slate-900 border border-slate-700/60 rounded-xl overflow-hidden text-left transition-all duration-300 hover:border-emerald-500/40 hover:shadow-xl hover:shadow-emerald-500/10 hover:-translate-y-1 hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 cursor-pointer"
+      className="group relative bg-slate-900/40 backdrop-blur-md border border-slate-700/50 rounded-xl overflow-hidden text-left transition-all duration-300 hover:border-emerald-500/40 hover:shadow-[0_10px_30px_-10px_rgba(16,185,129,0.15)] hover:-translate-y-1 hover:scale-[1.01] hover:bg-slate-800/60 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 cursor-pointer"
     >
       {/* ── THUMBNAIL AREA (Generative Pattern) ── */}
       <div className={`relative h-32 bg-gradient-to-br ${gradient} overflow-hidden`}>
@@ -331,8 +361,8 @@ const ProjectCardComponent: React.FC<{
           </>
         )}
 
-        {/* Gradient floor overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent" />
+        {/* Gradient floor overlay for smooth transition to glass body */}
+        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-slate-900/80 to-transparent" />
 
         {/* Status badge — Top Right */}
         <div className={`absolute top-2.5 right-2.5 flex items-center gap-1.5 px-2 py-1 rounded-full ${status.bg} backdrop-blur-sm border border-white/5 z-10`}>
