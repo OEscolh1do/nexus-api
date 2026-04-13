@@ -30,7 +30,10 @@ import { WebGLOverlay } from '../../components/WebGLOverlay';
 import { SiteCanvasView } from './canvas-views/SiteCanvasView';
 import { SimulationCanvasView } from './canvas-views/SimulationCanvasView';
 import { ElectricalCanvasView } from './canvas-views/ElectricalCanvasView';
-import { PropertiesGroup } from './groups/PropertiesGroup'; // Fallback contextual
+import { PropertiesGroup } from './groups/PropertiesGroup';
+import { SettingsModule } from '@/modules/settings/SettingsModule';
+import { DocumentationModule } from '@/modules/documentation/DocumentationModule';
+import { ProposalModule } from '@/modules/proposal/ProposalModule';
 
 // =============================================================================
 // REGISTRY — Grupos renderizáveis no center
@@ -41,6 +44,9 @@ const CANVAS_VIEWS_REGISTRY: Partial<Record<PanelGroupId, React.FC>> = {
   simulation: SimulationCanvasView,
   electrical: ElectricalCanvasView,
   properties: PropertiesGroup,
+  settings: SettingsModule,
+  documentation: DocumentationModule,
+  proposal: ProposalModule,
 };
 
 // =============================================================================

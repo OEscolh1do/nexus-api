@@ -26,7 +26,7 @@ import { create } from 'zustand';
  * IDs dos grupos registrados no dock.
  * Extensível — novos grupos podem ser adicionados sem alterar a store.
  */
-export type PanelGroupId = 'site' | 'simulation' | 'electrical' | 'properties' | 'minimap';
+export type PanelGroupId = 'site' | 'simulation' | 'electrical' | 'properties' | 'minimap' | 'documentation' | 'proposal' | 'settings';
 
 // =============================================================================
 // STORE

@@ -160,8 +160,11 @@ export const createTechSlice: StateCreator<
     const newIds: string[] = [];
     
     for (let i = 0; i < qty; i++) {
-        // Gera um ID único para *cada* instância física do módulo
-        const instanceId = Math.random().toString(36).substring(2, 9);
+        // Preserve the provided ID for single-unit additions (used by InverterBlock handlers)
+        // Only generate new IDs for bulk additions (qty > 1) or when no ID is provided
+        const instanceId = (qty === 1 && module.id) 
+            ? module.id 
+            : Math.random().toString(36).substring(2, 9);
         newIds.push(instanceId);
         newItems[instanceId] = { ...module, id: instanceId, quantity: undefined };
     }

@@ -25,6 +25,8 @@ import { create } from 'zustand';
 
 export type Tool = 'SELECT' | 'POLYGON' | 'MEASURE' | 'PLACE_MODULE';
 
+export type WorkspaceMode = 'SIMULATION' | 'ELECTRICAL' | 'REPORTS' | 'PROPOSAL';
+
 export type EntityType = 'none' | 'module' | 'inverter' | 'string' | 'vertex' | 'polygon' | 'area' | 'placed-module';
 
 export interface SelectedEntity {
@@ -55,6 +57,15 @@ interface UIState {
   /** Snapshot Snapshot Base64 para a Proposta (Passagem de contexto cross-module) */
   viewportSnapshot: string | null;
   setViewportSnapshot: (base64: string) => void;
+
+  /** Modo visual ativo no Workspace (substitui navegação por abas globais) */
+  workspaceMode: WorkspaceMode;
+  setWorkspaceMode: (mode: WorkspaceMode) => void;
+
+  /** Estado do Modal/Drawer Suspenso de Premissas (Menu Configurações do Projeto) */
+  isSettingsDrawerOpen: boolean;
+  toggleSettingsDrawer: () => void;
+  closeSettingsDrawer: () => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -105,6 +116,13 @@ export const useUIStore = create<UIState>((set) => ({
 
   viewportSnapshot: null,
   setViewportSnapshot: (base64) => set({ viewportSnapshot: base64 }),
+
+  workspaceMode: 'SIMULATION',
+  setWorkspaceMode: (mode) => set({ workspaceMode: mode }),
+
+  isSettingsDrawerOpen: false,
+  toggleSettingsDrawer: () => set((state) => ({ isSettingsDrawerOpen: !state.isSettingsDrawerOpen })),
+  closeSettingsDrawer: () => set({ isSettingsDrawerOpen: false }),
 }));
 
 // =============================================================================

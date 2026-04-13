@@ -85,7 +85,6 @@ export const ProjectService = {
       }
 
       solarState.approveProject();
-      console.log('[ProjectService] Projeto salvo com sucesso.');
       return true;
     } catch (error) {
       console.error('[ProjectService] Falha ao salvar design:', error);
@@ -103,7 +102,6 @@ export const ProjectService = {
       const design = await KurupiraClient.designs.get(projectId);
       hydrateStores(design.designData);
       useSolarStore.getState().setActiveProjectId(projectId);
-      console.log('[ProjectService] Projeto carregado:', design.name);
       return true;
     } catch (error) {
       console.error('[ProjectService] Falha ao carregar design:', error);

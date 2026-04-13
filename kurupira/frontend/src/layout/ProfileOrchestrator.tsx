@@ -14,15 +14,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/core/auth/useAuth';
 import { useSolarStore } from '@/core/state/solarStore';
-import { useUIStore } from '@/core/state/uiStore';
 import { TechModule } from '@/modules/engineering/TechModule';
-import { ElectricalModule } from '@/modules/electrical/ElectricalModule';
-import { DocumentationModule } from '@/modules/documentation/DocumentationModule';
-import { ProposalModule } from '@/modules/proposal/ProposalModule';
-import { SettingsModule } from '@/modules/settings/SettingsModule';
 import { ProjectExplorer } from '@/modules/engineering/ui/ProjectExplorer';
 import { ProjectService } from '@/services/ProjectService';
-import { DASHBOARD_TABS, TabId, TAB_COLOR_CLASSES } from '@/config/navigation';
 import {
   Lock, ShieldCheck, ShieldAlert,
   Maximize2, Minimize2, Zap
@@ -57,28 +51,20 @@ export const ProfileOrchestrator: React.FC = () => {
     }
   }, [updateClientData]);
 
-  // Ensure activeModule is a valid TabId
-  const currentModule = (['hub', 'engineering', 'electrical', 'documentation', 'proposal', 'settings'].includes(activeModule)
+  // Ensure activeModule is valid
+  const currentModule = (['hub', 'engineering'].includes(activeModule)
     ? activeModule
-    : 'hub') as TabId;
+    : 'hub');
 
-  const MODULE_ROLES: Record<TabId, string[]> = {
+  const MODULE_ROLES: Record<string, string[]> = {
     'hub': ['SALES', 'ENGINEER', 'ADMIN'],
     'engineering': ['ENGINEER', 'ADMIN'],
-    'electrical': ['ENGINEER', 'ADMIN'],
-    'documentation': ['ENGINEER', 'ADMIN'],
-    'proposal': ['SALES', 'ENGINEER', 'ADMIN'],
-    'settings': ['ENGINEER', 'ADMIN'],
   };
 
   // Loading state for project hydration
   const [isLoadingProject, setIsLoadingProject] = useState(false);
 
-  const allowedTabs = DASHBOARD_TABS.filter(tab =>
-    MODULE_ROLES[tab.id]?.includes(userRole)
-  );
-
-  const hasAccess = (moduleId: TabId) => MODULE_ROLES[moduleId]?.includes(userRole);
+  const hasAccess = (moduleId: string) => MODULE_ROLES[moduleId]?.includes(userRole);
 
   // Handle fullscreen toggle
   const toggleFullscreen = () => {
@@ -107,24 +93,6 @@ export const ProfileOrchestrator: React.FC = () => {
     }
   };
 
-  const handleTabChange = async (targetTab: TabId) => {
-    // P7-1 Snapshot Interception
-    if (targetTab === 'proposal' && currentModule === 'engineering') {
-      const el = document.getElementById('engineering-viewport');
-      if (el) {
-        try {
-          const html2canvas = (await import('html2canvas')).default;
-          // Temporarily hide Leaflet controls for clean screenshot if needed, but R3F + Leaflet standard is fine.
-          const canvas = await html2canvas(el, { useCORS: true });
-          useUIStore.getState().setViewportSnapshot(canvas.toDataURL('image/png'));
-        } catch (e) {
-          console.error("Failed to snapshot engineering viewport", e);
-        }
-      }
-    }
-    setActiveModule(targetTab);
-  };
-
   return (
     <div className="w-full h-screen bg-slate-900 flex flex-col font-sans overflow-hidden">
 
@@ -132,8 +100,9 @@ export const ProfileOrchestrator: React.FC = () => {
       {/* HEADER — Visível apenas fora do workspace de engenharia.         */}
       {/* No workspace, o TopRibbon assume Logo + Nav + User.              */}
       {/* ================================================================ */}
-      <header className="bg-slate-800 border-b border-slate-700/50 px-3 py-1.5 flex items-center justify-between shrink-0 z-50">
-        <div className="flex items-center gap-3">
+      {currentModule === 'hub' && (
+        <header className="bg-slate-800 border-b border-slate-700/50 px-3 py-1.5 flex items-center justify-between shrink-0 z-50">
+          <div className="flex items-center gap-3">
           {/* Logo atuando como botão Home para voltar ao Hub */}
           <button 
             onClick={() => setActiveModule('hub')}
@@ -156,34 +125,6 @@ export const ProfileOrchestrator: React.FC = () => {
               {clientData.clientName || 'Novo Projeto'}
             </span>
           </div>
-
-          <div className="h-5 w-px bg-slate-700 mx-1" />
-
-          {/* Workflow Tabs (compact) */}
-          <nav className="flex gap-0.5">
-            {allowedTabs.map(tab => {
-              const Icon = tab.icon;
-              const colorClasses = TAB_COLOR_CLASSES[tab.color];
-              const isActive = currentModule === tab.id;
-
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => handleTabChange(tab.id)}
-                  title={tab.description}
-                  className={`
-                    flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold transition-all whitespace-nowrap
-                    ${isActive
-                      ? `${colorClasses.active} shadow-lg shadow-slate-900/50`
-                      : 'text-slate-400 hover:bg-slate-700 hover:text-white'}
-                  `}
-                >
-                  <Icon size={12} />
-                  <span className="hidden lg:inline">{tab.label}</span>
-                </button>
-              );
-            })}
-          </nav>
             </>
           )}
         </div>
@@ -215,6 +156,7 @@ export const ProfileOrchestrator: React.FC = () => {
           </button>
         </div>
       </header>
+      )}
 
       {/* ================================================================ */}
       {/* BODY — Sidebar + Canvas                                          */}
@@ -231,20 +173,6 @@ export const ProfileOrchestrator: React.FC = () => {
 
           {currentModule === 'engineering' && (
             hasAccess('engineering') ? <TechModule /> : <AccessDenied />
-          )}
-
-          {currentModule === 'electrical' && (
-            hasAccess('electrical') ? <ElectricalModule /> : <AccessDenied />
-          )}
-
-          {currentModule === 'documentation' && (
-            hasAccess('documentation') ? <DocumentationModule /> : <AccessDenied />
-          )}
-
-          {currentModule === 'proposal' && <ProposalModule />}
-
-          {currentModule === 'settings' && (
-            hasAccess('settings') ? <SettingsModule /> : <AccessDenied />
           )}
         </main>
       </div>

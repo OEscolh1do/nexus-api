@@ -100,11 +100,6 @@ export const SettingsModule: React.FC = () => {
       {/* Header Standardized (h-12) with Integrated Tabs */}
       <header className="bg-white border-b border-slate-200 px-4 py-0 flex items-center justify-between shrink-0 h-12">
         <div className="flex items-center gap-4 overflow-x-auto no-scrollbar">
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="w-2 h-2 rounded-full bg-slate-600 animate-pulse"></div>
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] hidden md:block">PREMISSAS GERAIS</span>
-          </div>
-
           {/* Tabs moved to header for compact layout */}
           <div className="flex bg-slate-100 p-1 rounded-lg items-center shrink-0">
             <TabButton id="performance" label="Engenharia" icon={<Activity size={12} />} />

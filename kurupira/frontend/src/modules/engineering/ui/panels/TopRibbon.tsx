@@ -16,15 +16,11 @@
 
 import {
   Info, CheckCircle2, AlertTriangle, Scale,
-  PanelLeftClose, PanelLeftOpen,
-  PanelRightClose, PanelRightOpen,
   Undo2, Redo2, Download, LayoutDashboard,
   Activity, ChevronDown, Flag, Check, User,
-  MapPin, BarChart2, Zap, Camera,
-  ShieldCheck, ShieldAlert, Lock, Minimize2, Maximize2,
-  type LucideIcon,
+  ShieldCheck, ShieldAlert, Minimize2, Maximize2,
 } from 'lucide-react';
-import { usePanelStore, PanelGroupId } from '../../store/panelStore';
+import { usePanelStore } from '../../store/panelStore';
 import { ClientDataModal } from '../components/ClientDataModal';
 import React from 'react';
 import { useSolarStore, selectModules, selectInverters, selectClientData } from '@/core/state/solarStore';
@@ -42,45 +38,24 @@ import { useAuth } from '@/core/auth/useAuth';
 // TYPES
 // =============================================================================
 
-interface TopRibbonProps {
-  leftOpen: boolean;
-  rightOpen: boolean;
-  onToggleLeft: () => void;
-  onToggleRight: () => void;
-}
+interface TopRibbonProps {}
 
-// Canvas view navigation items
-const CANVAS_VIEWS: { id: 'map' | PanelGroupId; icon: LucideIcon; label: string }[] = [
-  { id: 'map',        icon: MapPin,    label: 'Mapa'      },
-  { id: 'simulation', icon: BarChart2, label: 'Simulação' },
-  { id: 'electrical', icon: Zap,       label: 'Elétrico'  },
-  { id: 'site',       icon: Camera,    label: 'Site'      },
-];
+// Canvas views removidas do TopRibbon — migraram para WorkspaceTabs.tsx (Bottom Excel-like)
 
 // =============================================================================
 // COMPONENT
 // =============================================================================
 
-export const TopRibbon: React.FC<TopRibbonProps> = ({
-  leftOpen,
-  rightOpen,
-  onToggleLeft,
-  onToggleRight,
-}) => {
+export const TopRibbon: React.FC<TopRibbonProps> = () => {
   const setActiveModule = useSolarStore(state => state.setActiveModule);
   const userRole = useSolarStore(state => state.userRole);
-  const clientData = useSolarStore(selectClientData);
   const [isClientModalOpen, setIsClientModalOpen] = React.useState(false);
   const [fullscreen, setFullscreen] = React.useState(false);
   const [isExporting, setIsExporting] = React.useState(false);
+  const toggleSettingsDrawer = useUIStore(state => state.toggleSettingsDrawer);
 
   // @ts-ignore — signOut type varies by auth provider
   const { signOut } = useAuth();
-
-  // Panel store — canvas view switching
-  const centerContent = usePanelStore(s => s.centerContent);
-  const promoteToCenter = usePanelStore(s => s.promoteToCenter);
-  const restoreMap = usePanelStore(s => s.restoreMap);
 
   // Zundo Temporal Store
   const pastStates = useTemporalStore((state: any) => state.pastStates);
@@ -91,14 +66,7 @@ export const TopRibbon: React.FC<TopRibbonProps> = ({
   const canUndo = pastStates.length > 0;
   const canRedo = futureStates.length > 0;
 
-  // ── Canvas view switch ──
-  const handleViewSwitch = (viewId: 'map' | PanelGroupId) => {
-    if (viewId === 'map') {
-      restoreMap();
-    } else {
-      promoteToCenter(viewId as PanelGroupId);
-    }
-  };
+  // ── Canvas view switch methods agora moram primariamente no WorkspaceTabs ──
 
   // ── Fullscreen ──
   const toggleFullscreen = () => {
@@ -146,167 +114,53 @@ export const TopRibbon: React.FC<TopRibbonProps> = ({
   return (
     <div className="relative h-full w-full bg-slate-900 border-b border-slate-800 flex items-center px-2 select-none">
 
-      {/* ── LEFT: Logo + Back to Hub + Client + Panel Toggles ── */}
+      {/* ── LEFT: Logo + MenuToggle ── */}
       <div className="flex-1 flex items-center justify-start gap-1 min-w-0">
-
         {/* Logo */}
         <img
           src="/logo-neonorte.png"
           alt="Neonorte"
           className="h-4 w-auto opacity-75 shrink-0 mr-0.5"
         />
-
-        <div className="h-5 w-px bg-slate-800 mx-0.5 shrink-0" />
-
-        {/* Back to Hub */}
-        <button
-          onClick={() => setActiveModule('hub')}
-          className="p-1.5 rounded-md hover:bg-slate-800 text-slate-500 hover:text-emerald-400 transition-colors shrink-0"
-          title="Voltar ao Explorador"
-        >
-          <LayoutDashboard size={14} />
-        </button>
-
-        <div className="h-5 w-px bg-slate-800 mx-0.5 shrink-0" />
-
-        {/* Client Data Button */}
-        <button
-          onClick={() => setIsClientModalOpen(true)}
-          className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold transition-colors text-slate-400 hover:bg-slate-800 hover:text-slate-200 min-w-0"
-          title="Dados do Cliente & Localização"
-        >
-          <User size={12} className={clientData?.clientName ? 'text-emerald-400 shrink-0' : 'text-slate-500 shrink-0'} />
-          <span className="hidden xl:inline truncate max-w-[120px]">
-            {clientData?.clientName || 'Cliente'}
-          </span>
-        </button>
-
-        <div className="h-5 w-px bg-slate-800 mx-0.5 shrink-0" />
-
-        {/* Panel toggles */}
-        <button
-          onClick={onToggleLeft}
-          className={`p-1.5 rounded-md transition-colors shrink-0 ${leftOpen ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-600 hover:text-slate-400 hover:bg-slate-800'}`}
-          title={leftOpen ? 'Ocultar Outliner' : 'Mostrar Outliner'}
-        >
-          {leftOpen ? <PanelLeftClose size={14} /> : <PanelLeftOpen size={14} />}
-        </button>
-        <button
-          onClick={onToggleRight}
-          className={`p-1.5 rounded-md transition-colors shrink-0 ${rightOpen ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-600 hover:text-slate-400 hover:bg-slate-800'}`}
-          title={rightOpen ? 'Ocultar Inspector' : 'Mostrar Inspector'}
-        >
-          {rightOpen ? <PanelRightClose size={14} /> : <PanelRightOpen size={14} />}
-        </button>
       </div>
 
-      {/* ── CENTER: Canvas View Navigation (True Center) ── */}
-      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-0.5">
-        {CANVAS_VIEWS.map(({ id, icon: Icon, label }) => {
-          const isActive = centerContent === id;
-          return (
-            <button
-              key={id}
-              onClick={() => handleViewSwitch(id)}
-              title={label}
-              className={cn(
-                'flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-bold transition-all whitespace-nowrap',
-                isActive
-                  ? 'bg-slate-700 text-white border border-slate-600'
-                  : 'text-slate-500 hover:text-slate-200 hover:bg-slate-800/70'
-              )}
-            >
-              <Icon size={11} />
-              <span className="hidden lg:inline">{label}</span>
-            </button>
-          );
-        })}
+      {/* ── CENTER: MenuBar CAD ── */}
+      <div className="absolute left-1/2 -translate-x-1/2 flex items-center h-full gap-1">
+        {['Arquivo', 'Editar', 'Exibir', 'Projeto'].map((menu) => (
+          <button
+            key={menu}
+            className="px-2.5 py-1 text-[11px] font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded transition-colors"
+          >
+            {menu}
+          </button>
+        ))}
       </div>
 
-      {/* ── RIGHT: Engineering Tools + User Controls ── */}
-      <div className="flex-1 flex items-center justify-end gap-1 pr-1">
-
-        {/* P3-3: Engineering Guidelines */}
+      {/* Right: Icon Actions + Engineering Widgets */}
+      <div className="flex-1 flex items-center justify-end gap-0.5 pr-1">
+        <button onClick={() => setActiveModule('hub')} className="p-1.5 rounded-md hover:bg-slate-800 text-slate-500 hover:text-emerald-400 transition-colors shrink-0" title="Voltar ao Explorador"><LayoutDashboard size={14} /></button>
+        <div className="h-5 w-px bg-slate-800 mx-0.5 shrink-0" />
+        <button onClick={() => canUndo && undo()} disabled={!canUndo} className={cn("p-1.5 rounded-md transition-colors shrink-0", canUndo ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-800 cursor-not-allowed')} title="Desfazer (Ctrl+Z)"><Undo2 size={14} /></button>
+        <button onClick={() => canRedo && redo()} disabled={!canRedo} className={cn("p-1.5 rounded-md transition-colors shrink-0", canRedo ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-800 cursor-not-allowed')} title="Refazer (Ctrl+Y)"><Redo2 size={14} /></button>
+        <div className="h-5 w-px bg-slate-800 mx-0.5 shrink-0" />
         <EngineeringGuidelinesWidget />
-
-        {/* P3-2: System Health Check */}
         <HealthCheckWidget />
-
         <div className="h-5 w-px bg-slate-800 mx-0.5 shrink-0" />
-
-        {/* P3-1: Approval Flow */}
         <ApprovalDropdown />
-
         <div className="h-5 w-px bg-slate-800 mx-0.5 shrink-0" />
-
-        {/* Undo / Redo */}
-        <div className="flex items-center gap-0.5">
-          <button
-            onClick={() => canUndo && undo()}
-            disabled={!canUndo}
-            className={`p-1.5 rounded-md transition-colors ${canUndo ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-800 cursor-not-allowed'}`}
-            title="Desfazer (Ctrl+Z)"
-          >
-            <Undo2 size={14} />
-          </button>
-          <button
-            onClick={() => canRedo && redo()}
-            disabled={!canRedo}
-            className={`p-1.5 rounded-md transition-colors ${canRedo ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-800 cursor-not-allowed'}`}
-            title="Refazer (Ctrl+Shift+Z)"
-          >
-            <Redo2 size={14} />
-          </button>
-        </div>
-
-        {/* Export */}
-        <button
-          onClick={handleExport}
-          disabled={isExporting}
-          className={cn(
-            'flex items-center gap-1.5 px-3 py-1.5 ml-0.5 rounded-md text-[11px] font-bold border transition-all',
-            isExporting
-              ? 'text-slate-400 bg-slate-800 border-slate-700 cursor-not-allowed opacity-70'
-              : 'text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white border-slate-700'
-          )}
-          title="Salvar Projeto & Exportar Proposta PDF"
-        >
-          {isExporting
-            ? <div className="w-3 h-3 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
-            : <Download size={12} className="text-emerald-400" />}
+        <button onClick={() => setIsClientModalOpen(true)} className="p-1.5 rounded-md hover:bg-slate-800 text-slate-500 hover:text-blue-400 transition-colors shrink-0" title="Dados do Cliente"><User size={14} /></button>
+        <button onClick={toggleSettingsDrawer} className="p-1.5 rounded-md hover:bg-slate-800 text-slate-500 hover:text-amber-400 transition-colors shrink-0" title="Premissas e Perdas Globais"><Activity size={14} /></button>
+        <button onClick={toggleFullscreen} className="p-1.5 rounded-md hover:bg-slate-800 text-slate-500 hover:text-white transition-colors shrink-0" title="Modo Tela Cheia">{fullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}</button>
+        <div className="h-5 w-px bg-slate-800 mx-0.5 shrink-0" />
+        <button onClick={handleExport} disabled={isExporting} className={cn('flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold border transition-all shrink-0', isExporting ? 'text-slate-400 bg-slate-800 border-slate-700 cursor-not-allowed opacity-70' : 'text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white border-slate-700')} title="Exportar Proposta PDF">
+          {isExporting ? <div className="w-3 h-3 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" /> : <Download size={12} className="text-emerald-400" />}
           <span className="hidden xl:inline">{isExporting ? 'Salvando...' : 'Exportar'}</span>
         </button>
-
-        <div className="h-5 w-px bg-slate-800 mx-0.5 shrink-0" />
-
-        {/* User Role Badge */}
-        <div className="flex items-center gap-1 px-2 py-1 bg-slate-800/60 rounded shrink-0">
-          {userRole === 'ADMIN'
-            ? <ShieldAlert size={11} className="text-red-400" />
-            : <ShieldCheck size={11} className="text-emerald-400" />}
+        <div className="flex items-center gap-1 px-2 py-1 bg-slate-800/60 rounded shrink-0 ml-0.5">
+          {userRole === 'ADMIN' ? <ShieldAlert size={11} className="text-red-400" /> : <ShieldCheck size={11} className="text-emerald-400" />}
           <span className="text-[10px] font-bold text-slate-400 uppercase hidden xl:inline">{userRole}</span>
         </div>
-
-        {/* Fullscreen */}
-        <button
-          onClick={toggleFullscreen}
-          className="p-1.5 rounded-md hover:bg-slate-800 text-slate-500 hover:text-white transition-colors shrink-0"
-          title="Modo imersivo"
-        >
-          {fullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-        </button>
-
-        {/* Logout */}
-        <button
-          // @ts-ignore
-          onClick={signOut}
-          className="p-1.5 hover:bg-slate-800 text-slate-500 hover:text-red-400 rounded transition-colors shrink-0"
-          title="Sair"
-        >
-          <Lock size={14} />
-        </button>
       </div>
-
       <ClientDataModal isOpen={isClientModalOpen} onClose={() => setIsClientModalOpen(false)} />
     </div>
   );

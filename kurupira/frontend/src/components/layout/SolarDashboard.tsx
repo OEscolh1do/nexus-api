@@ -158,7 +158,6 @@ export const SolarDashboard: FC<Props> = ({
   const handleProposalConfirm = (data: ProposalData) => {
     setProposalOverrides(prev => ({ ...prev, ...data }));
     alert("Fluxo concluido! Proposta pronta para PDF.");
-    console.log("Final Data:", data);
   };
 
   return (

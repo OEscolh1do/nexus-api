@@ -88,6 +88,7 @@ interface TechState {
   unassignStringFromMPPT: (stringId: string) => void;
   assignModulesToNewString: (moduleIds: string[], inverterId: string, mpptId: number) => void;
   assignStringToInverterFallback: (stringId: string, inverterId: string) => void;
+  removeModules: (moduleIds: string[]) => void;
   
   // Selectors (Computed)
   getPerformanceRatio: () => number; // Returns decimal (0.75) using IEC 61724 (Multiplicative)
@@ -614,6 +615,30 @@ export const useTechStore = create<TechState>((set, get) => ({
                   ...state.inverters.entities,
                   [inverterId]: { ...inv, mpptConfigs: newMpptConfigs }
               }
+          }
+      };
+  }),
+
+  removeModules: (moduleIdsToRemove) => set((state) => {
+      const newStrings = { ...state.strings.entities };
+      let changed = false;
+
+      state.strings.ids.forEach(sid => {
+          const str = newStrings[sid];
+          if (!str) return;
+          const filtered = str.moduleIds.filter(mid => !moduleIdsToRemove.includes(mid));
+          if (filtered.length !== str.moduleIds.length) {
+              newStrings[sid] = { ...str, moduleIds: filtered };
+              changed = true;
+          }
+      });
+
+      if (!changed) return state;
+
+      return {
+          strings: {
+              ...state.strings,
+              entities: newStrings
           }
       };
   }),

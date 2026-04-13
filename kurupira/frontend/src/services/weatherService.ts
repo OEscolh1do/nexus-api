@@ -20,11 +20,9 @@ export const fetchWeatherAnalysis = async (
 ): Promise<WeatherAnalysis> => {
     // 1. Tentar Banco de Dados Local (CRESESB)
     const cityKey = normalizeCity(city, state);
-    console.log(`Searching CRESESB for: ${cityKey}`);
 
     // Tentativa exata
     if (CRESESB_DB[cityKey]) {
-        console.log("Found in CRESESB DB:", cityKey);
         return CRESESB_DB[cityKey];
     }
 
@@ -33,13 +31,11 @@ export const fetchWeatherAnalysis = async (
     const foundKey = Object.keys(CRESESB_DB).find(k => normalizeCitySimple(k).includes(simpleName) && k.includes(state.toUpperCase()));
 
     if (foundKey) {
-        console.log("Found approximate in CRESESB DB:", foundKey);
         return CRESESB_DB[foundKey];
     }
 
     // Fallback Estadual se for PA
     if (state.toUpperCase().trim() === 'PA' || state.toUpperCase().trim() === 'PARA') {
-        console.log("Using PA State Average");
         return {
             ...CRESESB_DB["DEFAULT_PA"],
             location_name: `${city} - PA (Média Estadual)`
