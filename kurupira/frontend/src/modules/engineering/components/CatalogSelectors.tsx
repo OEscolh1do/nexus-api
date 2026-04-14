@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
-import { Cpu, Sun, Plus } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Cpu, Sun, Plus, Zap } from 'lucide-react';
 import { useCatalogStore } from '../store/useCatalogStore';
+import { useAutoSizing } from '../hooks/useAutoSizing';
 import type { ModuleCatalogItem } from '@/core/schemas/moduleSchema';
 import type { InverterCatalogItem } from '@/core/schemas/inverterSchema';
 
@@ -119,6 +120,17 @@ export const AddModuleInline: React.FC<AddModuleInlineProps> = ({ onAdd, onClose
 
   const selectedItem = modules.find((m: ModuleCatalogItem) => m.id === modelId);
 
+  // AutoSizing passivo (Sugestão sem afetar a arquitetura mecânica de blocos)
+  const autoSizing = useAutoSizing(selectedItem || null, '');
+  const suggestedQty = autoSizing.requiredModuleQty;
+
+  // Auto-preencher a sugestão quando seleciona algo e o Qty manual ainda está como 1.
+  useEffect(() => {
+    if (selectedItem && suggestedQty > 0 && qty === 1) {
+      setQty(suggestedQty);
+    }
+  }, [selectedItem, suggestedQty]);
+
   const handleAdd = () => {
     if (selectedItem) {
       onAdd(selectedItem, qty);
@@ -158,6 +170,19 @@ export const AddModuleInline: React.FC<AddModuleInlineProps> = ({ onAdd, onClose
             </option>
           ))}
         </select>
+      )}
+
+      {/* AutoSizing Info (Silenciosa) */}
+      {selectedItem && autoSizing.isCalculable && suggestedQty > 0 && (
+        <div className="flex items-center justify-between px-1 py-1 mt-1 border-t border-slate-800/50 animate-in fade-in slide-in-from-top-1 duration-200">
+          <div className="flex items-center gap-1">
+            <Zap size={9} className="text-amber-500" />
+            <span className="text-[8.5px] text-slate-400">Sugestão (Mínimo p/ {autoSizing.requiredKwp.toFixed(2)} kWp)</span>
+          </div>
+          <span className="text-[9.5px] font-bold text-amber-500">
+            {suggestedQty} unid.
+          </span>
+        </div>
       )}
 
       {/* Qty + Add */}

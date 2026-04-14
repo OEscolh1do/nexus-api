@@ -112,7 +112,26 @@ export const SimulationCanvasView: React.FC = () => {
 
   // ── Derived ──
   const prDecimal = getPerformanceRatio();
-  const totalPowerKw = modules.reduce((acc, m) => acc + m.power, 0) / 1000;
+  
+  // ── 2.1.0: Cálculo de Potência Conectada (Topologia) em vez do Inventário Bruto ──
+  // Isso elimina a "geração fantasma" de módulos que existem no projeto mas não estão em strings.
+  const techStrings = useTechStore((s) => s.strings.entities);
+  const modulesById = useMemo(() => {
+    const map: Record<string, any> = {};
+    modules.forEach(m => { map[m.id] = m; });
+    return map;
+  }, [modules]);
+
+  const totalPowerKw = useMemo(() => {
+    let totalW = 0;
+    Object.values(techStrings).forEach(str => {
+      str.moduleIds.forEach(mid => {
+        if (modulesById[mid]) totalW += modulesById[mid].power;
+      });
+    });
+    return totalW / 1000;
+  }, [techStrings, modulesById]);
+
   const avgHsp = hsp.length > 0 ? hsp.reduce((a: number, b: number) => a + b, 0) / 12 : 0;
 
   // ── UI State ──
@@ -197,8 +216,8 @@ export const SimulationCanvasView: React.FC = () => {
               <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Visão Geral do Sistema</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
                 <KpiPill label="Consumo Anual" value={Math.round(stats.totalCons).toLocaleString('pt-BR')} unit="kWh" color="text-teal-400" subtitle={`${Math.round(stats.totalCons / 12).toLocaleString('pt-BR')} kWh/mês`} />
-                <KpiPill label="Geração Estimada" value={Math.round(stats.totalGen).toLocaleString('pt-BR')} unit="kWh" color="text-amber-400" subtitle={`${totalPowerKw.toFixed(2)} kWp instalado`} />
-                <KpiPill label="Cobertura" value={`${Math.round(stats.coverage)}`} unit="%" color={stats.coverage >= 100 ? 'text-emerald-400' : 'text-rose-400'} subtitle={`Balanço: ${isPositive ? '+' : ''}${Math.round(stats.balance).toLocaleString('pt-BR')} kWh`} />
+                <KpiPill label="Geração Estimada" value={Math.round(stats.totalGen).toLocaleString('pt-BR')} unit="kWh/ano" color="text-amber-400" subtitle={`${totalPowerKw.toFixed(2)} kWp conectado`} />
+                <KpiPill label="Cobertura" value={`${Math.round(stats.coverage)}`} unit="%" color={stats.coverage >= 100 ? 'text-emerald-400' : 'text-rose-400'} subtitle={`Balanço: ${isPositive ? '+' : ''}${Math.round(stats.balance).toLocaleString('pt-BR')} kWh/ano`} />
                 <KpiPill label="Performance Ratio" value={(prDecimal * 100).toFixed(1)} unit="%" color="text-slate-300" subtitle={`HSP médio: ${avgHsp.toFixed(2)}`} />
               </div>
             </div>

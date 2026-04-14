@@ -150,7 +150,7 @@ export const ElectricalCanvasView: React.FC = () => {
               value={kpi.totalDC.toFixed(2)}
               unit="kWp"
               color="text-amber-400"
-              sub={`${modules.length} módulo(s)`}
+              sub={`${kpi.totalDC.toFixed(2)} kWp conectado`}
             />
             <KpiCard
               label="Potência AC"

@@ -1,5 +1,6 @@
 # Mapa de Interface — Dimensionamento (Workspace de Engenharia)
 
+> **Última Atualização**: 2026-04-14  
 > **Objetivo**: Estabelecer terminologia unificada entre engenheiro e agente.  
 > Cada elemento é descrito com seu **nome canônico**, **localização**, **função** e **componente React** correspondente.
 
@@ -14,14 +15,14 @@
 │          │                          │                    │
 │   LEFT   │      CENTER CANVAS       │      RIGHT         │
 │ OUTLINER │(Mapa, Simulação, Site...)│    INSPECTOR       │
-│          │                          │    (Minimapa)      │
+│  (Lego)  │                          │    (Minimapa)      │
 │          │                          ├┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┤
 │          │                          │ [+] Properties (*) │
-├──────────┴──────────────────────────┴────────────────────┤
-└──────────────────────────────────────────────────────────┘
+20: ├──────────┴──────────────────────────┴────────────────────┤
+21: └──────────────────────────────────────────────────────────┘
 
-(*) O antigo "Properties Drawer" foi unificado. O "Properties" agora é um `PanelSlot` (contextual) 
-que surge incorporado nativamente ao final do Right Inspector quando um componente é selecionado.
+(*) O "Properties" é um painel contextual que reside no Right Inspector, 
+    alimentado via Portals ou Slots dependendo do componente selecionado.
 ```
 
 ---
@@ -29,134 +30,74 @@ que surge incorporado nativamente ao final do Right Inspector quando um componen
 ## 1. TOP RIBBON (Barra de Comandos)
 
 > **Componente**: `TopRibbon.tsx`  
-> **Função**: Barra horizontal fixa no topo. Acesso O(1) aos comandos globais do workspace.
+> **Função**: Barra horizontal fixa (40px). Comando central "True Center" (UX-013).
 
-### 1.1 Setor Esquerdo — Navegação e Contexto
-
+### 1.1 Setor Esquerdo — Navegação Global
 | # | Nome Canônico | Ícone | Função |
 |---|--------------|-------|--------|
-| 1.1.1 | **Botão Voltar ao Hub** | `LayoutDashboard` | Retorna ao Explorador de Projetos (Hub) |
-| 1.1.2 | **Botão Cliente** | `User` | Abre o Modal de Dados do Cliente (nome, cidade, lat/lng, consumo) |
-| 1.1.3 | **Toggle Outliner** | `PanelLeftClose` / `PanelLeftOpen` | Mostra/oculta o painel LeftOutliner |
-| 1.1.4 | **Toggle Inspector** | `PanelRightClose` / `PanelRightOpen` | Mostra/oculta o painel RightInspector |
+| 1.1.1 | **Logo Neonorte** | — | Identidade visual |
+| 1.1.2 | **Botão Voltar ao Hub** | `LayoutDashboard` | Retorna ao Explorador de Projetos (Hub) |
+| 1.1.3 | **Undo / Redo** | `Undo2` / `Redo2` | Desfazer/Refazer (Zundo temporal store) |
 
-### 1.2 Setor Direito — Validação e Ações
-
+### 1.2 Setor Central — Menu Bar CAD
 | # | Nome Canônico | Função |
 |---|--------------|--------|
-| 1.2.1 | **Diretrizes de Projeto** | Popover com contagem mínima de módulos para atingir meta, área e peso no telhado |
-| 1.2.2 | **Fluxo de Aprovação** | Dropdown com estados `Rascunho (Destravado)` e `Aprovado (Travado)` |
-| 1.2.3 | **Desfazer / Refazer** | Undo/Redo via Zundo temporal store. Atalhos: `Ctrl+Z` / `Ctrl+Shift+Z` |
-| 1.2.4 | **Exportar API** | Captura o viewport, salva o design no backend e redireciona ao módulo de Proposta |
+| 1.2.1 | **Menus Contextuais** | Arquivo, Editar, Exibir, Projeto |
+
+### 1.3 Setor Direito — Widgets e Ações de Engenharia
+| # | Nome Canônico | Ícone | Função |
+|---|--------------|-------|--------|
+| 1.3.1 | **Guidelines Widget** | `Info` | Popover com meta de módulos, área e peso |
+| 1.3.2 | **Health Check** | `Activity` | Status sistêmico (FDI, Voc Max, Sincronismo Físico/Lógico) |
+| 1.3.3 | **Status de Aprovação** | `Flag` | Toggle entre `Rascunho` e `Aprovado` |
+| 1.3.4 | **Dados do Cliente** | `User` | Abre o `ClientDataModal` |
+| 1.3.5 | **Premissas Globais** | `Activity` | Abre o Settings Drawer (Perdas, Tarifas, HSP) |
+| 1.3.6 | **Botão Exportar** | `Download` | Gera snapshot térmico e envia para o módulo de Proposta |
 
 ---
 
-## 2. LEFT OUTLINER (Árvore de Topologia)
+## 2. LEFT OUTLINER (Compositor Lego)
 
 > **Componente**: `LeftOutliner.tsx`  
-> **Função**: Visualizar e gerenciar a hierarquia elétrica do sistema fotovoltaico.
+> **Detalhes**: Veja o mapa dedicado em [mapa-left-outliner.md](file:///d:/Repositório_Pessoal/SaaS Projects/Neonorte/Kurupira-Iaca/docs/interface/mapa-left-outliner.md)
 
-### Estrutura da Árvore
+### Estrutura da Pilha (Cascata Progressiva)
+1.  **Bloco Consumo**: Raiz. Dados geográficos e demanda energética.
+2.  **Bloco Módulos FV**: Inventário. Quantidade e potência dos painéis.
+3.  **Bloco Inversor**: Máquina. Validação elétrica e status de dimensionamento.
 
-```
-📂 Topologia
-├── ⚡ Inversor PHB35KS-MT (1x)
-│   ├── 🔌 MPPT 1
-│   │   ├── 🔗 String 1 (12 módulos)
-│   │   └── 🔗 String 2 (12 módulos)
-│   ├── 🔌 MPPT 2
-│   └── …
-├── 📦 Módulos (DMEGC 610W) — 24 unid.
-└── 📍 Áreas (Telhado Norte) — 3 polígonos
-```
-
-### 2.1 Cabeçalho
-
-| # | Nome Canônico | Função |
-|---|--------------|--------|
-| 2.1.1 | **Título "Topologia"** | Identificação do painel como árvore de componentes |
-| 2.1.2 | **Botão Adicionar Inversor** | Abre o `InverterCatalogDialog` — catálogo visual de inversores do banco |
-| 2.1.3 | **Botão Adicionar Módulo** | Abre o `ModuleCatalogDialog` — catálogo visual de módulos do banco |
-
-### 2.2 Nós da Árvore
-
-| Tipo de Nó | Ícone | Selecionável | Arrastável | Excluível | Duplicável |
-|-----------|-------|:----------:|:---------:|:--------:|:---------:|
-| **Inversor** | `Cpu` | ✅ | ❌ | ✅ | ✅ (`Ctrl+D`) |
-| **MPPT** | `Cable` | ✅ | ❌ | ❌ | ❌ |
-| **String** | `Link2`/`Unlink` | ✅ | ✅ | ❌ | ❌ |
-| **Módulo** (catálogo) | `Package` | ✅ | ❌ | ✅ | ❌ |
-| **Área** (telhado) | `MapPin` | ✅ | ❌ | ❌ | ❌ |
-| **Módulo Colocado** | `Sun` | ✅ | ✅ | ❌ | ❌ |
+*Nota: Blocos subsequentes ficam em estado de "LockedBlock" (Fantasma) até que o predecessor seja preenchido.*
 
 ---
 
 ## 3. CENTER CANVAS (Views Dimensionais)
 
-> **Componente**: `CenterCanvas.tsx` -> injeta dinamicamente as **CanvasViews** via arquitetura polimórfica (Slot Vazio Polimórfico).
-> **Função**: Área vital de renderização principal (~70% da tela). Trânsito entre visualização gráfica (Mapa 2D/3D) e Dashboards de Engenharia sem desmontar contextos subjacentes.
+> **Componente**: `CenterCanvas.tsx`  
+> **Função**: Área principal de renderização. Suporta troca de contexto sem perda de estado.
 
-O `CenterCanvas` hospeda painéis analíticos robustos, eliminando as antigas tabs estreitas do `RightInspector`.
-
-### 3.1 Arquitetura Geográfica (`MapCore.tsx`)
-A visão nativa. Motor híbrido Leaflet (2D) + WebGL/React Three Fiber (3D).
-*   **Floating Map Tools (Toolbar CAD)**: Esquerda. Polígono, Régua, Módulos (UX-003).
-*   **Camadas**: Mapa Base, Polígonos, Módulos 3D (R3F).
-*   *Nota*: No modo Portal (quando outra view assume o canvas), o MapCore é minimizado e teletransportado para o `RightInspector`.
-
-### 3.2 Dossiê de Implantação (`SiteCanvasView.tsx`)
-Substitui o antigo painel lateral "Site". Foco: Inteligência Local.
-*   **V-Card Identificação**: Cliente, Contrato, Conexão e Distribuidora.
-*   **Weather Dashboard**: Widgets estéticos de Clima (Temperatura Média Anual, Janela Solar, Umidade) consumidos da API de irradiação.
-*   **Prancheta Geo**: Coordenadas exatas e Checklist rápido de "Restrições de Telhado".
-
-### 3.3 Dashboard de Simulação Energética (`SimulationCanvasView.tsx`)
-Painel em 3-faixas semânticas que substitui o antigo gráfico lateral (UX-005 a UX-009).
-*   **Faixa 1 — Visão Geral & Guia de Dimensionamento (KPIs)**: Pílulas de consumo, geração, cobertura e potência mínima baseada na resolução normativa ANEEL.
-*   **Faixa 2 — Tabs Analíticas**: Exibe **apenas um** gráfico por vez: `Composição` (BarChart Mensal W-Full), `Cumulativo` (AreaChart balanço anual), `Curva Diária` (Bell curve paramétrica baseada na temperatura e HSP), `Tabela`.
-*   **Faixa 3 — Acordeão Colapsável**: Grid de inputs mensais (HSP CRESESB e Consumo Faturado) + Motor "Waterfall de Perdas". Mantido oculto por padrão.
-
-### 3.4 Laboratório Elétrico (`ElectricalCanvasView.tsx`)
-Foco: Dimensionamento paramétrico de proteção e condutores.
-*   **Queda de Tensão AC**: Parametrizador de cabos elétricos (bitola, distância, corrente) e indicador termodinâmico de risco de queda.
-*   **Mock Termodinâmico Voc**: Gráfico visual iterativo demonstrando o aumento da tensão de circuito aberto (Voc) operando no inverno (`minHistoricalTemp`) guiado pelas normas de limite (NEC 690.7).
+| View Canônica | Componente | Função |
+|---------------|------------|--------|
+| **Mapa 2D/3D** | `MapCore.tsx` | Design geométrico, áreas de telhado e posicionamento de módulos |
+| **Simulação** | `SimulationCanvasView.tsx` | Análise de geração, cobertura e ROI |
+| **Site** | `SiteCanvasView.tsx` | Dossiê de implantação, infraestrutura e clima |
+| **Elétrica** | `ElectricalCanvasView.tsx` | Dimensionamento de cabos, Voc de inverno e proteção |
 
 ---
 
-## 4. RIGHT INSPECTOR (Painel de Propriedades e Teleporte)
-
-> **Componente**: `RightInspector.tsx`  
-> **Função**: Relegado especificamente para gerenciar interações e abrigar o Portal do Minimapa, sem menus poluentes. A estrutura de pilhas foi substituída pelos novos Canvas (UX-004 e UX-008). 
-
-### 4.1 Minimapa (Portal Docking)
-*   **Target Div**: Receptáculo do evento `createPortal`. Minimiza o mapa inteiro do CanvasCenter para manter a ciência posicional espacial quando se navega pelos Dashboards (Ex: `SimulationCanvasView`).
-*   **Poka-Yoke Inercial**: Eventos limitam pans aleatórios quando o mapa está ancorado aqui, retornando-o a res. Total ao apertar `[↗]`.
+## 4. RIGHT INSPECTOR (Minimapa e Portais)
 
 ---
 
-## 5. PROPERTIES GROUP (Propriedades Contextuais)
+## 5. PROPERTIES GROUP
 
-> **Componente**: `PropertiesGroup.tsx` → `InverterProperties`, `ModuleProperties`, `StringProperties`
-> **Função**: UI interativa ancorada no **Right Inspector** (como a aba Properties). Renderiza apenas quando um componente físico é ativo na árvore (LeftOutliner) ou no Mapa Base.
+> **Componente**: `PropertiesGroup.tsx`  
+> **Função**: Renderiza as propriedades detalhadas do elemento selecionado (Inversor, String ou Módulo).
 
-| Componente Alvo | Dados Críticos Apresentados |
-|-----------------|---------------------------|
-| **Inversor** | V_max ENTRADA, limites MPPT e Tensão em tempo real dos rastreadores. |
-| **Módulos** | Dimensões Físicas X/Y, Specs térmicas, Voc/STC, Corrente Imp. | 
-| **Strings** | Gráficos visuais (VoltageRangeChart) avaliando limiar DC Input X MPPT range, advertências de Clipping e contagem limitante. |
-
----
-
-## 6. DIÁLOGOS MODAIS
-
-### 6.1 InverterCatalogDialog
-Catálogo visual de inversores disponíveis. O engenheiro filtra (Trifásico/Monofásico, Range Potência, Marca) e adiciona ao TopOutline. Modela `InverterState`.
-
-### 6.2 ModuleCatalogDialog
-Catálogo visual de painéis de captação. Similar na UI. Importante para o mock do "Area calculation" baseado em suas dimensões `x, y`.
-
-### 6.3 ClientDataModal
-Formulário inicial. Define a cidade do projeto -> Aciona Fetch Cresesb (HSP/Irradiação) -> Injeta em `SimulationCanvasView`.
+| Alvo | Componente de Propriedades |
+|------|---------------------------|
+| Inversor | `InverterProperties.tsx` |
+| Módulo | `ModuleProperties.tsx` |
+| String | `StringProperties.tsx` |
 
 ---
 
@@ -164,10 +105,8 @@ Formulário inicial. Define a cidade do projeto -> Aciona Fetch Cresesb (HSP/Irr
 
 | Termo | Sigla | Significado |
 |-------|-------|-------------|
-| **kWp** | — | Kilowatt-pico. Potência máxima DC do conjunto de módulos em condições STC |
-| **FDI** | — | Fator de Dimensionamento do Inversor. Razão entre potência DC e potência AC nominal |
-| **PR** | — | Performance Ratio. Rendimento global do sistema compensando o "Waterfall de Perdas"|
-| **HSP** | — | Hora Solar Pico. Irradiação diária equivalente em kWh/m²/dia (CRESESB) |
-| **MPPT** | — | Maximum Power Point Tracker. Canais lógicos de input do inversor |
-| **Voc** | — | Tensão Aberta. Cuidado redobrado atrelado a coeficientes Frios (NEC 690.7) |
-| **STC** | — | Standard Test Conditions (25°C, 1000 W/m², AM 1.5) |
+| **kWp** | — | Kilowatt-pico. Potência nominal DC instalada |
+| **FDI** | — | Fator de Dimensionamento do Inversor (DC/AC Ratio) |
+| **Voc** | — | Tensão de Circuito Aberto (Crítico em baixas temperaturas) |
+| **HSP** | — | Hora Solar Pico (kWh/m²/dia) |
+| **Lego Snap** | — | Efeito visual de encaixe físico entre blocos do Outliner |
