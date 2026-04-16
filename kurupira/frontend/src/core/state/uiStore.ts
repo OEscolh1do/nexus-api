@@ -27,7 +27,7 @@ export type Tool = 'SELECT' | 'POLYGON' | 'MEASURE' | 'PLACE_MODULE';
 
 export type WorkspaceMode = 'SIMULATION' | 'ELECTRICAL' | 'REPORTS' | 'PROPOSAL';
 
-export type FocusedBlock = 'consumption' | 'module' | 'inverter' | 'simulation' | 'map' | null;
+export type FocusedBlock = 'consumption' | 'module' | 'arrangement' | 'inverter' | 'simulation' | 'map' | null;
 
 /** Etapa da animação do Dimensionamento Inteligente (Spec 03 §2.3) */
 export type AutoSizingStep = 'idle' | 'consumption' | 'module' | 'inverter' | 'done';

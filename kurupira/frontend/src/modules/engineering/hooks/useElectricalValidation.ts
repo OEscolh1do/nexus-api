@@ -42,7 +42,7 @@ export const useElectricalValidation = (): UnifiedValidationResult => {
         .map(str => `${str.id}-${str.mpptId}-${str.moduleIds.length}`)
         .join('::');
         
-    const settingsSig = settings?.minHistoricalTemp ?? 10;
+    const settingsSig = settings?.minHistoricalTemp ?? -5;
 
     return useMemo(() => {
         const techInverters = Object.values(invertersNorm.entities);
@@ -94,8 +94,6 @@ export const useElectricalValidation = (): UnifiedValidationResult => {
                 }
 
                 return inv.mpptConfigs.map(cfg => {
-                    const specMppt = catalogSpec?.mppts?.find((mp: any) => mp.mpptId === cfg.mpptId) || catalogSpec?.mppts?.[0];
-                    
                     // Em P6.4, cfg.stringIds contém as strings LÓGICAS reais atribuídas ao MPPT
                     const assignedStrings = cfg.stringIds
                         .map(sId => stringsNorm.entities[sId])
@@ -110,10 +108,10 @@ export const useElectricalValidation = (): UnifiedValidationResult => {
                         mpptId: cfg.mpptId,
                         modulesPerString: maxModulesInAString,
                         stringsCount: activeStringsCount,
-                        maxInputVoltage: specMppt?.maxInputVoltage ?? 500,
-                        minMpptVoltage: specMppt?.minMpptVoltage ?? 150,
-                        maxMpptVoltage: specMppt?.maxMpptVoltage ?? 500,
-                        maxCurrentPerMPPT: specMppt?.maxCurrentPerMPPT ?? 15,
+                        maxInputVoltage: inv.snapshot?.maxInputVoltage ?? 600,
+                        minMpptVoltage: inv.snapshot?.minMpptVoltage ?? 150,
+                        maxMpptVoltage: inv.snapshot?.maxMpptVoltage ?? 500,
+                        maxCurrentPerMPPT: inv.snapshot?.maxCurrentPerMPPT ?? 15,
                     } as MPPTInput;
                 }).filter(input => input.stringsCount > 0 && input.modulesPerString > 0);
             });

@@ -13,15 +13,12 @@ const calcKwh = (item: Partial<LoadItem>) => {
 };
 
 export const SimulatedLoadsPanel: React.FC = () => {
-  // CORREÇÃO A9: Seletores estáveis — nunca derivar dentro do selector.
-  // Object.values() cria novo array a cada snapshot → infinite loop React 18.
   const entities = useSolarStore(s => s.simulatedItems.entities);
   const simulatedItems = useMemo(() => Object.values(entities), [entities]);
   const addLoadItem = useSolarStore(s => s.addLoadItem);
   const updateLoadItem = useSolarStore(s => s.updateLoadItem);
   const removeLoadItem = useSolarStore(s => s.removeLoadItem);
 
-  // CORREÇÃO: getSimulatedTotal() chamado fora do selector para evitar re-snapshot.
   const totalCargasKwh = useMemo(() => {
     return simulatedItems.reduce((acc, item) => {
       const duty = item.dutyCycle ?? 1;
@@ -61,7 +58,7 @@ export const SimulatedLoadsPanel: React.FC = () => {
 
   return (
     <div className="flex flex-col">
-      <div className="bg-slate-900 rounded-lg border border-slate-800 overflow-hidden">
+      <div className="bg-slate-900 rounded-sm border border-slate-800 overflow-hidden">
         {/* Lista de itens */}
         {simulatedItems.map(item => (
           <div key={item.id} className="flex items-center gap-3 px-4 py-3 border-b border-slate-800/50 last:border-0 hover:bg-slate-800/40 group">
@@ -94,17 +91,17 @@ export const SimulatedLoadsPanel: React.FC = () => {
 
             {/* Badge de perfil */}
             <span className={cn(
-              'text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold',
-              item.perfil === 'constante' && 'bg-slate-700 text-slate-300',
-              item.perfil === 'verao'     && 'bg-amber-900/40 text-amber-400',
-              item.perfil === 'inverno'   && 'bg-sky-900/40 text-sky-400'
+              'text-[8px] px-2 py-0.5 rounded-sm uppercase tracking-widest font-bold font-mono',
+              item.perfil === 'constante' && 'bg-slate-800 text-slate-400 border border-slate-700',
+              item.perfil === 'verao'     && 'bg-amber-500/10 text-amber-500 border border-amber-500/20',
+              item.perfil === 'inverno'   && 'bg-sky-500/10 text-sky-400 border border-sky-500/20'
             )}>
               {item.perfil}
             </span>
 
             {/* kWh */}
-            <span className="text-sm font-mono text-amber-400 w-20 text-right">
-              {calcKwh(item).toFixed(0)} kWh
+            <span className="text-xs font-mono text-amber-500 w-24 text-right tabular-nums font-bold">
+              {calcKwh(item).toFixed(0)} <span className="text-[10px] font-normal opacity-40">kWh</span>
             </span>
 
             {/* Ações (visíveis no hover) */}
@@ -129,89 +126,84 @@ export const SimulatedLoadsPanel: React.FC = () => {
 
         {/* Total */}
         {simulatedItems.length > 0 && (
-          <div className="flex justify-between items-center px-4 py-2 bg-slate-800/50">
-            <span className="text-xs text-slate-400">Total cargas simuladas</span>
-            <span className="text-sm font-mono text-amber-400">
-              + {totalCargasKwh.toFixed(0)} kWh/mês
+          <div className="flex justify-between items-center px-4 py-3 bg-slate-950/40 border-t border-slate-800/80">
+            <span className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Total Simulated Load</span>
+            <span className="text-sm font-mono text-amber-400 tabular-nums font-bold">
+              + {totalCargasKwh.toFixed(0)} <span className="text-xs font-normal opacity-50">kWh/mês</span>
             </span>
           </div>
         )}
       </div>
 
       {/* 5.3 Formulário de adição inline */}
-      <div className="mt-3 p-3 bg-slate-900/60 rounded-lg border border-dashed border-slate-700">
-        <p className="text-[10px] text-slate-500 mb-3 uppercase tracking-wider font-bold">
-          Adicionar Nova Carga Sazonal/Projetada
+      <div className="mt-4 p-4 bg-slate-900/40 rounded-sm border border-slate-800">
+        <p className="text-[10px] text-slate-500 mb-4 uppercase tracking-widest font-bold flex items-center gap-2">
+          <span className="w-1 h-3 bg-amber-500/40" />
+          Projetar Nova Demanda Sazonal
         </p>
 
-        <div className="grid grid-cols-2 gap-2 mb-2">
-          <input 
-            placeholder="Nome (ex: Ar-condicionado 12k BTU)"
-            value={form.name} 
-            onChange={e => setForm(f => ({...f, name: e.target.value}))}
-            className="col-span-2 bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-amber-500/50 placeholder:text-slate-600 font-sans" 
-          />
+        <div className="grid grid-cols-12 gap-3 mb-4">
+          <div className="col-span-12 xl:col-span-5">
+            <input 
+              placeholder="Tag da Carga (ex: Ar-condicionado Pav 1)"
+              value={form.name} 
+              onChange={e => setForm(f => ({...f, name: e.target.value}))}
+              className="w-full bg-slate-950 border border-slate-800 rounded-sm px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500/50 placeholder:text-slate-700 font-sans" 
+            />
+          </div>
 
-          <input 
-            placeholder="Potência (W)" 
-            type="number" 
-            min={1}
-            value={form.power || ''} 
-            onChange={e => setForm(f => ({...f, power: Number(e.target.value)}))}
-            className="bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-amber-500/50 placeholder:text-slate-600" 
-          />
+          <div className="col-span-4 xl:col-span-2">
+            <input 
+              placeholder="Potência (W)" 
+              type="number" 
+              min={1}
+              value={form.power || ''} 
+              onChange={e => setForm(f => ({...f, power: Number(e.target.value)}))}
+              className="w-full bg-slate-950 border border-slate-800 rounded-sm px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500/50 font-mono" 
+            />
+          </div>
 
-          <select 
-            value={form.perfil} 
-            onChange={e => setForm(f => ({...f, perfil: e.target.value as any}))}
-            className="bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-amber-500/50 appearance-none"
-          >
-            <option value="constante">Constante</option>
-            <option value="verao">Verão</option>
-            <option value="inverno">Inverno</option>
-          </select>
+          <div className="col-span-4 xl:col-span-2">
+            <select 
+              value={form.perfil} 
+              onChange={e => setForm(f => ({...f, perfil: e.target.value as any}))}
+              className="w-full bg-slate-950 border border-slate-800 rounded-sm px-3 py-2 text-xs text-slate-400 focus:outline-none focus:border-amber-500/50 appearance-none uppercase font-mono tracking-tighter"
+            >
+              <option value="constante">Constante</option>
+              <option value="verao">Verão</option>
+              <option value="inverno">Inverno</option>
+            </select>
+          </div>
 
-          <input 
-            placeholder="Horas/dia" 
-            title="Horas de uso por dia"
-            type="number" 
-            min={0.5} 
-            max={24} 
-            step={0.5}
-            value={form.hoursPerDay || ''} 
-            onChange={e => setForm(f => ({...f, hoursPerDay: Number(e.target.value)}))}
-            className="bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-amber-500/50 placeholder:text-slate-600" 
-          />
+          <div className="col-span-2 xl:col-span-1">
+            <input 
+              placeholder="H/D" 
+              title="Horas/dia"
+              type="number" 
+              value={form.hoursPerDay || ''} 
+              onChange={e => setForm(f => ({...f, hoursPerDay: Number(e.target.value)}))}
+              className="w-full bg-slate-950 border border-slate-800 rounded-sm px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500/50 font-mono" 
+            />
+          </div>
 
-          <input 
-            placeholder="Dias/mês" 
-            title="Dias de uso por mês"
-            type="number" 
-            min={1} 
-            max={31}
-            value={form.daysPerMonth || ''} 
-            onChange={e => setForm(f => ({...f, daysPerMonth: Number(e.target.value)}))}
-            className="bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-amber-500/50 placeholder:text-slate-600" 
-          />
+          <div className="col-span-2 xl:col-span-2">
+            <button
+              onClick={handleAddItem}
+              disabled={!form.name || !form.power || form.power <= 0}
+              className="w-full h-full bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-500 text-[10px] font-bold uppercase tracking-widest rounded-sm transition-all disabled:opacity-20"
+            >
+              + Commit
+            </button>
+          </div>
         </div>
 
         {/* Preview do kWh antes de confirmar */}
-        <div className="flex justify-between items-center mt-3">
-          <div className="h-4">
-            {form.power! > 0 && form.hoursPerDay! > 0 && form.daysPerMonth! > 0 && (
-              <p className="text-[11px] text-amber-500/80 font-mono tracking-wide">
-                ≈ {calcKwh(form).toFixed(0)} kWh/mês
-              </p>
-            )}
+        {form.power! > 0 && form.hoursPerDay! > 0 && (
+          <div className="flex items-center gap-2 text-[10px] text-amber-500/50 font-mono uppercase tracking-widest">
+            <span className="w-1 h-1 bg-amber-500/30 rounded-full" />
+            Impacto Estimado: {calcKwh(form).toFixed(1)} kWh/mês
           </div>
-          <button
-            onClick={handleAddItem}
-            disabled={!form.name || !form.power || form.power <= 0}
-            className="px-6 py-1.5 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-600/30 text-amber-400 text-xs font-bold uppercase tracking-wider rounded transition-colors disabled:opacity-30 disabled:hover:bg-amber-600/20"
-          >
-            + Adicionar
-          </button>
-        </div>
+        )}
       </div>
     </div>
   );

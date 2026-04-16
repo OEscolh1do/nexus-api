@@ -1,8 +1,8 @@
 # CONTEXT.md — Sistema NEONORTE
 
-> **Última Atualização:** 2026-04-14
+> **Última Atualização:** 2026-04-16
 > **Arquiteto:** Antigravity AI
-> **Versão do Sistema:** 3.6.0 (Operação Lego-Scratch — Compositor de Engenharia de Alta Tactilidade)
+> **Versão do Sistema:** 3.8.0 (Jornada do Integrador — Dashboard de Rigor Elétrico + MapCore Multi-Modo)
 
 ---
 
@@ -11,41 +11,48 @@
 **Neonorte** é um ecossistema **multi-serviço** para o setor de energia solar. O antigo monólito "Nexus" foi cisado em dois domínios autônomos, cada um com frontend + backend + schema MySQL dedicado, orquestrados por Docker Compose.
 
 | Domínio | Codinome | Responsabilidade |
-|---------|----------|-----------------|
+|---------|----------|-----------------| 
 | **Gestão & CRM** | **Iaçã** | ERP, Leads, Pipeline, Finanças, Strategy, Operations, IAM |
 | **Engenharia Solar** | **Kurupira** | Dimensionamento, Elétrico, Documentação, Proposta, Simulação |
 
 ---
 
-## 🏗️ ARQUITETURA DE UI (v3.7.0)
+## 🏗️ ARQUITETURA DE UI (v3.8.0)
 
-O Kurupira evoluiu para uma interface de **Composição Tátil**, focada em um fluxo de trabalho sequencial e utilitário, com uma base de design focada estritamente em **Engineering Tool Aesthetic**.
+O Kurupira opera como um **Dashboard de Engenharia de Alta Densidade**, onde cada aba da Jornada do Integrador exibe uma canvas view especializada sobreposta ao motor de mapas (Leaflet + WebGL).
 
-### Paradigma Visual: Ferramenta de Engenharia ("Engineering Tool Esthetic")
-A interface transitou de um modelo arredondado / gamificado ("B2C") para uma densidade e retilinidade dignas de softwares pro B2B (CAD/BIM).
-- **Geometria Reta**: Uso primário de \`rounded-sm\` a \`rounded-md\`. Abolição do \`rounded-3xl\` em painéis estruturais.
-- **Micro-Bordas e Menos Sombra**: Substituição de \`shadow-2xl\` amplas por \`border-slate-700/80\` bem marcadas, provendo limite claro de dados.
-- **Glassmorphism Otimizado**: Mantido apenas o estritamente necessário para integração com o canvas de mapa do fundo, eliminando _glows neons_ excessivos.
-- **Tipografia de Dados (Mono)**: Amplo uso de fontes monoespaçadas (tabular numbers) para alinhamento rápido de variáveis elétricas.
-- **Color Coding Semântico Estrito** (7 famílias, sem sobreposição intencional):
-  - 🟠 **Consumo / Demanda**:              `amber`, `orange`
+### Paradigma Visual: Ferramenta de Engenharia ("Engineering Tool Aesthetic")
+- **Geometria Reta**: Uso exclusivo de `rounded-sm`. Abolição total de `rounded-xl/2xl/3xl` em painéis.
+- **Tipografia de Dados**: `font-mono` + `tabular-nums` em todos os valores elétricos e de consumo.
+- **Gráficos Industriais**: Barras com `radius={0}` em todos os charts (Recharts), eixos em `font-mono`.
+- **Color Coding Semântico Estrito** (7 famílias):
+  - 🟠 **Consumo / Demanda**: `amber`, `orange`
   - 🔵 **Geração / Fontes / Equipamentos**: `sky`, `blue`, `cyan`
-  - 🟢 🟣 **Métricas / Fatores / Destaques**: `emerald`, `teal` + `purple`, `violet`
-  - 🔴 **Perdas / Alertas / Falhas**:      `red`, `fuchsia` *(rose excluído — ver Temperatura)*
-  - 🌡️ **Temperatura (ambiente / célula)**: `pink`, `rose` *(quente, mas ≠ alerta crítico)*
-  - ☀️ **Irradiância / GHI / DNI / HSP**:  `yellow`, `lime`
-  - 💧 **Umidade / Atmosfera / Vento**:    `indigo` (umidade+chuva), `slate`/`zinc` (vento — dado auxiliar)
+  - 🔴 **Perdas / Alertas / Falhas**: `red`, `fuchsia`
+  - 🌡️ **Temperatura (ambiente / célula)**: `pink`, `rose`
+  - ☀️ **Irradiância / GHI / DNI / HSP**: `yellow`, `lime`
+  - 💧 **Umidade / Atmosfera / Vento**: `indigo`, `slate`/`zinc`
+  - 🟣 **Arranjo Físico / Drawing mode**: `indigo` (contextual)
 
-### Paradigma de Composição: Pilha Lego
-O **LeftOutliner** não é mais uma árvore hierárquica, mas um **Compositor de Blocos Intertravados**:
-- **Tactilidade Visual**: Blocos com conectores SVG puzzle (Tab/Notch), sombras 3D de profundidade e cores saturadas (Lego-style).
-- **Cascata Progressiva**: Blocos subsequentes iniciam como `LockedBlock` (flutuantes e esmaecidos) e "encaixam" (`animate-lego-snap`) apenas quando o predecessor é validado.
-- **Fluxo Crítico**: Consumo (Âmbar) → Módulos (Cyan) → Inversor (Esmeralda).
+### Jornada do Integrador: Canvas Views sobrepostas ao MapCore
 
-### Orquestração de Painéis
-- **MenuBar CAD Style**: Top Ribbon com menus clássicos (Arquivo, Editar, Exibir, Projeto) e widgets de saúde sistêmica (Health Check).
-- **Bottom Workspace Tabs**: Navegação "Excel-style" para alternar rapidamente entre Views do CanvasCenter (`Mapa`, `Simulação`, `Elétrica`).
-- **CenterCanvas Permanente**: O motor gráfico (Leaflet + WebGL) nunca desmonta, servindo de portal para o minimapa quando outras views estão ativas.
+| FocusedBlock | Canvas View Ativa | Modo do MapCore |
+|---|---|---|
+| `null` / `map` | Mapa livre | `neutral` |
+| `consumption` | `ConsumptionCanvasView` | — (overlay opaco) |
+| `module` | Mapa + HUD placement | `placement` |
+| `arrangement` | Mapa + HUD drawing | `drawing` |
+| `inverter` | `ElectricalCanvasView` | — (overlay opaco) |
+| `simulation` | `SimulationCanvasView` | — (overlay opaco) |
+
+### MapCore: Modos de Operação (v3.8.0)
+O `MapCanvasView` wrapper gerencia 3 modos contextuais derivados do `activeFocusedBlock`:
+- **`placement`** (`module`): Ferramentas SELECT, PLACE_MODULE, MEASURE. Barra sky com contagem de módulos.
+- **`drawing`** (`arrangement`): Ferramentas SELECT, POLYGON, MEASURE. Barra indigo + FDI. Auto-ativa POLYGON.
+- **`neutral`** (default): Ferramentas SELECT, MEASURE. Barra slate com coordenadas.
+
+### Workspace Tabs (Ordem na UI)
+`Consumo → Módulos → Arranjo → Elétrica → Simulação → Mapa`
 
 ---
 
@@ -60,9 +67,13 @@ O **LeftOutliner** não é mais uma árvore hierárquica, mas um **Compositor de
 
 | Módulo | Localização | Status |
 |--------|------------|--------|
-| Compositor Lego (UI/UX) | `frontend/src/modules/engineering/ui/panels/` | ✅ Operacional (v3.6) |
-| Dimensionamento (Inventário) | `frontend/src/modules/engineering/` | ✅ Operacional (v3.6) |
-| Simulação Analítica | `frontend/src/modules/simulation/` | ✅ Operacional (TRL 8) |
+| Compositor Lego (UI/UX) | `frontend/src/modules/engineering/ui/panels/` | ✅ Operacional (v3.8) |
+| MapCore Multi-Modo | `canvas-views/MapCanvasView.tsx` | ✅ v3.8.0 |
+| Barra Contextual MapCore | `canvas-views/map/MapContextBar.tsx` | ✅ v3.8.0 |
+| Dimensionamento (Elétrico) | `canvas-views/electrical/` | ✅ v3.7.0 |
+| VoltageRangeChart (Multi-MPPT) | `canvas-views/electrical/VoltageRangeChart.tsx` | ✅ v3.7.0 |
+| ConsumptionCanvasView | `canvas-views/ConsumptionCanvasView.tsx` | ✅ Engineering Aesthetic (v3.8) |
+| Simulação Analítica | `frontend/src/modules/simulation/` | ✅ TRL 8 |
 | Documentação (Memorial, ART) | `frontend/src/modules/documentation/` | 🚧 Refatorando |
 | Proposta (Pricing, PDF) | `frontend/src/modules/proposal/` | ✅ Operacional |
 
@@ -70,22 +81,38 @@ O **LeftOutliner** não é mais uma árvore hierárquica, mas um **Compositor de
 
 ## 🔄 CHANGELOG
 
-### v3.7.0 (2026-04-15) — Pivot para "Engineering Tool Aesthetic"
+### v3.8.0 (2026-04-16) — Jornada do Integrador: MapCore Multi-Modo + Consumption Refactor
 
-- ✅ **Pivô de Design**: Transbordo da estética gamificada/arredondada para uma vertente **Engineering Tool** séria, com arestas finas, grids densamente preenchidos e hierarquia B2B pro CAD.
-- ✅ **ConsumptionCanvasView Premium**: Refatoração da view de consumo para input rigoroso com pílulas tabulares e redução expressiva de margens de respiro c/ foco "Above the fold".
-- ✅ **Z-Index Master Control**: Centralização assertiva do `z-index` flutuante para blindar colisão com canvas nativos (Leaflet `400~1000`).
+- ✅ **MapCore Multi-Modo**: Criação do `MapCanvasView` wrapper com 3 modos (`placement`, `drawing`, `neutral`) derivados do `activeFocusedBlock`. Filtragem de HUD de ferramentas por modo, auto-ativação do POLYGON no modo drawing.
+- ✅ **MapContextBar**: Nova barra de status contextual `h-8` inferior com métricas reativas por modo.
+- ✅ **FocusedBlock `'arrangement'`**: Adicionado ao tipo `FocusedBlock` em `uiStore.ts`.
+- ✅ **Aba "Arranjo"**: Adicionada ao `WorkspaceTabs` com ícone `Layers`.
+- ✅ **CenterCanvas simplificado**: `MapPayload` inline substituído por `<MapCanvasView />`.
+- ✅ **ConsumptionCanvasView Engineering Aesthetic**: Grid 75/25, rodapé com `tabular-nums`, `rounded-sm` global, CTA industrial.
+- ✅ **ConsumptionChart**: Barras `radius={0}`, Tooltip industrial em `font-mono`, input `rounded-sm`.
+- ✅ **ClimateCorrelationChart**: Fontes `font-mono` nos eixos; legendas column-style ao invés de pills.
+- ✅ **SimulatedLoadsPanel**: Badges de perfil `rounded-sm` com borda semântica; form inline `grid-cols-12`; `tabular-nums` na coluna kWh.
+
+### v3.7.0 (2026-04-15) — Rigor Paramétrico Elétrico + Multi-MPPT Termodinâmico
+
+- ✅ **InverterState.snapshot**: Expandido com `maxInputVoltage`, `min/maxMpptVoltage`, `maxCurrentPerMPPT`.
+- ✅ **useElectricalValidation**: Limites do snapshot do inversor; fallback `minHistoricalTemp` → `-5°C` (NEC 690.7).
+- ✅ **ElectricalCanvasView**: Abolição de constantes hardcoded.
+- ✅ **VoltageRangeChart Multi-MPPT**: Gantt Chart termodinâmico por MPPT. Tick de Voc vermelho ao ultrapassar limite.
 
 ### v3.6.0 (2026-04-14) — Operação Lego-Scratch (Interface Tátil)
-
-- ✅ **Compositor Lego (LeftOutliner):** Reescrita do painel esquerdo para modelo de blocos interconectados. Implementação de `LegoTab` e `LegoNotch` via SVG Puzzle-shapes.
-- ✅ **Máquina de Estados Visual:** Sistema de ativação em cascata (Consumo → Módulos → Inversor) com estados `LockedBlock` (fantasmas desencaixados).
-- ✅ **Aesthetics Engine (Scratch-style):** Introdução de cores saturadas sólidas (amber, sky, emerald), `inset shadow` para profundidade 3D e animações `lego-snap` (overshoot spring).
-- ✅ **Refatoração de Mapas de Interface:** Criação de `docs/interface/mapa-left-outliner.md` e atualização completa do `mapa-dimensionamento.md` eliminando terminologia de "Árvore de Topologia".
-- ✅ **Z-Index & Overlap Control:** Gestão física de camadas para garantir que os conectores (tabs) se sobreponham visualmente aos blocos de baixo sem frestas.
+[Mantido para histórico]
 
 ### v3.5.0 (2026-04-14) — Workspace TRL 7-8 & Advanced Simulation
 [Mantido para histórico]
 
 ---
-[Restante do arquivo preservado...]
+
+## 🔑 PADRÕES INEGOCIÁVEIS (Engineering Aesthetic Rules)
+
+1. **Sem `rounded-xl/2xl/3xl`** em painéis estruturais. Apenas `rounded-sm` ou no máximo `rounded-md`.
+2. **Todos os valores numéricos elétricos**: `font-mono tabular-nums`.
+3. **Gráficos Recharts**: `radius={0}` em todas as barras. Grid `strokeDasharray="2 2"` em `#1e293b`.
+4. **Tooltips**: `bg-slate-900 border border-slate-700 rounded-sm`, uppercase tracking-widest, mono font.
+5. **Badges de status**: `border` semântica explícita (ex: `border-amber-500/20`) ao invés de `bg-opacity` isolado.
+6. **MapCore**: NUNCA desmonta. Usa camadas de overlay (FrozenViewContainer) — jamais unmount/remount.

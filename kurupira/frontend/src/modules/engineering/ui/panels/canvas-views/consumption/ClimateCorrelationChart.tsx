@@ -20,17 +20,17 @@ const ClimateTooltip = ({ active, payload, label }: any) => {
   const temp = payload.find((p: any) => p.dataKey === 'tempMedia')?.value ?? 0;
 
   return (
-    <div className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-xs shadow-xl">
-      <p className="text-slate-400 font-bold mb-2 uppercase tracking-wider">{label}</p>
-      <div className="flex flex-col gap-1">
-        <div className="flex justify-between gap-4 text-amber-500">
-          <span className="text-slate-400">Consumo:</span>
-          <span>{kwh.toFixed(0)} kWh</span>
+    <div className="bg-slate-900 border border-slate-700 rounded-sm p-3 text-[10px] shadow-2xl backdrop-blur-md">
+      <p className="text-slate-500 font-bold mb-2 uppercase tracking-widest font-mono">{label}</p>
+      <div className="flex flex-col gap-1.5">
+        <div className="flex justify-between gap-4">
+          <span className="text-slate-400">CONSUMO</span>
+          <span className="text-amber-500 font-mono tabular-nums">{kwh.toFixed(0)} kWh</span>
         </div>
         {temp !== null && temp !== undefined && (
-          <div className="flex justify-between gap-4 text-orange-500">
-            <span className="text-slate-400">Temp Média:</span>
-            <span>{temp.toFixed(1)} °C</span>
+          <div className="flex justify-between gap-4">
+            <span className="text-slate-400">TEMP MÉDIA</span>
+            <span className="text-orange-500 font-mono tabular-nums">{temp.toFixed(1)} °C</span>
           </div>
         )}
       </div>
@@ -61,14 +61,16 @@ export const ClimateCorrelationChart: React.FC = () => {
   // Se não houver dados de clima, renderiza o fallback
   if (!weatherData?.temp_monthly || weatherData.temp_monthly.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-slate-900/50 rounded-lg border border-dashed border-slate-700 h-full p-4 min-h-[220px]">
-        <Thermometer size={24} className="text-slate-600 mb-2" />
-        <p className="text-xs text-slate-500 text-center">
-          Dados climáticos não disponíveis<br />{clientData.city ? `para ${clientData.city}` : 'nesta localidade'}
+      <div className="flex-1 flex flex-col items-center justify-center bg-slate-900/50 rounded-sm border border-dashed border-slate-800 h-full p-6 min-h-[220px]">
+        <Thermometer size={24} className="text-slate-700 mb-3" />
+        <p className="text-[10px] text-slate-500 text-center font-bold uppercase tracking-widest leading-relaxed">
+          Monitoramento Climático<br />Indisponível
         </p>
-        <p className="text-[10px] text-slate-600 mt-2 italic text-center">
-          Temperatura mínima padrão: −5°C (conservador)
-        </p>
+        <div className="mt-4 pt-4 border-t border-slate-800/50 w-full">
+          <p className="text-[9px] text-slate-600 italic text-center leading-tight">
+            Utilizando baseline normativo de −5°C<br />para cálculos de Voc.
+          </p>
+        </div>
       </div>
     );
   }
@@ -77,36 +79,42 @@ export const ClimateCorrelationChart: React.FC = () => {
     <div className="flex flex-col h-full w-full">
       <div className="flex-1 relative min-h-[220px]">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={climateData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-            <XAxis dataKey="mes" tick={{ fill: '#94a3b8', fontSize: 10, fontFamily: 'monospace' }} tickLine={false} axisLine={{ stroke: '#334155' }} />
+          <ComposedChart data={climateData} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="2 2" stroke="#1e293b" vertical={false} />
+            <XAxis dataKey="mes" tick={{ fill: '#475569', fontSize: 9, fontFamily: 'var(--font-mono)' }} tickLine={false} axisLine={{ stroke: '#334155' }} />
             
             {/* Eixo esquerdo: kWh */}
-            <YAxis yAxisId="kwh" orientation="left" tick={{ fill: '#94a3b8', fontSize: 10, fontFamily: 'monospace' }} unit=" kWh" tickLine={false} axisLine={false} width={56} />
+            <YAxis yAxisId="kwh" orientation="left" tick={{ fill: '#475569', fontSize: 9, fontFamily: 'var(--font-mono)' }} tickLine={false} axisLine={false} width={45} className="tabular-nums" />
             
             {/* Eixo direito: °C */}
-            <YAxis yAxisId="temp" orientation="right" tick={{ fill: '#f97316', fontSize: 10, fontFamily: 'monospace' }} unit="°C" tickLine={false} axisLine={false} width={36} />
+            <YAxis yAxisId="temp" orientation="right" tick={{ fill: '#f97316', fontSize: 9, fontFamily: 'var(--font-mono)' }} tickLine={false} axisLine={false} width={30} className="tabular-nums" />
 
-            <Tooltip content={<ClimateTooltip />} cursor={{ fill: 'rgba(245,158,11,0.05)' }} />
+            <Tooltip content={<ClimateTooltip />} cursor={{ fill: 'rgba(245,158,11,0.03)' }} />
 
             {/* Barras de consumo — eixo esquerdo */}
-            <Bar yAxisId="kwh" dataKey="consumo" fill="#f59e0b" opacity={0.7} radius={[2,2,0,0]} isAnimationActive={false} />
+            <Bar yAxisId="kwh" dataKey="consumo" fill="#f59e0b" opacity={0.6} radius={0} isAnimationActive={false} />
 
             {/* Linha de temperatura — eixo direito */}
-            <Line yAxisId="temp" type="monotone" dataKey="tempMedia" stroke="#f97316" strokeWidth={2} dot={{ r: 2, fill: '#f97316', strokeWidth: 0 }} activeDot={{ r: 4 }} isAnimationActive={false} />
+            <Line yAxisId="temp" type="monotone" dataKey="tempMedia" stroke="#f97316" strokeWidth={1.5} dot={{ r: 1.5, fill: '#f97316', strokeWidth: 0 }} activeDot={{ r: 3 }} isAnimationActive={false} />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
       
       {/* 4.2 Legenda inline (abaixo do gráfico) */}
-      <div className="flex gap-4 mt-3 text-[10px] text-slate-500 justify-center">
-        <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-sm bg-amber-500/70 inline-block mb-px" />
-          Consumo kWh
+      <div className="flex flex-col gap-1.5 mt-4 p-3 border-t border-slate-800/50">
+        <span className="flex items-center justify-between text-[9px] text-slate-500 font-mono uppercase tracking-widest">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-none bg-amber-500/60 inline-block" />
+            Consumo
+          </div>
+          <span className="text-slate-600 italic">Histórico</span>
         </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-[3px] bg-orange-500 inline-block" />
-          Temperatura média °C
+        <span className="flex items-center justify-between text-[9px] text-slate-500 font-mono uppercase tracking-widest">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-[1px] bg-orange-500 inline-block" />
+            Temperatura
+          </div>
+          <span className="text-slate-600 italic">TMY Data</span>
         </span>
       </div>
     </div>

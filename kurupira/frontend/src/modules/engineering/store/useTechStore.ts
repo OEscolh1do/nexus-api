@@ -52,6 +52,10 @@ export interface InverterState {
         model: string;
         nominalPower: number;
         mppts: number;
+        maxInputVoltage: number;
+        minMpptVoltage: number;
+        maxMpptVoltage: number;
+        maxCurrentPerMPPT: number;
     };
 }
 
@@ -160,6 +164,11 @@ export const useTechStore = create<TechState>()(
                       model: equipment.model,
                       nominalPower,
                       mppts: mpptCount,
+                      // Lendo limites do catálogo com valores padrão de segurança conservadores
+                      maxInputVoltage: equipment.maxInputVoltage || equipment.maxInputV || 600,
+                      minMpptVoltage: equipment.minMpptVoltage || equipment.mpptMinV || 150,
+                      maxMpptVoltage: equipment.maxMpptVoltage || equipment.mpptMaxV || 500,
+                      maxCurrentPerMPPT: equipment.maxCurrentPerMPPT || equipment.maxCurrent || 15,
                   },
               };
               newIds.push(instanceId);

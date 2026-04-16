@@ -25,26 +25,26 @@ const CustomConsumptionTooltip = ({ active, payload, label }: any) => {
   const total = base + simul;
 
   return (
-    <div className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-xs shadow-xl">
-      <p className="text-slate-400 font-bold mb-2 uppercase tracking-wider">{label}</p>
-      <div className="flex flex-col gap-1">
-        <div className="flex justify-between gap-4 text-amber-500">
-          <span className="text-slate-400">Consumo Base:</span>
-          <span>{base.toFixed(0)} kWh</span>
+    <div className="bg-slate-900 border border-slate-700 rounded-sm p-4 text-[11px] shadow-2xl backdrop-blur-md">
+      <p className="text-slate-500 font-bold mb-3 uppercase tracking-widest font-mono">{label}</p>
+      <div className="flex flex-col gap-2">
+        <div className="flex justify-between gap-6">
+          <span className="text-slate-400">HISTÓRICO BASE</span>
+          <span className="text-amber-500 font-mono tabular-nums">{base.toFixed(0)} kWh</span>
         </div>
         {simul > 0 && (
-          <div className="flex justify-between gap-4 text-amber-400/80">
-            <span className="text-slate-400">Cargas Simuladas:</span>
-            <span>+{simul.toFixed(0)} kWh</span>
+          <div className="flex justify-between gap-6">
+            <span className="text-slate-400">CARGAS SIMULADAS</span>
+            <span className="text-amber-300 font-mono tabular-nums">+{simul.toFixed(0)} kWh</span>
           </div>
         )}
-        <div className="flex justify-between gap-4 text-white font-bold border-t border-slate-700 pt-1 mt-1">
-          <span className="text-slate-300">Total:</span>
-          <span>{total.toFixed(0)} kWh</span>
+        <div className="flex justify-between gap-6 border-t border-slate-800 pt-2 mt-1">
+          <span className="text-slate-300 font-bold">TOTAL MENSAL</span>
+          <span className="text-white font-mono font-bold tabular-nums">{total.toFixed(0)} kWh</span>
         </div>
         {media > 0 && (
-           <div className="text-[10px] text-slate-500 text-right mt-1">
-             Média anual: {media.toFixed(0)} kWh
+           <div className="text-[9px] text-slate-600 font-mono text-right mt-1 border-l border-amber-500/30 pl-2">
+             MÉDIA ANUAL REF: {media.toFixed(0)} kWh
            </div>
         )}
       </div>
@@ -140,22 +140,22 @@ export const ConsumptionChart: React.FC = () => {
     <div className="flex flex-col h-full z-0">
       {/* 3.1 Campo de entrada rápida (topo do painel) */}
       <div className={cn(
-        "flex items-center gap-3 mb-4 p-3 bg-slate-900 rounded-lg border transition-colors shrink-0",
+        "flex items-center gap-4 mb-4 p-4 bg-slate-900 rounded-sm border transition-colors shrink-0",
         averageConsumption === 0 
           ? "border-amber-500 border-dashed animate-pulse-slow" 
           : "border-amber-500/20"
       )}>
         <Zap size={14} className="text-amber-400 shrink-0" />
-        <span className="text-xs text-slate-400">Consumo médio mensal</span>
+        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Consumo médio mensal</span>
         <input
           type="number"
           value={averageConsumption || ''}
           onChange={e => updateClientData({ averageConsumption: Number(e.target.value) })}
-          className="w-28 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm text-white text-right focus:border-amber-500 focus:outline-none placeholder:text-slate-500"
+          className="w-32 bg-slate-800 border border-slate-700 rounded-sm px-3 py-1.5 text-sm text-white text-right font-mono tabular-nums focus:border-amber-500 focus:outline-none placeholder:text-slate-600 focus:bg-slate-950 transition-all"
           min={0} 
-          placeholder={averageConsumption === 0 ? "Informe o consumo" : "kWh"}
+          placeholder={averageConsumption === 0 ? "0" : "kWh"}
         />
-        <span className="text-xs text-slate-500">kWh/mês</span>
+        <span className="text-[10px] text-slate-500 font-mono">kWh/mês</span>
       </div>
 
       {/* 3.2 Gráfico ComposedChart */}
@@ -184,20 +184,32 @@ export const ConsumptionChart: React.FC = () => {
             )}
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                <XAxis dataKey="mes" tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={{ stroke: '#334155' }} />
-                <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} unit=" kWh" width={52} tickLine={false} axisLine={false} />
-                <Tooltip content={<CustomConsumptionTooltip />} cursor={{ fill: 'rgba(245,158,11,0.05)' }} />
+                <CartesianGrid strokeDasharray="2 2" stroke="#1e293b" vertical={false} />
+                <XAxis 
+                  dataKey="mes" 
+                  tick={{ fill: '#64748b', fontSize: 10, fontFamily: 'var(--font-mono)', fontWeight: 500 }} 
+                  tickLine={false} 
+                  axisLine={{ stroke: '#334155' }} 
+                />
+                <YAxis 
+                  tick={{ fill: '#64748b', fontSize: 10, fontFamily: 'var(--font-mono)' }} 
+                  unit=" kWh" 
+                  width={60} 
+                  tickLine={false} 
+                  axisLine={false} 
+                  className="tabular-nums"
+                />
+                <Tooltip content={<CustomConsumptionTooltip />} cursor={{ fill: 'rgba(245,158,11,0.03)' }} />
 
                 {/* Linha de média */}
-                <ReferenceLine y={chartData[0]?.media} stroke="#f59e0b" strokeDasharray="4 4" strokeOpacity={0.5} />
+                <ReferenceLine y={chartData[0]?.media} stroke="#f59e0b" strokeDasharray="3 3" strokeOpacity={0.3} />
 
                 {/* Consumo base */}
                 <Bar 
                   dataKey="consumoBase" 
                   stackId="a" 
                   fill="#f59e0b" 
-                  opacity={0.85} 
+                  opacity={0.8} 
                   radius={[0,0,0,0]} 
                   isAnimationActive={false}
                   onClick={(_, index) => setEditingMonth(editingMonth === index ? null : index)}
@@ -207,14 +219,21 @@ export const ConsumptionChart: React.FC = () => {
                     <Cell 
                       key={`cell-${i}`} 
                       fill={editingMonth === i ? '#fbbf24' : '#f59e0b'}
-                      className="transition-opacity hover:opacity-80"
+                      className="transition-colors hover:fill-amber-400"
                     />
                   ))}
                 </Bar>
 
                 {/* Cargas simuladas empilhadas */}
                 {chartData.some(d => d.cargasSimuladas > 0) && (
-                  <Bar dataKey="cargasSimuladas" stackId="a" fill="#fbbf24" opacity={0.4} radius={[3,3,0,0]} isAnimationActive={false} />
+                  <Bar 
+                    dataKey="cargasSimuladas" 
+                    stackId="a" 
+                    fill="#fbbf24" 
+                    opacity={0.3} 
+                    radius={[0,0,0,0]} 
+                    isAnimationActive={false} 
+                  />
                 )}
 
               </ComposedChart>

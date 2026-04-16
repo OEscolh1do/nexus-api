@@ -19,7 +19,7 @@ const GrowthFactorSection: React.FC = () => {
   const setLoadGrowthFactor = useSolarStore(s => s.setLoadGrowthFactor);
 
   return (
-    <div className="flex items-center gap-4 px-4 py-3 bg-slate-900 rounded-lg border border-slate-800">
+    <div className="flex items-center gap-4 px-4 py-3 bg-slate-900 rounded-sm border border-slate-800">
       <TrendingUp size={14} className="text-amber-400 shrink-0" />
       <span className="text-xs text-slate-400 w-40 shrink-0">
         Crescimento projetado
@@ -103,13 +103,13 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
     <div className={cn('relative w-full h-full flex flex-col bg-slate-950 overflow-hidden', className)}>
       
       {/* ── CORPO PRINCIPAL SCROLLABLE ────────────────────────────────── */}
-      <div className="flex-1 flex flex-col overflow-y-auto min-h-0 bg-slate-950 p-4 gap-4 pb-20">
+      <div className="flex-1 flex flex-col overflow-y-auto min-h-0 bg-slate-950 p-6 gap-6 pb-24">
 
         {/* HEADER */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3 shrink-0">
-          <h1 className="text-amber-400 text-sm font-mono flex items-center gap-2 font-bold">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-4 shrink-0">
+          <h1 className="text-amber-400 text-xs font-mono flex items-center gap-2 font-bold uppercase tracking-widest">
             <Zap size={14} />
-            Consumo
+            Dimensionamento de Carga (Consumo)
             {(city || connLabel || tariff > 0) && (
               <span className="text-slate-500 text-[10px] font-sans font-normal flex items-center gap-1.5 ml-2 border-l border-slate-700 pl-2">
                 {city && <><MapPin size={9} className="shrink-0" />{city}{stateUF ? `, ${stateUF}` : ''}</>}
@@ -128,15 +128,15 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
         </div>
 
         {/* ── PAINEL A (Perfil) & PAINEL B (Clima) ──────────────────── */}
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 flex-none min-h-[300px]">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 flex-none min-h-[340px]">
           
-          {/* Seção 1 — Perfil */}
-          <div className="xl:col-span-9 flex flex-col h-full min-h-[300px] xl:border-r border-slate-800/50 xl:pr-6">
+          {/* Seção 1 — Perfil (75%) */}
+          <div className="xl:col-span-9 flex flex-col h-full min-h-[320px] xl:border-r border-slate-800/60 xl:pr-6">
             <ConsumptionChart />
           </div>
 
-          {/* Seção 2 — Clima */}
-          <div className="xl:col-span-3 bg-slate-900 border border-slate-800/80 rounded-sm p-3 flex flex-col h-full min-h-[300px]">
+          {/* Seção 2 — Clima Correlation (25%) */}
+          <div className="xl:col-span-3 bg-slate-900 border border-slate-800/80 rounded-sm p-4 flex flex-col h-full min-h-[320px]">
             <ClimateCorrelationChart />
           </div>
 
@@ -157,20 +157,20 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
       </div>
 
       {/* ── FAIXA DE RESULTADO (Sticky Bottom) ────────────────────────── */}
-      <div className="absolute bottom-0 left-0 right-0 pt-2 border-t border-slate-800 bg-slate-950 px-4 pb-4">
-        <div className="flex items-center justify-between px-4 py-3 bg-slate-900 rounded-lg border border-amber-500/20 shadow-[-10px_0_30px_rgba(0,0,0,0.5)]">
+      <div className="absolute bottom-0 left-0 right-0 pt-2 border-t border-slate-800 bg-slate-950/90 backdrop-blur-md px-6 pb-6">
+        <div className="flex items-center justify-between px-6 py-4 bg-slate-900 rounded-sm border border-amber-500/20 shadow-2xl">
           {/* Resultado */}
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-8">
             <div>
-              <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">kWp alvo</p>
-              <p className="text-xl font-bold text-amber-400">
-                {kWpAlvo && kWpAlvo > 0 ? `${kWpAlvo.toFixed(2)} kWp` : '—'}
+              <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-1">Potência Alvo (kWp)</p>
+              <p className="text-2xl font-bold text-amber-400 font-mono italic tabular-nums">
+                {kWpAlvo && kWpAlvo > 0 ? `${kWpAlvo.toFixed(2)}` : '—'}<span className="text-xs ml-1 not-italic opacity-60">kWp</span>
               </p>
             </div>
-            <div className="border-l border-slate-700 pl-6">
-              <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Total Mensal Projetado</p>
-              <p className="text-base font-mono text-slate-200 mt-0.5">
-                {Math.round(totalConsumptionAvg * (1 + loadGrowthFactor / 100))} kWh/mês
+            <div className="border-l border-slate-800 pl-8">
+              <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-1">Consumo Projetado</p>
+              <p className="text-lg font-mono text-slate-200 tabular-nums">
+                {Math.round(totalConsumptionAvg * (1 + loadGrowthFactor / 100))}<span className="text-[10px] ml-1 opacity-50">kWh/mês</span>
               </p>
             </div>
           </div>
@@ -179,13 +179,13 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
           {kWpAlvo && kWpAlvo > 0 ? (
             <button
               onClick={() => setFocusedBlock('module')}
-              className="flex items-center gap-2 px-5 py-2.5 bg-sky-600/20 hover:bg-sky-600/30 border border-sky-600/30 text-sky-400 font-bold uppercase tracking-wider text-xs rounded-lg transition-colors shadow-lg shadow-sky-500/10"
+              className="flex items-center gap-2 px-6 py-3 bg-sky-600/10 hover:bg-sky-600/20 border border-sky-600/30 text-sky-400 font-bold uppercase tracking-widest text-[10px] rounded-sm transition-all shadow-lg active:scale-95"
             >
               Selecionar Módulo
               <Sun size={14} />
             </button>
           ) : (
-            <span className="text-[10px] text-slate-600 italic">Insira o consumo e HSP para dimensionar</span>
+            <span className="text-[10px] text-slate-600 italic tracking-wider">Aguardando dados de consumo e HSP...</span>
           )}
         </div>
       </div>

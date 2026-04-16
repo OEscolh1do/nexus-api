@@ -1,17 +1,18 @@
 import React from 'react';
 import { usePanelStore } from '../../store/panelStore';
-import { MapPin, BarChart2, Zap, ShieldCheck, LayoutDashboard, type LucideIcon } from 'lucide-react';
+import { MapPin, BarChart2, Zap, ShieldCheck, LayoutDashboard, Layers, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 import { useUIStore, useFocusedBlock, type FocusedBlock } from '@/core/state/uiStore';
 
 // Mesmas Canvas Views que tínhamos no TopRibbon, refletindo a nova sincrônica dos blocos
 const SHEET_TABS: { id: FocusedBlock; icon: LucideIcon; label: string }[] = [
-  { id: 'consumption',   icon: Zap,            label: 'Consumo' },
-  { id: 'module',        icon: LayoutDashboard,label: 'Módulos' }, // Mantive as equivalências
-  { id: 'inverter',      icon: ShieldCheck,    label: 'Elétrica' },
-  { id: 'simulation',    icon: BarChart2,      label: 'Simulação' },
-  { id: 'map',           icon: MapPin,         label: 'Mapa' },
+  { id: 'consumption',   icon: Zap,             label: 'Consumo' },
+  { id: 'module',        icon: LayoutDashboard, label: 'Módulos' },
+  { id: 'arrangement',   icon: Layers,          label: 'Arranjo' },
+  { id: 'inverter',      icon: ShieldCheck,     label: 'Elétrica' },
+  { id: 'simulation',    icon: BarChart2,       label: 'Simulação' },
+  { id: 'map',           icon: MapPin,          label: 'Mapa' },
 ];
 
 export const WorkspaceTabs: React.FC = () => {

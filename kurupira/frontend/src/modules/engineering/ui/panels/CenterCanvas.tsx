@@ -18,19 +18,16 @@
 
 import React, { useEffect, useState, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { MousePointer2, Pentagon, Ruler, LayoutGrid, type LucideIcon } from 'lucide-react';
-import { useUIStore, useSelectedEntity, type Tool } from '@/core/state/uiStore';
+import { useUIStore } from '@/core/state/uiStore';
 import { cn } from '@/lib/utils';
 import { useCenterContent, usePanelStore, type PanelGroupId } from '../../store/panelStore';
-import { VoltageRangeChart } from '../../components/VoltageRangeChart';
-import { MapCore } from '../../components/MapCore';
-import { WebGLOverlay } from '../../components/WebGLOverlay';
 
-// Canvas Views (for promoted rendering)
+// Canvas Views
+import { MapCanvasView } from './canvas-views/MapCanvasView';
 import { SiteCanvasView } from './canvas-views/SiteCanvasView';
 import { SimulationCanvasView } from './canvas-views/SimulationCanvasView';
 import { ElectricalCanvasView } from './canvas-views/ElectricalCanvasView';
-import { ConsumptionCanvasView } from './canvas-views/ConsumptionCanvasView'; // < NOVO
+import { ConsumptionCanvasView } from './canvas-views/ConsumptionCanvasView';
 import { PropertiesGroup } from './groups/PropertiesGroup';
 import { SettingsModule } from '@/modules/settings/SettingsModule';
 import { DocumentationModule } from '@/modules/documentation/DocumentationModule';
@@ -51,34 +48,14 @@ const CANVAS_VIEWS_REGISTRY: Partial<Record<PanelGroupId, React.FC>> = {
 };
 
 // =============================================================================
-// TOOL HUD CONFIG
+// TOOL HUD CONFIG (legacy — kept for keyboard shortcut handling)
 // =============================================================================
-
-interface ToolConfig {
-  id: Tool;
-  icon: LucideIcon;
-  label: string;
-  shortcut: string;
-}
-
-const TOOLS: ToolConfig[] = [
-  { id: 'SELECT', icon: MousePointer2, label: 'Selecionar', shortcut: 'V' },
-  { id: 'POLYGON', icon: Pentagon, label: 'Desenhar Polígono', shortcut: 'P' },
-  { id: 'MEASURE', icon: Ruler, label: 'Medir Distância', shortcut: 'M' },
-  { id: 'PLACE_MODULE', icon: LayoutGrid, label: 'Colocar Módulos', shortcut: 'L' },
-];
 
 // =============================================================================
 // MAP LAYER — Memoizado separadamente (SPEC-000 §Conflito 3)
 // =============================================================================
 
-const MapLayer = React.memo<{ activeTool: Tool }>(({ activeTool }) => (
-  <>
-    <MapCore activeTool={activeTool} />
-    <WebGLOverlay />
-  </>
-));
-MapLayer.displayName = 'MapLayer';
+// MapCanvasView already wraps MapCore + WebGLOverlay + ToolHUD + MapContextBar
 
 // =============================================================================
 // PROMOTED PANEL VIEW — Grupo expandido no center
@@ -140,14 +117,11 @@ const FrozenViewContainer: React.FC<{ isActive: boolean; children: React.ReactNo
 const CenterCanvasInner: React.FC = () => {
   const centerContent = useCenterContent();
   const focusedBlock = useUIStore(s => s.activeFocusedBlock); // O backbone da jornada
-  const activeTool = useUIStore(s => s.activeTool);
-  const setActiveTool = useUIStore(s => s.setActiveTool);
-  const selectedEntity = useSelectedEntity();
 
   const isMapVisible = centerContent === 'map';
   const isMinimap = !isMapVisible;
 
-  // Deriva qual a view sobreposta baseada na Jornada
+  // A Jornada: views sobrepostas ao MapCore (não incluem module/arrangement pois esses exibem o mapa)
   const activeOverlayView = focusedBlock === 'consumption' ? 'consumption' :
                             focusedBlock === 'inverter' ? 'electrical' :
                             focusedBlock === 'simulation' ? 'simulation' : 
@@ -185,47 +159,8 @@ const CenterCanvasInner: React.FC = () => {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  // O motor pesado WebGL+Leaflet
-  const MapPayload = (
-    <React.Fragment>
-      <MapLayer activeTool={activeTool} />
-
-      {/* HUD Overlay — flutuante sobre o mapa (só visível quando mapa é o center) */}
-      {isMapVisible && (
-        <>
-          {/* 
-            SPEC-005: Floating Vertical Toolbar (AutoCAD/BIM Style)
-            Ancorado ao viewport do leafet — sai da tela magicamente se for pro dock
-          */}
-          <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-1.5 p-1.5 rounded-xl bg-slate-900/90 border border-slate-800 backdrop-blur-md shadow-2xl">
-            {TOOLS.map((tool) => (
-              <button
-                key={tool.id}
-                onClick={() => setActiveTool(tool.id)}
-                title={`${tool.label} (${tool.shortcut})`}
-                className={cn(
-                  "p-2 rounded-lg transition-all flex items-center justify-center group relative",
-                  activeTool === tool.id
-                    ? "bg-emerald-500 text-slate-900 shadow-md scale-105"
-                    : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-                )}
-              >
-                <tool.icon size={18} />
-              </button>
-            ))}
-          </div>
-
-          {/* Voltage Range HUD (P2-2) */}
-          {selectedEntity.type === 'string' && (
-            <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-[340px] z-[1000] animate-in fade-in slide-in-from-bottom-4 duration-300">
-              <VoltageRangeChart entityId={selectedEntity.id || undefined} />
-            </div>
-          )}
-        </>
-      )}
-
-    </React.Fragment>
-  );
+  // O motor MapCanvasView engloba MapCore + WebGL + ToolHUD + ContextBar
+  const MapPayload = <MapCanvasView />;
 
   return (
     <div className="absolute inset-0 w-full h-full bg-slate-950 overflow-hidden">
