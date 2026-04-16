@@ -1,35 +1,39 @@
 import React from 'react';
-import { usePanelStore, type PanelGroupId } from '../../store/panelStore';
+import { usePanelStore } from '../../store/panelStore';
 import { MapPin, BarChart2, Zap, ShieldCheck, LayoutDashboard, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// Mesmas Canvas Views que tínhamos no TopRibbon, agora no estilo Excel
-const SHEET_TABS: { id: 'map' | PanelGroupId; icon: LucideIcon; label: string }[] = [
-  { id: 'map',           icon: MapPin,         label: 'Modelo Sítio' },
-  { id: 'simulation',    icon: BarChart2,      label: 'Layout Simulação' },
-  { id: 'electrical',    icon: Zap,            label: 'Diagrama Elétrico' },
-  { id: 'documentation', icon: ShieldCheck,    label: 'Relatórios' },
-  { id: 'proposal',      icon: LayoutDashboard,label: 'Proposta' },
+import { useUIStore, useFocusedBlock, type FocusedBlock } from '@/core/state/uiStore';
+
+// Mesmas Canvas Views que tínhamos no TopRibbon, refletindo a nova sincrônica dos blocos
+const SHEET_TABS: { id: FocusedBlock; icon: LucideIcon; label: string }[] = [
+  { id: 'consumption',   icon: Zap,            label: 'Consumo' },
+  { id: 'module',        icon: LayoutDashboard,label: 'Módulos' }, // Mantive as equivalências
+  { id: 'inverter',      icon: ShieldCheck,    label: 'Elétrica' },
+  { id: 'simulation',    icon: BarChart2,      label: 'Simulação' },
+  { id: 'map',           icon: MapPin,         label: 'Mapa' },
 ];
 
 export const WorkspaceTabs: React.FC = () => {
-  const centerContent = usePanelStore(s => s.centerContent);
-  const promoteToCenter = usePanelStore(s => s.promoteToCenter);
+  const focusedBlock = useFocusedBlock();
+  const setFocusedBlock = useUIStore(s => s.setFocusedBlock);
   const restoreMap = usePanelStore(s => s.restoreMap);
 
-  const handleTabSwitch = (viewId: 'map' | PanelGroupId) => {
-    if (viewId === 'map') {
-      restoreMap();
-    } else {
-      promoteToCenter(viewId as PanelGroupId);
-    }
+  const handleTabSwitch = (viewId: FocusedBlock) => {
+    setFocusedBlock(viewId);
+    // As views da Jornada (consumption, module, inverter, simulation) vivem como
+    // FrozenViewContainer sobrepostos ao MapCore. Para elas aparecerem, o
+    // centerContent PRECISA estar em 'map' (isMapVisible = true).
+    // Apenas abas que promovem um painel externo (settings, docs etc.) vão para isMinimap.
+    restoreMap(); // garante centerContent === 'map' para TODAS as abas da Jornada
   };
 
   return (
     <div className="w-full flex items-end px-1 bg-slate-950 border-t border-slate-800 z-40 shrink-0">
       <div className="flex items-end gap-0.5 pt-1">
         {SHEET_TABS.map(({ id, icon: Icon, label }) => {
-          const isActive = centerContent === id;
+          // A tab está ativa se o ID corresponder, com exceção de map quando null
+          const isActive = focusedBlock === id || (focusedBlock === null && id === 'map');
           return (
             <button
               key={id}

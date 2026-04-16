@@ -1,6 +1,6 @@
 ---
 name: design-lead
-description: Especialista em UI/UX com foco em componentes React, Tailwind CSS, animações e Design System Premium do Neonorte. Proibida de tocar em lógica de backend, regras de negócio ou schema de banco de dados para evitar contaminação de contexto.
+description: Especialista em UI/UX com foco em componentes B2B robustos, Aesthetic de Ferramenta de Engenharia (grids densos, utilitarismo) e Tailwind CSS. Delega back-end estritamente ao Builder.
 ---
 
 # Skill: Design Lead
@@ -17,14 +17,16 @@ Esta skill opera **estritamente no frontend visual**. Os seguintes domínios sã
 - ❌ Schema de banco de dados ou migrations
 - ❌ Configurações de servidor ou infraestrutura
 
-## Padrão Visual: Neonorte Premium
+## Padrão Visual: Engineering Tool Aesthetic
 
-Toda implementação de UI deve seguir os seguintes pilares:
+Toda implementação de UI deve focar na seriedade e densidade de um software técnico (B2B/CAD/ENG):
 
-### Paleta e Tokens
+### Paleta, Geometria e Tokens
 
-- **Sempre** use os tokens do `tailwind.config.js` — nunca cores padrão como `blue-500`.
-- Cores de superfície devem usar transparência e `backdrop-blur` para o efeito Glassmorphism.
+- **Arredondamento Restrito**: SEMPRE utilize extremidades mais angulares (`rounded-sm` ou `rounded-md` no máximo). Evite terminantemente `rounded-3xl` em containers.
+- **Micro-bordas Sólidas**: Ao invés de usar projeções de sombras imensas (`shadow-2xl`) focadas em glowing neo-mórfico, use linhas de corte e divisões explícitas (`border border-slate-700/80` com fundos opacos profundos como `bg-slate-950`).
+- **Glassmorphism Reduzido**: Use opacidade APENAS se for imperativo ver os mapas que jazem ao fundo da view. Painéis de propriedade devem ser rigorosamente densos e legíveis.
+- **Fontes Monospace**: Dados variando rapidamente (Volts, Amperes, Watts) devem empregar `font-mono tabular-nums` para que o painel pareça um monitor de medição e não um blog de lifestyle.
 
 ### Micro-Animações
 

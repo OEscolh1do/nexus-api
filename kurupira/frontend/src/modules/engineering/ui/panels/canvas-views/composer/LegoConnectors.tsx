@@ -11,17 +11,36 @@ import { cn } from '@/lib/utils';
 //             ╰──────────╯
 // =============================================================================
 
+// SemanticColor — extende conforme context.md §Color Coding Semântico Estrito
+export type SemanticColor =
+    | 'amber'   // Consumo / Demanda
+    | 'sky'     // Geração / Equipamentos
+    | 'emerald' // Métricas / Fatores
+    | 'red'     // Perdas / Alertas / Falhas
+    | 'pink'    // Temperatura ambiente/célula
+    | 'rose'    // Temperatura (variante mais saturada)
+    | 'yellow'  // Irradiância / GHI / DNI
+    | 'lime'    // Irradiância (variante fria)
+    | 'indigo'  // Umidade / Atmosfera / Precipitação
+    | 'slate';  // Dado auxiliar (vento, contexto)
+
 interface LegoTabProps {
     label: string;
-    color: 'amber' | 'sky' | 'emerald' | 'slate';
+    color: SemanticColor;
     dashed?: boolean;
 }
 
-const TAB_COLORS = {
-    amber:   { fill: 'fill-amber-900',   stroke: 'stroke-amber-600/40',  text: 'text-amber-300/90' },
-    sky:     { fill: 'fill-sky-900',      stroke: 'stroke-sky-600/40',    text: 'text-sky-300/90' },
-    emerald: { fill: 'fill-emerald-900',  stroke: 'stroke-emerald-600/40',text: 'text-emerald-300/90' },
-    slate:   { fill: 'fill-slate-800',    stroke: 'stroke-slate-600/30',  text: 'text-slate-500' },
+const TAB_COLORS: Record<SemanticColor, { fill: string; stroke: string; text: string }> = {
+    amber:   { fill: 'fill-amber-900',   stroke: 'stroke-amber-600/40',   text: 'text-amber-300/90' },
+    sky:     { fill: 'fill-sky-900',     stroke: 'stroke-sky-600/40',     text: 'text-sky-300/90' },
+    emerald: { fill: 'fill-emerald-900', stroke: 'stroke-emerald-600/40', text: 'text-emerald-300/90' },
+    red:     { fill: 'fill-red-900',     stroke: 'stroke-red-600/40',     text: 'text-red-400/90' },
+    pink:    { fill: 'fill-pink-900',    stroke: 'stroke-pink-500/40',    text: 'text-pink-300/90' },
+    rose:    { fill: 'fill-rose-900',    stroke: 'stroke-rose-500/40',    text: 'text-rose-300/90' },
+    yellow:  { fill: 'fill-yellow-900',  stroke: 'stroke-yellow-500/40',  text: 'text-yellow-300/90' },
+    lime:    { fill: 'fill-lime-900',    stroke: 'stroke-lime-600/40',    text: 'text-lime-300/90' },
+    indigo:  { fill: 'fill-indigo-900',  stroke: 'stroke-indigo-500/40',  text: 'text-indigo-300/90' },
+    slate:   { fill: 'fill-slate-800',   stroke: 'stroke-slate-600/30',   text: 'text-slate-500' },
 };
 
 export const LegoTab: React.FC<LegoTabProps> = ({ label, color, dashed }) => {
@@ -62,14 +81,20 @@ export const LegoTab: React.FC<LegoTabProps> = ({ label, color, dashed }) => {
 // =============================================================================
 
 interface LegoNotchProps {
-    color: 'amber' | 'sky' | 'emerald' | 'slate';
+    color: SemanticColor;
     dashed?: boolean;
 }
 
-const NOTCH_STROKES = {
+const NOTCH_STROKES: Record<SemanticColor, { stroke: string }> = {
     amber:   { stroke: 'stroke-amber-600/20' },
     sky:     { stroke: 'stroke-sky-600/20' },
     emerald: { stroke: 'stroke-emerald-600/20' },
+    red:     { stroke: 'stroke-red-600/20' },
+    pink:    { stroke: 'stroke-pink-500/20' },
+    rose:    { stroke: 'stroke-rose-500/20' },
+    yellow:  { stroke: 'stroke-yellow-500/20' },
+    lime:    { stroke: 'stroke-lime-600/20' },
+    indigo:  { stroke: 'stroke-indigo-500/20' },
     slate:   { stroke: 'stroke-slate-700/40' },
 };
 

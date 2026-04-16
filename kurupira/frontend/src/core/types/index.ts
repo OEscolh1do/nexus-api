@@ -20,6 +20,7 @@ export type ConnectionType = 'monofasico' | 'bifasico' | 'trifasico';
 
 export interface WeatherAnalysis {
   hsp_monthly: number[];
+  temp_monthly?: number[];
   irradiation_source: string;
   ambient_temp_avg: number;
   location_name: string;

@@ -62,7 +62,7 @@ interface PanelState {
 const INITIAL_COLLAPSED: PanelGroupId[] = ['electrical'];
 
 export const usePanelStore = create<PanelState>((set) => ({
-  centerContent: 'simulation',
+  centerContent: 'map',
   collapsedGroups: new Set<PanelGroupId>(INITIAL_COLLAPSED),
 
   promoteToCenter: (groupId) =>

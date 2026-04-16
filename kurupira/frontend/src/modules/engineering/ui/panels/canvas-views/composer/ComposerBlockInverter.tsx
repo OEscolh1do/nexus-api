@@ -7,6 +7,8 @@ import { useCatalogStore } from '@/modules/engineering/store/useCatalogStore';
 import { StatusChip, ChipSeverity } from '../../../../components/StatusChip';
 import { cn } from '@/lib/utils';
 import { useElectricalValidation } from '@/modules/engineering/hooks/useElectricalValidation';
+import { useUIStore } from '@/core/state/uiStore';
+import { usePanelStore } from '@/modules/engineering/store/panelStore';
 import type { InverterCatalogItem } from '@/core/schemas/inverterSchema';
 import { LegoTab, LegoNotch } from './LegoConnectors';
 
@@ -92,6 +94,12 @@ export const ComposerBlockInverter: React.FC = () => {
     const techInv = techInvertersList[0];
     const projectInv = projectInvertersArray.find((i: any) => i.id === techInv?.id);
     const { electrical } = useElectricalValidation();
+    const focusedBlock = useUIStore(s => s.activeFocusedBlock);
+    const setFocusedBlock = useUIStore(s => s.setFocusedBlock);
+    const restoreMap = usePanelStore(s => s.restoreMap);
+
+    const isFocused = focusedBlock === 'inverter';
+    const isDeemphasized = focusedBlock !== null && focusedBlock !== 'inverter';
 
     // ── Handler para adicionar inversor ──
     const handleAddInverter = (catalogItem: InverterCatalogItem) => {
@@ -127,7 +135,17 @@ export const ComposerBlockInverter: React.FC = () => {
 
     if (!techInv || !projectInv) {
         return (
-            <div className="relative rounded-b-sm rounded-t-none border border-dashed border-emerald-600/30 bg-emerald-950/60 shadow-[inset_0_-3px_0_rgba(0,0,0,0.25)] flex flex-col transition-colors z-10 animate-lego-snap overflow-visible pt-[16px] -mt-px">
+            <div 
+                onClick={() => setFocusedBlock('inverter')}
+                className={cn(
+                    "relative rounded-b-sm rounded-t-none border flex flex-col transition-all duration-300 z-10 cursor-pointer overflow-visible pt-[16px] -mt-px animate-lego-snap",
+                    isFocused
+                        ? "border-emerald-500 bg-emerald-950/80 shadow-[0_0_15px_rgba(16,185,129,0.25)] ring-1 ring-emerald-500/50"
+                        : isDeemphasized
+                            ? "border-emerald-900/30 bg-emerald-950/40 opacity-50 grayscale select-none"
+                            : "border-dashed border-emerald-600/30 bg-emerald-950/60 shadow-[inset_0_-3px_0_rgba(0,0,0,0.25)]"
+                )}
+            >
                 {/* Lego Notch (recebe tab DC do módulo) */}
                 <LegoNotch color="emerald" dashed />
 
@@ -197,9 +215,16 @@ export const ComposerBlockInverter: React.FC = () => {
     };
 
     return (
-        <div className={cn(
-            "relative rounded-b-sm rounded-t-none border border-emerald-600/40 bg-emerald-950/70 shadow-[inset_0_-3px_0_rgba(0,0,0,0.25)] backdrop-blur-sm flex flex-col overflow-visible hover:border-emerald-500/50 transition-colors duration-300 z-10 animate-lego-snap pt-[16px] -mt-px",
-            statusColor
+        <div 
+            onClick={() => { setFocusedBlock('inverter'); restoreMap(); }}
+            className={cn(
+                "relative rounded-b-sm rounded-t-none border flex flex-col overflow-visible transition-all duration-300 z-10 cursor-pointer animate-lego-snap pt-[16px] -mt-px",
+                statusColor,
+                isFocused
+                    ? "border-emerald-500 bg-emerald-950/80 shadow-[0_0_15px_rgba(16,185,129,0.25)] ring-1 ring-emerald-500/50"
+                    : isDeemphasized
+                        ? "border-emerald-900/30 bg-emerald-950/40 opacity-50 grayscale select-none"
+                        : "border-emerald-600/40 bg-emerald-950/70 hover:border-emerald-500/50 shadow-[inset_0_-3px_0_rgba(0,0,0,0.25)] backdrop-blur-sm"
         )}>
             {/* Lego Notch (recebe tab DC do módulo) */}
             <LegoNotch color="emerald" />

@@ -8,6 +8,8 @@ import type { ModuleCatalogItem } from '@/core/schemas/moduleSchema';
 import { cn } from '@/lib/utils';
 import { useAutoSizing } from '@/modules/engineering/hooks/useAutoSizing';
 import { useTechKPIs } from '@/modules/engineering/hooks/useTechKPIs';
+import { useUIStore } from '@/core/state/uiStore';
+import { usePanelStore } from '@/modules/engineering/store/panelStore';
 import { LegoTab, LegoNotch } from './LegoConnectors';
 
 // =============================================================================
@@ -119,9 +121,19 @@ export const ComposerBlockModule: React.FC = () => {
     const addModule = useSolarStore(state => state.addModule);
     const removeModule = useSolarStore.getState().removeModule;
     const techState = useTechStore();
+    const focusedBlock = useUIStore(s => s.activeFocusedBlock);
+    const setFocusedBlock = useUIStore(s => s.setFocusedBlock);
+    const restoreMap = usePanelStore(s => s.restoreMap);
+    
     const autoSizing = useAutoSizing();
     const { prValueAdditive } = useTechKPIs();
-    const kwpAlvo = autoSizing.requiredKwp;
+    // journeySlice é a fonte canônica — calculado com consumo real + HSP + crescimento
+    // autoSizing.requiredKwp serve de fallback enquanto o usuário não passou pelo bloco Consumo
+    const kWpAlvoJourney = useSolarStore(s => s.kWpAlvo);
+    const kwpAlvo = kWpAlvoJourney ?? autoSizing.requiredKwp;
+
+    const isFocused = focusedBlock === 'module';
+    const isDeemphasized = focusedBlock !== null && focusedBlock !== 'module';
 
     // Agrupar módulos do inventário global
     const groupsMap: Record<string, { specs: any; quantity: number; ids: string[] }> = {};
@@ -194,7 +206,17 @@ export const ComposerBlockModule: React.FC = () => {
 
     if (totalModules === 0) {
         return (
-            <div className="relative rounded-t-none rounded-b-none border border-dashed border-sky-600/30 bg-sky-950/60 shadow-[inset_0_-3px_0_rgba(0,0,0,0.25)] flex flex-col shadow-lg transition-colors z-20 animate-lego-snap overflow-visible pt-[16px] -mt-px">
+            <div 
+                onClick={() => { setFocusedBlock('module'); restoreMap(); }}
+                className={cn(
+                    "relative rounded-t-none rounded-b-none border flex flex-col transition-all duration-300 z-20 cursor-pointer overflow-visible pt-[16px] -mt-px",
+                    isFocused
+                        ? "border-sky-500 bg-sky-950/80 shadow-[0_0_15px_rgba(14,165,233,0.25)] ring-1 ring-sky-500/50"
+                        : isDeemphasized
+                            ? "border-sky-900/30 bg-sky-950/40 opacity-50 grayscale select-none"
+                            : "border-dashed border-sky-600/30 bg-sky-950/60 shadow-[inset_0_-3px_0_rgba(0,0,0,0.25)] shadow-lg"
+                )}
+            >
                 {/* Lego Notch (recebe tab do Consumo) */}
                 <LegoNotch color="amber" dashed />
 
@@ -225,7 +247,17 @@ export const ComposerBlockModule: React.FC = () => {
     // ═══════════════════════════════════════════════════════════════════════
 
     return (
-        <div className="relative rounded-t-none rounded-b-none border border-sky-600/40 bg-sky-950/70 shadow-[inset_0_-3px_0_rgba(0,0,0,0.25)] backdrop-blur-sm flex flex-col hover:border-sky-500/50 transition-colors z-20 animate-lego-snap overflow-visible pt-[16px] -mt-px">
+        <div 
+            onClick={() => { setFocusedBlock('module'); restoreMap(); }}
+            className={cn(
+                "relative rounded-t-none rounded-b-none border flex flex-col transition-all duration-300 z-20 cursor-pointer overflow-visible pt-[16px] -mt-px animate-lego-snap",
+                isFocused
+                    ? "border-sky-500 bg-sky-950/80 shadow-[0_0_15px_rgba(14,165,233,0.25)] ring-1 ring-sky-500/50"
+                    : isDeemphasized
+                        ? "border-sky-900/30 bg-sky-950/40 opacity-50 grayscale select-none"
+                        : "border-sky-600/40 bg-sky-950/70 hover:border-sky-500/50 shadow-[inset_0_-3px_0_rgba(0,0,0,0.25)] backdrop-blur-sm"
+            )}
+        >
             {/* Lego Notch (recebe tab do Consumo) */}
             <LegoNotch color="sky" />
 

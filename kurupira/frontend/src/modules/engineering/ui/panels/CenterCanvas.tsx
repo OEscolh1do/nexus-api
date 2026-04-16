@@ -30,6 +30,7 @@ import { WebGLOverlay } from '../../components/WebGLOverlay';
 import { SiteCanvasView } from './canvas-views/SiteCanvasView';
 import { SimulationCanvasView } from './canvas-views/SimulationCanvasView';
 import { ElectricalCanvasView } from './canvas-views/ElectricalCanvasView';
+import { ConsumptionCanvasView } from './canvas-views/ConsumptionCanvasView'; // < NOVO
 import { PropertiesGroup } from './groups/PropertiesGroup';
 import { SettingsModule } from '@/modules/settings/SettingsModule';
 import { DocumentationModule } from '@/modules/documentation/DocumentationModule';
@@ -99,17 +100,58 @@ const PromotedPanelView: React.FC<{ groupId: PanelGroupId }> = ({ groupId }) => 
 };
 
 // =============================================================================
+// FROZEN VIEW CONTAINER — A Estratégia Ouro (Performance de CAD Native)
+// =============================================================================
+// Congela componentes com `visibility: hidden` via throttle para não perder 
+// o estado de inicialização mas salvar bateria e GPU de renders em background.
+
+const FrozenViewContainer: React.FC<{ isActive: boolean; children: React.ReactNode }> = ({ isActive, children }) => {
+  const [shouldRender, setShouldRender] = useState(isActive);
+
+  useEffect(() => {
+    if (isActive) {
+      setShouldRender(true);
+    } else {
+      const t = setTimeout(() => setShouldRender(false), 260); // 260ms (duração CSS p/ slide/fade)
+      return () => clearTimeout(t);
+    }
+  }, [isActive]);
+
+  return (
+    <div
+      className={cn(
+        "absolute inset-0 transition-all duration-250 ease-in-out bg-slate-950 will-change-transform",
+        isActive ? "opacity-100 translate-x-0 pointer-events-auto" : "opacity-0 translate-x-12 pointer-events-none"
+      )}
+      style={{
+        zIndex: isActive ? 9999 : 0,
+        visibility: shouldRender ? 'visible' : 'hidden', // A magia
+      }}
+    >
+      {shouldRender && children}
+    </div>
+  );
+};
+
+// =============================================================================
 // MAIN COMPONENT
 // =============================================================================
 
 const CenterCanvasInner: React.FC = () => {
   const centerContent = useCenterContent();
+  const focusedBlock = useUIStore(s => s.activeFocusedBlock); // O backbone da jornada
   const activeTool = useUIStore(s => s.activeTool);
   const setActiveTool = useUIStore(s => s.setActiveTool);
   const selectedEntity = useSelectedEntity();
 
   const isMapVisible = centerContent === 'map';
   const isMinimap = !isMapVisible;
+
+  // Deriva qual a view sobreposta baseada na Jornada
+  const activeOverlayView = focusedBlock === 'consumption' ? 'consumption' :
+                            focusedBlock === 'inverter' ? 'electrical' :
+                            focusedBlock === 'simulation' ? 'simulation' : 
+                            'none';
 
   // SPEC-003: Alvo do portal assíncrono
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
@@ -186,16 +228,27 @@ const CenterCanvasInner: React.FC = () => {
   );
 
   return (
-    <div className="absolute inset-0 w-full h-full bg-slate-950">
+    <div className="absolute inset-0 w-full h-full bg-slate-950 overflow-hidden">
       {/* 
         PORTAL GATING (Integração Física)
-        Se isMapVisible: renderiza normalmente em absolute inset-0.
-        Se isMinimap e o target carregou (portalTarget): dispara via Portal pro Sidebar.
-        Se isMinimap e o target NÃO carregou (Fallback temporário): div oculta (hidden) p/ evitar Unmount.
       */}
       {isMapVisible ? (
         <div className="absolute inset-0 z-0">
           {MapPayload}
+          
+          {/* CAMADAS CONGELADAS DA JORNADA (Sobrepondo o Mapa sem desmontá-lo) */}
+          <FrozenViewContainer isActive={activeOverlayView === 'consumption'}>
+            <ConsumptionCanvasView />
+          </FrozenViewContainer>
+          
+          <FrozenViewContainer isActive={activeOverlayView === 'electrical'}>
+            <ElectricalCanvasView />
+          </FrozenViewContainer>
+          
+          <FrozenViewContainer isActive={activeOverlayView === 'simulation'}>
+            <SimulationCanvasView />
+          </FrozenViewContainer>
+
         </div>
       ) : portalTarget ? (
         createPortal(MapPayload, portalTarget)
@@ -203,7 +256,7 @@ const CenterCanvasInner: React.FC = () => {
         <div className="hidden">{MapPayload}</div>
       )}
 
-      {/* Painel Promovido — renderiza o grupo expandido no center */}
+      {/* Painel Promovido — (Para documentação, proposta, engrenagens, que não fazem parte da árvore principal) */}
       {isMinimap && (
         <PromotedPanelView groupId={centerContent as PanelGroupId} />
       )}

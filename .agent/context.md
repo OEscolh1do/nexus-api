@@ -17,9 +17,24 @@
 
 ---
 
-## 🏗️ ARQUITETURA DE UI (v3.6.0)
+## 🏗️ ARQUITETURA DE UI (v3.7.0)
 
-O Kurupira evoluiu para uma interface de **Composição Tátil**, inspirada em Scratch (linguagem de blocos) e Tinkercad, focada em fluxo de trabalho sequencial e "Poka-Yoke" visual.
+O Kurupira evoluiu para uma interface de **Composição Tátil**, focada em um fluxo de trabalho sequencial e utilitário, com uma base de design focada estritamente em **Engineering Tool Aesthetic**.
+
+### Paradigma Visual: Ferramenta de Engenharia ("Engineering Tool Esthetic")
+A interface transitou de um modelo arredondado / gamificado ("B2C") para uma densidade e retilinidade dignas de softwares pro B2B (CAD/BIM).
+- **Geometria Reta**: Uso primário de \`rounded-sm\` a \`rounded-md\`. Abolição do \`rounded-3xl\` em painéis estruturais.
+- **Micro-Bordas e Menos Sombra**: Substituição de \`shadow-2xl\` amplas por \`border-slate-700/80\` bem marcadas, provendo limite claro de dados.
+- **Glassmorphism Otimizado**: Mantido apenas o estritamente necessário para integração com o canvas de mapa do fundo, eliminando _glows neons_ excessivos.
+- **Tipografia de Dados (Mono)**: Amplo uso de fontes monoespaçadas (tabular numbers) para alinhamento rápido de variáveis elétricas.
+- **Color Coding Semântico Estrito** (7 famílias, sem sobreposição intencional):
+  - 🟠 **Consumo / Demanda**:              `amber`, `orange`
+  - 🔵 **Geração / Fontes / Equipamentos**: `sky`, `blue`, `cyan`
+  - 🟢 🟣 **Métricas / Fatores / Destaques**: `emerald`, `teal` + `purple`, `violet`
+  - 🔴 **Perdas / Alertas / Falhas**:      `red`, `fuchsia` *(rose excluído — ver Temperatura)*
+  - 🌡️ **Temperatura (ambiente / célula)**: `pink`, `rose` *(quente, mas ≠ alerta crítico)*
+  - ☀️ **Irradiância / GHI / DNI / HSP**:  `yellow`, `lime`
+  - 💧 **Umidade / Atmosfera / Vento**:    `indigo` (umidade+chuva), `slate`/`zinc` (vento — dado auxiliar)
 
 ### Paradigma de Composição: Pilha Lego
 O **LeftOutliner** não é mais uma árvore hierárquica, mas um **Compositor de Blocos Intertravados**:
@@ -54,6 +69,12 @@ O **LeftOutliner** não é mais uma árvore hierárquica, mas um **Compositor de
 ---
 
 ## 🔄 CHANGELOG
+
+### v3.7.0 (2026-04-15) — Pivot para "Engineering Tool Aesthetic"
+
+- ✅ **Pivô de Design**: Transbordo da estética gamificada/arredondada para uma vertente **Engineering Tool** séria, com arestas finas, grids densamente preenchidos e hierarquia B2B pro CAD.
+- ✅ **ConsumptionCanvasView Premium**: Refatoração da view de consumo para input rigoroso com pílulas tabulares e redução expressiva de margens de respiro c/ foco "Above the fold".
+- ✅ **Z-Index Master Control**: Centralização assertiva do `z-index` flutuante para blindar colisão com canvas nativos (Leaflet `400~1000`).
 
 ### v3.6.0 (2026-04-14) — Operação Lego-Scratch (Interface Tátil)
 

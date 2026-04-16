@@ -1,9 +1,12 @@
 import React from 'react';
 import { Zap, MapPin, Sun, Cpu, Lock } from 'lucide-react';
 import { useSolarStore, selectModules } from '@/core/state/solarStore';
-import { LegoTab, LegoNotch } from './canvas-views/composer/LegoConnectors';
+import { LegoTab, LegoNotch, SemanticColor } from './canvas-views/composer/LegoConnectors';
 import { ComposerBlockModule } from './canvas-views/composer/ComposerBlockModule';
 import { ComposerBlockInverter } from './canvas-views/composer/ComposerBlockInverter';
+import { useUIStore } from '@/core/state/uiStore';
+import { cn } from '@/lib/utils';
+import { usePanelStore } from '../../store/panelStore';
 
 // =============================================================================
 // LOCKED GHOST BLOCK — Peça faltante no quebra-cabeça
@@ -12,7 +15,7 @@ import { ComposerBlockInverter } from './canvas-views/composer/ComposerBlockInve
 interface LockedBlockProps {
     label: string;
     icon: React.ReactNode;
-    notchColor: 'amber' | 'sky' | 'emerald' | 'slate';
+    notchColor: SemanticColor;
     tabLabel: string;
     hint: string;
 }
@@ -41,7 +44,12 @@ const LockedBlock: React.FC<LockedBlockProps> = ({ label, icon, notchColor, tabL
 // =============================================================================
 
 const ConsumptionBlock: React.FC = () => {
+    const focusedBlock = useUIStore(s => s.activeFocusedBlock);
+    const setFocusedBlock = useUIStore(s => s.setFocusedBlock);
+    const restoreMap = usePanelStore(s => s.restoreMap);
+
     const clientData = useSolarStore(s => s.clientData);
+    const kWpAlvo = useSolarStore(s => s.kWpAlvo); // Derivado pelo journeySlice via ConsumptionCanvasView
     const consumption = clientData?.averageConsumption || 0;
     const city = clientData?.city || '';
     const state = clientData?.state || '';
@@ -59,10 +67,23 @@ const ConsumptionBlock: React.FC = () => {
         : connectionType === 'monofasico' ? 'Monofásico'
         : '';
 
+    const isFocused = focusedBlock === 'consumption';
+    const isDeemphasized = focusedBlock !== null && focusedBlock !== 'consumption';
+
     const hasData = consumption > 0;
 
     return (
-        <div className="relative rounded-t-sm rounded-b-none border border-amber-600/40 bg-amber-950/70 shadow-[inset_0_-3px_0_rgba(0,0,0,0.25)] backdrop-blur-sm flex flex-col overflow-visible hover:border-amber-500/50 transition-colors z-30">
+        <div 
+            onClick={() => { setFocusedBlock('consumption'); restoreMap(); }}
+            className={cn(
+                "relative rounded-t-sm rounded-b-none border flex flex-col overflow-visible transition-all duration-300 z-30 cursor-pointer",
+                isFocused 
+                    ? "border-amber-500 bg-amber-950/80 shadow-[0_0_15px_rgba(245,158,11,0.25)] ring-1 ring-amber-500/50" 
+                    : isDeemphasized 
+                        ? "border-amber-900/30 bg-amber-950/40 opacity-50 grayscale select-none"
+                        : "border-amber-600/40 bg-amber-950/70 hover:border-amber-500/50 shadow-[inset_0_-3px_0_rgba(0,0,0,0.25)] backdrop-blur-sm"
+            )}
+        >
             {/* Header — Limpo, sem chip */}
             <div className="px-4 py-3 flex items-center gap-3 border-b border-slate-800/50 bg-gradient-to-r from-amber-900/10 to-transparent">
                 <div className="w-6 h-6 rounded flex items-center justify-center bg-amber-500/10 text-amber-400 border border-amber-500/20">
@@ -83,14 +104,22 @@ const ConsumptionBlock: React.FC = () => {
 
             {hasData ? (
                 <>
-                    {/* Stats Compact Row — Consumo Médio em destaque */}
-                    <div className="px-5 py-2.5 flex items-center border-b border-amber-900/40 bg-amber-950/30 shadow-inner shadow-black/10">
+                    {/* Stats Compact Row — Consumo Médio + kWp Alvo */}
+                    <div className="px-5 py-2.5 flex items-center justify-between border-b border-amber-900/40 bg-amber-950/30 shadow-inner shadow-black/10">
                         <div className="flex flex-col">
                             <span className="text-[9px] text-amber-500 font-bold uppercase tracking-wider mb-0.5 opacity-90">Consumo Médio</span>
                             <span className="text-sm font-black text-amber-300 tabular-nums tracking-tight leading-none">
                                 {consumption.toLocaleString('pt-BR')} <span className="font-bold text-[10px] opacity-80 ml-0.5 tracking-normal">kWh/mês</span>
                             </span>
                         </div>
+                        {kWpAlvo !== null && (
+                            <div className="flex flex-col items-end">
+                                <span className="text-[9px] text-emerald-500/80 font-bold uppercase tracking-wider mb-0.5">kWp Alvo</span>
+                                <span className="text-sm font-black text-emerald-400 tabular-nums tracking-tight leading-none">
+                                    {kWpAlvo} <span className="font-bold text-[10px] opacity-80 ml-0.5 tracking-normal">kWp</span>
+                                </span>
+                            </div>
+                        )}
                     </div>
 
                     {/* Metadata Row — Badges compactos */}

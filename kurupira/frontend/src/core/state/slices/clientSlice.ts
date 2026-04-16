@@ -72,6 +72,7 @@ export interface LoadItem {
   hoursPerDay: number;
   daysPerMonth: number; // Freq: 1-31
   qty: number;
+  perfil?: 'constante' | 'verao' | 'inverno'; // Sazonalidade
   suggestion?: string;
   solarOpportunity?: boolean;
 }

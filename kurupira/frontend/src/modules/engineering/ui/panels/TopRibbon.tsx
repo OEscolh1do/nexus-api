@@ -126,14 +126,19 @@ export const TopRibbon: React.FC<TopRibbonProps> = () => {
 
       {/* ── CENTER: MenuBar CAD ── */}
       <div className="absolute left-1/2 -translate-x-1/2 flex items-center h-full gap-1">
-        {['Arquivo', 'Editar', 'Exibir', 'Projeto'].map((menu) => (
-          <button
-            key={menu}
-            className="px-2.5 py-1 text-[11px] font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded transition-colors"
-          >
-            {menu}
-          </button>
-        ))}
+        {['Arquivo', 'Editar', 'Exibir', 'Projeto'].map((menu) => {
+          if (menu === 'Projeto') {
+            return <ProjectMenuDropdown key={menu} toggleSettings={toggleSettingsDrawer} />;
+          }
+          return (
+            <button
+              key={menu}
+              className="px-2.5 py-1 text-[11px] font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded transition-colors"
+            >
+              {menu}
+            </button>
+          );
+        })}
       </div>
 
       {/* Right: Icon Actions + Engineering Widgets */}
@@ -169,6 +174,40 @@ export const TopRibbon: React.FC<TopRibbonProps> = () => {
 // =============================================================================
 // SUB-COMPONENTS FOR P3
 // =============================================================================
+
+const ProjectMenuDropdown: React.FC<{ toggleSettings: () => void }> = ({ toggleSettings }) => {
+  const [isOpen, setIsOpen] = React.useState(false);
+
+  return (
+    <div className="relative" onMouseLeave={() => setIsOpen(false)}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        onMouseEnter={() => setIsOpen(true)}
+        className={cn(
+          "px-2.5 py-1 text-[11px] font-medium rounded transition-colors flex items-center gap-1",
+          isOpen ? "text-slate-100 bg-slate-800" : "text-slate-400 hover:text-slate-100 hover:bg-slate-800"
+        )}
+      >
+        Projeto <ChevronDown size={10} className="opacity-50" />
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-0 w-48 bg-slate-900 border border-slate-700 rounded-lg shadow-xl overflow-hidden z-50 py-1">
+          <button
+            onClick={() => {
+              toggleSettings();
+              setIsOpen(false);
+            }}
+            className="w-full text-left px-3 py-1.5 text-[11px] font-medium text-slate-300 hover:bg-slate-800 flex items-center gap-2"
+          >
+            <Activity size={12} className="text-amber-400" />
+            Configurações e Eficiência
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
 
 // P3-1: Fluxo de Aprovação
 const ApprovalDropdown: React.FC = () => {

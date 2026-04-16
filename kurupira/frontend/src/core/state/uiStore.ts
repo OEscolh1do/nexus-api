@@ -27,6 +27,11 @@ export type Tool = 'SELECT' | 'POLYGON' | 'MEASURE' | 'PLACE_MODULE';
 
 export type WorkspaceMode = 'SIMULATION' | 'ELECTRICAL' | 'REPORTS' | 'PROPOSAL';
 
+export type FocusedBlock = 'consumption' | 'module' | 'inverter' | 'simulation' | 'map' | null;
+
+/** Etapa da animação do Dimensionamento Inteligente (Spec 03 §2.3) */
+export type AutoSizingStep = 'idle' | 'consumption' | 'module' | 'inverter' | 'done';
+
 export type EntityType = 'none' | 'module' | 'inverter' | 'string' | 'vertex' | 'polygon' | 'area' | 'placed-module';
 
 export interface SelectedEntity {
@@ -61,6 +66,19 @@ interface UIState {
   /** Modo visual ativo no Workspace (substitui navegação por abas globais) */
   workspaceMode: WorkspaceMode;
   setWorkspaceMode: (mode: WorkspaceMode) => void;
+
+  /** Nó da Jornada (LeftOutliner) focado, serve de gatilho para atualizar abas e Views do CenterCanvas */
+  activeFocusedBlock: FocusedBlock;
+  setFocusedBlock: (block: FocusedBlock) => void;
+
+  /** Etapa da animação do Dimensionamento Inteligente */
+  autoSizingStep: AutoSizingStep;
+  setAutoSizingStep: (step: AutoSizingStep) => void;
+  /**
+   * Dispara a animação sequencial de lego-snap:
+   * idle → consumption → module → inverter → done → setFocusedBlock('module')
+   */
+  triggerAutoSizing: () => void;
 
   /** Estado do Modal/Drawer Suspenso de Premissas (Menu Configurações do Projeto) */
   isSettingsDrawerOpen: boolean;
@@ -120,6 +138,22 @@ export const useUIStore = create<UIState>((set) => ({
   workspaceMode: 'SIMULATION',
   setWorkspaceMode: (mode) => set({ workspaceMode: mode }),
 
+  activeFocusedBlock: null,
+  setFocusedBlock: (block) => set({ activeFocusedBlock: block }),
+
+  autoSizingStep: 'idle',
+  setAutoSizingStep: (step) => set({ autoSizingStep: step }),
+  triggerAutoSizing: () => {
+    // Animação sequencial: cada etapa dura 400ms (lego-snap)
+    set({ autoSizingStep: 'consumption' });
+    setTimeout(() => set({ autoSizingStep: 'module' }), 400);
+    setTimeout(() => set({ autoSizingStep: 'inverter' }), 800);
+    setTimeout(() => {
+      set({ autoSizingStep: 'done', activeFocusedBlock: 'module' });
+      setTimeout(() => set({ autoSizingStep: 'idle' }), 600);
+    }, 1200);
+  },
+
   isSettingsDrawerOpen: false,
   toggleSettingsDrawer: () => set((state) => ({ isSettingsDrawerOpen: !state.isSettingsDrawerOpen })),
   closeSettingsDrawer: () => set({ isSettingsDrawerOpen: false }),
@@ -134,3 +168,6 @@ export const useActiveTool = () => useUIStore(s => s.activeTool);
 
 /** Retorna apenas a entidade selecionada — re-render só quando muda */
 export const useSelectedEntity = () => useUIStore(s => s.selectedEntity);
+
+/** Hook de atalho para o bloco em foco pela Jornada do Integrador */
+export const useFocusedBlock = () => useUIStore(s => s.activeFocusedBlock);

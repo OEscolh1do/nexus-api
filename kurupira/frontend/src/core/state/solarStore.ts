@@ -26,6 +26,7 @@ import { TechSlice, createTechSlice } from './slices/techSlice';
 import { EngineeringSlice, createEngineeringSlice } from './slices/engineeringSlice';
 import { ElectricalSlice, createElectricalSlice } from './slices/electricalSlice';
 import { ProjectSlice, createProjectSlice } from './slices/projectSlice';
+import { JourneySlice, createJourneySlice } from './slices/journeySlice';
 
 // PRÉ-1: fromArray mantido para uso em actions do store (addModule, etc.)
 import { fromArray } from '@/core/types/normalized.types';
@@ -64,6 +65,7 @@ export type SolarState =
   & EngineeringSlice
   & ElectricalSlice
   & ProjectSlice
+  & JourneySlice
   & UIState;
 
 /**
@@ -106,6 +108,7 @@ export const useSolarStore = create<SolarState>()(
           ...createEngineeringSlice(set, get, api),
           ...createElectricalSlice(set, get, api),
           ...createProjectSlice(set, get, api),
+          ...createJourneySlice(set, get, api),
 
           ...createUISlice(set, get, api),
         }),
@@ -124,7 +127,9 @@ export const useSolarStore = create<SolarState>()(
             settings: state.settings,
             clientData: state.clientData,
             legalData: state.legalData,
-            project: state.project, // PGFX-02: Geometria reversível via Ctrl+Z
+            project: state.project,
+            // Journey: apenas o fator de crescimento persiste; kWpAlvo é recalculado
+            loadGrowthFactor: state.loadGrowthFactor,
           }),
           /**
            * PRÉ-2: Throttle 500ms — agrupa edições contínuas (sliders, inputs)
@@ -254,6 +259,8 @@ export const useSolarStore = create<SolarState>()(
           // UI (apenas role)
           userRole: state.userRole,
           // NÃO persistir activeModule - sempre começa no CRM
+          // NÃO persistir kWpAlvo - é derivado e recalculado na hidratação
+          loadGrowthFactor: state.loadGrowthFactor,
         }),
       }
     ),
