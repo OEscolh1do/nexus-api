@@ -1,8 +1,8 @@
 # Mapa de Interface Completo — Kurupira (Workspace de Engenharia Solar)
 
-> **Última atualização**: 2026-04-14  
-> **Versão do SaaS**: Kurupira v3.6.x  
-> **Escopo**: Interface completa do módulo de Engenharia — do Hub ao Workspace
+> **Última atualização**: 2026-04-16  
+> **Versão do SaaS**: Kurupira v3.8.x  
+> **Escopo**: Interface atualizada com Slot Polimórfico e Layout Minimalista (v2)
 
 ---
 
@@ -12,9 +12,9 @@
 2. [Hub de Projetos](#2-hub-de-projetos)
 3. [Workspace de Engenharia](#3-workspace-de-engenharia)
    - 3.1 [Top Ribbon](#31-top-ribbon)
-   - 3.2 [Center Canvas](#32-center-canvas-slot-polimórfico)
+   - 3.2 [Center Canvas (Slot Polimórfico)](#32-center-canvas-slot-polimórfico)
    - 3.3 [Left Outliner (Compositor Lego)](#33-left-outliner-compositor-lego)
-   - 3.4 [Right Inspector (Grupos de Painéis)](#34-right-inspector-grupos-de-painéis)
+   - 3.4 [Centric Groups (Painéis Promovidos)](#34-centric-groups-painéis-promovidos)
    - 3.5 [Workspace Tabs (Bottom Excel-like)](#35-workspace-tabs-bottom-excel-like)
 4. [Modais Globais](#4-modais-globais)
 5. [Glossário de Terminologia Canônica](#5-glossário-de-terminologia-canônica)
@@ -37,22 +37,22 @@
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │  TOP RIBBON (40px)                                                           │
 │  [Logo] [Arquivo/Editar/Exibir/Projeto] ──── [Ferramentas | Exportar | User]│
-├──────────────┬────────────────────────────────────────────┬──────────────────┤
-│              │                                            │                  │
-│  LEFT        │           CENTER CANVAS                   │  RIGHT           │
-│  OUTLINER    │    (Mapa Leaflet + WebGL Overlay)         │  INSPECTOR       │
-│  (~240px)    │    ou                                     │  (~300px)        │
-│              │    Canvas View alternativo                 │                  │
-│  Compositor  │    (Simulação / Elétrica / Site /         │  Grupos de       │
-│  Lego:       │     Propriedades / Settings / Proposta)   │  Painéis         │
-│              │                                            │                  │
-│  ⚡ Consumo  │                                            │  [PanelGroup]    │
-│  ☀ Módulos  │                                            │  [ElecGroup]     │
-│  🔲 Inversor │                                            │  [SimGroup]      │
-│              │                                            │  [SiteGroup]     │
-├──────────────┴────────────────────────────────────────────┴──────────────────┤
+├──────────────┬──────────────────────────────────────────────────────────────┤
+│              │                                                              │
+│  LEFT        │           CENTER CANVAS (70-100% width)                      │
+│  OUTLINER    │    (Slot Polimórfico: Mapa vs Views de Engenharia)           │
+│  (240px)     │                                                              │
+│              │    - Modo Mapa (Leaflet + WebGL)                             │
+│  Compositor  │    - Modo Jornada (Overlay: Consumo/Elétrica/Simumação)      │
+│  Lego:       │    - Modo Promovido (Full Body: Propriedades/Settings/Docs)  │
+│              │                                                              │
+│  ⚡ Consumo  │                                                              │
+│  ☀ Módulos  │                                                              │
+│  🔲 Inversor │                                                              │
+│              │                                                              │
+├──────────────┴──────────────────────────────────────────────────────────────┤
 │  WORKSPACE TABS (Bottom Excel-like)                                          │
-│  [📍 Mapa] [☀ Módulos] [⚡ Elétrica] [📊 Simulação] [🏗 Site] [📄 Proposta]│
+│  [⚡ Consumo] [☀ Módulos] [📐 Arranjo] [🛡 Elétrica] [📊 Simulação] [📍 Mapa]│
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -72,21 +72,12 @@
 | Modal de Criação/Edição | `ProjectFormModal.tsx` | Wizard com mapa Leaflet inline |
 | Modal de Contexto | `SiteContextModal.tsx` | Split-view: mapa + perfil de carga 12 meses |
 
-### Fluxo de Entrada no Workspace
-
-```
-ProjectCard (click) → SiteContextModal (prévia)
-    → "Dimensionar Projeto" → setActiveModule('engineering')
-        → useProjectContext carrega solarStore com dados do projeto
-        → Workspace renderiza com TopRibbon + CenterCanvas + LeftOutliner + RightInspector
-```
-
 ---
 
 ## 3. Workspace de Engenharia
 
 > **Componente raiz**: `EngineeringWorkspace.tsx` (orquestrador)  
-> **Layout engine**: CSS Grid com colunas `[240px | 1fr | 300px]` e rows `[40px | 1fr | 32px]`
+> **Layout engine**: CSS Grid simplificado: colunas `[240px | 1fr]` e rows `[40px | 1fr | 32px]`
 
 ---
 
@@ -100,15 +91,6 @@ ProjectCard (click) → SiteContextModal (prévia)
 |----------|-------------|--------|
 | Logo Neonorte | `img` | Marca visual (opacidade 75%) |
 
-#### Seção Central (Center)
-
-| Elemento | Tipo | Função |
-|----------|------|--------|
-| Menu "Arquivo" | `button` | Placeholder (UI não implementada) |
-| Menu "Editar" | `button` | Placeholder |
-| Menu "Exibir" | `button` | Placeholder |
-| Menu "Projeto" | `button` | Placeholder |
-
 #### Seção Direita (Right)
 
 | # | Nome Canônico | Ícone | Título | Ação |
@@ -116,208 +98,103 @@ ProjectCard (click) → SiteContextModal (prévia)
 | R-01 | **Botão Hub** | `LayoutDashboard` | "Voltar ao Explorador" | `setActiveModule('hub')` |
 | R-02 | **Botão Desfazer** | `Undo2` | "Desfazer (Ctrl+Z)" | `undo()` via Zundo |
 | R-03 | **Botão Refazer** | `Redo2` | "Refazer (Ctrl+Y)" | `redo()` via Zundo |
-| R-04 | **Engineering Guidelines Widget** | `Info/CheckCircle2/AlertTriangle` | Status das diretrizes | Widget de KPIs inline |
-| R-05 | **Health Check Widget** | `Info/CheckCircle2/AlertTriangle` | Saúde do sistema | Validação elétrica resumida |
-| R-06 | **Approval Dropdown** | `Flag` + `ChevronDown` | Status do projeto | Dropdown: Rascunho ↔ Aprovado |
+| R-04 | **Engineering Guidelines** | `Info/Check` | Status das diretrizes | Widget de KPIs inline |
+| R-05 | **Health Check** | `Activity` | Saúde do sistema | Validação elétrica resumida |
+| R-06 | **Approval Dropdown** | `Flag` | Status do projeto | Dropdown: Rascunho ↔ Aprovado |
 | R-07 | **Dados do Cliente** | `User` | "Dados do Cliente" | Abre `ClientDataModal` |
-| R-08 | **Premissas Globais** | `Activity` | "Premissas e Perdas Globais" | Abre `SettingsDrawer` |
-| R-09 | **Fullscreen Toggle** | `Maximize2` / `Minimize2` | "Modo Tela Cheia" | `requestFullscreen()` |
-| R-10 | **Botão Exportar** | `Download` | "Exportar Proposta PDF" | Captura viewport → `setActiveModule('proposal')` |
-| R-11 | **Badge Role** | `ShieldCheck` / `ShieldAlert` | Role do usuário | Read-only: ADMIN (vermelho) / USER (verde) |
+| R-08 | **Premissas Globais** | `Settings` | "Premissas e Perdas" | Abre `isSettingsDrawerOpen` |
+| R-09 | **Fullscreen Toggle** | `Maximize2` | "Modo Tela Cheia" | `requestFullscreen()` |
 
 ---
 
 ### 3.2 Center Canvas (Slot Polimórfico)
 
 > **Arquivo**: `panels/CenterCanvas.tsx`  
-> **Paradigma**: Slot polimórfico — pode renderizar o mapa padrão **ou** uma Canvas View alternativa.  
-> O mapa Leaflet **NUNCA desmonta** (usa `display:none`).
+> **Paradigma**: SLOT POLIMÓRFICO. A área central não é apenas um mapa, mas um container inteligente que alterna entre diferentes modos de visualização baseado no `centerContent` e `focusedBlock`.
 
-#### Modo Mapa (padrão)
+#### 1. Modo Mapa (O Backbone)
+O mapa Leaflet (`MapCore.tsx`) é carregado uma vez e **NUNCA é desmontado**. 
+- Se `centerContent === 'map'`, ele ocupa todo o slot.
+- Se `centerContent !== 'map'`, ele é movido via **Portal** para o `#minimap-portal-target`.
 
-| Layer | Componente | Tecnologia |
-|-------|-----------|------------|
-| Mapa Base | `MapCore.tsx` | Leaflet.js |
-| Overlay 3D | `WebGLOverlay.tsx` | React Three Fiber (R3F) |
+#### 2. Modo Jornada (Frozen Overlays)
+As telas principais da jornada de engenharia não substituem o mapa, mas flutuam sobre ele usando o wrapper `FrozenViewContainer`.
+- **Consumo**: `ConsumptionCanvasView.tsx`
+- **Elétrica**: `ElectricalCanvasView.tsx`
+- **Simulação**: `SimulationCanvasView.tsx`
 
-#### Ferramentas do Mapa (HUD flutuante)
-
-| Ferramenta | Ícone | Shortcut | Descrição |
-|-----------|-------|----------|-----------|
-| **Selecionar** | `MousePointer2` | `V` | Seleção padrão |
-| **Desenhar Polígono** | `Pentagon` | `P` | Define área de implantação |
-| **Medir Distância** | `Ruler` | `M` | Régua no mapa |
-| **Colocar Módulos** | `LayoutGrid` | `L` | Posicionamento de painéis |
-
-#### Canvas Views Alternativas (Registry)
-
-| ID | Componente | Descrição |
-|----|-----------|-----------|
-| `site` | `SiteCanvasView.tsx` | Vista de contexto do terreno |
-| `simulation` | `SimulationCanvasView.tsx` | Simulação anual de geração (gráficos) |
-| `electrical` | `ElectricalCanvasView.tsx` | Diagrama elétrico e strings |
-| `properties` | `PropertiesGroup.tsx` | Inspector de propriedades do elemento selecionado |
-| `settings` | `SettingsModule.tsx` | Configurações globais de perdas/premissas |
-| `documentation` | `DocumentationModule.tsx` | Documentação técnica do sistema |
-| `proposal` | `ProposalModule.tsx` | Preview e exportação da proposta PDF |
+#### 3. Modo Promovido (Painéis Centrais)
+Painéis que exigem foco total e não se beneficiam de ter o mapa ao fundo (ex: Documentação, Proposta, Propriedades).
+- São renderizados pelo componente `PromotedPanelView`.
+- Ativados quando `centerContent` aponta para um `PanelGroupId`.
 
 ---
 
 ### 3.3 Left Outliner (Compositor Lego)
 
-> **Arquivo**: `panels/LeftOutliner.tsx` + subcomponentes  
-> Documentação detalhada: [mapa-left-outliner.md](./mapa-left-outliner.md)
+> **Arquivo**: `panels/LeftOutliner.tsx` | Largura: 240px  
+> **Conceito**: Uma pilha vertical de blocos interativos que representam a topologia do sistema.
 
-#### Topologia de Arquivos
+#### Pilha de Blocos
+1. **Consumo ⚡**: Dados de fatura, localização e kWp alvo.
+2. **Módulos FV ☀**: Seleção de equipamentos DC, potência total e arranjos.
+3. **Inversor 🔲**: Dimensionamento AC, FDI e integração elétrica.
 
-```
-panels/
-├── LeftOutliner.tsx                        ← Orquestrador + ConsumptionBlock + LockedBlock
-└── canvas-views/composer/
-    ├── LegoConnectors.tsx                  ← LegoTab + LegoNotch
-    ├── ComposerBlockModule.tsx             ← Bloco Módulos FV
-    ├── ComposerBlockInverter.tsx           ← Bloco Inversor
-    └── ComposerPlaceholder.tsx             ← Placeholder genérico (legado)
-```
-
-#### Pilha de Blocos (v3.6)
-
-```
-┌─────────────────────────────────┐
-│  ⚡ Consumo           [Cidade]  │  ← ConsumptionBlock (rounded-t-sm)
-│  ────────────────────────────── │
-│  Consumo Médio  |  (kWh/mês)   │  ← Stats Compact Row (hero)
-│  ────────────────────────────── │
-│  [anual] [tipo_ligação] [hsp]  │  ← Metadata Badges
-│             [kWh]               │  ← LegoTab amber
-├─────────────────────────────────┤  ← LegoNotch sky
-│  ☀ Módulos FV     X.XX kWp    │  ← ComposerBlockModule
-│  ────────────────────────────── │
-│  Potência DC  |  Geração Est.  │  ← Stats Compact Row
-│  [Rows: QTD× Modelo W]         │  ← Module Groups
-│  [+ OUTRO MODELO]               │
-│              [DC]               │  ← LegoTab sky
-├─────────────────────────────────┤  ← LegoNotch emerald
-│  🔲 Marca/Modelo     X.XkW    │  ← ComposerBlockInverter (rounded-b-sm)
-│  [Ratio] [Voc] [Isc]           │  ← StatusChips
-│  ⚠ Mensagens de validação      │  ← Validation Messages
-│              [AC]               │  ← LegoTab emerald
-└─────────────────────────────────┘
-```
-
-#### Cascata de Ativação
-
-| Bloco | Condição de Ativação | Fallback |
-|-------|---------------------|---------|
-| **Consumo** | Sempre ativo | — |
-| **Módulos FV** | `averageConsumption > 0` | `LockedBlock` cinza |
-| **Inversor** | `modules.length > 0` | `LockedBlock` cinza |
+*Cada bloco possui "encaixes" (`LegoTab` / `LegoNotch`) que simbolizam o fluxo de energia.*
 
 ---
 
-### 3.4 Right Inspector (Grupos de Painéis)
+### 3.4 Centric Groups (Painéis Promovidos)
 
 > **Pasta**: `panels/groups/`  
-> Cada grupo é um painel que pode ser renderizado no slot direito **ou** promovido para o Center Canvas.
+> Antigamente parte do *Right Inspector*, agora esses grupos assumem o centro da tela quando ativados.
 
-| Arquivo | ID | Função | Trigger de Abertura |
-|---------|-----|--------|---------------------|
-| `PropertiesGroup.tsx` | `properties` | Inspetor de propriedades da entidade selecionada | Click em elemento no canvas |
-| `ElectricalGroup.tsx` | `electrical` | Validação elétrica completa: strings, Voc, Isc, FDI | Tab "Elétrica" |
-| `PanelGroup.tsx` | (base) | Layout base reutilizável dos grupos | — |
-| `SimulationGroup.tsx` | `simulation` | Simulação de geração anual, TMY, irradiância | Tab "Simulação" |
-| `SiteContextGroup.tsx` | `site` | Contexto espacial: área, cobertura, sombreamento | Tab "Site" |
-
-#### PropertiesGroup
-
-> **Arquivo**: `groups/PropertiesGroup.tsx`  
-> Exibe propriedades contextuais do elemento selecionado via `useSelectedEntity()`.
-
-| Estado | Conteúdo |
-|--------|---------|
-| Sem seleção | Placeholder "Selecione um elemento no canvas" |
-| Módulo selecionado | Potência, modelo, posição |
-| String selecionada | Módulos conectados, MPPT |
-
-#### ElectricalGroup
-
-> **Arquivo**: `groups/ElectricalGroup.tsx`  
-> Validação elétrica completa via `useElectricalValidation()`.
-
-| Seção | Dados |
-|-------|-------|
-| Sumário Global | `globalHealth`: OK / Warning / Error |
-| Strings | Lista de strings com Voc, Isc, N_módulos |
-| Chips de Status | Ratio DC/AC (FDI), Voc_max, Isc_max |
-| Mensagens | Lista de erros/warnings com severidade |
-
-#### SimulationGroup
-
-> **Arquivo**: `groups/SimulationGroup.tsx`  
-> Simulação de geração anual via `useElectricalValidation()` + dados TMY.
-
-| Seção | Dados |
-|-------|-------|
-| Geração Mensal | Gráfico de barras 12 meses (kWh) |
-| Totais | Geração anual (kWh), Cobertura (%) |
-| Irradiância | HSP médio, dados CRESESB |
-| PR (Performance Ratio) | Modo IEC 61724 ou Soma Simples |
+| Grupo | ID | Função |
+|-------|-----|--------|
+| **PropertiesGroup** | `properties` | Inspetor de propriedades do elemento selecionado (módulo, string, área). |
+| **ElectricalGroup** | `electrical` | Painel de monitoramento de saúde elétrica (Voc, Isc, FDI). |
+| **SimulationGroup** | `simulation` | Gráficos de geração mensal, irradiância CRESESB e PR. |
+| **SiteContextGroup** | `site` | Área do terreno, cobertura satélite e sombreamento. |
 
 ---
 
 ### 3.5 Workspace Tabs (Bottom Excel-like)
 
 > **Arquivo**: `panels/WorkspaceTabs.tsx`  
-> Barra inferior de 32px com abas de navegação entre Canvas Views.
+> Barra inferior persistente para navegação rápida entre contextos.
 
-| Aba | Ícone | Canvas View | Ação |
-|-----|-------|-------------|------|
-| 📍 **Mapa** | `Map` | Leaflet + WebGL | `restoreMap()` |
-| ☀ **Módulos** | `Sun` | `ComposerBlockModule` | Switch center |
-| ⚡ **Elétrica** | `Zap` | `ElectricalCanvasView` | Switch center |
-| 📊 **Simulação** | `BarChart2` | `SimulationCanvasView` | Switch center |
-| 🏗 **Site** | `Building` | `SiteCanvasView` | Switch center |
-| 📄 **Proposta** | `FileText` | `ProposalModule` | Switch center |
+| Aba | Ícone | Descrição |
+|-----|-------|-----------|
+| **Consumo** | `Zap` | Foco no perfil de carga e premissas iniciais. |
+| **Módulos** | `LayoutDashboard` | Seleção e configuração de módulos no catálogo. |
+| **Arranjo** | `Layers` | Distribuição física e strings no mapa. |
+| **Elétrica** | `ShieldCheck` | Validação técnica e conformidade do inversor. |
+| **Simulação** | `BarChart2` | Análise de ROI e geração estocástica. |
+| **Mapa** | `MapPin` | Retorno à vista limpa do mapa satélite. |
 
 ---
 
-## 4. Modais Globais
+### 4. Modais Globais
 
-| Modal | Componente | Trigger | Função |
-|-------|-----------|---------|--------|
-| **Dados do Cliente** | `ClientDataModal.tsx` | Botão `User` no TopRibbon | Edição dos dados de consumo, tarifa e localização |
-| **Criar Projeto** | `ProjectFormModal.tsx` | Botão "+ Novo Projeto" no Hub | Formulário de criação com mapa Leaflet inline |
-| **Editar Projeto** | `ProjectFormModal.tsx` (modo edit) | Botão ✏️ no ProjectCard | Pré-preenchido com dados do projeto |
-| **Contexto do Site** | `SiteContextModal.tsx` | Click no ProjectCard | Preview split-view antes de abrir workspace |
-| **Settings Drawer** | `SettingsModule` via Drawer | Botão `Activity` no TopRibbon | Premissas globais (PR, perdas, temp. mínima) |
+| Modal | Componente | Trigger |
+|-------|-----------|---------|
+| **Setup do Cliente** | `ClientDataModal.tsx` | Botão `User` no TopRibbon |
+| **Premissas do Projeto** | `SettingsModule` | Botão `Settings` (abre Drawer lateral) |
+| **Contexto do Site** | `SiteContextModal.tsx` | Click no ProjectCard no Hub |
 
 ---
 
 ## 5. Glossário de Terminologia Canônica
 
-| Termo UI | Significado Técnico | Contraparte no Código |
-|----------|--------------------|-----------------------|
-| **Hub** | Tela de Explorador de Projetos | `ProjectExplorer.tsx` |
-| **Card** | Item visual de projeto na grid | `ProjectCardComponent` |
-| **Workspace** | Ambiente completo de engenharia | `EngineeringWorkspace.tsx` |
-| **Left Outliner** | Painel esquerdo do workspace | `LeftOutliner.tsx` |
-| **Right Inspector** | Painel direito com grupos de dados | `panels/groups/*.tsx` |
-| **Center Canvas** | Slot polimórfico central | `CenterCanvas.tsx` |
-| **Canvas View** | Vista renderizada no Center Canvas | `SiteCanvasView`, `SimulationCanvasView`, etc. |
-| **Compositor Lego** | Metáfora dos blocos encaixáveis | Pilha `Consumo → Módulos → Inversor` |
-| **Bloco** | Unidade visual e funcional do Compositor | `ConsumptionBlock`, `ComposerBlockModule`, `ComposerBlockInverter` |
-| **LockedBlock** | Bloco fantasma (pré-condição não satisfeita) | `LockedBlock` em `LeftOutliner.tsx` |
-| **LegoTab** | Aba de conexão na base de cada bloco | `LegoConnectors.tsx > LegoTab` |
-| **LegoNotch** | Encaixe no topo de cada bloco receptor | `LegoConnectors.tsx > LegoNotch` |
-| **Stats Compact Row** | Linha com 2 métricas hero lado a lado | Pattern visual: `kWh/mês | Custo` |
-| **Metadata Badge** | Pílula de dado secundário compacto | `text-[8px] ... px-1.5 py-0.5 rounded-sm` |
-| **Health Check** | Semáforo de validação elétrica | `HealthCheckWidget` no TopRibbon |
-| **Approval Dropdown** | Controle de status do projeto | `ApprovalDropdown` no TopRibbon |
-| **FDI** | Fator de Dimensionamento do Inversor | `dcAcRatio = totalDC / totalAC` |
-| **HSP** | Horas de Sol Pleno média | `avgHsp` derivado de `monthlyIrradiation` |
-| **PR** | Performance Ratio (eficiência sistêmica) | `getAdditivePerformanceRatio()` |
-| **Visual-First** | Paradigma: thumbnail > texto tabular | ProjectCard: mapa satélite em destaque |
-| **Lego Snap** | Animação de encaixe dos blocos | `@keyframes lego-snap` em `index.css` |
+| Termo UI | Significado Técnico |
+|----------|--------------------|
+| **Slot Polimórfico** | Container central que muda de forma sem perder o estado dos componentes internos. |
+| **Promoted Panel** | Um grupo de dados (ex: Elétrica) que foi "promovido" para ocupar o espaço central. |
+| **Frozen View** | Componente sobreposto ao mapa que mantém seu estado "congelado" em background para performance. |
+| **Compositor Lego** | A barra esquerda onde blocos de engenharia são empilhados. |
+| **Lego Snap** | O efeito visual/mecânico de conectar um bloco ao outro através de dependências. |
+| **Minimap Portal** | Sistema que move o mapa principal para um slot pequeno quando uma vista full-screen é ativada. |
+| **Right Inspector** | *(DESCONTINUADO)* - Funcionalidade absorvida pelos Centric Groups. |
 
 ---
 
@@ -325,55 +202,37 @@ panels/
 
 ```mermaid
 graph TD
-    subgraph "Zustand Stores"
-        SS["solarStore\n(clientData, modules[], inverters[])"]
-        TS["useTechStore\n(inverters.entities, mpptConfigs, strings)"]
-        CS["useCatalogStore\n(catalog: modules[], inverters[])"]
-        PS["panelStore\n(centerContent, activeGroups)"]
-        UI["uiStore\n(selectedEntity, activeTool, snapshots)"]
+    subgraph "Navigation & Layout"
+        PS["panelStore\n(centerContent, promoteToCenter)"]
+        UI["uiStore\n(activeFocusedBlock, selectedEntity)"]
     end
 
-    subgraph "Hooks Compostos"
-        AS["useAutoSizing()\n(requiredKwp, requiredModuleQty)"]
-        EV["useElectricalValidation()\n(errors[], warnings[], globalHealth)"]
-        TK["useTechKPIs()\n(kpi.totalDC, kpi.estimatedGeneration, PR)"]
-        PC["useProjectContext()\n(energyGoal, clientData contextual)"]
+    subgraph "Core Data"
+        SS["solarStore\n(clientData, modules[], kWpAlvo)"]
+        TS["useTechStore\n(inverters, strings, configs)"]
     end
 
-    subgraph "UI Consumers"
-        CB["ConsumptionBlock"]
-        BM["ComposerBlockModule"]
-        BI["ComposerBlockInverter"]
-        TR["TopRibbon"]
-        EG["ElectricalGroup"]
-        SG["SimulationGroup"]
+    subgraph "UI Orchestrator"
+        CC["CenterCanvas\n(Polymorphic Slot)"]
+        LO["LeftOutliner\n(Lego Stack)"]
+        WT["WorkspaceTabs\n(Excel-like Nav)"]
     end
 
-    SS --> CB
-    SS --> BM
-    SS --> BI
-    SS --> TR
-    TS --> BI
-    TS --> EV
-    CS --> BM
-    CS --> BI
-    AS --> BM
-    EV --> BI
-    EV --> EG
-    TK --> TR
-    TK --> BM
-    PC --> TK
-    UI --> BM
-    PS --> CenterCanvas["CenterCanvas"]
-    PS --> TR
+    PS --> CC
+    UI --> CC
+    UI --> LO
+    SS --> LO
+    TS --> CC
+    WT --> UI
+    WT --> PS
 ```
 
 ---
 
 ## Referências Cruzadas
 
-| Doc | Conteúdo | Link |
-|-----|---------|------|
-| `mapa-projetos.md` | Hub de Projetos: cards, modais, fluxo de entrada | [mapa-projetos.md](./mapa-projetos.md) |
-| `mapa-left-outliner.md` | LeftOutliner: detalhamento dos blocos, animações, geometria de encaixe | [mapa-left-outliner.md](./mapa-left-outliner.md) |
-| `mapa-dimensionamento.md` | Motor de cálculo: PR, FDI, auto-sizing | [mapa-dimensionamento.md](./mapa-dimensionamento.md) |
+| Doc | Conteúdo |
+|-----|---------|
+| `mapa-projetos.md` | Detalhamento do Hub e Fluxo de Entrada. |
+| `mapa-left-outliner.md` | Detalhamento técnico da geometria dos blocos Lego. |
+| `mapa-dimensionamento.md` | Regras de cálculo e motores de simulação. |

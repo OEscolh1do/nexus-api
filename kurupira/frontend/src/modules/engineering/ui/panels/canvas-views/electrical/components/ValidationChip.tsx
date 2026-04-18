@@ -64,7 +64,7 @@ export const ValidationChip: React.FC<ValidationChipProps> = ({
         <span className={cfg.text}>
           {isMini ? React.cloneElement(cfg.icon as any, { size: 12 }) : cfg.icon}
         </span>
-        <span className={cn('font-bold uppercase tracking-widest text-slate-400', isMini ? 'text-[8px]' : 'text-[10px]')}>
+        <span className={cn('font-bold uppercase tracking-widest text-slate-400', 'text-[11px]')}>
           {label}
         </span>
       </div>
@@ -74,7 +74,7 @@ export const ValidationChip: React.FC<ValidationChipProps> = ({
       </div>
 
       {!isMini && subtitle && (
-        <div className="text-[10px] text-slate-500 truncate mt-1">
+        <div className="text-[11px] text-slate-500 font-medium truncate mt-1">
           {subtitle}
         </div>
       )}

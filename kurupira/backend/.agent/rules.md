@@ -1,3 +1,0 @@
-- **Architecture:** Strangler Pattern / Modular-Monolith para Microserviços lógicos.
-- **ORM:** Prisma Schema deve ser mantido enxuto. Toda migration exige validação de integridade.
-- **Regras de Negócio:** Controladores enxutos. A lógica mora nos Services. Middlewares de IAM (Identity Access Management) são obrigatórios em rotas \/api/v2/\.

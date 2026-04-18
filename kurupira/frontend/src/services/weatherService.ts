@@ -1,6 +1,16 @@
-import { GoogleGenAI, Type } from "@google/genai";
 import { WeatherAnalysis } from '@/core/types';
 import { CRESESB_DB } from '@/data/irradiation/cresesbData';
+
+// NASA POWER Configuration
+const NASA_BASE_URL = "https://power.larc.nasa.gov/api/temporal/climatology/point";
+
+/**
+ * Mapeia as chaves de string da NASA para o array de meses 0-11
+ */
+const mapNasaToMonthlyArray = (nasaData: Record<string, number>): number[] => {
+    const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+    return months.map(m => nasaData[m] || 0);
+};
 
 // Normalizar nome da cidade para busca (sem acentos, uppercase)
 const normalizeCity = (city: string, state: string) => {
@@ -16,79 +26,72 @@ export const fetchWeatherAnalysis = async (
     lng: number,
     city: string,
     state: string,
-    apiKey: string
+    _apiKey?: string // Mantido por compatibilidade de assinatura, mas não usado
 ): Promise<WeatherAnalysis> => {
-    // 1. Tentar Banco de Dados Local (CRESESB)
+    // 1. Tentar Banco de Dados Local (CRESESB) para HSP rápido no Pará
     const cityKey = normalizeCity(city, state);
+    let localData: WeatherAnalysis | null = null;
 
-    // Tentativa exata
     if (CRESESB_DB[cityKey]) {
-        return CRESESB_DB[cityKey];
+        localData = CRESESB_DB[cityKey];
+    } else {
+        const simpleName = normalizeCitySimple(city);
+        const foundKey = Object.keys(CRESESB_DB).find(k => 
+            normalizeCitySimple(k).includes(simpleName) && k.includes(state.toUpperCase())
+        );
+        if (foundKey) localData = CRESESB_DB[foundKey];
     }
 
-    // Tentativa aproximada (busca parcial no mapa)
-    const simpleName = normalizeCitySimple(city);
-    const foundKey = Object.keys(CRESESB_DB).find(k => normalizeCitySimple(k).includes(simpleName) && k.includes(state.toUpperCase()));
-
-    if (foundKey) {
-        return CRESESB_DB[foundKey];
-    }
-
-    // Fallback Estadual se for PA
-    if (state.toUpperCase().trim() === 'PA' || state.toUpperCase().trim() === 'PARA') {
-        return {
+    // Se não encontrou no Pará, tenta o fallback regional do CRESESB
+    if (!localData && (state.toUpperCase().trim() === 'PA' || state.toUpperCase().trim() === 'PARA')) {
+        localData = {
             ...CRESESB_DB["DEFAULT_PA"],
             location_name: `${city} - PA (Média Estadual)`
         };
     }
 
-    // 2. Tentar API (apenas se for fora do estado mapeado)
+    // 2. Tentar API NASA POWER para Temperatura e HSP (Climatologia Global)
     try {
-        if (!apiKey) throw new Error("API Key missing");
-
-        const ai = new GoogleGenAI({ apiKey });
-        const prompt = `Analise o potencial fotovoltaico detalhado para as coordenadas Latitude: ${lat}, Longitude: ${lng}. 
-    Cidade: ${city}, Estado: ${state}.
-    Retorne estritamente em JSON:
-    1. hsp_monthly: um array de 12 números (Jan a Dez) representando a irradiação solar média diária (HSP em kWh/m²/dia).
-    2. irradiation_source: string citando a fonte científica (ex: NASA POWER).
-    3. ambient_temp_avg: temperatura média local anual (°C).
-    4. location_name: confirmação do nome do local/bairro.`;
-
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.0-flash',
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        hsp_monthly: { type: Type.ARRAY, items: { type: Type.NUMBER } },
-                        irradiation_source: { type: Type.STRING },
-                        ambient_temp_avg: { type: Type.NUMBER },
-                        location_name: { type: Type.STRING }
-                    },
-                    required: ["hsp_monthly", "irradiation_source"]
-                }
-            }
-        });
-
-        const validResponse = response as any;
-        if (typeof validResponse.text === 'function') {
-             return JSON.parse(validResponse.text()) as WeatherAnalysis;
-        }
+        const url = `${NASA_BASE_URL}?parameters=T2M,ALLSKY_SFC_SW_DWN&community=RE&longitude=${lng}&latitude=${lat}&format=JSON`;
         
-        if (!validResponse.text) throw new Error("Empty response");
-        return JSON.parse(validResponse.text) as WeatherAnalysis;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("NASA API connection failed");
+        
+        const data = await response.json();
+        const nasaParams = data.properties?.parameter;
 
-    } catch (error: any) {
-        console.warn("Weather API Failed. Using Mock Fallback.", error);
+        if (!nasaParams) throw new Error("NASA response invalid");
+
+        const hspMonthly = mapNasaToMonthlyArray(nasaParams.ALLSKY_SFC_SW_DWN);
+        const tempMonthly = mapNasaToMonthlyArray(nasaParams.T2M);
+        const avgTempAnual = nasaParams.T2M.ANN || (tempMonthly.reduce((a, b) => a + b, 0) / 12);
+        const hspMonthlyFinal = localData?.hsp_monthly || hspMonthly;
+        const hspAvg = hspMonthlyFinal.reduce((a, b) => a + b, 0) / 12;
 
         return {
-            hsp_monthly: [4.5, 4.6, 4.8, 5.1, 5.3, 5.4, 5.5, 5.8, 5.9, 5.6, 5.2, 4.8],
-            irradiation_source: "Dados Médios de Engenharia (Offline)",
-            ambient_temp_avg: 27.5,
-            location_name: `${city} - ${state} (Offline)`
+            // Prioriza CRESESB para HSP se for do Pará (mais calibrado regionalmente)
+            hsp_monthly: hspMonthlyFinal,
+            temp_monthly: tempMonthly,
+            ambient_temp_avg: avgTempAnual,
+            hsp_avg: hspAvg,
+            irradiation_source: localData ? "CRESESB + NASA (Temp)" : "NASA POWER API",
+            location_name: localData?.location_name || `${city}, ${state}`
+        };
+
+    } catch (error: any) {
+        console.warn("NASA API Failed. Using CRESESB or Fixed Fallback.", error);
+
+        const hspFallback = localData?.hsp_monthly || [4.5, 4.6, 4.8, 5.1, 5.3, 5.4, 5.5, 5.8, 5.9, 5.6, 5.2, 4.8];
+        const hspAvgFallback = hspFallback.reduce((a, b) => a + b, 0) / 12;
+
+        // Fallback final
+        return {
+            hsp_monthly: hspFallback,
+            temp_monthly: [26.5, 26.3, 26.5, 26.7, 27.2, 27.5, 27.6, 27.8, 27.9, 27.8, 27.6, 27.1],
+            hsp_avg: hspAvgFallback,
+            irradiation_source: localData ? `${localData.irradiation_source} (Offline)` : "Dados Médios (Offline)",
+            ambient_temp_avg: localData?.ambient_temp_avg || 27.5,
+            location_name: localData?.location_name || `${city} - ${state} (Offline)`
         };
     }
 };

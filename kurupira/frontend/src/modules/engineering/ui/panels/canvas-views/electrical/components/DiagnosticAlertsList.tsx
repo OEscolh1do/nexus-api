@@ -46,7 +46,7 @@ export const DiagnosticAlertsList: React.FC<DiagnosticAlertsListProps> = ({ aler
             key={alerta.id}
             onClick={() => scrollToMppt(alerta.mpptId)}
             className={cn(
-              "w-full text-left px-3 py-2 text-[10px] rounded border transition-colors flex items-start gap-2 group",
+              "w-full text-left px-3 py-2 text-[11px] rounded border transition-colors flex items-start gap-2 group",
               isError 
                 ? "bg-red-950/20 border-red-900/30 text-red-400 hover:bg-red-950/40" 
                 : "bg-amber-950/20 border-amber-900/30 text-amber-400 hover:bg-amber-950/40",

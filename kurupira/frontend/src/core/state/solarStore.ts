@@ -239,6 +239,7 @@ export const useSolarStore = create<SolarState>()(
         partialize: (state) => ({
           // Cliente (CRM)
           clientData: state.clientData,
+          weatherData: state.weatherData,
           legalData: state.legalData,
           simulatedItems: state.simulatedItems,
 

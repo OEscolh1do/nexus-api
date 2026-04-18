@@ -18,7 +18,7 @@
 | §5.5 | Caminho do store corrigido: `core/stores/` → `core/state/` |
 | §6 Frontend | Caminhos de todos os arquivos corrigidos para `core/state/` |
 | §6 Frontend | Referência ao `RightInspector` removida (eliminado no MVP atual) |
-| Referências | `scope-jornada-integrador-2026-04-14.md` → `scope-jornada-integrador-2026-04-15.md` |
+| Referências | `00-scope-jornada-integrador-2026-04-15.md.md` → `scope-jornada-integrador-2026-04-15.md` |
 | Referências | `spec-guardiao-aprovacao` referenciada como spec existente (não "pendente") |
 
 ---

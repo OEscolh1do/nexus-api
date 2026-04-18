@@ -40,7 +40,7 @@ export const CompactNumberInput: React.FC<CompactNumberInputProps> = ({
 
   return (
     <div className="flex flex-col gap-1 focus-within:text-emerald-400 text-slate-400">
-      <label className="text-[9px] font-bold uppercase tracking-widest text-inherit">
+      <label className="text-[11px] font-bold uppercase tracking-widest text-inherit">
         {label}
       </label>
       <div className="flex items-center bg-slate-950 border border-slate-800 rounded-sm px-2 py-1.5 focus-within:border-emerald-500/50 transition-colors">

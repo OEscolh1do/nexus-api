@@ -26,11 +26,11 @@ const PlacementBar: React.FC<{ setFocusedBlock: (b: any) => void }> = ({ setFocu
   const placedCount = modules.length;
 
   return (
-    <div className="h-8 bg-slate-900/80 backdrop-blur-sm border-t border-sky-500/20 flex items-center justify-between px-3 text-xs shrink-0">
+    <div className="h-8 bg-slate-900/80 backdrop-blur-sm border-t border-amber-500/20 flex items-center justify-between px-3 text-xs shrink-0">
       <div className="flex items-center gap-3 text-slate-400">
-        <Sun size={12} className="text-sky-400" />
+        <Sun size={12} className="text-amber-400" />
         <span>
-          <span className="text-sky-400 font-medium font-mono tabular-nums">{placedCount}</span> módulos posicionados
+          <span className="text-amber-400 font-medium font-mono tabular-nums">{placedCount}</span> módulos posicionados
         </span>
         {placedCount > 0 && (
           <span className="text-emerald-400 flex items-center gap-1">

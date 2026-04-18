@@ -54,6 +54,9 @@ export interface TechnicalDesignSummary {
   clientName?: string | null;
   city?: string | null;
   state?: string | null;
+  moduleCount?: number;
+  inverterCount?: number;
+  voltage?: string | number | null;
   leadContext?: {
     name: string;
     phone?: string;

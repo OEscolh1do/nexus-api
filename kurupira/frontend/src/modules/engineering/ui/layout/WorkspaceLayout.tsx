@@ -27,6 +27,7 @@ import { TopRibbon } from '../panels/TopRibbon';
 import { CenterCanvas } from '../panels/CenterCanvas';
 import { CanvasContainer } from '../panels/CanvasContainer';
 import { LeftOutliner } from '../panels/LeftOutliner';
+import { MobileOutlinerSheet } from '../panels/MobileOutlinerSheet';
 import { WorkspaceTabs } from '../panels/WorkspaceTabs';
 import { useSolarStore, selectModules } from '@/core/state/solarStore';
 import { useTechStore } from '../../store/useTechStore';
@@ -39,8 +40,20 @@ import { SettingsModule } from '@/modules/settings/SettingsModule';
 // =============================================================================
 
 export const WorkspaceLayout: React.FC = () => {
-  // Layout state (panels visibility) - Continues local
-  const [leftOpen] = useState(true);
+  // Layout state — colapsa automaticamente em mobile
+  const [leftOpen, setLeftOpen] = useState(() => window.innerWidth >= 768);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+
+  // Detecta mudanças de viewport
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (mobile) setLeftOpen(false);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   
   const isSettingsOpen = useUIStore(s => s.isSettingsDrawerOpen);
   const closeSettings = useUIStore(s => s.closeSettingsDrawer);
@@ -108,10 +121,13 @@ export const WorkspaceLayout: React.FC = () => {
     }
   }, [catalogModules, catalogInverters, userModules.length, addModule]);
 
+  // Em mobile, a sidebar some do grid (col 0px fixo) — o Bottom Sheet assume
   const gridCols = [
-    leftOpen ? '240px' : '0px',
+    (!isMobile && leftOpen) ? '240px' : '0px',
     '1fr',
   ].join(' ');
+
+  const gridTransition = 'grid-template-columns 300ms ease-in-out';
 
   return (
     <div
@@ -124,6 +140,7 @@ export const WorkspaceLayout: React.FC = () => {
           "ribbon ribbon"
           "outliner canvas"
         `,
+        transition: gridTransition,
       }}
     >
       {/* ── TOP RIBBON (row 1, spans all columns) ── */}
@@ -131,15 +148,30 @@ export const WorkspaceLayout: React.FC = () => {
         <TopRibbon />
       </div>
 
-      {/* ── LEFT OUTLINER (row 2, col 1) ── */}
-      {leftOpen && (
+      {/* ── LEFT OUTLINER — Desktop only (row 2, col 1) ── */}
+      {!isMobile && (
         <div
           style={{ gridArea: 'outliner' }}
-          className="overflow-hidden border-r border-slate-800/50 z-10"
+          className={`overflow-hidden border-r border-slate-800/50 z-10 transition-all duration-300 ${leftOpen ? 'w-[240px]' : 'w-0'}`}
         >
-          <LeftOutliner />
+          {leftOpen && <LeftOutliner onToggle={() => setLeftOpen(false)} />}
         </div>
       )}
+
+      {/* ── EXPAND BUTTON — Desktop only, when sidebar is closed ── */}
+      {!isMobile && !leftOpen && (
+        <button
+          onClick={() => setLeftOpen(true)}
+          title="Expandir painel"
+          className="absolute top-1/2 left-0 -translate-y-1/2 z-30 flex items-center justify-center w-4 h-12 bg-slate-800 border border-l-0 border-slate-700 text-slate-500 hover:text-slate-200 hover:bg-slate-700 transition-all duration-200 rounded-r-sm shadow-lg"
+          style={{ gridArea: 'canvas' }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+        </button>
+      )}
+
+      {/* ── MOBILE OUTLINER — Bottom Sheet (overlay, fixed position) ── */}
+      {isMobile && <MobileOutlinerSheet />}
 
       {/* ── CENTER CANVAS (row 2, col 2) ── */}
       <div id="engineering-viewport" style={{ gridArea: 'canvas' }} className="overflow-hidden relative z-0 flex flex-col">

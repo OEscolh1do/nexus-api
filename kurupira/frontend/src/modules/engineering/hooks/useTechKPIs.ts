@@ -26,15 +26,8 @@ export const useTechKPIs = () => {
 
     // 2. Memoized Main KPIs Calculations
     const kpi = useMemo(() => {
-        // DC Efetivo: Só contabilizamos a potência de módulos conectados a uma string ATIVA num MPPT (Inversor)
-        const efetiveModulesId = new Set(
-            techStrings.filter(s => s.mpptId !== null).flatMap(s => s.moduleIds)
-        );
-
-        // Total DC Power (kWp) efetivamente conectada
-        const totalDC = modules
-            .filter(m => efetiveModulesId.has(m.id))
-            .reduce((acc, m) => acc + (m.power), 0) / 1000;
+        // Total DC Power (kWp) - Baseado em todo o inventário selecionado (Ato 2)
+        const totalDC = modules.reduce((acc, m) => acc + (m.power), 0) / 1000;
 
         // Total AC Power (kW) - Using Snapshot (Source of Truth já está em kW)
         const totalAC = techInverters.reduce((acc, inv) => {
@@ -49,12 +42,12 @@ export const useTechKPIs = () => {
         // Inverter Sizing Factor (FDI / DC/AC Ratio)
         const dcAcRatio = totalAC > 0 ? totalDC / totalAC : 0;
 
-        // ENERGY TARGET (ESTIMATED MONTHLY)
-        // Heuristic: TotalDC (kWp) * Irradiance (4.5) * Days (30) * PR
-        // 1. Get PR Decimal (0.XX) from store selector logic
-        const efficiencyFactor = getAdditivePerformanceRatio(); // Defaulting to Additive for safety in bar
+        const efficiencyFactor = getAdditivePerformanceRatio(); 
+        const hspAvgManual = (clientData.monthlyIrradiation && clientData.monthlyIrradiation.length > 0)
+            ? clientData.monthlyIrradiation.reduce((a, b) => a + b, 0) / 12
+            : 4.5;
 
-        const estimatedGeneration = totalDC * 4.5 * 30 * efficiencyFactor;
+        const estimatedGeneration = totalDC * hspAvgManual * 30 * efficiencyFactor;
 
         // Target from Context Bridge (includes simulated loads)
         const targetConsumption = energyGoal.monthlyTarget || 0;
@@ -90,6 +83,16 @@ export const useTechKPIs = () => {
     const displayedPr = isAdditive ? prValueAdditive : prValueIEC;
     const displayedLabel = isAdditive ? "PR (Soma Simples)" : "PR (IEC 61724)";
 
+    // 4. Calculation Memory (v4.0.0)
+    const hspAvg = (clientData.monthlyIrradiation && clientData.monthlyIrradiation.length > 0)
+        ? clientData.monthlyIrradiation.reduce((a, b) => a + b, 0) / 12
+        : 4.5;
+
+    const formulas = {
+        dcPower: `${kpi.totalDC.toFixed(2)} kWp = (Σ Módulos x Pmax) / 1000`,
+        estimatedGeneration: `${Math.round(kpi.estimatedGeneration)} kWh/mês = ${kpi.totalDC.toFixed(2)} kWp x ${hspAvg} HSP x 30 dias x ${displayedPr}% PR`
+    };
+
     return {
         kpi,
         displayedPr,
@@ -97,6 +100,7 @@ export const useTechKPIs = () => {
         isAdditive,
         prValueIEC,
         prValueAdditive,
-        lossProfile
+        lossProfile,
+        formulas
     };
 };

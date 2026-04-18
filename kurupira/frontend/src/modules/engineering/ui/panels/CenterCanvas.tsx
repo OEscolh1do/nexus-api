@@ -28,6 +28,7 @@ import { SiteCanvasView } from './canvas-views/SiteCanvasView';
 import { SimulationCanvasView } from './canvas-views/SimulationCanvasView';
 import { ElectricalCanvasView } from './canvas-views/ElectricalCanvasView';
 import { ConsumptionCanvasView } from './canvas-views/ConsumptionCanvasView';
+import { ModuleCanvasView } from './canvas-views/ModuleCanvasView';
 import { PropertiesGroup } from './groups/PropertiesGroup';
 import { SettingsModule } from '@/modules/settings/SettingsModule';
 import { DocumentationModule } from '@/modules/documentation/DocumentationModule';
@@ -41,6 +42,7 @@ const CANVAS_VIEWS_REGISTRY: Partial<Record<PanelGroupId, React.FC>> = {
   site: SiteCanvasView,
   simulation: SimulationCanvasView,
   electrical: ElectricalCanvasView,
+  'module-selection': ModuleCanvasView,
   properties: PropertiesGroup,
   settings: SettingsModule,
   documentation: DocumentationModule,
@@ -121,10 +123,12 @@ const CenterCanvasInner: React.FC = () => {
   const isMapVisible = centerContent === 'map';
   const isMinimap = !isMapVisible;
 
-  // A Jornada: views sobrepostas ao MapCore (não incluem module/arrangement pois esses exibem o mapa)
-  const activeOverlayView = focusedBlock === 'consumption' ? 'consumption' :
-                            focusedBlock === 'inverter' ? 'electrical' :
-                            focusedBlock === 'simulation' ? 'simulation' : 
+  // A Jornada: views sobrepostas ao MapCore (não incluem arrangement pois esse exibe o mapa)
+  const activeOverlayView = focusedBlock === 'site'        ? 'site' :
+                            focusedBlock === 'consumption' ? 'consumption' :
+                            focusedBlock === 'module'      ? 'module-selection' :
+                            focusedBlock === 'inverter'    ? 'electrical' :
+                            focusedBlock === 'simulation'  ? 'simulation' : 
                             'none';
 
   // SPEC-003: Alvo do portal assíncrono
@@ -172,12 +176,20 @@ const CenterCanvasInner: React.FC = () => {
           {MapPayload}
           
           {/* CAMADAS CONGELADAS DA JORNADA (Sobrepondo o Mapa sem desmontá-lo) */}
+          <FrozenViewContainer isActive={activeOverlayView === 'site'}>
+            <SiteCanvasView />
+          </FrozenViewContainer>
+
           <FrozenViewContainer isActive={activeOverlayView === 'consumption'}>
             <ConsumptionCanvasView />
           </FrozenViewContainer>
           
           <FrozenViewContainer isActive={activeOverlayView === 'electrical'}>
             <ElectricalCanvasView />
+          </FrozenViewContainer>
+
+          <FrozenViewContainer isActive={activeOverlayView === 'module-selection'}>
+            <ModuleCanvasView />
           </FrozenViewContainer>
           
           <FrozenViewContainer isActive={activeOverlayView === 'simulation'}>

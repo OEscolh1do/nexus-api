@@ -143,7 +143,20 @@ async function fetchLeadsBatch(ids) {
 // List all designs (scoped by tenant)
 // Extrai métricas resumidas do blob designData (evita enviar o blob inteiro na listagem)
 function extractDesignMetrics(designData) {
-  if (!designData?.solar) return { targetPowerKwp: 0, averageConsumptionKwh: 0, lat: null, lng: null, clientName: null, city: null, state: null };
+  if (!designData?.solar) {
+    return { 
+      targetPowerKwp: 0, 
+      averageConsumptionKwh: 0, 
+      lat: null, 
+      lng: null, 
+      clientName: null, 
+      city: null, 
+      state: null,
+      moduleCount: 0,
+      inverterCount: 0,
+      voltage: null
+    };
+  }
 
   const cd = designData.solar.clientData || {};
   const avgConsumption = cd.averageConsumption || 0;
@@ -152,14 +165,18 @@ function extractDesignMetrics(designData) {
   const clientName = cd.clientName || null;
   const city = cd.city || null;
   const state = cd.state || null;
+  const voltage = cd.voltage || null;
+
+  // Equipamentos
+  const moduleCount = designData.solar.project?.placedModules?.length || 0;
+  const inverterCount = designData.solar.inverters?.ids?.length || 0;
 
   // kWp = placedModules × potência do módulo selecionado
-  const placedCount = designData.solar.project?.placedModules?.length || 0;
   const moduleIds = designData.solar.modules?.ids || [];
   const entities = designData.solar.modules?.entities || {};
   const firstModule = moduleIds.length > 0 ? entities[moduleIds[0]] : null;
   const modulePowerW = firstModule?.power || 0;
-  const systemKwp = (placedCount * modulePowerW) / 1000;
+  const systemKwp = (moduleCount * modulePowerW) / 1000;
 
   return {
     targetPowerKwp: Math.round(systemKwp * 100) / 100,
@@ -169,6 +186,9 @@ function extractDesignMetrics(designData) {
     clientName,
     city,
     state,
+    moduleCount,
+    inverterCount,
+    voltage
   };
 }
 
@@ -177,6 +197,7 @@ app.get("/api/v1/designs", authenticateToken, async (req, res) => {
     const designs = await prisma.technicalDesign.findMany({
       where: {
         tenantId: req.user.tenantId,
+        status: { not: 'ARCHIVED' },
         OR: [
           { iacaLeadId: null },
           { iacaLeadId: { not: '__settings__' } }

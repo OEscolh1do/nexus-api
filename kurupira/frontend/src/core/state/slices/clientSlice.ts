@@ -167,7 +167,7 @@ export const createClientSlice: StateCreator<
     newHistory[monthIndex] = value;
     invoices[0] = { ...invoices[0], monthlyHistory: newHistory };
 
-    const newAvg = newHistory.reduce((a, b) => a + b, 0) / 12;
+    const newAvg = Number((newHistory.reduce((a, b) => a + b, 0) / 12).toFixed(2));
 
     return {
       clientData: {

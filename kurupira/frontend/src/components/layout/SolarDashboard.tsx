@@ -1,6 +1,7 @@
 
 import { useState, useMemo, FC } from 'react';
 import { InputData, EngineeringSettings, ProposalData, ModuleSpecs, InverterSpecs, WeatherAnalysis } from '@/core/types';
+import { useSolarStore } from '@/core/state/solarStore';
 import { InputForm } from '@/components/forms/InputForm';
 import { EnergyFluxForm } from '@/components/forms/EnergyFluxForm';
 import { TechnicalForm } from '@/components/forms/TechnicalForm';
@@ -139,12 +140,21 @@ export const SolarDashboard: FC<Props> = ({
   // HANDLERS
   const handleInputSubmit = (data: InputData, weather?: WeatherAnalysis) => {
     setInputData(data);
-    if (weather) setWeatherData(weather);
+    if (weather) {
+      setWeatherData(weather);
+      
+      // SINCRONIZAÇÃO COM STORE DE ENGENHARIA (Ato 2)
+      useSolarStore.getState().setWeatherData(weather);
+    }
+    
+    useSolarStore.getState().updateClientData(data);
     setCrmStep('energy'); // Move to energy step within CRM tab
   };
 
   const handleEnergyConfirm = (data: InputData) => {
     setInputData(data);
+    // Sincroniza dados consolidados de consumo antes de entrar na engenharia
+    useSolarStore.getState().updateClientData(data);
     setActiveTab('engineering'); // Advance to next main tab
   };
 

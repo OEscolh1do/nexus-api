@@ -21,6 +21,7 @@ function buildDesignData() {
       simulatedItems: solar.simulatedItems,
       bosInventory: solar.bosInventory,
       engineeringData: solar.engineeringData,
+      weatherData: solar.weatherData,
     },
     tech: {
       lossProfile: tech.lossProfile,
@@ -39,6 +40,7 @@ function hydrateStores(designData: any) {
       ...current,
       ...designData.solar,
       project: { ...current.project, ...designData.solar.project },
+      weatherData: designData.solar.weatherData || null,
     }));
   }
 
@@ -126,17 +128,17 @@ export const ProjectService = {
   async createStandaloneProject(payload: {
     projectName: string;
     clientName: string;
-    city: string;
-    stateUF: string;
+    city?: string;
+    stateUF?: string;
     street?: string;
     zipCode?: string;
     neighborhood?: string;
     number?: string;
     lat?: number;
     lng?: number;
-    connectionType: 'monofasico' | 'bifasico' | 'trifasico';
-    tariffRate: number;
-    monthlyHistory: number[];
+    connectionType?: 'monofasico' | 'bifasico' | 'trifasico';
+    tariffRate?: number;
+    monthlyHistory?: number[];
   }): Promise<string | null> {
     try {
       const design = await KurupiraClient.designs.create({
@@ -160,23 +162,23 @@ export const ProjectService = {
         zipCode: payload.zipCode || '',
         neighborhood: payload.neighborhood || '',
         number: payload.number || '',
-        city: payload.city,
-        state: payload.stateUF,
+        city: payload.city || '',
+        state: payload.stateUF || '',
         lat: payload.lat || 0,
         lng: payload.lng || 0,
-        connectionType: payload.connectionType,
-        tariffRate: payload.tariffRate,
-        averageConsumption: payload.monthlyHistory.reduce((a,b)=>a+b,0)/12,
+        connectionType: payload.connectionType || 'monofasico',
+        tariffRate: payload.tariffRate || 0.92,
+        averageConsumption: (payload.monthlyHistory || []).reduce((a, b) => a + b, 0) / 12,
         invoices: [{
           id: 'default',
           name: 'Instalação Principal',
           installationNumber: '',
           concessionaire: '',
           rateGroup: 'B',
-          connectionType: payload.connectionType,
+          connectionType: payload.connectionType || 'monofasico',
           voltage: '220',
           breakerCurrent: 50,
-          monthlyHistory: payload.monthlyHistory,
+          monthlyHistory: payload.monthlyHistory || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         }],
       };
 

@@ -43,11 +43,11 @@ export const MPPTTopologyManager: React.FC<MPPTTopologyManagerProps> = ({
          </span>
          <div className="flex items-center gap-1.5">
            {mpptValid ? (
-             <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+             <span className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
                <CheckCircle2 size={10} /> Validado
              </span>
            ) : (
-             <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-red-400 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">
+             <span className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-widest text-red-400 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">
                <ShieldAlert size={10} /> Restrições
              </span>
            )}
@@ -87,19 +87,19 @@ export const MPPTTopologyManager: React.FC<MPPTTopologyManagerProps> = ({
         {mpptConfig.stringsCount > 0 ? (
            Array.from({ length: mpptConfig.stringsCount }).map((_, i) => (
              <div key={i} className="flex items-center gap-2">
-               <span className="text-[10px] text-slate-500 uppercase tracking-widest min-w-10">Str {i+1}</span>
+               <span className="text-[11px] text-slate-500 uppercase tracking-widest min-w-[40px]">Str {i+1}</span>
                <div className="flex gap-0.5 flex-wrap flex-1">
                  {Array.from({ length: mpptConfig.modulesPerString }).map((_, m) => (
                    <div key={m} className="w-1.5 h-3 bg-sky-500/80 rounded-[1px]" />
                  ))}
                </div>
-               <span className="text-[10px] text-slate-400 font-mono shrink-0">
+               <span className="text-[11px] text-slate-400 font-mono shrink-0">
                   {mpptConfig.modulesPerString} mod
                </span>
              </div>
            ))
         ) : (
-          <div className="text-[9px] text-slate-600 uppercase tracking-widest text-center py-2">
+          <div className="text-[11px] text-slate-600 uppercase tracking-widest text-center py-2">
              Configure para visualizar topologia
           </div>
         )}
@@ -108,15 +108,15 @@ export const MPPTTopologyManager: React.FC<MPPTTopologyManagerProps> = ({
       {/* Mini-Laudo do MPPT */}
       <div className="flex gap-4 text-[11px] font-mono mt-1 pt-3 border-t border-slate-800">
          <span className={cn('flex flex-col', isVocError ? 'text-red-400' : 'text-slate-400')}>
-           <span className="text-[8px] uppercase tracking-widest text-slate-500">Voc (Tmin)</span>
-           <span>{vocCalculado.toFixed(1)}V</span>
+           <span className="text-[11px] uppercase tracking-widest text-slate-500">Voc (Tmin)</span>
+           <span>{vocCalculado.toFixed(2)}V</span>
          </span>
          <span className={cn('flex flex-col border-l border-slate-800 pl-4', isIscError ? 'text-red-400' : 'text-slate-400')}>
-           <span className="text-[8px] uppercase tracking-widest text-slate-500">Isc Máx</span>
-           <span>{iscCalculado.toFixed(1)}A</span>
+           <span className="text-[11px] uppercase tracking-widest text-slate-500">Isc Máx</span>
+           <span>{iscCalculado.toFixed(2)}A</span>
          </span>
          <span className="flex flex-col border-l border-slate-800 pl-4 text-slate-300">
-           <span className="text-[8px] uppercase tracking-widest text-slate-500">Potência DC</span>
+           <span className="text-[11px] uppercase tracking-widest text-slate-500">Potência DC</span>
            <span>{potenciaMppt.toFixed(2)} kWp</span>
          </span>
       </div>

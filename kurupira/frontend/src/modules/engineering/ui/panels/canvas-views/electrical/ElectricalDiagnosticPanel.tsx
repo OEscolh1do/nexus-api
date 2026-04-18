@@ -36,7 +36,7 @@ export const ElectricalDiagnosticPanel: React.FC<ElectricalDiagnosticPanelProps>
     <div className="flex flex-col gap-4 h-full">
       {/* 1. Visão Geral do Inversor */}
       <div className="bg-slate-900 rounded-lg border border-slate-800 p-4 flex flex-col gap-2 shrink-0">
-        <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Equipamento Selecionado</p>
+        <p className="text-[11px] text-slate-500 uppercase tracking-wider mb-1">Equipamento Selecionado</p>
         <h3 className="text-sm font-medium text-slate-200">
           Inversor Principal
         </h3>
@@ -49,11 +49,11 @@ export const ElectricalDiagnosticPanel: React.FC<ElectricalDiagnosticPanelProps>
         
         <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-2 text-[11px] text-slate-400">
           <span className="flex flex-col gap-0.5">
-            <span className="text-[8px] uppercase tracking-widest text-slate-500">Potência</span>
-            <span className="text-slate-300 font-mono">{inverterState.snapshot.nominalPower.toFixed(1)} kW</span>
+            <span className="text-[11px] uppercase tracking-widest text-slate-500 font-bold">Potência</span>
+            <span className="text-slate-300 font-mono">{inverterState.snapshot.nominalPower.toFixed(2)} kW</span>
           </span>
           <span className="flex flex-col gap-0.5">
-            <span className="text-[8px] uppercase tracking-widest text-slate-500">Qtd MPPTs</span>
+            <span className="text-[11px] uppercase tracking-widest text-slate-500 font-bold">Qtd MPPTs</span>
             <span className="text-slate-300 font-mono">{inverterState.snapshot.mppts}</span>
           </span>
         </div>
@@ -69,11 +69,11 @@ export const ElectricalDiagnosticPanel: React.FC<ElectricalDiagnosticPanelProps>
 
       {/* 2. Chips Rápidos de Status (Global) */}
       <div className="bg-slate-900 rounded-lg border border-slate-800 p-3 flex flex-col gap-3 shrink-0">
-        <p className="text-[10px] text-slate-500 uppercase tracking-wider">Métricas de Dimensionamento</p>
+        <p className="text-[11px] text-slate-500 uppercase tracking-wider">Métricas de Dimensionamento</p>
         
         <ValidationChip 
           label="FDI Global" 
-          value={`${(fdi * 100).toFixed(1)}%`} 
+          value={`${(fdi * 100).toFixed(2)}%`} 
           severity={fdiSeverity} 
           subtitle="Recomendado: 80% - 135%"
           size="normal"
@@ -82,12 +82,12 @@ export const ElectricalDiagnosticPanel: React.FC<ElectricalDiagnosticPanelProps>
         <div className="grid grid-cols-2 gap-2">
           <ValidationChipMini 
             label="Voc Máx" 
-            value={vocMaxGlobal > 0 ? `${vocMaxGlobal.toFixed(0)} V` : '--- V'} 
+            value={vocMaxGlobal > 0 ? `${vocMaxGlobal.toFixed(2)} V` : '--- V'} 
             severity={vocGlobalStatus} 
           />
           <ValidationChipMini 
             label="Isc Máx" 
-            value={iscMaxGlobal > 0 ? `${iscMaxGlobal.toFixed(1)} A` : '--- A'} 
+            value={iscMaxGlobal > 0 ? `${iscMaxGlobal.toFixed(2)} A` : '--- A'} 
             severity={iscGlobalStatus} 
           />
         </div>
@@ -95,7 +95,7 @@ export const ElectricalDiagnosticPanel: React.FC<ElectricalDiagnosticPanelProps>
 
       {/* 3. Lista de Diagnósticos */}
       <div className="bg-slate-900 rounded-lg border border-slate-800 p-3 overflow-hidden flex flex-col min-h-0 flex-1">
-        <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-3 shrink-0">Diagnósticos Ativos</p>
+        <p className="text-[11px] text-slate-500 uppercase tracking-wider mb-3 shrink-0">Diagnósticos Ativos</p>
         <div className="overflow-y-auto pr-1 flex-1">
           <DiagnosticAlertsList alerts={alerts} />
         </div>

@@ -33,7 +33,7 @@ export const VoltageRangeChart: React.FC<VoltageRangeChartProps> = ({
   return (
     <div className="bg-slate-900 rounded-lg border border-slate-800 p-4 relative flex flex-col gap-4">
       <div className="flex items-center justify-between mb-2">
-         <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Análise Termodinâmica Multi-MPPT</span>
+         <span className="text-[11px] text-slate-400 uppercase tracking-widest font-bold">Análise Termodinâmica Multi-MPPT</span>
       </div>
 
       <div className="relative w-full border-l border-slate-700/50 min-h-[64px] flex flex-col justify-center gap-3 py-2">
@@ -46,7 +46,7 @@ export const VoltageRangeChart: React.FC<VoltageRangeChartProps> = ({
             width: getPercent(limitMpptVMax - limitMpptVMin) 
           }}
         >
-           <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-[8px] text-emerald-500/60 uppercase tracking-widest whitespace-nowrap">
+           <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-[11px] text-emerald-500/60 uppercase tracking-widest whitespace-nowrap">
              Faixa MPPT
            </div>
         </div>
@@ -56,8 +56,8 @@ export const VoltageRangeChart: React.FC<VoltageRangeChartProps> = ({
           className="absolute top-0 bottom-0 w-px bg-red-500/80 z-0"
           style={{ left: getPercent(limitInversorVMax) }}
         >
-          <div className="absolute -top-3 left-1 text-[8px] text-red-500 uppercase font-bold whitespace-nowrap">
-             Max Inv {limitInversorVMax}V
+          <div className="absolute -top-3 left-1 text-[11px] text-red-500 uppercase font-bold whitespace-nowrap">
+             Max Inv {limitInversorVMax.toFixed(2)}V
           </div>
           <div className="absolute top-0 right-0 w-64 h-full bg-gradient-to-r from-red-500/10 to-transparent pointer-events-none" />
         </div>
@@ -68,7 +68,7 @@ export const VoltageRangeChart: React.FC<VoltageRangeChartProps> = ({
 
            return (
              <div key={p.mpptId} className="relative h-4 w-full z-10 group">
-                <div className="absolute -left-6 top-1/2 -translate-y-1/2 text-[8px] text-slate-500 font-mono">
+                <div className="absolute -left-6 top-1/2 -translate-y-1/2 text-[11px] text-slate-500 font-mono">
                    M{p.mpptId}
                 </div>
                 
@@ -77,23 +77,23 @@ export const VoltageRangeChart: React.FC<VoltageRangeChartProps> = ({
                 
                 {/* Barra Range Operacional VMP */}
                 <div 
-                  className="absolute h-3 bg-amber-500/90 rounded-sm top-1/2 -translate-y-1/2 shadow-sm border-x-2 border-amber-400 opacity-90 group-hover:opacity-100 transition-opacity"
-                  title={`Vmp Range: ${p.vmpMin.toFixed(0)}V a ${p.vmpMax.toFixed(0)}V`}
-                  style={{ 
-                    left: getPercent(p.vmpMin), 
-                    width: getPercent(p.vmpMax - p.vmpMin) 
-                  }}
+                   className="absolute h-3 bg-amber-500/90 rounded-sm top-1/2 -translate-y-1/2 shadow-sm border-x-2 border-amber-400 opacity-90 group-hover:opacity-100 transition-opacity"
+                   title={`Vmp Range: ${p.vmpMin.toFixed(2)}V a ${p.vmpMax.toFixed(2)}V`}
+                   style={{ 
+                     left: getPercent(p.vmpMin), 
+                     width: getPercent(p.vmpMax - p.vmpMin) 
+                   }}
                 />
 
                 {/* Marcador Voc Max */}
                 <div 
-                  className={`absolute top-1/2 -translate-y-1/2 w-1.5 h-4 bg-sky-400 z-20 shadow-[0_0_8px_rgba(56,189,248,0.5)] ${p.vocMax > limitInversorVMax ? 'bg-red-500 shadow-red-500/50' : ''}`}
-                  title={`Voc Máximo: ${p.vocMax.toFixed(0)}V`}
-                  style={{ left: getPercent(p.vocMax) }}
+                   className={`absolute top-1/2 -translate-y-1/2 w-1.5 h-4 bg-sky-400 z-20 shadow-[0_0_8px_rgba(56,189,248,0.5)] ${p.vocMax > limitInversorVMax ? 'bg-red-500 shadow-red-500/50' : ''}`}
+                   title={`Voc Máximo: ${p.vocMax.toFixed(2)}V`}
+                   style={{ left: getPercent(p.vocMax) }}
                 >
                    {/* Tooltip flutuante no Hover */}
-                   <div className="hidden group-hover:flex absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 px-2 py-1 rounded text-[9px] font-mono text-slate-300 shadow-xl whitespace-nowrap z-50">
-                      Voc: <span className={p.vocMax > limitInversorVMax ? 'text-red-400 ml-1 font-bold' : 'text-sky-400 ml-1 font-bold'}>{p.vocMax.toFixed(0)}V</span>
+                   <div className="hidden group-hover:flex absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 px-2 py-1 rounded text-[11px] font-mono text-slate-300 shadow-xl whitespace-nowrap z-50">
+                      Voc: <span className={p.vocMax > limitInversorVMax ? 'text-red-400 ml-1 font-bold' : 'text-sky-400 ml-1 font-bold'}>{p.vocMax.toFixed(2)}V</span>
                    </div>
                 </div>
              </div>
@@ -108,7 +108,7 @@ export const VoltageRangeChart: React.FC<VoltageRangeChartProps> = ({
 
       </div>
 
-      <div className="flex flex-wrap gap-4 items-center justify-center mt-3 text-[9px] text-slate-500 uppercase tracking-wider">
+      <div className="flex flex-wrap gap-4 items-center justify-center mt-3 text-[11px] text-slate-500 uppercase tracking-wider">
          <span className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm bg-amber-500" /> Vmp Operacional</span>
          <span className="flex items-center gap-1.5"><span className="w-1.5 h-3 bg-sky-400 shadow-sm shadow-sky-500/50" /> Voc (Aberto T. Mín)</span>
          <span className="flex items-center gap-1.5"><span className="w-3 h-2 border border-emerald-500/50 bg-emerald-500/20" /> Range Inversor</span>

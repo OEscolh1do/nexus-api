@@ -215,7 +215,7 @@ export const SimulationCanvasView: React.FC = () => {
             <div className="lg:col-span-4 rounded-xl border border-slate-800 bg-slate-900/50 p-3 flex flex-col gap-3">
               <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Visão Geral do Sistema</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-                <KpiPill label="Consumo Anual" value={Math.round(stats.totalCons).toLocaleString('pt-BR')} unit="kWh" color="text-teal-400" subtitle={`${Math.round(stats.totalCons / 12).toLocaleString('pt-BR')} kWh/mês`} />
+                <KpiPill label="Consumo Anual" value={Math.round(stats.totalCons).toLocaleString('pt-BR')} unit="kWh" color="text-sky-400" subtitle={`${Math.round(stats.totalCons / 12).toLocaleString('pt-BR')} kWh/mês`} />
                 <KpiPill label="Geração Estimada" value={Math.round(stats.totalGen).toLocaleString('pt-BR')} unit="kWh/ano" color="text-amber-400" subtitle={`${totalPowerKw.toFixed(2)} kWp conectado`} />
                 <KpiPill label="Cobertura" value={`${Math.round(stats.coverage)}`} unit="%" color={stats.coverage >= 100 ? 'text-emerald-400' : 'text-rose-400'} subtitle={`Balanço: ${isPositive ? '+' : ''}${Math.round(stats.balance).toLocaleString('pt-BR')} kWh/ano`} />
                 <KpiPill label="Performance Ratio" value={(prDecimal * 100).toFixed(1)} unit="%" color="text-slate-300" subtitle={`HSP médio: ${avgHsp.toFixed(2)}`} />
@@ -265,7 +265,7 @@ export const SimulationCanvasView: React.FC = () => {
                     cursor={{ fill: '#1e293b', opacity: 0.4 }}
                   />
                   <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', color: '#cbd5e1', paddingTop: '6px' }} />
-                  <Bar dataKey="Consumo (kWh)" fill="#2dd4bf" radius={[3, 3, 0, 0]} maxBarSize={38} />
+                  <Bar dataKey="Consumo (kWh)" fill="#0ea5e9" radius={[3, 3, 0, 0]} maxBarSize={38} />
                   <Bar dataKey="Geração (kWh)" fill="#fbbf24" radius={[3, 3, 0, 0]} maxBarSize={38} />
                 </BarChart>
               </ResponsiveContainer>
@@ -275,21 +275,23 @@ export const SimulationCanvasView: React.FC = () => {
           {/* ═══════════════════════════════════════════════════════════════════
               FAIXA 2 — ANÁLISE AVANÇADA (Tabs)
           ═══════════════════════════════════════════════════════════════════ */}
-          <div id="section-analise" className="rounded-2xl bg-slate-900 border border-slate-800 shadow-xl overflow-hidden">
+          <div id="section-analise" className="rounded-none bg-slate-900 border border-slate-800 shadow-xl overflow-hidden">
             {/* Tab Bar */}
-            <div className="flex items-center gap-0.5 px-3 pt-3 border-b border-slate-800">
+            <div className="flex items-center border-b border-slate-800 bg-black/20">
               {analysisTabs.map(tab => (
                 <button key={tab.key} onClick={() => setAnalysisTab(tab.key)}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-t-lg text-[10px] font-bold uppercase tracking-wider transition-all
-                    ${analysisTab === tab.key ? 'bg-slate-800 text-slate-200 border-t border-x border-slate-700' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/30'}`}>
+                  className={`flex items-center gap-1.5 px-5 py-2.5 text-[10px] font-bold uppercase tracking-wider transition-all border-r border-slate-800/60
+                    ${analysisTab === tab.key 
+                      ? 'bg-slate-800 text-slate-100 border-t-2 border-t-sky-500' 
+                      : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/30 border-t-2 border-t-transparent'}`}>
                   {tab.icon} {tab.label}
                 </button>
               ))}
 
               {/* Mês selector (só aparece na tab daily) */}
               {analysisTab === 'daily' && (
-                <div className="ml-auto flex items-center gap-2 pb-1">
-                  <select className="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-[10px] font-bold text-slate-300 outline-none cursor-pointer"
+                <div className="ml-auto flex items-center gap-2 pr-4">
+                  <select className="bg-slate-950 border border-slate-700 rounded-none px-2 py-1 text-[10px] font-bold text-slate-300 outline-none cursor-pointer"
                     value={dailyMonth} onChange={(e) => setDailyMonth(parseInt(e.target.value))}>
                     {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
                   </select>
@@ -370,7 +372,7 @@ export const SimulationCanvasView: React.FC = () => {
                       {stats.barData.map((d, i) => (
                         <tr key={d.month} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
                           <td className="px-3 py-1.5 font-bold text-slate-200">{d.month}</td>
-                          <td className="px-3 py-1.5 text-teal-400 font-mono">{Math.round(d['Consumo (kWh)']).toLocaleString('pt-BR')}</td>
+                          <td className="px-3 py-1.5 text-sky-400 font-mono">{Math.round(d['Consumo (kWh)']).toLocaleString('pt-BR')}</td>
                           <td className="px-3 py-1.5 text-amber-400 font-mono">{Math.round(d['Geração (kWh)']).toLocaleString('pt-BR')}</td>
                           <td className="px-3 py-1.5 text-emerald-400 font-mono">{Math.round(d.autoconsumo).toLocaleString('pt-BR')}</td>
                           <td className="px-3 py-1.5 text-yellow-400 font-mono">{Math.round(d.injecao).toLocaleString('pt-BR')}</td>
@@ -387,7 +389,7 @@ export const SimulationCanvasView: React.FC = () => {
                     <tfoot>
                       <tr className="border-t-2 border-slate-600 font-bold">
                         <td className="px-3 py-2 text-slate-200">TOTAL</td>
-                        <td className="px-3 py-2 text-teal-400 font-mono">{Math.round(stats.totalCons).toLocaleString('pt-BR')}</td>
+                        <td className="px-3 py-2 text-sky-400 font-mono">{Math.round(stats.totalCons).toLocaleString('pt-BR')}</td>
                         <td className="px-3 py-2 text-amber-400 font-mono">{Math.round(stats.totalGen).toLocaleString('pt-BR')}</td>
                         <td className="px-3 py-2 text-emerald-400 font-mono">{Math.round(stats.barData.reduce((a, d) => a + d.autoconsumo, 0)).toLocaleString('pt-BR')}</td>
                         <td className="px-3 py-2 text-yellow-400 font-mono">{Math.round(stats.barData.reduce((a, d) => a + d.injecao, 0)).toLocaleString('pt-BR')}</td>
@@ -429,15 +431,15 @@ export const SimulationCanvasView: React.FC = () => {
                   {/* Consumo */}
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
-                      <Zap size={14} className="text-teal-400" />
-                      <span className="text-xs font-bold text-teal-300 uppercase tracking-widest">Fatura Mensal (kWh)</span>
+                      <Zap size={14} className="text-sky-400" />
+                      <span className="text-xs font-bold text-sky-300 uppercase tracking-widest">Fatura Mensal (kWh)</span>
                     </div>
                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
                       {MONTHS.map((month, idx) => (
-                        <div key={`c-${month}`} className="flex flex-col gap-1 focus-within:text-teal-400 text-slate-500 transition-colors">
+                        <div key={`c-${month}`} className="flex flex-col gap-1 focus-within:text-sky-400 text-slate-500 transition-colors">
                           <label className="text-[9px] font-bold uppercase text-inherit text-center">{month}</label>
                           <input type="number"
-                            className="w-full bg-slate-950 border border-slate-800 rounded px-1.5 py-1 text-[11px] text-slate-300 text-center focus:border-teal-500 focus:ring-1 focus:ring-teal-500/50 focus:outline-none transition-all"
+                            className="w-full bg-slate-950 border border-slate-800 rounded px-1.5 py-1 text-[11px] text-slate-300 text-center focus:border-sky-500 focus:ring-1 focus:ring-sky-500/50 focus:outline-none transition-all"
                             value={monthlyConsumption[idx] || 0}
                             onChange={(e) => { const v = parseFloat(e.target.value); if (!isNaN(v) && v >= 0) updateMonthlyConsumption(idx, v); }}
                           />

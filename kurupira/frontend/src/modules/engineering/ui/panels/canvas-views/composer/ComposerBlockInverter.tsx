@@ -10,10 +10,9 @@ import { useElectricalValidation } from '@/modules/engineering/hooks/useElectric
 import { useUIStore } from '@/core/state/uiStore';
 import { usePanelStore } from '@/modules/engineering/store/panelStore';
 import type { InverterCatalogItem } from '@/core/schemas/inverterSchema';
-import { LegoTab, LegoNotch } from './LegoConnectors';
 
 // =============================================================================
-// INLINE INVERTER SELECTOR — Compacto, embutido no placeholder Lego
+// COMPOSER BLOCK INVERTER — Bloco Materializado
 // =============================================================================
 
 const InverterInlineSelector: React.FC<{ onAdd: (item: InverterCatalogItem) => void }> = ({ onAdd }) => {
@@ -40,40 +39,46 @@ const InverterInlineSelector: React.FC<{ onAdd: (item: InverterCatalogItem) => v
     };
 
     return (
-        <div className="space-y-1.5">
+        <div className="space-y-3">
             {/* Brand */}
-            <select
-                value={brand}
-                onChange={(e) => { setBrand(e.target.value); setModelId(''); }}
-                className="w-full px-2 py-1 bg-slate-950 border border-slate-800 rounded text-[10px] text-slate-200 outline-none focus:border-emerald-500/50 transition-colors"
-            >
-                <option value="">Marca do inversor...</option>
-                {brands.map(b => <option key={b} value={b}>{b}</option>)}
-            </select>
+            <div className="flex flex-col gap-1">
+                <label className="text-[11px] uppercase font-black text-emerald-500/60 tracking-widest px-1">Fabricante</label>
+                <select
+                    value={brand}
+                    onChange={(e) => { setBrand(e.target.value); setModelId(''); }}
+                    className="w-full h-8 px-2 bg-slate-950 border border-slate-800 rounded-sm text-[11px] text-slate-200 outline-none focus:border-emerald-500/50 transition-colors font-mono"
+                >
+                    <option value="">SELECIONAR MARCA...</option>
+                    {brands.map(b => <option key={b} value={b}>{b}</option>)}
+                </select>
+            </div>
 
             {/* Model */}
             {brand && (
-                <select
-                    value={modelId}
-                    onChange={(e) => setModelId(e.target.value)}
-                    className="w-full px-2 py-1 bg-slate-950 border border-slate-800 rounded text-[10px] text-slate-200 outline-none focus:border-emerald-500/50 transition-colors animate-in fade-in slide-in-from-top-1 duration-150"
-                >
-                    <option value="">Modelo...</option>
-                    {modelsForBrand.map((inv: InverterCatalogItem) => (
-                        <option key={inv.id} value={inv.id}>
-                            {inv.model} — {inv.nominalPowerW / 1000}kW · {inv.mppts?.length || 1} MPPT
-                        </option>
-                    ))}
-                </select>
+                <div className="flex flex-col gap-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                    <label className="text-[11px] uppercase font-black text-emerald-500/60 tracking-widest px-1">Modelo de Conversão</label>
+                    <select
+                        value={modelId}
+                        onChange={(e) => setModelId(e.target.value)}
+                        className="w-full h-8 px-2 bg-slate-950 border border-slate-800 rounded-sm text-[11px] text-slate-200 outline-none focus:border-emerald-500/50 transition-colors font-mono"
+                    >
+                        <option value="">SELECIONAR EQUIPAMENTO...</option>
+                        {modelsForBrand.map((inv: InverterCatalogItem) => (
+                            <option key={inv.id} value={inv.id}>
+                                {inv.model} — {(inv.nominalPowerW / 1000).toFixed(2)}kW
+                            </option>
+                        ))}
+                    </select>
+                </div>
             )}
 
             {/* Add Button */}
             {selectedItem && (
                 <button
                     onClick={handleAdd}
-                    className="w-full flex items-center justify-center gap-1 px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-bold rounded transition-colors animate-in fade-in slide-in-from-bottom-1 duration-150"
+                    className="w-full h-8 mt-1 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-slate-950 text-[11px] font-black rounded-sm transition-all animate-in zoom-in-95 duration-200 uppercase tracking-widest shadow-lg shadow-emerald-900/20"
                 >
-                    <Plus size={10} /> Adicionar
+                    <Plus size={12} strokeWidth={3} /> ADICIONAR AO PROJETO
                 </button>
             )}
         </div>
@@ -138,29 +143,22 @@ export const ComposerBlockInverter: React.FC = () => {
             <div 
                 onClick={() => setFocusedBlock('inverter')}
                 className={cn(
-                    "relative rounded-b-sm rounded-t-none border flex flex-col transition-all duration-300 z-10 cursor-pointer overflow-visible pt-[16px] -mt-px animate-lego-snap",
+                    "relative rounded-none border-x border-b flex flex-col transition-all duration-300 z-10 cursor-pointer overflow-visible -mt-px",
                     isFocused
-                        ? "border-emerald-500 bg-emerald-950/80 shadow-[0_0_15px_rgba(16,185,129,0.25)] ring-1 ring-emerald-500/50"
+                        ? "border-emerald-500 bg-emerald-950 shadow-[0_0_20px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/50"
                         : isDeemphasized
-                            ? "border-emerald-900/30 bg-emerald-950/40 opacity-50 grayscale select-none"
-                            : "border-dashed border-emerald-600/30 bg-emerald-950/60 shadow-[inset_0_-3px_0_rgba(0,0,0,0.25)]"
+                            ? "border-emerald-900/30 bg-emerald-950/40 opacity-40 select-none"
+                            : "border-dashed border-emerald-600/30 bg-emerald-950 hover:bg-emerald-900/20 active:bg-emerald-950 transition-colors"
                 )}
             >
-                {/* Lego Notch (recebe tab DC do módulo) */}
-                <LegoNotch color="emerald" dashed />
-
-                {/* Lego Tab AC (base) */}
-                <LegoTab label="AC" color="emerald" dashed />
-                {/* Header compacto */}
-                <div className="px-3 py-2 flex items-center gap-2 border-b border-emerald-500/10">
-                    <div className="w-5 h-5 rounded flex items-center justify-center bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                        <Cpu size={11} />
+                <div className="px-4 py-2.5 flex items-center justify-between border-b border-emerald-500/10">
+                    <div className="flex items-center gap-2">
+                        <Cpu size={12} className="text-emerald-500" />
+                        <span className="text-[11px] font-black text-emerald-500 uppercase tracking-[0.2em]">Seleção Inversor</span>
                     </div>
-                    <span className="text-[9px] font-bold text-emerald-500/80 uppercase tracking-widest">Inversor</span>
                 </div>
 
-                {/* Seletor inline */}
-                <div className="p-2.5">
+                <div className="p-4">
                     <InverterInlineSelector onAdd={handleAddInverter} />
                 </div>
             </div>
@@ -172,15 +170,14 @@ export const ComposerBlockInverter: React.FC = () => {
     // ═══════════════════════════════════════════════════════════════════════
 
     const displayManufacturer = projectInv.manufacturer || 'Inversor';
-    const displayModel = projectInv.model || 'Modelo Desconhecido';
+    const displayModel = projectInv.model || 'Modelo';
     const displayPower = projectInv.nominalPower || 0;
+    const maxEfficiency = projectInv.maxEfficiency || 0;
 
     const modules = useSolarStore(selectModules);
     let totalDcKwp = 0;
-    let totalModules = 0;
     modules.forEach(m => {
         totalDcKwp += (m.power || 0) / 1000;
-        totalModules += 1;
     });
 
     const inverterEntries = electrical?.entries?.filter((e: any) => e.inverterId === techInv.id) || [];
@@ -206,10 +203,11 @@ export const ComposerBlockInverter: React.FC = () => {
     const iscHasError = allMessages.some((msg: string) => msg.includes('Isc(') || msg.includes('Isc'));
     const iscSeverity: ChipSeverity = maxIsc === 0 ? 'neutral' : iscHasError ? 'warn' : 'ok';
 
-    const statusColor = hasError ? 'border-red-500/40' : hasWarning ? 'border-amber-500/40' : 'border-emerald-500/30';
-    const headerBg = hasError ? 'bg-red-500/5' : hasWarning ? 'bg-amber-500/5' : 'bg-emerald-950/30';
+    const statusColor = hasError ? 'border-red-500/50' : hasWarning ? 'border-amber-500/50' : 'border-emerald-500';
+    const headerBg = hasError ? 'bg-red-500/5' : hasWarning ? 'bg-amber-500/5' : 'bg-emerald-500/5';
 
-    const handleRemove = () => {
+    const handleRemove = (e: React.MouseEvent) => {
+        e.stopPropagation();
         removeInverter(techInv.id);
         useTechStore.getState().removeInverter(techInv.id);
     };
@@ -218,62 +216,84 @@ export const ComposerBlockInverter: React.FC = () => {
         <div 
             onClick={() => { setFocusedBlock('inverter'); restoreMap(); }}
             className={cn(
-                "relative rounded-b-sm rounded-t-none border flex flex-col overflow-visible transition-all duration-300 z-10 cursor-pointer animate-lego-snap pt-[16px] -mt-px",
+                "relative rounded-none border-x border-b flex flex-col overflow-visible transition-all duration-300 z-10 cursor-pointer -mt-px shadow-lg",
                 statusColor,
                 isFocused
-                    ? "border-emerald-500 bg-emerald-950/80 shadow-[0_0_15px_rgba(16,185,129,0.25)] ring-1 ring-emerald-500/50"
+                    ? "bg-slate-950 shadow-[0_0_20px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/50"
                     : isDeemphasized
-                        ? "border-emerald-900/30 bg-emerald-950/40 opacity-50 grayscale select-none"
-                        : "border-emerald-600/40 bg-emerald-950/70 hover:border-emerald-500/50 shadow-[inset_0_-3px_0_rgba(0,0,0,0.25)] backdrop-blur-sm"
+                        ? "border-emerald-900/30 bg-emerald-950/40 opacity-40 select-none"
+                        : "bg-slate-950/90 hover:bg-slate-950 backdrop-blur-sm"
         )}>
-            {/* Lego Notch (recebe tab DC do módulo) */}
-            <LegoNotch color="emerald" />
-
-            {/* Lego Tab AC (base) */}
-            <LegoTab label="AC" color="emerald" />
-            {/* Header */}
-            <div className={cn("px-4 py-3 flex items-center justify-between border-b border-slate-800/50 transition-colors gap-3", headerBg)}>
+            {/* Header: CONVERSÃO AC */}
+            <div className={cn("px-4 py-3 flex items-center justify-between border-b border-slate-800/40 transition-colors gap-3", headerBg)}>
                 <div className="flex items-center gap-3">
-                    <div className="w-6 h-6 rounded flex items-center justify-center border border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
-                        <Cpu size={13} />
+                    <div className="w-6 h-6 rounded-sm flex items-center justify-center border border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
+                        <Cpu size={13} strokeWidth={2.5} />
                     </div>
                     <div className="flex flex-col">
-                        <span className="text-xs font-bold text-slate-100 leading-tight truncate max-w-[140px]">
+                        <div className="flex items-center gap-2">
+                           <span className="text-[11px] font-black text-emerald-500 uppercase tracking-[0.2em] leading-none">Conversão AC</span>
+                           <span className="text-[11px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded-sm font-bold font-mono">
+                             {techInv.mpptConfigs.length} MPPT
+                           </span>
+                        </div>
+                        <span className="text-xs font-bold text-slate-100 leading-tight truncate max-w-[140px] mt-1 uppercase tracking-tight">
                             {displayManufacturer} {displayModel}
                         </span>
-                        <div className="text-[9px] text-slate-500 font-bold flex items-center gap-1.5 mt-0.5">
-                            <span className="text-emerald-500/80">{displayPower}kW</span>
-                            <span className="w-0.5 h-0.5 rounded-full bg-slate-600"></span>
-                            <span className="text-slate-400 uppercase tracking-tighter">{techInv.mpptConfigs.length} MPPTs</span>
-                        </div>
                     </div>
                 </div>
                 <button 
                     onClick={handleRemove} 
-                    className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-slate-800/60 rounded transition-all" 
-                    title="Remover inversor"
+                    className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-slate-900 rounded-sm transition-all shadow-inner active:scale-95" 
                 >
                     <Trash2 size={13} />
                 </button>
             </div>
 
-            {/* Status Chips */}
-            {totalModules > 0 && (
-                <div className="px-2.5 py-1.5 flex flex-wrap gap-1 bg-slate-950/30">
+            {/* Instrument Display: Dual Panel */}
+            <div className="flex border-b border-slate-800/40 bg-slate-900/10">
+                <div className="flex-1 p-3 flex flex-col items-center border-r border-slate-800/40 group hover:bg-emerald-500/[0.02] transition-colors">
+                    <span className="text-[11px] text-slate-500 uppercase font-black tracking-widest mb-1">Ac Output</span>
+                    <div className="flex items-baseline gap-1">
+                        <span className="text-xl font-mono font-bold text-emerald-400 tabular-nums">
+                            {displayPower.toFixed(2)}
+                        </span>
+                        <span className="text-[11px] font-bold text-emerald-600 uppercase">kW</span>
+                    </div>
+                </div>
+                <div className="flex-1 p-3 flex flex-col items-center group hover:bg-amber-500/[0.02] transition-colors">
+                    <span className="text-[11px] text-slate-500 uppercase font-black tracking-widest mb-1">Efficiency</span>
+                    <div className="flex items-baseline gap-1">
+                        <span className="text-xl font-mono font-bold text-amber-500 tabular-nums">
+                            {(maxEfficiency * 100).toFixed(2)}
+                        </span>
+                        <span className="text-[11px] font-bold text-amber-700 uppercase">%</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Status Chips Refinados */}
+            {modules.length > 0 && (
+                <div className="px-3 py-2 flex flex-wrap gap-1.5 bg-slate-950 text-[11px]">
                     {ratioValue > 0 && <StatusChip label="Ratio" value={ratioValue.toFixed(2)} severity={ratioSeverity} />}
-                    {maxVoc > 0 && <StatusChip label="Voc" value={`${maxVoc.toFixed(0)}V`} severity={vocSeverity} />}
-                    {maxIsc > 0 && <StatusChip label="Isc" value={`${maxIsc.toFixed(1)}A`} severity={iscSeverity} />}
+                    {maxVoc > 0 && <StatusChip label="Voc" value={`${maxVoc.toFixed(2)}V`} severity={vocSeverity} />}
+                    {maxIsc > 0 && <StatusChip label="Isc" value={`${maxIsc.toFixed(2)}A`} severity={iscSeverity} />}
                 </div>
             )}
 
-            {/* Validation Messages */}
+            {/* Validation Logs */}
             {(hasError || hasWarning) && allMessages.length > 0 && (
-                <div className={cn("px-2.5 py-1.5 border-t text-[8px] flex items-start gap-1 font-medium",
+                <div className={cn("px-3 py-2 border-t text-[11px] flex items-start gap-2 font-mono leading-tight",
                     hasError ? 'border-red-900/50 bg-red-950/20 text-red-400' : 'border-amber-900/50 bg-amber-950/20 text-amber-500'
                 )}>
-                    <AlertTriangle size={9} className="shrink-0 mt-0.5" />
-                    <div className="flex flex-col gap-0.5">
-                        {allMessages.map((msg: any, idx) => <span key={idx}>{String(msg)}</span>)}
+                    <AlertTriangle size={10} className="shrink-0 mt-0.5" />
+                    <div className="flex flex-col gap-1">
+                        {allMessages.map((msg: any, idx) => (
+                           <div key={idx} className="flex gap-1.5">
+                              <span className="opacity-40">[{idx + 1}]</span>
+                              <span>{String(msg).toUpperCase()}</span>
+                           </div>
+                        ))}
                     </div>
                 </div>
             )}

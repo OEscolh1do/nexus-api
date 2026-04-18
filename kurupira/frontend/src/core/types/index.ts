@@ -23,5 +23,6 @@ export interface WeatherAnalysis {
   temp_monthly?: number[];
   irradiation_source: string;
   ambient_temp_avg: number;
+  hsp_avg?: number;
   location_name: string;
 }

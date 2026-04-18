@@ -154,7 +154,7 @@ export const ElectricalCanvasView: React.FC = () => {
            />
 
            <div className="flex flex-col gap-3">
-             <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold ml-1 mt-2">
+             <span className="text-[11px] text-slate-500 uppercase tracking-widest font-bold ml-1 mt-2">
                Configuração e Topologia (Por MPPT)
              </span>
              {activeInverter.mpptConfigs.map(mppt => {
@@ -201,20 +201,20 @@ export const ElectricalCanvasView: React.FC = () => {
       {/* FAIXA CTTA */}
       <div className="mt-auto pt-3 border-t border-slate-800 shrink-0">
         {globalHealth !== 'error' ? (
-          <div className="flex items-center justify-between px-4 py-3 bg-emerald-900/10 border border-emerald-500/20 rounded-lg">
+          <div className="flex items-center justify-between px-4 py-3 bg-emerald-900/10 border border-emerald-500/20 rounded-sm">
              <span className="text-sm font-medium text-emerald-400 flex items-center gap-2">
                <CheckCircle size={16} /> Dimensionamento Elétrico Termodinâmico Válido
              </span>
              <button 
                onClick={handleGoToSimulation}
-               className="flex items-center gap-2 px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-950 text-sm font-bold rounded shadow-lg transition-all focus:ring-2 focus:ring-emerald-400 focus:outline-none"
+               className="flex items-center gap-2 px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-950 text-sm font-bold rounded-sm shadow-lg transition-all focus:ring-2 focus:ring-emerald-400 focus:outline-none"
              >
                Prosseguir para Simulação Energética
                <ArrowRight size={16} />
              </button>
           </div>
         ) : (
-          <div className="flex items-center gap-3 px-4 py-3 bg-red-950/20 border border-red-900/40 rounded-lg">
+          <div className="flex items-center gap-3 px-4 py-3 bg-red-950/20 border border-red-900/40 rounded-sm">
              <AlertTriangle size={18} className="text-red-500 shrink-0" />
              <span className="text-sm text-red-300">
                Existem restrições térmicas impeditivas. Revise as strings e limites de tensão/corrente nos MPPTs para prosseguir com a simulação.

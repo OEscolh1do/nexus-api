@@ -7,7 +7,7 @@
 **Revisor (aceitação):** `engenheiro-eletricista-pv` + `design-lead`
 **Data de criação:** 2026-04-14
 **Versão:** 2.0 — revisado 2026-04-15
-**Supersede:** `spec-jornada-integrador-2026-04-14.md` v1.0
+**Supersede:** `02-spec-jornada-integrador-2026-04-15.md.md` v1.0
 
 ---
 
@@ -69,8 +69,10 @@ As views existem como antes, mas são ativadas por foco no bloco, não por um st
 
 | Bloco | View ativa | Dados de entrada |
 |-------|-----------|-----------------|
-| Consumo | `ConsumptionCanvasView` | 12 faturas mensais, tarifa, cidade, fator crescimento |
-| Módulos FV | `MapCore` (modo posicionamento) | Seleção de módulo, quantidade calculada |
+| Local | `SiteCanvasView` | Identificação, Endereço, Coordenadas (NASA API) |
+| Consumo | `ConsumptionCanvasView` | 12 faturas mensais, tarifa, fator crescimento |
+| Arranjo Físico | `MapCore` (Camada: Telhados/Obstáculos) | Área física, Azimute, Tilt |
+| Módulos FV | `MapCore` (Camada: Módulos Posicionados) | Seleção de módulo, quantidade calculada |
 | Inversor | `ElectricalCanvasView` | Seleção de inversor, validação elétrica |
 | Simulação | `SimulationCanvasView` | Resultado calculado — apenas leitura |
 
@@ -163,20 +165,24 @@ ou selector derivado no `ConsumptionCanvasView`.
 ## 4. Plano de Migração (v2.0)
 
 ```
-Etapa A: journeySlice enxuto
-  → Slice existe no solarStore; kWpAlvo calculado quando clientData muda
+Etapa A: Refatoração da SiteCanvasView ("Local")
+  → Permite editar Nome do Cliente, Endereço e Coordenadas no Workspace.
+  → Dashboard climático integrado com persistência (NASA).
 
-Etapa B: ConsumptionCanvasView (delegada a spec-sincronia §4)
-  → Integrador consegue inserir consumo; kWpAlvo aparece no conector do bloco
+Etapa B: journeySlice enxuto
+  → Passo de sincronia entre Local e Consumo.
 
-Etapa C: Reintegração de ModuleInventory + ModuleCatalogDialog
-  → Overlay de catálogo disparado pelo Bloco Módulos
+Etapa C: ConsumptionCanvasView (delegada a spec-sincronia §4)
+  → Integrador insere consumo; kWpAlvo aparece no conector do bloco.
 
-Etapa D: StringConfigurator na ElectricalCanvasView
-  → Validação elétrica completa acessível via Bloco Inversor
+Etapa D: Reintegração de ModuleInventory + ModuleCatalogDialog
+  → Overlay de catálogo disparado pelo Bloco Módulos.
 
-Etapa E: SimulationCanvasView como view de saída
-  → Integrador vê Geração vs Consumo + R$ economizados
+Etapa E: StringConfigurator na ElectricalCanvasView
+  → Validação elétrica completa acessível via Bloco Inversor.
+
+Etapa F: SimulationCanvasView como view de saída
+  → Integrador vê Geração vs Consumo + R$ economizados.
 ```
 
 ### Guardrails (mantidos)
@@ -247,7 +253,7 @@ Etapa E: SimulationCanvasView como view de saída
 
 - **Mecanismo de navegação:** `spec-sincronia-bloco-canvas-2026-04-15.md`
 - Foco tátil: `spec-foco-tatil.md`
-- Edição inline: `spec-edicao-inline-blocos-2026-04-14.md`
+- Edição inline: `05-spec-edicao-inline-blocos-2026-04-15.md.md`
 - Spec de kWp alvo: `.agent/concluido/spec-03-potencia-minima-recomendada-2026-04-11.md`
 - Spec de validação elétrica: `.agent/concluido/Engenharia_Dimensionamento_Funcional/Especificacao_Engenharia_Funcional.md`
 - Mapa de interface: `docs/interface/mapa-interface-completo.md`

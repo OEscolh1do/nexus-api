@@ -7,7 +7,7 @@
 **Revisor (aceitação):** `engenheiro-eletricista-pv` + `design-lead`
 **Data de criação:** 2026-04-14
 **Versão:** 2.0 — revisado 2026-04-15
-**Supersede:** `spec-edicao-inline-blocos-2026-04-14.md` v1.0
+**Supersede:** `05-spec-edicao-inline-blocos-2026-04-15.md.md` v1.0
 **Dependência direta:** `spec-sincronia-bloco-canvas-2026-04-15.md` — Etapa 4 concluída
 
 ---

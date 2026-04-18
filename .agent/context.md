@@ -25,14 +25,18 @@ O Kurupira opera como um **Dashboard de Engenharia de Alta Densidade**, onde cad
 - **Geometria Reta**: Uso exclusivo de `rounded-sm`. Abolição total de `rounded-xl/2xl/3xl` em painéis.
 - **Tipografia de Dados**: `font-mono` + `tabular-nums` em todos os valores elétricos e de consumo.
 - **Gráficos Industriais**: Barras com `radius={0}` em todos os charts (Recharts), eixos em `font-mono`.
-- **Color Coding Semântico Estrito** (7 famílias):
-  - 🟠 **Consumo / Demanda**: `amber`, `orange`
-  - 🔵 **Geração / Fontes / Equipamentos**: `sky`, `blue`, `cyan`
-  - 🔴 **Perdas / Alertas / Falhas**: `red`, `fuchsia`
-  - 🌡️ **Temperatura (ambiente / célula)**: `pink`, `rose`
-  - ☀️ **Irradiância / GHI / DNI / HSP**: `yellow`, `lime`
-  - 💧 **Umidade / Atmosfera / Vento**: `indigo`, `slate`/`zinc`
-  - 🟣 **Arranjo Físico / Drawing mode**: `indigo` (contextual)
+### Matriz de Cores Semântica (v3.8.1)
+Para garantir contraste (WCAG AA) em Dark Mode (`slate-950`), utilizamos o sistema **10-20-400**:
+
+| Família | Uso | Surface (10%) | Border (20%) | Text (400) |
+|:---|:---|:---|:---|:---|
+| 🔵 **Sky** | Consumo/Carga | `sky-900/10` | `sky-500/20` | `sky-400` |
+| 🟠 **Amber** | Geração/Módulos | `amber-900/10` | `amber-500/20` | `amber-400` |
+| 🟢 **Emerald** | Eficiência/OK | `emerald-900/10` | `emerald-500/20` | `emerald-400` |
+| 🌡️ **Rose** | Temperatura | `rose-900/10` | `rose-500/20` | `rose-400` |
+| 🟣 **Violet** | Drawing/Arranjo | `violet-900/10` | `violet-500/20` | `violet-400` |
+| ☀️ **Yellow** | Irradiância (HSP) | `yellow-900/10` | `yellow-500/20` | `yellow-400` |
+| 🔴 **Red** | Erros/Críticos | `red-900/20` | `red-500/30` | `red-400` |
 
 ### Jornada do Integrador: Canvas Views sobrepostas ao MapCore
 
@@ -81,6 +85,13 @@ O `MapCanvasView` wrapper gerencia 3 modos contextuais derivados do `activeFocus
 
 ## 🔄 CHANGELOG
 
+### v3.8.1 (2026-04-18) — Refatoração Radical de Consumo + UI Ghost Scrollbars
+
+- ✅ **Consumo Full-Width**: Remoção da sidebar 75/25 na view de consumo. HUD de kWp Alvo movido para o header.
+- ✅ **Premises Bar**: Centralização de todas as variáveis de estudo (Ligação, Tarifa, Média, Crescimento) em uma única barra horizontal.
+- ✅ **Ghost Scrollbars**: Implementação global de barras de rolagem minimalistas (6px, slate-800) para redução de ruído visual.
+- ✅ **Cleanup**: Remoção do componente redundante `ClimateCorrelationChart.tsx`.
+
 ### v3.8.0 (2026-04-16) — Jornada do Integrador: MapCore Multi-Modo + Consumption Refactor
 
 - ✅ **MapCore Multi-Modo**: Criação do `MapCanvasView` wrapper com 3 modos (`placement`, `drawing`, `neutral`) derivados do `activeFocusedBlock`. Filtragem de HUD de ferramentas por modo, auto-ativação do POLYGON no modo drawing.
@@ -116,3 +127,22 @@ O `MapCanvasView` wrapper gerencia 3 modos contextuais derivados do `activeFocus
 4. **Tooltips**: `bg-slate-900 border border-slate-700 rounded-sm`, uppercase tracking-widest, mono font.
 5. **Badges de status**: `border` semântica explícita (ex: `border-amber-500/20`) ao invés de `bg-opacity` isolado.
 6. **MapCore**: NUNCA desmonta. Usa camadas de overlay (FrozenViewContainer) — jamais unmount/remount.
+7. **Rigor Decimal**: Todos os valores numéricos técnicos (kWp, kWh, V, A, W, R$) apresentados em blocos, painéis HUD e tabelas **devem ter exatamente 2 casas decimais** (`.toFixed(2)`), garantindo a estética de precisão. Valores de porcentagem podem ser inteiros se a variância for baixa.
+8. **Scrollbars Ghost**: Devem ter largura de **6px**, acabamento em **slate-800** sobre fundo transparente. Tornam-se visíveis apenas quando necessário para reduzir ruído visual. O utilitário `.scrollbar-hide` deve ser usado para ocultar a barra mantendo a funcionalidade de scroll quando o design exigir.
+9. **Rigor de Tipografia e Acessibilidade**:
+   - **Micro (`text-[11px]`)**: Limite mínimo absoluto. Uso restrito a badges, unidades (W, V, A) e legendas de gráficos.
+   - **Small (`text-xs` / 12px)**: Padrão para labels de formulário, títulos de mini-cards e metadados secundários.
+   - **Base (`text-sm` / 14px)**: Padrão para dados de engenharia principais, valores numéricos em HUDs e corpo de texto.
+   - **Contraste**: Labels secundárias sobre `bg-slate-950` devem usar no mínimo `text-slate-400`. Nunca usar `slate-500/600` para textos informativos essenciais.
+
+## 9. PADRÕES DE IDIOMA E LOCALIZAÇÃO
+
+1. **Prioridade PT-BR**: Todo o texto visível ao usuário final (títulos, labels, tooltips, placeholders, alertas) deve estar em **Português do Brasil**.
+2. **Exceções (Siglas Técnicas)**: O uso de termos em inglês é permitido APENAS quando for o padrão de mercado ou sigla técnica universal, tais como:
+   - Unidades: `kWp`, `kWh`, `V`, `A`, `W`.
+   - Abreviações de Engenharia: `ID`, `MOD` (Módulos), `INV` (Inversores), `MPPT`, `HSP`.
+   - Termos Técnicos Consolidados: `Snapshot`, `Payload`, `Webhook` (apenas em contextos específicos de desenvolvedor).
+3. **Consistência de Tradução**:
+   - `Update` / `Updated At` → `Atualizado em` ou `ATU` (sigla).
+   - `Project Explorer` → `Explorador de Projetos`.
+   - `Empty State` → Mensagens em PT-BR (ex: "Nenhum dado encontrado").

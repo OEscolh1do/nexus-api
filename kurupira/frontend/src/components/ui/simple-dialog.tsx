@@ -34,20 +34,20 @@ export const DialogHeader: React.FC<{ children: React.ReactNode }> = ({ children
   </div>
 );
 
-export const DialogTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <h2 className="text-lg font-semibold leading-none tracking-tight text-slate-900">
+export const DialogTitle: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
+  <h2 className={`text-lg font-semibold leading-none tracking-tight text-slate-900 ${className}`}>
     {children}
   </h2>
 );
 
-export const DialogDescription: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <p className="text-sm text-slate-500">
+export const DialogDescription: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
+  <p className={`text-sm text-slate-500 ${className}`}>
     {children}
   </p>
 );
 
-export const DialogFooter: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 space-y-2 space-y-reverse sm:space-y-0">
+export const DialogFooter: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
+  <div className={`mt-6 flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 space-y-2 space-y-reverse sm:space-y-0 ${className}`}>
     {children}
   </div>
 );

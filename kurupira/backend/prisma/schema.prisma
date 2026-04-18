@@ -1,8 +1,3 @@
-// =============================================================
-// Kurupira — Schema Prisma (Domínio de Engenharia Solar)
-// Operação Guardiões: Schema net-new para db_kurupira
-// =============================================================
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -12,27 +7,21 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// =============================================================
-// CORE: Projeto Técnico de Engenharia
-// =============================================================
-
 model TechnicalDesign {
-  id         String   @id @default(cuid())
-  tenantId   String   @default("default-tenant-001") // Escopo de organização (multi-tenancy)
-  iacaLeadId String? // FK virtual → Lead no Iaçã (opcional — projetos standalone não têm lead)
-  name       String // Nome do projeto (injetado via M2M ou override local)
-  status     String   @default("DRAFT") // DRAFT, IN_PROGRESS, REVIEW, APPROVED, REJECTED
-  designData Json? // Layout de painéis, strings, inversores (dossiê técnico completo)
-  notes      String?  @db.Text
-  createdBy  String // userId do engenheiro (validado via JWT do Iaçã)
-  latitude   Float? // Coord Y do Sítio
-  longitude  Float? // Coord X do Sítio
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  // Relações internas do Kurupira
-  roofSections RoofSection[]
+  id           String        @id @default(cuid())
+  tenantId     String        @default("default-tenant-001")
+  iacaLeadId   String?
+  name         String
+  status       String        @default("DRAFT")
+  designData   Json?
+  notes        String?       @db.Text
+  createdBy    String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  latitude     Float?
+  longitude    Float?
   pvArrays     PVArray[]
+  roofSections RoofSection[]
   simulations  Simulation[]
 
   @@index([tenantId])
@@ -41,86 +30,66 @@ model TechnicalDesign {
   @@index([status])
 }
 
-// =============================================================
-// GIS: Seções de Telhado e Polígonos
-// =============================================================
-
 model RoofSection {
-  id                String  @id @default(cuid())
+  id                String          @id @default(cuid())
   technicalDesignId String
-  polygonGeoJson    Json // Polígono GeoJSON do Leaflet
-  azimuth           Float // Orientação em graus (0-360)
-  tilt              Float // Inclinação em graus
-  area              Float // Área útil em m²
-  shadingFactor     Float   @default(1.0) // 0.0 a 1.0 (1 = sem sombra)
-  label             String? // "Telhado Norte", "Garagem", etc.
-
-  technicalDesign TechnicalDesign @relation(fields: [technicalDesignId], references: [id], onDelete: Cascade)
-  pvArrays        PVArray[]
+  polygonGeoJson    Json
+  azimuth           Float
+  tilt              Float
+  area              Float
+  shadingFactor     Float           @default(1)
+  label             String?
+  pvArrays          PVArray[]
+  technicalDesign   TechnicalDesign @relation(fields: [technicalDesignId], references: [id], onDelete: Cascade)
 
   @@index([technicalDesignId])
 }
 
-// =============================================================
-// ELÉTRICO: Arrays de Painéis e Configuração de Strings
-// =============================================================
-
 model PVArray {
-  id                String  @id @default(cuid())
+  id                String          @id @default(cuid())
   technicalDesignId String
   roofSectionId     String?
-  moduleModel       String // Ex: "Canadian Solar CS6W-550MS"
-  modulePower       Float // Watts pico (Wp)
-  moduleCount       Int // Quantidade de painéis
-  stringConfig      Json? // Configuração de strings (série x paralelo)
-  inverterModel     String? // Ex: "Growatt MIN 6000TL-X"
-  inverterPower     Float? // Watts
-  cableSectionMm2   Float? // Seção do cabo em mm²
-  estimatedGenKwh   Float? // Geração estimada mensal (kWh)
-
-  technicalDesign TechnicalDesign @relation(fields: [technicalDesignId], references: [id], onDelete: Cascade)
-  roofSection     RoofSection?    @relation(fields: [roofSectionId], references: [id])
+  moduleModel       String
+  modulePower       Float
+  moduleCount       Int
+  stringConfig      Json?
+  inverterModel     String?
+  inverterPower     Float?
+  cableSectionMm2   Float?
+  estimatedGenKwh   Float?
+  roofSection       RoofSection?    @relation(fields: [roofSectionId], references: [id])
+  technicalDesign   TechnicalDesign @relation(fields: [technicalDesignId], references: [id], onDelete: Cascade)
 
   @@index([technicalDesignId])
   @@index([roofSectionId])
 }
 
-// =============================================================
-// SIMULAÇÃO: Resultados de Cálculos
-// =============================================================
-
 model Simulation {
-  id                String   @id @default(cuid())
+  id                String          @id @default(cuid())
   technicalDesignId String
-  type              String // "GENERATION", "LOSS", "PAYBACK", "IRRADIANCE"
-  inputParams       Json // Parâmetros de entrada do cálculo
-  resultData        Json // Resultado (matrizes, curvas, projeções)
-  executedAt        DateTime @default(now())
-
-  technicalDesign TechnicalDesign @relation(fields: [technicalDesignId], references: [id], onDelete: Cascade)
+  type              String
+  inputParams       Json
+  resultData        Json
+  executedAt        DateTime        @default(now())
+  technicalDesign   TechnicalDesign @relation(fields: [technicalDesignId], references: [id], onDelete: Cascade)
 
   @@index([technicalDesignId])
   @@index([type])
 }
 
-// =============================================================
-// CATÁLOGO: Equipamentos disponíveis
-// =============================================================
-
 model ModuleCatalog {
   id                String  @id @default(cuid())
-  manufacturer      String // "Canadian Solar", "JA Solar", etc.
+  manufacturer      String
   model             String  @unique
-  powerWp           Float // Potência nominal (Wp)
-  efficiency        Float? // Eficiência (%)
-  dimensions        String? // "2278x1134x35mm"
-  weight            Float? // kg
-  datasheet         String? // URL do datasheet
-  imageUrl          String? // Imagem/Foto real do módulo para catálogo visual
-  unifilarSymbolRef String? // Referência ou SVG do símbolo unifilar (Biblioteca do Motor)
+  powerWp           Float
+  efficiency        Float?
+  dimensions        String?
+  weight            Float?
+  datasheet         String?
+  imageUrl          String?
+  unifilarSymbolRef String?
   isActive          Boolean @default(true)
-  // Parâmetros elétricos completos para validação MPPT/string (VocMax, Isc, etc.)
-  electricalData    Json? // { vmp, imp, voc, isc, tempCoeffVoc, widthMm, heightMm, depthMm, cells }
+  electricalData    Json?
 
   @@index([manufacturer])
 }
@@ -129,16 +98,15 @@ model InverterCatalog {
   id                String  @id @default(cuid())
   manufacturer      String
   model             String  @unique
-  nominalPowerW     Float // Potência nominal (W)
-  maxInputV         Float? // Tensão máxima de entrada (V)
-  mpptCount         Int? // Número de MPPTs
-  efficiency        Float? // Eficiência máxima (%)
+  nominalPowerW     Float
+  maxInputV         Float?
+  mpptCount         Int?
+  efficiency        Float?
   datasheet         String?
-  imageUrl          String? // Imagem/Foto real do inversor para catálogo visual
-  unifilarSymbolRef String? // Referência ou SVG do símbolo unifilar (Biblioteca do Motor)
+  imageUrl          String?
+  unifilarSymbolRef String?
   isActive          Boolean @default(true)
-  // Parâmetros elétricos completos para validação de string
-  electricalData    Json? // { minInputV, maxInputCurrent, maxOutputCurrent, outputVoltage, outputFrequency, weight, connectionType }
+  electricalData    Json?
 
   @@index([manufacturer])
 }

@@ -59,8 +59,7 @@ export const MapCanvasView: React.FC = () => {
 
   // Derive map mode from journey state
   const mapMode: MapMode = 
-    focusedBlock === 'module'      ? 'placement' :
-    focusedBlock === 'arrangement' ? 'drawing'   : 'neutral';
+    focusedBlock === 'arrangement' ? 'drawing' : 'neutral';
 
   const visibleTools = useMemo(() => 
     ALL_TOOLS.filter(t => TOOLS_BY_MODE[mapMode].includes(t.id)),

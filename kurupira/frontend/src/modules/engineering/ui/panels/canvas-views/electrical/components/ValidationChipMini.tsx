@@ -49,7 +49,7 @@ export const ValidationChipMini: React.FC<ValidationChipMiniProps> = ({
 
   return (
     <div className={cn('flex flex-col gap-0.5 p-2 rounded border transition-colors', cfg.bg, cfg.border)}>
-      <span className={cn('flex items-center gap-1 font-bold uppercase tracking-widest', cfg.text, 'text-[8px]')}>
+      <span className={cn('flex items-center gap-1 font-bold uppercase tracking-widest', cfg.text, 'text-[11px]')}>
         {cfg.icon} {label}
       </span>
       <span className={cn('font-mono font-bold text-sm', cfg.valText)}>

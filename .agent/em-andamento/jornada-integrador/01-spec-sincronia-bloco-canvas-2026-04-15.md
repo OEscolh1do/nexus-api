@@ -36,20 +36,29 @@ criam. Clicar numa aba é idêntico a clicar no bloco: ambos escrevem no mesmo c
 Quando `activeFocusedBlock` muda (o usuário "sai" de uma view), o `solarStore`
 persiste automaticamente via `persist` do Zustand — sem prompt de confirmação,
 sem estado "não salvo". A decisão é definitiva: **desliza sempre, salva
-automaticamente**.
+automáticamente**.
+
+### 1.4 Grid Master (v3.7)
+
+O layout do workspace é regido por um grid master:
+- **`LeftOutliner`**: Fixo em `240px`.
+- **`CenterCanvas`**: Ocupa o espaço restante (`flex-1`).
 
 ---
 
 ## 2. Mapeamento Bloco → View → Aba
 
-| `activeFocusedBlock` | Bloco no Left | Canvas View | Aba no Bottom |
-|----------------------|---------------|-------------|---------------|
-| `'consumption'` | ConsumptionBlock (âmbar) | `ConsumptionCanvasView` | ⚡ Consumo |
-| `'module'` | ComposerBlockModule (cyan) | `MapCore` (modo posicionamento) | ☀ Módulos |
-| `'inverter'` | ComposerBlockInverter (esmeralda) | `ElectricalCanvasView` | 🔲 Elétrica |
-| `'simulation'` | — (bloco de saída, sem foco) | `SimulationCanvasView` | 📊 Simulação |
-| `'map'` | — (nenhum bloco focado) | `MapCore` (modo exploração) | 🗺 Mapa |
-| `null` | nenhum | último ativo (sem transição) | — |
+| `activeFocusedBlock` | Bloco no Left | Canvas View | Aba no Bottom | Cor (Glow) |
+|----------------------|---------------|-------------|---------------|------------|
+| `'consumption'` | Consumo | `'consumption'` | ⚡ Consumo | Amber |
+| `'module'` | Módulos FV | `'map' (Layer Modules)` | ☀ Módulos | Sky |
+| `'arrangement'` | Arranjo Físico | `'map' (Layer Roof)` | 🗺 Arranjo | Indigo |
+| `'inverter'` | Inversor | `'electrical'` | 🔲 Elétrica | Emerald |
+| `'simulation'` | Simulação | `'simulation'` | 📊 Simulação | Teal |
+| `'site'` | — (Aba) | `SiteCanvasView` | 🏗 Site | Violet |
+| `'proposal'` | — (Aba) | `ProposalModule` | 📄 Proposta | Indigo |
+| `'map'` | — | `MapCore` (Layer Base) | 🗺 Mapa | Slate |
+| `null` | nenhum | último ativo | — | — |
 
 **Regra de ouro:** `activeFocusedBlock` é a única fonte de verdade.
 Nenhum componente decide a view ativa por conta própria.
@@ -63,7 +72,7 @@ Nenhum componente decide a view ativa por conta própria.
 ```typescript
 // src/core/state/uiStore.ts
 
-type FocusedBlock = 'consumption' | 'module' | 'inverter' | 'simulation' | 'map' | null;
+type FocusedBlock = 'consumption' | 'module' | 'arrangement' | 'inverter' | 'simulation' | 'map' | 'site' | 'proposal' | null;
 
 interface UIState {
   activeTool: Tool;
@@ -101,9 +110,12 @@ const focusedBlock = useFocusedBlock();
 // Mapeia activeFocusedBlock → qual Canvas View renderizar em frente
 const VIEW_MAP: Record<NonNullable<FocusedBlock>, string> = {
   consumption: 'consumption',
-  module: 'map',       // mapa em modo posicionamento
+  module: 'map',       // aciona activeLayer: 'layer_modules' no MapCore
+  arrangement: 'map',  // aciona activeLayer: 'layer_roof' no MapCore
   inverter: 'electrical',
   simulation: 'simulation',
+  site: 'site',
+  proposal: 'proposal',
   map: 'map',
 };
 
@@ -163,6 +175,7 @@ const isDeemphasized = focusedBlock !== null && focusedBlock !== 'consumption';
 **Cores de glow por bloco (spec-foco-tatil):**
 - Consumo: `rgba(245, 158, 11, 0.4)` (Amber)
 - Módulos: `rgba(14, 165, 233, 0.4)` (Sky)
+- Arranjo: `rgba(99, 102, 241, 0.4)` (Indigo)
 - Inversor: `rgba(16, 185, 129, 0.4)` (Emerald)
 
 ### 3.4 Modificação nos `WorkspaceTabs`
@@ -366,7 +379,7 @@ Etapa 5: ConsumptionCanvasView (view nova)
 ## Referências
 
 - `spec-foco-tatil.md` — estados visuais dos blocos (glow, deemphasis, haptic)
-- `spec-jornada-integrador-2026-04-14.md` — `journeySlice.loadGrowthFactor`
+- `02-spec-jornada-integrador-2026-04-15.md.md` — `journeySlice.loadGrowthFactor`
 - `uiStore` base: `.agent/concluido/WebGL_Leaflet/Especificacao_Integracao_Grafica_Kurupira_v2.md` §5
 - `panelStore` base: `.agent/concluido/UX-002-panel-system/SPEC-005-panel-store.md`
 - Autosave via persist: `solarStore.ts` middleware já configurado

@@ -1,6 +1,6 @@
 # Mapa de Interface — Left Outliner (Compositor Lego)
 
-> **Última atualização**: 2026-04-14  
+> **Última atualização**: 2026-04-16  
 > **Componente raiz**: `LeftOutliner.tsx`  
 > **Caminho**: `kurupira/frontend/src/modules/engineering/ui/panels/LeftOutliner.tsx`
 
@@ -8,13 +8,13 @@
 
 ## Visão Geral
 
-O `LeftOutliner` é o painel esquerdo do workspace de engenharia. Ele implementa um **Compositor Lego** — uma pilha vertical fixa de blocos que representam o fluxo elétrico de um sistema fotovoltaico:
+O `LeftOutliner` é o painel esquerdo do workspace de engenharia. Ele implementa um **Compositor Lego** — uma pilha vertical de blocos que representam o fluxo elétrico de um sistema fotovoltaico:
 
 ```
 Consumo (kWh) → Módulos FV (DC) → Inversor (AC)
 ```
 
-Cada bloco é independente, auto-gerenciado, e se encaixa fisicamente no bloco anterior via conectores Lego (tabs e notches).
+Cada bloco é independente e se encaixa fisicamente no bloco anterior via conectores Lego (tabs e notches) que utilizam **gap zero** e sobreposição de bordas para criar uma unidade visual contínua.
 
 ---
 
@@ -25,313 +25,172 @@ panels/
 ├── LeftOutliner.tsx                        ← Orquestrador + ConsumptionBlock + LockedBlock
 │
 └── canvas-views/composer/
-    ├── LegoConnectors.tsx                  ← LegoTab + LegoNotch (encaixes reutilizáveis)
-    ├── ComposerBlockModule.tsx             ← Bloco Módulos FV + ModuleInlineSelector
-    ├── ComposerBlockInverter.tsx           ← Bloco Inversor + InverterInlineSelector
-    └── ComposerPlaceholder.tsx             ← [DEPRECATED] Placeholder genérico antigo
+    ├── LegoConnectors.tsx                  ← LegoTab + LegoNotch (dimensões 80x16px)
+    ├── ComposerBlockModule.tsx             ← Bloco Módulos FV + Seletor Inline
+    ├── ComposerBlockInverter.tsx           ← Bloco Inversor + Validação Elétrica
+    └── ComposerPlaceholder.tsx             ← [DEPRECATED] Substituído por estados inline
 ```
 
 ---
 
-## Layout Visual
+## Layout Visual (Geometria 80x16)
 
 ```text
 ┌─────────────────────────────────┐
-│  ⊕ GERADOR SOLAR        [header]│  ← Layers icon, título fixo
-├─────────────────────────────────┤
-│ ╭───────────────────────────╮   │  ← rounded-t-xl
-│ │  ⚡ Consumo    600 kWh/mês │   │  ← ConsumptionBlock
-│ │  7.200 kWh/ano · Mono · …│   │  ← Stats Row
-│ ╰──────┬──kWh──┬────────────╯   │  ← LegoTab "kWh"
-│ ┌──────┴───────┴────────────┐   │  ← LegoNotch (encaixe)
-│ │  ☀ Módulos FV    6.28 kWp │   │  ← ComposerBlockModule
-│ │  9× DM630  │  1× DM610   │   │
-│ │  + OUTRO MODELO           │   │
-│ └──────┬───DC──┬────────────┘   │  ← LegoTab "DC"
-│ ┌──────┴───────┴────────────┐   │  ← LegoNotch (encaixe)
-│ │  🔲 Inversor              │   │  ← ComposerBlockInverter
-│ │  Huawei SUN2000-5KTL      │   │
-│ ╰──────┬───AC──┬────────────╯   │  ← LegoTab "AC", rounded-b-xl
+│ ╭───────────────────────────╮   │  ← rounded-t-sm, border-amber-600/40
+│ │  ⚡ CONSUMO                │   │  ← Header (Zap + MapPin)
+│ ├───────────────────────────┤   │
+│ │ 600 kWh/mês  │  7.20 kWp  │   │  ← Display (Consumo | kWp Alvo)
+│ ├───────────────────────────┤   │
+│ │ [Ano 7200] [Trifásico]    │   │  ← Technical Footer (Metadata)
+│ ╰──────┬──kWh──┬────────────╯   │  ← LegoTab (80x16px)
+│ ┌──────┴───────┴────────────┐   │  ← LegoNotch (encaixe inverso)
+│ │  ☀ GERADOR FV    12 un.   │   │  ← Header (Sun + Qty)
+│ ├───────────────────────────┤   │
+│ │ 6.28 kWp     │  840 kWh   │   │  ← Display (Potência | Geração)
+│ ├───────────────────────────┤   │
+│ │ 12× DMEGC - 550Wp         │   │  ← Inventory Row
+│ ╰──────┬───DC──┬────────────╯   │  ← LegoTab "DC" (80x16px)
+│ ┌──────┴───────┴────────────┐   │  ← LegoNotch (encaixe inverso)
+│ │  🔲 CONVERSÃO AC   2x MPPT│   │  ← Header (Cpu + Mppt)
+│ ├───────────────────────────┤   │
+│ │ 5.0 kW       │  98.4 %    │   │  ← Display (Potência | Eficiência)
+│ ├───────────────────────────┤   │
+│ │ Ratio: 1.25  │ Voc: 480V  │   │  ← Status Chips
+│ ╰──────┬───AC──┬────────────╯   │  ← LegoTab (80x16px)
 │        └───────┘                │
 └─────────────────────────────────┘
 ```
 
 ---
 
-## Componentes Internos
+## LegoConnectors (Aba e Encaixe)
 
-### 1. Header do Painel
+Os conectores são o coração visual do sistema, permitindo que os blocos pareçam "conectados" eletricamente.
 
-| Elemento | Ícone | Classe |
-|----------|-------|--------|
-| Título "Gerador Solar" | `Layers` (emerald) | `text-[11px] font-bold uppercase tracking-wider` |
-
----
-
-### 2. ConsumptionBlock (Bloco Consumo)
-
-> **Definido em**: `LeftOutliner.tsx` (inline)  
-> **Função**: Exibir dados de consumo e localização do projeto. Sempre ativo (raiz da pilha).
-
-| Elemento | Dados | Fonte |
-|----------|-------|-------|
-| Ícone | `Zap` (amber) | Lucide |
-| Título | "Consumo" | Fixo |
-| Localização | `{cidade}/{UF}` | `solarStore.clientData.city/state` |
-| Chip principal | `{consumption} kWh/mês` | `solarStore.clientData.averageConsumption` |
-| Stats Row | kWh/ano · Tipo Ligação · Tarifa · HSP | Derivados de `clientData` |
-| Conector base | `LegoTab` label="kWh" | Âmbar quando válido, slate quando vazio |
-
-**Border-radius**: `rounded-t-xl rounded-b-none` (topo arredondado, base reta para encaixe).
-
----
-
-### 3. ComposerBlockModule (Bloco Módulos FV)
-
-> **Arquivo**: `canvas-views/composer/ComposerBlockModule.tsx`  
-> **Função**: Gerenciar o inventário global de módulos fotovoltaicos do projeto.
-
-#### 3.1 Estado Vazio (Placeholder)
-
-| Elemento | Descrição |
-|----------|-----------|
-| Borda | Dashed `border-amber-500/30` |
-| Header | `Sun` icon + "MÓDULOS FV" + alvo kWp |
-| Seletor Inline | `ModuleInlineSelector` — marca → modelo → qty → adicionar |
-| AutoSizing | Sugestão de quantidade baseada no `useAutoSizing().requiredModuleQty` |
-
-#### 3.2 Estado Preenchido
-
-| Elemento | Descrição |
-|----------|-----------|
-| Borda | Sólida `border-sky-500/20` |
-| Header | `Sun` icon + "Módulos FV" + `{totalModules} un.` + chip `{kWp}` |
-| Module Rows | Agrupados por modelo: `{qty}× {model}` + controles ±/🗑 |
-| Botão Adicionar | "+ OUTRO MODELO" — expande `ModuleInlineSelector` |
-
-**Border-radius**: `rounded-t-none rounded-b-none` (meio da pilha).  
-**Conectores**: `LegoNotch` (topo, recebe kWh) + `LegoTab` label="DC" (base).
-
----
-
-### 4. ComposerBlockInverter (Bloco Inversor)
-
-> **Arquivo**: `canvas-views/composer/ComposerBlockInverter.tsx`  
-> **Função**: Gerenciar o inversor do projeto e exibir status de validação elétrica.
-
-#### 4.1 Estado Vazio (Placeholder)
-
-| Elemento | Descrição |
-|----------|-----------|
-| Borda | Dashed `border-emerald-500/30` |
-| Header | `Cpu` icon + "INVERSOR" |
-| Seletor Inline | `InverterInlineSelector` — marca → modelo → adicionar |
-
-#### 4.2 Estado Preenchido
-
-| Elemento | Descrição |
-|----------|-----------|
-| Header | `Cpu` icon + Fabricante/Modelo + Potência + botão remover |
-| StatusChips | Validação elétrica via `useElectricalValidation()` |
-| FDI | Fator de dimensionamento (ratio DC/AC) |
-| Borda dinâmica | Verde (OK) / Âmbar (Warning) / Vermelho (Error) |
-
-**Border-radius**: `rounded-t-none rounded-b-xl` (último bloco, base arredondada).  
-**Conectores**: `LegoNotch` (topo, recebe DC) + `LegoTab` label="AC" (base).
-
----
-
-### 5. LockedBlock (Bloco Fantasma)
-
-> **Definido em**: `LeftOutliner.tsx` (inline)  
-> **Função**: Placeholder visual para blocos que ainda não podem ser ativados.
+### LegoTab (Aba na base)
+Posicionado na base de um bloco para "prover" energia/dados para o próximo.
 
 | Propriedade | Valor |
 |-------------|-------|
-| Borda | `border-dashed border-slate-700/40` |
-| Background | `bg-slate-900/20` (quase transparente) |
-| Opacidade do conteúdo | `opacity-25` |
-| Interatividade | `pointer-events-none select-none` |
-| Ícone de estado | `Lock` (8px, `text-slate-700`) |
-| Hint contextual | Texto dinâmico (ex: "Informe o consumo médio para desbloquear") |
-| Conectores | `LegoNotch` + `LegoTab` em cor `slate` (cinza) |
+| **Dimensões** | 80px largura × 16px altura |
+| **Posição** | `absolute -bottom-[16px] left-1/2 -translate-x-1/2 z-30` |
+| **SVG Path** | Ombros de 4px + Bump central de 12px |
+| **Label** | Centralizada no bump (7px font-extrabold) |
+
+### LegoNotch (Encaixe no topo)
+Posicionado no topo de um bloco receptor para criar o recorte onde o Tab se encaixa.
+
+| Propriedade | Valor |
+|-------------|-------|
+| **Dimensões** | 80px largura × 16px altura |
+| **Posição** | `absolute -top-[1px] left-1/2 -translate-x-1/2 z-30` |
+| **Visual** | Máscara `fill-slate-950` que recorta o bloco receptor |
 
 ---
 
-### 6. LegoConnectors (Tabs + Notches)
+## Color Coding Semântico Completo
 
-> **Arquivo**: `canvas-views/composer/LegoConnectors.tsx`
+Utilizado em `LegoTab`, `LegoNotch` e bordas dos blocos:
 
-#### LegoTab (Aba na base)
+| Token | Domínio | Uso no Compositor |
+|-------|---------|-------------------|
+| `amber` | **Consumo / Demanda** | Bloco Consumo, Tab "kWh" |
+| `sky` | **Geração / Equipamentos** | Bloco Módulos, Tab "DC" |
+| `emerald` | **Métricas / Fatores** | Bloco Inversor, Tab "AC", kWp Alvo |
+| `red` | **Perdas / Alertas** | Erros de validação elétrica |
+| `yellow` | **Irradiância** | Contexto de HSP / Clima |
+| `slate` | **Auxiliar / Locked** | Blocos desativados (LockedBlock) |
+| `indigo`/`pink`| **Atmosfera/Temp** | Tooltips e charts secundários |
 
-```text
-        ┌──────────────┐
-        │  label (5.5px)│  ← 14×10px, rounded-b-md
-        └──────────────┘
-```
+---
 
-| Prop | Tipo | Descrição |
-|------|------|-----------|
-| `label` | string | Texto do conector ("kWh", "DC", "AC") |
-| `color` | enum | Paleta: `amber`, `sky`, `emerald`, `slate` |
-| `dashed` | boolean | Borda tracejada (para placeholders/locked) |
+## Componentes Internos
 
-**Posição**: `absolute -bottom-[10px] left-1/2 -translate-x-1/2 z-30`
+### 1. ConsumptionBlock
 
-#### LegoNotch (Encaixe no topo)
+> **Definido em**: `LeftOutliner.tsx`  
+> **Regra Visual**: `rounded-t-sm rounded-b-none`.
 
-Mesmo formato visual do tab, mas posicionado no topo do bloco receptor.
+| Elemento | Detalhe |
+|----------|---------|
+| **Header** | Ícone `Zap`, "CONSUMO" (Uppercase), `MapPin` + Localização (8px). |
+| **Display** | Layout de instrumento com divisor vertical: **Consumo Médio** (Amber) | **kWp Alvo** (Emerald). |
+| **Valores** | Fontes `mono tabular-nums` para alta precisão visual. |
+| **Rodapé** | Segmentos de especificação técnica ("Spec Plate") para **Vol. Anual** e **Conexão** (font-mono). |
+| **Empty State** | Placeholder animado ("Aguardando Dados de Consumo"). |
 
-**Posição**: `absolute -top-[1px] left-1/2 -translate-x-1/2 z-30`
+### 2. ComposerBlockModule
+
+> **Definido em**: `ComposerBlockModule.tsx`  
+> **Regra Visual**: `pt-[16px]` (reserva para notch) + `rounded-none`.
+
+| Elemento | Detalhe |
+|----------|---------|
+| **Header** | Ícone `Sun`, "GERADOR FV" (Uppercase), Contagem total de unidades instaladas. |
+| **Display** | Instrumento dual: **Potência DC** (Sky/Emerald) vs **Geração Est.** (Amber). |
+| **Inventário** | Lista de grupos por modelo com qty, fabricante, potência (Wp) e controles ±. |
+| **Selector** | `ModuleInlineSelector` para busca por fabricante e modelo com sugestão de dimensionamento. |
+
+### 3. ComposerBlockInverter
+
+> **Definido em**: `ComposerBlockInverter.tsx`  
+> **Regra Visual**: `rounded-t-none rounded-b-sm`.
+
+| Elemento | Detalhe |
+|----------|---------|
+| **StatusChips** | Validação de Tensão, Corrente e FDI (DC/AC Ratio). |
+| **Borda Dinâmica** | Reflete o estado crítico (Sky=OK, Amber=Warning, Red=Error). |
 
 ---
 
 ## Máquina de Estados — Cascata de Ativação
 
-O `LeftOutliner` implementa uma cascata progressiva: cada bloco só se torna ativo quando seu predecessor tem dados válidos.
+A visibilidade dos blocos segue uma lógica de pré-requisitos:
 
-```mermaid
-stateDiagram-v2
-    [*] --> ConsumptionEmpty: Projeto novo
-
-    ConsumptionEmpty --> ConsumptionFilled: clientData.averageConsumption > 0
-    ConsumptionFilled --> ModulePlaceholder: Consumo válido
-
-    state "Módulos" as ModuleState {
-        ModulePlaceholder --> ModuleFilled: addModule()
-    }
-
-    ModuleFilled --> InverterPlaceholder: modules.length > 0
-
-    state "Inversor" as InverterState {
-        InverterPlaceholder --> InverterFilled: addInverter()
-    }
-
-    note right of ConsumptionEmpty: Módulos e Inversor mostram LockedBlock
-    note right of ModulePlaceholder: Inversor mostra LockedBlock
-```
-
-### Regras de Ativação
-
-| Bloco | Condição de Ativação | Quando Inválido |
-|-------|---------------------|----------------|
-| **Consumo** | Sempre ativo | N/A (é a raiz) |
-| **Módulos FV** | `clientData.averageConsumption > 0` | `LockedBlock` → "Informe o consumo médio" |
-| **Inversor** | `modules.length > 0` | `LockedBlock` → "Adicione módulos" ou "Preencha etapas anteriores" |
+1.  **Consumo**: Sempre visível. Raiz da pilha.
+2.  **Módulos FV**: 
+    - Ativo se `averageConsumption > 0`.
+    - Senão: `LockedBlock` ("Informe o consumo médio").
+3.  **Inversor**:
+    - Ativo se `modules.length > 0`.
+    - Senão: `LockedBlock` ("Adicione módulos").
 
 ---
 
-## Geometria de Encaixe
+## Geometria e Encaixe Físico
 
-Os blocos se encaixam fisicamente com **gap zero** e **margem negativa** (`-mt-px`):
+Para garantir que os blocos pareçam peças físicas (Lego), aplicamos:
 
-```text
-Bloco A (Consumo)
-├── rounded-t-xl rounded-b-none
-├── border-bottom visível
-├── LegoTab (-bottom-[10px]) ──┐ protrude 10px abaixo
-│                               │
-Bloco B (Módulos)               │
-├── rounded-t-none rounded-b-none
-├── pt-[10px] ←── zona reservada│ para o tab do bloco A
-├── -mt-px ←── sobreposição de borda
-├── LegoNotch (-top-[1px]) ────┘ mascara a junção
-├── LegoTab (-bottom-[10px]) ──┐
-│                               │
-Bloco C (Inversor)              │
-├── rounded-t-none rounded-b-xl
-├── pt-[10px] ←── zona reservada│
-├── -mt-px
-├── LegoNotch (-top-[1px]) ────┘
-└── LegoTab "AC" (base final)
-```
+1.  **Margem Negativa**: `-mt-px` em blocos receptores para sobrepor bordas.
+2.  **Padding Top Estrito**: `pt-[16px]` em blocos com `LegoNotch` para evitar que o conteúdo colida com o conector do bloco superior.
+3.  **Z-Index Progressivo**: Blocos superiores têm `z-index` maior que os inferiores (`z-30` -> `z-20` -> `z-10`) para que as sombras (shadow-lg) e os Tabs sobreponham as peças de baixo corretamente.
 
 ---
 
 ## Animações
 
-### Lego Snap (Encaixe)
-
-Quando um bloco é desbloqueado (transição `LockedBlock` → `ComposerBlock*`), a animação `lego-snap` é executada:
-
-```css
-@keyframes lego-snap {
-  0%   { opacity: 0; transform: translateY(-16px) scale(0.97); }
-  50%  { opacity: 1; transform: translateY(3px) scale(1.005); }
-  70%  { transform: translateY(-1px) scale(1); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
-}
-```
+### Lego Snap
+Disparada quando um bloco transiciona de `Locked` para `Filled`.
 
 | Propriedade | Valor |
 |-------------|-------|
-| Duração | `0.45s` |
-| Easing | `cubic-bezier(0.34, 1.56, 0.64, 1)` (spring overshoot) |
-| Classe CSS | `.animate-lego-snap` |
-| Definição | `index.css` (global) |
+| **Classe** | `.animate-lego-snap` |
+| **Definição** | `index.css` |
+| **Efeito** | Fade-in + Translate -16px para 0 com *overshoot* (spring). |
 
 ---
 
-## Dependências de Estado (Zustand)
+## Stores e Hooks Relevantes
 
-```mermaid
-graph LR
-    subgraph solarStore
-        CD["clientData"]
-        MOD["modules[]"]
-        INV["inverters[]"]
-    end
-
-    subgraph useTechStore
-        TE["inverters.entities"]
-        MP["mpptConfigs"]
-        ST["strings"]
-    end
-
-    subgraph Hooks
-        AS["useAutoSizing()"]
-        EV["useElectricalValidation()"]
-    end
-
-    CD -->|averageConsumption| LO["LeftOutliner"]
-    CD -->|city, state, tariff| CB["ConsumptionBlock"]
-    MOD -->|length > 0| LO
-    MOD -->|groupBy model| BM["ComposerBlockModule"]
-    INV --> BI["ComposerBlockInverter"]
-    TE --> BI
-    AS --> BM
-    AS -->|requiredModuleQty| MS["ModuleInlineSelector"]
-    EV --> BI
-    MP --> BI
-```
-
----
-
-## Fluxo de Dados dos Conectores
-
-| Conector | Label | Cor (ativo) | Significado Elétrico |
-|----------|-------|-------------|---------------------|
-| Consumo → Módulos | `kWh` | Âmbar | Demanda energética define o dimensionamento |
-| Módulos → Inversor | `DC` | Sky/Cyan | Corrente contínua dos painéis para o inversor |
-| Inversor → Rede | `AC` | Esmerald | Corrente alternada injetada na rede |
-
----
-
-## Paleta de Cores por Bloco
-
-| Bloco | Cor Primária | Borda (ativo) | Borda (placeholder) | Background |
-|-------|-------------|---------------|--------------------|----|
-| Consumo | `amber-400/500` | `slate-800` | N/A | `slate-900/60` + `from-amber-900/10` |
-| Módulos | `sky-400/500` | `sky-500/20` | `amber-500/30` dashed | `slate-900/60` |
-| Inversor | `emerald-400/500` | Dinâmico (status) | `emerald-500/30` dashed | `slate-900/60` |
-| Locked | `slate-600/700` | `slate-700/40` dashed | — | `slate-900/20` |
-
----
-
-## Stores e Catálogos Consumidos
-
-| Store | Dados Consumidos | Bloco |
-|-------|-----------------|-------|
+| Recurso | Função no Outliner |
+|---------|-------------------|
+| `useSolarStore` | Fonte da verdade para `clientData`, `modules` e `inverters`. |
+| `useUIStore` | Controla o `focusedBlock` (destaque visual por seleção). |
+| `useAutoSizing` | Provê o `requiredKwp` e `requiredModuleQty` (sugestão). |
+| `useTechKPIs` | Provê fatores de performance (PR) para cálculo de geração. |
+| `usePanelStore` | Gerencia o estado de `restoreMap` ao focar blocos. |
+--|-----------------|-------|
 | `useSolarStore` | `clientData`, `modules[]`, `inverters[]`, `addModule`, `removeModule` | Todos |
 | `useTechStore` | `inverters.entities`, `mpptConfigs`, `assignModulesToNewString`, `removeModules` | Módulos, Inversor |
 | `useCatalogStore` | `modules[]` (catálogo), `inverters[]` (catálogo) | Seletores Inline |
