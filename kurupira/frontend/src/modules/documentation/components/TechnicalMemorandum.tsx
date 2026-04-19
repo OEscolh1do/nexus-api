@@ -5,8 +5,6 @@
  * contendo especificações do sistema, cálculos de queda de tensão CC/CA
  * e dimensionamento de proteções.
  * 
- * // TODO: Integrar com useSolarStore() para puxar dados reais
- * // TODO: Adicionar exportação para PDF
  */
 
 import React from 'react';

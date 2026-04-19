@@ -6,111 +6,151 @@
 **Prioridade:** P1
 **Responsável:** `the-builder`
 **Revisor:** `design-lead` / `engenheiro-eletricista-pv`
-**Data de Atualização:** 2026-04-18
-**Ativada por:** aba "Site" no WorkspaceTabs (sem bloco vinculado no Flow)
-**Cor de acento:** Violet — `text-violet-400` / `border-violet-500/30`
+**Data de Atualização:** 2026-04-19
+**Ativada por:** aba "Projeto" no WorkspaceTabs
+**Cor de acento:** Indigo — `text-indigo-400` / `border-indigo-500/30`
 
 ---
 
 ## 1. Propósito
 
-A `SiteCanvasView` migrou do modelo fragmentado de "Cards Suspensos" para um **Cockpit de Engenharia** rigoroso e espesso. É um dossiê técnico de leitura (read-only em sua maioria) que compõe a folha de rosto do projeto.  
-Consolida métricas-chaves da localidade (Irradiação, Temperaturas extremas, Infraestrutura de conexão) influenciando passivamente o resto do sistema. 
+A `SiteCanvasView` é a **Definição de Premissas de Projeto (Ato 0)** — o ponto de entrada onde o engenheiro ancora todas as premissas técnicas que propagarão pelo resto do sistema. Não é um simples formulário de cadastro; é o **Onboarding de Engenharia**.
 
-O layout agora é puramente monolítico/`flex-col` contínuo, iniciando com um **Header HUD travado no topo**, seguido de uma **Barra de Premissas** esguia para navegação tática.
+A view coleta e consolida:
+- Identificação do projeto (Cliente, Título, Endereço)
+- Premissas de Rede Elétrica (Concessionária, Grupo de Consumo, Ligação, Tarifa)
+- Premissas Estruturais (Tipo de Telhado, Inclinação — baseline para PR)
+- Geolocalização exata via mapa satelital (Pin Drop)
+- Instrumentação climática automática (HSP, Temperatura, via API)
+
+O layout é um **Cockpit 50/50**: Formulários técnicos (55%) à esquerda + Mapa Satelital com Instrumentação (45%) à direita, sem scroll lateral no Desktop.
 
 ---
 
-## 2. Layout (Cockpit de Engenharia)
+## 2. Layout (Cockpit 50/50)
 
 ```text
-┌────────────────────────────────────────────────────────────────────────┐
-│  HEADER (Fixo - HUD)                                                   │
-│  [Ícone] Dossiê Técnico da Planta  |   Aptidão Climática               │
-│          Cliente, Cidade/UF        |   [ HSP 0.00 ] kWh/m²/dia         │
-│          Status: Em Andamento      |   [ -5.0°C ] Tmin Histórica       │
-└────────────────────────────────────────────────────────────────────────┘
-┌────────────────────────────────────────────────────────────────────────┐
-│  PAINEL 1 — Configuração e Acesso Rápido (Inline)                      │
-│  [Provider Climático: INMET/CRESESB] | [Btn: Dados do Cliente]         │
-└────────────────────────────────────────────────────────────────────────┘
-┌────────────────────────────────────────────────────────────────────────┐
-│  PAINEL 2 — Infraestrutura Elétrica                                    │
-│  [Ligação] [Distribuidora] [Tarifa Base] [Custo Disponibilidade]       │
-└────────────────────────────────────────────────────────────────────────┘
-┌────────────────────────────────────────────────────────────────────────┐
-│  PAINEL 3 — Dados Termodinâmicos e Climáticos (Data Grids)             │
-│  [IrradiationSparkline] [TemperatureSparkline]                         │
-└────────────────────────────────────────────────────────────────────────┘
-┌────────────────────────────────────────────────────────────────────────┐
-│  PAINEL 4 — Estado do Dimensionamento Atual (Resumo)                   │
-│  [kWp Instalado] [Inversor] [FDI] [Performance Ratio]                  │
-└────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────┬──────────────────────────┐
+│ PAINEL ESQUERDO (40%)      │ PAINEL DIREITO (60%)      │
+│                            │                           │
+│ ── Identificação ─────── │ [HEADER: Satélite + Busca]│
+│  Cliente | Título Projeto  │                           │
+│                            │ ┌─────────────────────┐  │
+│ ── Endereço ────────────── │ │  MAPA SATELITAL      │  │
+│  CEP | UF | Cidade         │ │  (flex-1, pin drop)  │  │
+│  Logradouro | Nº | Bairro  │ └─────────────────────┘  │
+│                            │                           │
+│ ── Rede Elétrica ───────── │ ── Instrumentação ─────── │
+│  Concessionária            │  Lat · Lng · T.Amb · HSP  │
+│  Grupo B / Grupo A         │                           │
+│  Ligação | Tarifa R$/kWh   │ ── Solar Tech Insight ─── │
+│                            │  Irr.Anual | PR Sugerido  │
+│ ── Premissas Estruturais ─ │  Nota Técnica Automática  │
+│  Tipo Telhado | Inclinação │                           │
+└────────────────────────────┴──────────────────────────┘
 ```
 
-**Container:** `relative w-full h-full flex flex-col bg-slate-950 overflow-hidden`
-Estética base focada em `tabular-nums tracking-widest text-[11px] font-black`.
+**Locking Desktop:** `lg:flex-row lg:overflow-hidden h-full`  
+**Mobile:** `flex-col overflow-y-auto` (empilhamento e scroll de página)  
+Estética base: `tabular-nums tracking-widest text-[11px] font-mono font-black`
 
 ---
 
 ## 3. Especificações por Componente
 
-### 3.1 Header HUD
-Fixado no topo com borda forte de separação `border-b border-slate-800`.
-- Exibe Título da View (Dossiê Técnico do Local).
-- Mostra dinamicamente `clientData.clientName`, `city`, `state` e um *Status Badge* atrelado a `allBlocksComplete`.
-- No lado direito (HUD Vital), dois grandiosos displays numéricos (em fonte mono, violeta ou âmbar):
-    1. **HSP Médio Regional**
-    2. **Temperatura Mínima Histórica (Crítico para Voc)**
+### 3.1 Painel Esquerdo (55%) — Blocos de Premissas
+Scroll interno independente. Organizado em 3 seções:
 
-### 3.2 Barra de Controle (Painel 1)
-Linha flex reduzida e grudada no bottom do Header.
-Substitui a antiga "Faixa de Ações" lábios inferiores da página.
-```tsx
-<div className="flex flex-row items-center gap-4 bg-slate-900 border border-slate-800 p-3 rounded-sm">
-  <div className="flex items-center gap-2">
-      <label className="text-[11px] text-slate-500 font-black uppercase">Metadados</label>
-      <div className="text-[11px] font-mono text-slate-400 bg-slate-950 px-2 py-1 rounded-sm border border-slate-800">Coord: {clientData.lat?.toFixed(5)}, {clientData.lng?.toFixed(5)}</div>
-  </div>
-  <div className="w-px h-6 bg-slate-800/60" />
-  <button onClick={() => openModal('clientData')} className="text-[11px] font-bold uppercase tracking-widest text-violet-400 hover:text-violet-300">
-    Editar Ficha de Cliente
-  </button>
-</div>
-```
+#### Seção A — Identificação do Projeto
+- `clientName` (Cliente *) — obrigatório
+- `projectName` (Título do Projeto) — opcional
 
-### 3.3. Painel 2 — Infraestrutura
-Painéis densos na vertical ao invés de dispersos (que perde espaço).
-Blocos retangulares, sem bordas flutuantes, focados em tabela.
-- `Tipo de ligação` (Monofásico, etc)
-- `Distribuidora`
-- `Tarifa Fixada`
-- `Custo de Disponibilidade Estimado (kWh/mês)`
+#### Seção B — Endereço de Instalação
+Grid 6 colunas para alto aproveitamento horizontal:
+- `zipCode` (CEP *) — 2 colunas, acento violeta/indigo, auto-fill de endereço via ViaCEP
+- `state` (UF) — 1 coluna, uppercase automático
+- `city` (Cidade *) — 3 colunas
+- `street` (Logradouro) — 4 colunas
+- `number` (Nº) — 1 coluna
+- `neighborhood` (Bairro) — 1 coluna
 
-### 3.4. Painel 3 — Metrologia e Termodinâmica
-Absorve os atuais **IrradiationSparkline** e **TemperatureSparkline**, mas retifica o layout deles para gráficos compactos, mono tipográficos e fundo escuro (Night-mode Dashboard), usando `fill="#8b5cf6"` como cor primária do módulo.
-- Gráfico de irradiação exibe as 12 barras com o Mínimo e Máximo textual.
-- A linha de temperatura estampa claramente a **TMin Mensal**.
-*(Nota: O engenheiro que visitar esta etapa não quer "cards fofos", mas uma matriz legível. Focar na visibilidade das marcas D-Mínimo / D-Máximo)*.
+#### Seção C — Rede Elétrica *(campos a implementar)*
+- `concessionaire` (Concessionária) — seletor ou texto livre; necessário para memorial descritivo e homologação
+- `rateGroup` (Grupo de Consumo) — `B1` Residencial / `B2` Rural / `B3 Comercial` / `A4` Média Tensão
+- `connectionType` (Tipo de Ligação) — Monofásico / Bifásico / Trifásico
+- `tariffRate` (Tarifa R$/kWh) — numérico com 2 casas decimais
 
-### 3.5. Painel 4 — Sumário de Projeto
-Mantém a tabela de espelho, mas transicionada para o estilo numérico robusto (igual Painel C do antigo, mas agora como um rodapé contínuo de conteúdo e sem limite estrito de largura).
+> **Nota de engenharia:** O Grupo A (Média Tensão) exige cálculo de demanda além de energia, o que hoje não é suportado. Registrar como P2 no backlog.
+
+#### Seção D — Premissas Estruturais *(campos a implementar)*
+- `roofType` — enum: `ceramica` / `metalico` / `fibrocimento` / `laje` / `outro`
+  - Impacto: Fator de ventilação → ajusta Tcell estimada → afeta PR base
+- `roofInclination` — número 0–60°, default 15°
+  - Impacto: Usado posteriormente no cálculo de fator de incidência (ângulo de tilt)
+
+---
+
+### 3.2 Painel Direito (45%) — Mapa + Instrumentação
+
+#### Header do Mapa
+Linha compacta com título "Satélite" + botão "Localizar" + status de geocodificação inline.
+
+#### Mapa Satelital (flex-1)
+- `MapContainer` Leaflet com `zoomControl=false`
+- Click handler: define `lat/lng` no store
+- Auto-flyTo quando coordenadas mudam
+- HUD de instrução ao hover quando nenhum pin está definido
+
+#### Painel de Instrumentação (4 Células Fixas)
+| Campo | Fonte | Cor |
+|-------|-------|-----|
+| Lat. | `clientData.lat` | slate-300 |
+| Lng. | `clientData.lng` | slate-300 |
+| T. Amb. | `weatherData.ambient_temp_avg` | rose-400 |
+| HSP Méd. | `weatherData.hsp_avg` | amber-400 |
+
+#### Card Solar Tech Insight *(a implementar)*
+Gerado automaticamente quando `weatherData` estiver disponível:
+- **Irradiação Anual** = `sum(monthlyIrradiation)` em kWh/m²/ano
+- **PR Sugerido** = baseline regional estimado (ex: 0.80 para Norte, 0.82 para Sul)
+- **Nota Técnica** = texto curto gerado por regra (ex: `Irradiância acima de 5.0 kWh/m²/dia — priorizar módulos de alta eficiência`)
 
 ---
 
 ## 4. Integração de Estado
 
-Toda interação invoca a store central (`useSolarStore`, `systemCompositionSlice`):
 ```typescript
-const hspMedioAnual = monthlyIrradiation.reduce((a, b) => a + b, 0) / 12;
-const allBlocksComplete = ... // vem do slice de progressão
+const clientData = useSolarStore(s => s.clientData);
+const weatherData = useSolarStore(s => s.weatherData);
+const updateClientData = useSolarStore(s => s.updateClientData);
+
+// Derivações
+const hspAnual = (clientData.monthlyIrradiation ?? []).reduce((a, b) => a + b, 0);
+const hspMed   = hspAnual / 12;
+const prSugerido = hspMed > 5.0 ? 0.80 : 0.78; // regra regional simplificada
 ```
+
+**Campos ainda sem store dedicado (pendente de spec de schema):**
+- `concessionaire`: adicionar ao `InputData` como `string | undefined`
+- `rateGroup`: adicionar ao `InputData` como `'B1' | 'B2' | 'B3' | 'A4' | undefined`
 
 ---
 
 ## 5. Critérios de Aceitação Atualizados
-- [x] O Header carrega a `Temperature Mínima Histórica` nativa calculada do `weatherData`, servindo de *heads-up* constante para o Engenheiro que vai focar em tensão no inversor.
-- [x] O layout agora flui de cima para baixo sem rodapés flutuantes que colidam com componentes em telas 1080p, mantendo apenas a aba visual no topo.
-- [x] Todas as tipologias de números obedecem a `tabular-nums font-mono text-xs`.
-- [x] Sem estados mutáveis espalhados; o único botão invoca `ClientDataModal`.
-- [x] `tsc --noEmit` → EXIT CODE 0
+- [x] Layout 40/60 Desktop sem scroll lateral da janela.
+- [x] Mobile empilha e mantém scroll de página.
+- [x] `tsc --noEmit` → EXIT CODE 0.
+- [x] Novos campos `concessionaire`, `rateGroup`, `roofType`, `roofInclination` persistidos no `useSolarStore`.
+- [x] Card "Solar Tech Insight" exibe Irradiação Anual e PR Sugerido quando `weatherData` disponível.
+- [ ] Dado de `concessionaire` flui para o memorial descritivo gerado na view Proposta *(pendente — Gênes P2)*.
+
+---
+
+## 6. Backlog de Gaps (Próximos Épicos)
+
+| ID | Gap Identificado | Prioridade | Impacto |
+|----|-----------------|------------|--------|
+| G-01 | Suporte a Grupo A (Média Tensão / Demanda) | P2 | Cálculo de demanda ausente |
+| G-02 | `roofType` propagando fator de ventilação para o PR no motor de simulação | P2 | PR mais realista |
+| G-03 | Autocomplete de Concessionária por UF | P3 | UX de preenchimento |
+| G-04 | Irradiação anual na Instrumentação + nota de viabilidade | P2 | Percepção de valor imediato |

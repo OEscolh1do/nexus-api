@@ -119,7 +119,31 @@ export interface MPPTInput {
     minMpptVoltage: number;
     maxMpptVoltage: number;
     maxCurrentPerMPPT: number;
+    /** [NEW] NBR 16690: Bos parameters */
+    cableLength?: number; // meters (one way)
+    cableSection?: number; // mm2 (default 4)
 }
+
+/**
+ * Calculates DC Voltage Drop percentage.
+ * Formula: deltaV = (2 * L * I) / (sigma * A)
+ * @param length One-way length (m)
+ * @param current Operating current (A)
+ * @param section Cable section (mm2)
+ * @param voltage Operating voltage (V)
+ */
+export const calculateVoltageDrop = (
+    length: number,
+    current: number,
+    section: number,
+    voltage: number
+): { volts: number; percent: number } => {
+    if (voltage === 0 || section === 0) return { volts: 0, percent: 0 };
+    const SIGMA_CU = 56; // Copper conductivity
+    const dropV = (2 * length * current) / (SIGMA_CU * section);
+    const dropPercent = (dropV / voltage) * 100;
+    return { volts: dropV, percent: dropPercent };
+};
 
 /**
  * Validates all MPPT configurations of a system against inverter limits.
@@ -132,7 +156,7 @@ export interface MPPTInput {
  */
 export const validateSystemStrings = (
     mpptInputs: MPPTInput[],
-    moduleSpecs: ModuleElectricalSpecs & { isc: number },
+    moduleSpecs: ModuleElectricalSpecs & { isc: number; vmp: number },
     minAmbientTemp: number = 0,
     maxCellTemp: number = 70
 ): SystemValidationReport => {
@@ -199,8 +223,6 @@ export const validateSystemStrings = (
         }
 
         // 4. Isc Total vs Max Current Per MPPT (IEC 60364-7-712 §712.443)
-        // Tolerância de 1.25× sobre o limite nominal antes de emitir aviso.
-        // Re-ativado como warning não-bloqueante (E-01 / TRL 7-8).
         const iscTotal = moduleSpecs.isc * input.stringsCount;
         const ISC_TOLERANCE = 1.25;
         const iscLimit = input.maxCurrentPerMPPT * ISC_TOLERANCE;
@@ -209,6 +231,32 @@ export const validateSystemStrings = (
             messages.push(
                 `Isc(${iscTotal.toFixed(1)}A) > ${ISC_TOLERANCE}× limite MPPT(${(iscLimit).toFixed(1)}A). Verifique o datasheet do inversor.`
             );
+        }
+
+        // 5. [NEW] NBR 16690: Fusíveis de String
+        // Obrigatório se strings em paralelo >= 3.
+        if (input.stringsCount >= 3) {
+            if (status !== 'error') status = 'warning';
+            messages.push(
+                `Aviso: ${input.stringsCount} strings em paralelo. Fusíveis CC obrigatórios (NBR 16690).`
+            );
+        }
+
+        // 6. [NEW] Queda de Tensão CC
+        if (input.cableLength && input.cableSection) {
+            const drop = calculateVoltageDrop(
+                input.cableLength,
+                moduleSpecs.isc * 0.9, // Imp estimativo (Isc * 0.9)
+                input.cableSection,
+                metrics.vmpNominal
+            );
+            if (drop.percent > 2.0) {
+                status = 'error';
+                messages.push(`Queda de tensão CC excessiva: ${drop.percent.toFixed(2)}% (Limite 2%).`);
+            } else if (drop.percent > 1.0) {
+                if (status !== 'error') status = 'warning';
+                messages.push(`Queda de tensão CC elevada: ${drop.percent.toFixed(2)}% (Recomendado < 1%).`);
+            }
         }
 
         return {

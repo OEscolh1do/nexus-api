@@ -12,6 +12,7 @@ interface VoltageRangeChartProps {
   limitInversorVMax: number;
   limitMpptVMin: number;
   limitMpptVMax: number;
+  limitVStart?: number; // [NEW] Tensão de Partida
 }
 
 export const VoltageRangeChart: React.FC<VoltageRangeChartProps> = ({
@@ -19,6 +20,7 @@ export const VoltageRangeChart: React.FC<VoltageRangeChartProps> = ({
   limitInversorVMax,
   limitMpptVMin,
   limitMpptVMax,
+  limitVStart,
 }) => {
   // Find absolute maximum bound to compute safe axis width
   let overallVocMax = 0;
@@ -51,13 +53,25 @@ export const VoltageRangeChart: React.FC<VoltageRangeChartProps> = ({
            </div>
         </div>
 
+        {/* Linha Fundo: Tensão de Partida (Vstart) */}
+        {limitVStart && (
+          <div 
+            className="absolute top-0 bottom-0 w-px border-l border-dashed border-amber-500/50 z-0"
+            style={{ left: getPercent(limitVStart) }}
+          >
+            <div className="absolute -bottom-3 left-1 text-[9px] text-amber-500/70 uppercase font-bold whitespace-nowrap">
+               Vstart {limitVStart}V
+            </div>
+          </div>
+        )}
+
         {/* Linha Fundo: Limite do Inversor (Vermelha) */}
         <div 
           className="absolute top-0 bottom-0 w-px bg-red-500/80 z-0"
           style={{ left: getPercent(limitInversorVMax) }}
         >
           <div className="absolute -top-3 left-1 text-[11px] text-red-500 uppercase font-bold whitespace-nowrap">
-             Max Inv {limitInversorVMax.toFixed(2)}V
+             Max Inv {limitInversorVMax.toFixed(0)}V
           </div>
           <div className="absolute top-0 right-0 w-64 h-full bg-gradient-to-r from-red-500/10 to-transparent pointer-events-none" />
         </div>

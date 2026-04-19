@@ -52,6 +52,10 @@ export const InputDataSchema = z.object({
   roofType: z.enum(['ceramica', 'metalico', 'fibrocimento', 'laje', 'outro']).optional(),
   roofInclination: z.number().min(0).max(60).optional(),
   leadPersona: z.enum(['provedor', 'calculista']).optional(),
+
+  // Rede Elétrica & Concessionária (V3.4)
+  concessionaire: z.string().optional(),
+  rateGroup: z.enum(['B1', 'B2', 'B3', 'A4']).optional(),
 });
 
 export type InputData = z.infer<typeof InputDataSchema>;

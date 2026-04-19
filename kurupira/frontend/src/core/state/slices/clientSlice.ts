@@ -112,6 +112,10 @@ export const initialClientData: InputData = {
   roofType: undefined,
   roofInclination: 15,
   leadPersona: undefined,
+
+  // Rede Elétrica & Concessionária (V3.4)
+  concessionaire: '',
+  rateGroup: undefined,
 };
 
 /**

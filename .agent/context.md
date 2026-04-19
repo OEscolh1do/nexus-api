@@ -134,6 +134,10 @@ O `MapCanvasView` wrapper gerencia 3 modos contextuais derivados do `activeFocus
    - **Small (`text-xs` / 12px)**: Padrão para labels de formulário, títulos de mini-cards e metadados secundários.
    - **Base (`text-sm` / 14px)**: Padrão para dados de engenharia principais, valores numéricos em HUDs e corpo de texto.
    - **Contraste**: Labels secundárias sobre `bg-slate-950` devem usar no mínimo `text-slate-400`. Nunca usar `slate-500/600` para textos informativos essenciais.
+10. **Escalas Climáticas Adaptativas (Amplitude Mínima)**: Para evitar gráficos "tendenciosos" e manter a honestidade de engenharia em diferentes latitudes (ex: Norte vs Sul do Brasil), eixos de clima devem impor uma amplitude mínima:
+    - **Temperatura**: Span mínimo de **15°C**.
+    - **HSP**: Span mínimo de **3.0**.
+    - Se a variação real for menor que o span mínimo, os dados devem ser centralizados no eixo, garantindo que pequenas flutuações não pareçam mudanças drásticas.
 
 ## 9. PADRÕES DE IDIOMA E LOCALIZAÇÃO
 

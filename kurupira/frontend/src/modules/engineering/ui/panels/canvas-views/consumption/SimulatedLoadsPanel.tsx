@@ -1,17 +1,19 @@
 import React, { useState, useMemo } from 'react';
 import { useSolarStore } from '@/core/state/solarStore';
 import { LoadItem } from '@/core/state/slices/clientSlice';
-import { Pencil, Trash2, AirVent, Refrigerator, ShowerHead, WashingMachine, Microwave, Car, Plus } from 'lucide-react';
+import { Pencil, Trash2, Plus, Zap } from 'lucide-react';
 
 
 // Library of common electrical loads with realistic engineering data
 const LOAD_PRESETS = [
-  { name: 'Ar-condicionado 12k BTU', power: 1200, hoursPerDay: 8, icon: AirVent },
-  { name: 'Geladeira Duplex', power: 150, hoursPerDay: 24, icon: Refrigerator },
-  { name: 'Chuveiro Elétrico', power: 5500, hoursPerDay: 0.5, icon: ShowerHead },
-  { name: 'Lavadora de Roupas', power: 500, hoursPerDay: 1, icon: WashingMachine },
-  { name: 'Micro-ondas', power: 1200, hoursPerDay: 0.2, icon: Microwave },
-  { name: 'Carregador VE', power: 7000, hoursPerDay: 4, icon: Car },
+  { name: 'Ar-condicionado 12k BTU', power: 1200, hoursPerDay: 8 },
+  { name: 'Geladeira Duplex', power: 150, hoursPerDay: 24 },
+  { name: 'Chuveiro Elétrico', power: 5500, hoursPerDay: 0.5 },
+  { name: 'Lavadora de Roupas', power: 500, hoursPerDay: 1 },
+  { name: 'Micro-ondas', power: 1200, hoursPerDay: 0.2 },
+  { name: 'Carregador VE', power: 7000, hoursPerDay: 4 },
+  { name: 'Bomba de Piscina', power: 750, hoursPerDay: 6 },
+  { name: 'Forno Elétrico', power: 1800, hoursPerDay: 0.5 },
 ];
 
 const calcKwh = (item: Partial<LoadItem>) => {
@@ -21,7 +23,17 @@ const calcKwh = (item: Partial<LoadItem>) => {
   return (item.power * duty * item.hoursPerDay * item.daysPerMonth * qty) / 1000;
 };
 
-export const SimulatedLoadsPanel: React.FC = () => {
+interface SimulatedLoadsPanelProps {
+  /** Compact mode for sidebar rendering */
+  compact?: boolean;
+  /** Total consumption average (kWh/month) for footer projection display */
+  projectionAvg?: number;
+}
+
+export const SimulatedLoadsPanel: React.FC<SimulatedLoadsPanelProps> = ({ 
+  compact: _compact = false,
+  projectionAvg,
+}) => {
   const entities = useSolarStore(s => s.simulatedItems.entities);
   const simulatedItems = useMemo(() => Object.values(entities), [entities]);
   const addLoadItem = useSolarStore(s => s.addLoadItem);
@@ -64,7 +76,9 @@ export const SimulatedLoadsPanel: React.FC = () => {
     setForm(defaultFormState);
   };
 
-  const applyPreset = (preset: typeof LOAD_PRESETS[0]) => {
+  const applyPreset = (presetIndex: number) => {
+    const preset = LOAD_PRESETS[presetIndex];
+    if (!preset) return;
     setForm({
       ...defaultFormState,
       name: preset.name,
@@ -74,177 +88,166 @@ export const SimulatedLoadsPanel: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col h-full">
       
-      {/* ── SELEÇÃO RÁPIDA (PRESETS) ────────────────────────────────── */}
-      <div className="flex flex-col gap-2">
-        <span className="text-[11px] text-slate-500 uppercase font-black tracking-widest ml-1">Biblioteca de Cargas Comuns</span>
-        <div className="flex flex-wrap gap-2">
-          {LOAD_PRESETS.map((preset) => (
-            <button
-              key={preset.name}
-              onClick={() => applyPreset(preset)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-sm hover:border-sky-500/50 hover:bg-slate-800 transition-all group"
-            >
-              <preset.icon size={12} className="text-slate-500 group-hover:text-sky-500 transition-colors" />
-              <span className="text-[11px] text-slate-300 font-bold uppercase tracking-tight">{preset.name.split(' ')[0]}</span>
-              <span className="text-[11px] text-slate-600 font-mono tracking-tighter tabular-nums">{preset.power}W</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="bg-slate-900 border border-slate-800 rounded-sm overflow-hidden shadow-inner">
-        {/* Header da Tabela */}
-        <div className="flex items-center gap-3 px-4 py-2 bg-slate-950/50 border-b border-slate-800">
-           <span className="text-[11px] text-slate-500 uppercase font-black tracking-widest flex-1">Identificação da Carga</span>
-           <span className="text-[11px] text-slate-500 uppercase font-black tracking-widest w-24 text-right">Consumo Mensal</span>
-           <span className="w-12"></span>
-        </div>
-
-        {/* Lista de itens */}
-        <div className="max-h-[300px] overflow-y-auto custom-scrollbar overflow-x-auto">
-          <div className="min-w-[400px] xl:min-w-0">
-            {simulatedItems.map(item => (
-              <div key={item.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-800/40 last:border-0 hover:bg-slate-800/30 group transition-colors">
-                
-                {/* Nome + Detalhes Técnicos */}
-                <div className="flex-1 min-w-0">
-                  {editingItem === item.id ? (
-                    <input 
-                      autoFocus
-                      defaultValue={item.name}
-                      onBlur={(e) => {
-                        updateLoadItem(item.id, { name: e.target.value });
-                        setEditingItem(null);
-                      }}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') {
-                          updateLoadItem(item.id, { name: (e.target as HTMLInputElement).value });
-                          setEditingItem(null);
-                        }
-                      }}
-                      className="w-full bg-slate-950 border border-sky-500/50 rounded-sm px-2 py-1 text-xs text-sky-300 focus:outline-none font-mono"
-                    />
-                  ) : (
-                    <p className="text-xs font-bold text-slate-200 truncate uppercase tracking-tight">{item.name}</p>
-                  )}
-                  <p className="text-[11px] text-slate-500 mt-1 font-mono uppercase tracking-tighter tabular-nums">
-                    {item.power}W · {item.hoursPerDay}h/dia · {item.daysPerMonth}D/MÊS {item.qty > 1 && `· QTY:${item.qty}`}
-                  </p>
-                </div>
-
-                {/* kWh Instrument */}
-                <div className="w-24 flex flex-col items-end">
-                   <span className="text-sm font-mono text-sky-500 tabular-nums font-black leading-none italic">
-                     {calcKwh(item).toFixed(2)}
-                   </span>
-                   <span className="text-[11px] font-black text-sky-600/50 uppercase tracking-widest">kWh/mês</span>
-                </div>
-
-                {/* Ações */}
-                <div className="w-12 flex justify-end gap-1 opacity-100 xl:opacity-0 xl:group-hover:opacity-100 transition-opacity">
-                  <button 
-                    onClick={() => setEditingItem(editingItem === item.id ? null : item.id)}
-                    className="p-1 hover:text-sky-400 text-slate-600 transition-colors"
-                    title="Editar Nome"
-                  >
-                    <Pencil size={11} />
-                  </button>
-                  <button 
-                    onClick={() => removeLoadItem(item.id)}
-                    className="p-1 hover:text-red-400 text-slate-600 transition-colors"
-                    title="Remover Carga"
-                  >
-                    <Trash2 size={11} />
-                  </button>
-                </div>
-              </div>
-            ))}
-
-            {simulatedItems.length === 0 && (
-              <div className="py-8 text-center bg-slate-950/20">
-                 <p className="text-[11px] text-slate-600 font-bold uppercase tracking-widest italic">Nenhuma carga simulada ativa</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Footer de Soma */}
-        {simulatedItems.length > 0 && (
-          <div className="flex justify-between items-center px-4 py-2.5 bg-slate-950 border-t border-slate-800/80">
-            <span className="text-[11px] text-slate-500 uppercase font-black tracking-widest">Total de Incremento de Carga</span>
-            <div className="flex items-baseline gap-1.5">
-               <span className="text-xs font-mono text-sky-500 tabular-nums font-black animate-pulse">
-                + {totalCargasKwh.toFixed(2)}
-              </span>
-              <span className="text-[11px] font-bold text-sky-600/50 uppercase">kWh/mês</span>
-            </div>
-          </div>
+      {/* ── HEADER ────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest flex items-center gap-1.5">
+          <Zap size={10} className="text-amber-500/70" /> Inventário de Cargas
+        </span>
+        {totalCargasKwh > 0 && (
+          <span className="text-[10px] font-mono font-black text-amber-500 tabular-nums">
+            +{totalCargasKwh.toFixed(0)} kWh
+          </span>
         )}
       </div>
 
-      {/* Formulário de Adição "Plaquetado" */}
-      <div className="p-4 sm:p-5 bg-slate-900 border border-slate-800 rounded-sm relative overflow-hidden shadow-2xl">
-        <div className="absolute top-0 left-0 w-1 h-full bg-sky-500/20" />
-        
-        <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 mb-4 items-end">
-          {/* Campo: Identificação */}
-          <div className="col-span-12 sm:col-span-6 xl:col-span-12 2xl:col-span-5 flex flex-col gap-1">
-            <label className="text-[11px] uppercase font-black text-slate-500 tracking-widest ml-1">Identificação da Carga</label>
-            <input 
-              placeholder="Ex: Ar-condicionado Pav. 1"
-              value={form.name} 
-              onChange={e => setForm(f => ({...f, name: e.target.value}))}
-              className="w-full h-9 bg-slate-950 border border-slate-800 rounded-sm px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500/50 font-sans uppercase tracking-tight" 
-            />
-          </div>
+      {/* ── BIBLIOTECA (SELECT COMPACTO) ──────────────────────────── */}
+      <select
+        value=""
+        onChange={e => {
+          const idx = Number(e.target.value);
+          if (!isNaN(idx)) applyPreset(idx);
+        }}
+        className="w-full bg-slate-950 border border-slate-800 rounded-sm px-2 py-1.5 text-[10px] text-slate-400 font-mono uppercase tracking-tight focus:border-amber-500/50 outline-none transition-all mb-3 cursor-pointer"
+      >
+        <option value="">⚡ Selecionar carga comum...</option>
+        {LOAD_PRESETS.map((p, i) => (
+          <option key={p.name} value={i}>{p.name} — {p.power}W</option>
+        ))}
+      </select>
 
-          <div className="col-span-6 sm:col-span-3 xl:col-span-4 2xl:col-span-2 flex flex-col gap-1 items-center">
-            <label className="text-[11px] uppercase font-black text-slate-500 tracking-widest">Potência (W)</label>
+      {/* ── FORMULÁRIO DE ADIÇÃO (Compacto / Empilhado) ───────────── */}
+      <div className="flex flex-col gap-2 mb-3 p-2.5 bg-slate-950 border border-slate-800 rounded-sm">
+        <input 
+          placeholder="Nome da carga"
+          value={form.name} 
+          onChange={e => setForm(f => ({...f, name: e.target.value}))}
+          className="w-full h-7 bg-transparent border border-slate-800 rounded-sm px-2 text-[10px] text-slate-200 focus:outline-none focus:border-sky-500/50 font-mono uppercase tracking-tight" 
+        />
+        <div className="grid grid-cols-3 gap-1.5">
+          <div className="flex flex-col gap-0.5">
+            <label className="text-[9px] text-slate-600 font-bold uppercase text-center">W</label>
             <input 
-              type="number" 
-              min={1}
+              type="number" min={1}
               value={form.power || ''} 
               onChange={e => setForm(f => ({...f, power: Number(e.target.value)}))}
-              className="w-full h-9 bg-slate-950 border border-slate-800 rounded-sm px-3 py-2 text-xs text-sky-400 focus:outline-none focus:border-sky-500/50 font-mono text-center tabular-nums" 
+              className="w-full h-7 bg-transparent border border-slate-800 rounded-sm px-1 text-[10px] text-sky-400 focus:outline-none focus:border-sky-500/50 font-mono text-center tabular-nums" 
             />
           </div>
-
-          <div className="col-span-6 sm:col-span-3 xl:col-span-4 2xl:col-span-3 flex flex-col gap-1 items-center">
-            <label className="text-[11px] uppercase font-black text-slate-500 tracking-widest">Uso (H/Dia)</label>
-            <div className="flex items-center w-full">
-               <button onClick={() => setForm(f => ({...f, hoursPerDay: Math.max(0.1, (f.hoursPerDay || 8) - 0.5)}))} className="w-8 h-9 bg-slate-950 border border-slate-800 border-r-0 text-slate-500 hover:text-sky-500 font-bold active:bg-slate-800 transition-colors">−</button>
-               <input 
-                type="number" 
-                value={form.hoursPerDay || ''} 
-                onChange={e => setForm(f => ({...f, hoursPerDay: Number(e.target.value)}))}
-                className="flex-1 h-9 bg-slate-950 border border-slate-800 text-center text-xs text-slate-200 font-mono outline-none focus:border-sky-500/30" 
-              />
-              <button onClick={() => setForm(f => ({...f, hoursPerDay: Math.min(24, (f.hoursPerDay || 8) + 0.5)}))} className="w-8 h-9 bg-slate-950 border border-slate-800 border-l-0 text-slate-500 hover:text-sky-500 font-bold active:bg-slate-800 transition-colors">+</button>
-            </div>
+          <div className="flex flex-col gap-0.5">
+            <label className="text-[9px] text-slate-600 font-bold uppercase text-center">H/Dia</label>
+            <input 
+              type="number" min={0.1} step={0.5}
+              value={form.hoursPerDay || ''} 
+              onChange={e => setForm(f => ({...f, hoursPerDay: Number(e.target.value)}))}
+              className="w-full h-7 bg-transparent border border-slate-800 rounded-sm px-1 text-[10px] text-slate-300 focus:outline-none focus:border-sky-500/50 font-mono text-center" 
+            />
           </div>
-
-          <div className="col-span-12 2xl:col-span-2">
-            <button
-              onClick={handleAddItem}
-              disabled={!form.name || !form.power || form.power <= 0}
-              className="w-full h-9 bg-sky-600 hover:bg-sky-500 text-slate-950 text-[11px] font-black uppercase tracking-widest rounded-sm transition-all disabled:opacity-20 shadow-lg shadow-sky-900/20 active:scale-95 flex items-center justify-center gap-2"
-            >
-              <Plus size={14} /> Adicionar
-            </button>
-          </div>
+          <button
+            onClick={handleAddItem}
+            disabled={!form.name || !form.power || form.power <= 0}
+            className="h-7 mt-auto bg-sky-600 hover:bg-sky-500 text-slate-950 text-[10px] font-black uppercase tracking-widest rounded-sm transition-all disabled:opacity-20 flex items-center justify-center gap-1"
+          >
+            <Plus size={10} /> Add
+          </button>
         </div>
-
-        {/* Impacto Preventivo */}
+        {/* Impacto Preview */}
         {form.power! > 0 && form.hoursPerDay! > 0 && (
-          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-800/40">
-            <span className="text-[11px] text-slate-500 uppercase font-black tracking-[0.2em]">Impacto Nominal:</span>
-            <span className="text-[11px] font-mono font-black text-sky-500 border-b border-sky-500/30 tabular-nums">
-              {calcKwh(form).toFixed(2)} KWH/MÊS
+          <div className="flex items-center gap-2 pt-1 border-t border-slate-800/40">
+            <span className="text-[9px] text-slate-600 uppercase font-bold">Impacto:</span>
+            <span className="text-[9px] font-mono font-black text-sky-500 tabular-nums">
+              {calcKwh(form).toFixed(1)} kWh/mês
             </span>
           </div>
         )}
+      </div>
+
+      {/* ── LISTA DE CARGAS (Scroll interno) ──────────────────────── */}
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar border border-slate-800 rounded-sm bg-slate-900">
+        {simulatedItems.length === 0 ? (
+          <div className="py-6 text-center">
+            <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest italic">Nenhuma carga simulada</p>
+          </div>
+        ) : (
+          simulatedItems.map(item => (
+            <div key={item.id} className="flex items-center gap-2 px-2.5 py-2 border-b border-slate-800/40 last:border-0 hover:bg-slate-800/30 group transition-colors">
+              {/* Nome */}
+              <div className="flex-1 min-w-0">
+                {editingItem === item.id ? (
+                  <input 
+                    autoFocus
+                    defaultValue={item.name}
+                    onBlur={(e) => {
+                      updateLoadItem(item.id, { name: e.target.value });
+                      setEditingItem(null);
+                    }}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        updateLoadItem(item.id, { name: (e.target as HTMLInputElement).value });
+                        setEditingItem(null);
+                      }
+                    }}
+                    className="w-full bg-slate-950 border border-sky-500/50 rounded-sm px-1.5 py-0.5 text-[10px] text-sky-300 focus:outline-none font-mono"
+                  />
+                ) : (
+                  <>
+                    <p className="text-[10px] font-bold text-slate-300 truncate uppercase tracking-tight">{item.name}</p>
+                    <p className="text-[9px] text-slate-600 font-mono tabular-nums">
+                      {item.power}W · {item.hoursPerDay}h{item.qty > 1 ? ` · ×${item.qty}` : ''}
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {/* kWh */}
+              <span className="text-[10px] font-mono text-sky-500 tabular-nums font-black shrink-0">
+                {calcKwh(item).toFixed(0)}
+              </span>
+              <span className="text-[8px] text-sky-600/50 font-bold uppercase shrink-0">kWh</span>
+
+              {/* Actions */}
+              <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                <button 
+                  onClick={() => setEditingItem(editingItem === item.id ? null : item.id)}
+                  className="p-0.5 hover:text-sky-400 text-slate-600 transition-colors"
+                >
+                  <Pencil size={9} />
+                </button>
+                <button 
+                  onClick={() => removeLoadItem(item.id)}
+                  className="p-0.5 hover:text-red-400 text-slate-600 transition-colors"
+                >
+                  <Trash2 size={9} />
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* ── FOOTER (Total + Projeção) ─────────────────────────────── */}
+      <div className="mt-3 pt-3 border-t border-slate-800/60 space-y-2.5">
+        {totalCargasKwh > 0 && (
+          <div className="flex justify-between items-center">
+            <span className="text-[9px] text-slate-600 uppercase font-black tracking-widest">Total Cargas</span>
+            <span className="text-[10px] font-mono text-amber-500 tabular-nums font-black">
+              +{totalCargasKwh.toFixed(1)} kWh/mês
+            </span>
+          </div>
+        )}
+        {projectionAvg !== undefined && (
+          <div className="px-2.5 py-2 bg-slate-950 border border-sky-500/20 rounded-sm flex items-center justify-between">
+            <span className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">Projeção Média</span>
+            <div className="flex items-baseline gap-1">
+              <span className="text-xs font-mono font-black text-sky-500/80 tabular-nums">{projectionAvg.toFixed(1)}</span>
+              <span className="text-[8px] text-slate-600 font-bold uppercase">kWh/mês</span>
+            </div>
+          </div>
+        )}
+        <p className="text-[8px] text-slate-700 italic leading-relaxed uppercase font-bold">
+          * Recalculado com irradiância local TMY.
+        </p>
       </div>
     </div>
   );

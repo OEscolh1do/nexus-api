@@ -29,6 +29,8 @@ export interface MPPTConfig {
     modulesPerString: number; // Mapeado para retro-compatibilidade 
     azimuth?: number; // Advanced: MPPTs can face different directions
     inclination?: number;
+    cableLength: number; // [NEW] Comprimento do cabo CC (m)
+    cableSection: number; // [NEW] Seção nominal (mm²)
 }
 
 export interface ElectricalValidation {
@@ -123,7 +125,9 @@ const createDefaultMPPTConfig = (mppts: number): MPPTConfig[] => {
         mpptId: i + 1,
         stringIds: [],
         stringsCount: 0,
-        modulesPerString: 0
+        modulesPerString: 0,
+        cableLength: 10,
+        cableSection: 4
     }));
 };
 

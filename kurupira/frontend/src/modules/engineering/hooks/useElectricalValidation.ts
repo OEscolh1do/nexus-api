@@ -35,7 +35,7 @@ export const useElectricalValidation = (): UnifiedValidationResult => {
     
     // By extracting the IDs and relevant nested properties instead of full stringification, we save CPU cycles
     const invertersSig = Object.values(invertersNorm.entities)
-        .map(inv => `${inv.id}-${inv.mpptConfigs.map(m => m.stringIds.join(',')).join('|')}`)
+        .map(inv => `${inv.id}-${inv.mpptConfigs.map(m => `${m.stringIds.join(',')}|${m.cableLength}|${m.cableSection}`).join('|')}`)
         .join('::');
         
     const stringsSig = Object.values(stringsNorm.entities)
@@ -112,6 +112,8 @@ export const useElectricalValidation = (): UnifiedValidationResult => {
                         minMpptVoltage: inv.snapshot?.minMpptVoltage ?? 150,
                         maxMpptVoltage: inv.snapshot?.maxMpptVoltage ?? 500,
                         maxCurrentPerMPPT: inv.snapshot?.maxCurrentPerMPPT ?? 15,
+                        cableLength: cfg.cableLength,
+                        cableSection: cfg.cableSection,
                     } as MPPTInput;
                 }).filter(input => input.stringsCount > 0 && input.modulesPerString > 0);
             });

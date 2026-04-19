@@ -55,7 +55,7 @@ export const MPPTTopologyManager: React.FC<MPPTTopologyManagerProps> = ({
       </div>
 
       {/* Controles de Input com Debounce nativo do componente */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
         <CompactNumberInput 
           label="Mods/String" 
           value={mpptConfig.modulesPerString || 0} 
@@ -67,6 +67,18 @@ export const MPPTTopologyManager: React.FC<MPPTTopologyManagerProps> = ({
           value={mpptConfig.stringsCount || 0} 
           min={0} max={10} 
           onCommit={(val) => updateMPPT(inverterId, mpptConfig.mpptId, { stringsCount: val })} 
+        />
+        <CompactNumberInput 
+          label="Cabo L (m)" 
+          value={mpptConfig.cableLength || 10} 
+          min={1} max={500} 
+          onCommit={(val) => updateMPPT(inverterId, mpptConfig.mpptId, { cableLength: val })} 
+        />
+        <CompactNumberInput 
+          label="Seção (mm²)" 
+          value={mpptConfig.cableSection || 4} 
+          min={1} max={50} 
+          onCommit={(val) => updateMPPT(inverterId, mpptConfig.mpptId, { cableSection: val })} 
         />
         <CompactNumberInput 
           label="Azimute (°)" 
@@ -106,7 +118,7 @@ export const MPPTTopologyManager: React.FC<MPPTTopologyManagerProps> = ({
       </div>
 
       {/* Mini-Laudo do MPPT */}
-      <div className="flex gap-4 text-[11px] font-mono mt-1 pt-3 border-t border-slate-800">
+      <div className="flex flex-wrap gap-y-4 gap-x-6 text-[11px] font-mono mt-1 pt-3 border-t border-slate-800">
          <span className={cn('flex flex-col', isVocError ? 'text-red-400' : 'text-slate-400')}>
            <span className="text-[11px] uppercase tracking-widest text-slate-500">Voc (Tmin)</span>
            <span>{vocCalculado.toFixed(2)}V</span>
@@ -118,6 +130,11 @@ export const MPPTTopologyManager: React.FC<MPPTTopologyManagerProps> = ({
          <span className="flex flex-col border-l border-slate-800 pl-4 text-slate-300">
            <span className="text-[11px] uppercase tracking-widest text-slate-500">Potência DC</span>
            <span>{potenciaMppt.toFixed(2)} kWp</span>
+         </span>
+         <span className="flex flex-col border-l border-slate-800 pl-4 text-sky-400">
+           <span className="text-[11px] uppercase tracking-widest text-slate-500">Queda ΔV</span>
+           {/* Cálculo local simplificado para exibição imediata */}
+           <span>{((2 * (mpptConfig.cableLength || 10) * (iscCalculado * 0.9)) / (56 * (mpptConfig.cableSection || 4) * (vocCalculado * 0.85) || 1) * 100).toFixed(2)}%</span>
          </span>
       </div>
     </div>

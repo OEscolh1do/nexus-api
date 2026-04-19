@@ -1,35 +1,35 @@
-# Proposta: Redesign Industrial "Project Dossier"
+# Proposta de Refatoração: Layout de SiteCanvasView (Engineering Precision)
 
 ## Contexto
-O layout atual de "Thumbnail Superior" é comum em apps de consumo, mas em ferramentas de engenharia, a densidade de dados deve preceder a imagem. Propomos um redesign térmico inspirado em etiquetas de identificação industrial e painéis de telemetria (SCADA).
-
-## User Review Required
-> [!IMPORTANT]
-> Mudaremos o layout de vertical (Capa -> Info) para horizontal/híbrido (Telemetria -> Mapa/Ações), priorizando a leitura rápida de parâmetros técnicos.
+O ajuste anterior de 55/45 resultou em um painel esquerdo excessivamente largo para os dados contidos, causando o alongamento desnecessário de campos curtos (CEP, Tarifa, UF). Isso prejudica a estética de ferramenta técnica e a eficiência visual.
 
 ## Mudanças Propostas
 
-### 1. Novo Layout "Dossier"
-#### [MODIFY] `kurupira/frontend/src/modules/engineering/ui/ProjectExplorer.tsx`
-- **Estrutura**:
-    - **Esquerda (HUD)**: Uma coluna densa com kWp (X-Large), Consumo e Tensão.
-    - **Direita (Media)**: Uma área quadrada para o mapa de satélite e contagem de módulos.
-    - **Rodapé**: Nome do cliente e localização em uma faixa horizontal.
-- **Geometria**: Borda sólida `border-slate-800` com cantos `rounded-sm` (Padrão de Painel Elétrico).
+1. **Estrutura de Cockpit Revisada**:
+   - **Painel Esquerdo (Formulário)**: Transição de `lg:w-[55%]` para `lg:w-[400px]` (fixo). Isso estabiliza a UI em diferentes resoluções.
+   - **Painel Direito (Mapa)**: Mudança para `flex-1`, priorizando a área visual do local.
 
-### 2. Nova Paleta "Steel & Glow"
-- **Base**: `bg-slate-950` (Fundo extra profundo).
-- **Linhas**: Subdivide o card com `border-slate-900` para criar sub-painéis internos.
-- **Destaques**: 
-    - **Indigo Glow**: Apenas para os valores numéricos principais.
-    - **Muted Slate**: Para todos os rótulos descriptivos.
-- **Hover**: Ao invés de sombra, o card ganha um contorno `outline-1 outline-indigo-500/30`.
+2. **Grid de 12 Colunas**:
+   - Abordagem mais granular para evitar "campos esticados":
+     - `CEP`: 4/12
+     - `UF`: 2/12
+     - `Cidade`: 6/12
+     - `Logradouro`: 9/12
+     - `Nº`: 3/12
+     - `Tarifa`: 5/12
+   - Isso garante que o tamanho do input corresponda à magnitude do dado esperado.
 
-### 3. Micro-interações
-- O mapa de satélite terá um filtro `grayscale` que se torna colorido apenas no hover.
-- Os botões de Arquivar/Deletar serão movidos para um "Menu de Comando" compacto.
+3. **Refinamento de Primitivas**:
+   - Ajustar `FieldCell` para suportar composições densas sem quebra de labels.
+
+## Arquivos Afetados
+
+### [MODIFY] [SiteCanvasView.tsx](file:///d:/Reposit%C3%B3rio_Pessoal/SaaS%20Projects/Neonorte/Kurupira-Iaca/kurupira/frontend/src/modules/engineering/ui/panels/canvas-views/SiteCanvasView.tsx)
+- Reorganização total das classes de grid.
+- Ajuste das proporções flex-row.
 
 ## Plano de Verificação
-- [ ] Validar leitura em telas de 13" (baixa resolução).
-- [ ] Confirmar que o layout não quebra com nomes de clientes longos.
-- [ ] Verificar persistência da paleta escura em ambientes de alta luminosidade (contraste).
+- Validar se campos como CEP e UF mantêm larguras proporcionais ao conteúdo.
+- Confirmar responsividade em resoluções Desktop variadas.
+- `tsc --noEmit` para integridade de tipos.
+

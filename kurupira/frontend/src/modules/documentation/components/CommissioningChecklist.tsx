@@ -11,8 +11,6 @@
  * - Medição de Voc
  * - Medição de corrente de curto-circuito
  * 
- * // TODO: Integrar com useSolarStore() para valores esperados
- * // TODO: Adicionar campos de input para valores medidos
  */
 
 import React, { useMemo, useState } from 'react';

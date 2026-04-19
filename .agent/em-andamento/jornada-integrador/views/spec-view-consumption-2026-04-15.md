@@ -19,7 +19,7 @@ Nela, o integrador define premissas base, inspeciona e corrige mês a mês (fatu
 
 ---
 
-## 2. Layout (Cockpit de Engenharia)
+## 2. Layout (Cockpit de Engenharia — Dashboard Unificado)
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -32,15 +32,18 @@ Nela, o integrador define premissas base, inspeciona e corrige mês a mês (fatu
 │  [Ligação: Mono/Tri] | [Tarifa R$] | [Média (kWh)] | [Expansão %]      │
 └────────────────────────────────────────────────────────────────────────┘
 ┌────────────────────────────────────────────────────────────────────────┐
-│  PAINEL 2 — Perfil de Consumo (Área Principal)                         │
-│  [ Gráfico de Barras Principal: ConsumptionChart ]                     │
-│  ----------------------------------------------------------------      │
-│  Grade de Edição de Geração:                                           │
-│  [JAN] [FEV] [MAR] [ABR] [MAI] [JUN] [JUL] [AGO] [SET] [OUT] [NOV] [DEZ]
-└────────────────────────────────────────────────────────────────────────┘
-┌────────────────────────────────────────────────────────────────────────┐
-│  PAINEL 3 — Inventário de Cargas Projetadas                            │
-│  [ SimulatedLoadsPanel (Lista de Equipamentos com CRUD inline) ]       │
+│  PAINEL 2 — Dashboard Unificado (Gráfico + Inventário)                 │
+│  ┌──────────────────────────────────┬────────────────────────────────┐ │
+│  │                                  │  ⚡ INVENTÁRIO DE CARGAS        │ │
+│  │  [ ConsumptionChart ]            │  [Selecionar Carga ▾]          │ │
+│  │  (inc. History Grid na base)     │  [Nome] [W] [H/d] [+ ADD]     │ │
+│  │                                  │  ┌────────────────────────┐    │ │
+│  │                                  │  │ Ar-Cond. 12k   36 kWh │    │ │
+│  │                                  │  │ Chuveiro        82 kWh │    │ │
+│  │                                  │  └────────────────────────┘    │ │
+│  │                                  │  Total Cargas: +118 kWh/mês   │ │
+│  │                                  │  Projeção Média: 485 kWh/mês  │ │
+│  └──────────────────────────────────┴────────────────────────────────┘ │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -65,15 +68,20 @@ Inputs compactados horizontalmente (flex row), exibindo:
 
 *Estética:* `tabular-nums tracking-widest text-[11px] font-black`.
 
-### 3.3 Painel 2 — Gráficos e Grade Histórica
-- **`ConsumptionChart`**: O gráfico principal em barras verticais.
-- **Formulário Grid de 12 Meses**: Abaixo do gráfico, ao invés do usuário editar as barras clicando nelas (como na especificação antiga), o sistema agora possui uma grade contínua e visível com 12 inputs (Jan a Dez). Isso se provou mais rápido para o *data-entry* de engenheiros lendo uma conta de luz física.
+### 3.3 Painel 2 — Dashboard Unificado (Layout Flex-Row + Grid Inferior)
+O bloco principal une gráfico, cargas projetadas e histórico de faturas num único container visual (`bg-slate-900`).
 
-### 3.4 Painel 3 — Inventário de Cargas Simulado (`SimulatedLoadsPanel`)
-- Lista de equipamentos futuros que o cliente comprará. 
-- Somam em kWh no montante final para redefinir o cálculo da Potência Alvo do Inversor/Arranjo.
+**Lado Esquerdo — `ConsumptionChart` (flex-1)**:
+- Gráfico de barras verticais com controles climáticos.
+- **History Grid (Lançamento por Mês Elétrico)**: Integrado na base do componente para edição direta das faturas.
 
-*(Nota: O Painel de Correlação Climática foi removido na revisão estética final para focar amplamente no gráfico de Consumo principal, garantindo clareza sem sufocar o Grid de 12 meses).*
+### 3.4 Responsividade
+
+| Breakpoint | Gráfico + Sidebar | History Grid | Premissas |
+|-----------|-------------------|-------------|-----------|
+| **Desktop** (≥1024px) | Side-by-side (`flex-row`) | `grid-cols-12` (1 linha) | `flex-row` inline |
+| **Tablet** (768–1023px) | Sidebar colapsa abaixo | `grid-cols-6` (2 linhas) | `flex-row flex-wrap` |
+| **Mobile** (<768px) | Empilhados (`flex-col`) | `grid-cols-4` (3 linhas) | `flex-col` empilhado |
 
 ---
 
@@ -98,3 +106,7 @@ const result = calcKWpAlvo(totalConsumptionMonthly, monthlyHsp, loadGrowthFactor
 - [x] O usuário pode redigitar rapidamente as 12 faturas no grid inferior sem interagir com modais/popups.
 - [x] Slider de Fator de Expansão e Input de Média Rápida compactados na barra fixa de premissas com estilo `Engineering Aesthetic`.
 - [x] Arquitetura livre de vazamento de UI/renders paralelos infinitos (Infinite Loop Bugs debelados).
+- [x] Inventário de Cargas integrado ao sidebar direito do Dashboard Unificado (sem scroll para acessar).
+- [x] Biblioteca de Cargas compactada como `<select>` ao invés de chips de botões.
+- [x] Responsividade de 3 breakpoints (mobile, tablet, desktop) validada.
+- [x] `tsc --noEmit` → EXIT CODE 0.

@@ -108,66 +108,101 @@ export const ConsumptionChart: React.FC = () => {
       return {
         mes,
         consumoBase: monthlyConsumption[i] ?? 0,
-        cargasSimuladas: cargasSimuladas, // Removendo o Math.round para manter precisão
-        media: media, // Removendo o Math.round
+        cargasSimuladas: cargasSimuladas,
+        media: media,
         hsp: hspArray[i] ?? 0,
         temp: tempArray[i] ?? 0,
       };
     });
   }, [monthlyConsumption, simulatedItems, clientData.monthlyIrradiation, weatherData]);
 
+  // Adaptive Climate Domains (Smart Correlation Scaling)
+  const climateDomains = useMemo(() => {
+    // 1. Temperature Domain (Min Span: 15°C)
+    const temps = chartData.map(d => d.temp);
+    const tMin = Math.min(...temps);
+    const tMax = Math.max(...temps);
+    const tRange = tMax - tMin;
+    const tMinSpan = 15;
+    
+    let tempDomain: [number, number];
+    if (tRange < tMinSpan) {
+       const center = (tMax + tMin) / 2;
+       tempDomain = [center - tMinSpan / 2, center + tMinSpan / 2];
+    } else {
+       tempDomain = [tMin - 5, tMax + 2];
+    }
+
+    // 2. HSP Domain (Min Span: 3.0)
+    const hsps = chartData.map(d => d.hsp);
+    const hMin = Math.min(...hsps);
+    const hMax = Math.max(...hsps);
+    const hRange = hMax - hMin;
+    const hMinSpan = 3.0;
+
+    let hspDomain: [number, number];
+    if (hRange < hMinSpan) {
+       const center = (hMax + hMin) / 2;
+       hspDomain = [Math.max(0, center - hMinSpan / 2), center + hMinSpan / 2];
+    } else {
+       hspDomain = [Math.max(0, hMin - 1), hMax + 1];
+    }
+
+    return { tempDomain, hspDomain };
+  }, [chartData]);
+
   const isEmpty = averageConsumption === 0 && chartData.every(d => d.consumoBase === 0 && d.cargasSimuladas === 0);
 
   return (
     <div className="flex flex-col h-full gap-4 z-0">
       
-      {/* ── CONTROLES SUPERIORES (Unificados) ────────────────────────── */}
-      <div className="flex flex-col lg:flex-row items-center gap-4 bg-slate-900 border border-slate-800/60 p-3 rounded-sm shrink-0">
+      {/* ── CONTROLES E LEGENDA (UNIFICADOS) ────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 bg-slate-900 border border-slate-800/60 p-2 lg:px-3 lg:py-1.5 rounded-sm shrink-0">
         
         {/* Visibility Toggles */}
         <div className="flex items-center gap-2 pr-4 border-r border-slate-800">
-           <span className="text-[11px] text-slate-600 uppercase font-black tracking-widest mr-2">Camadas Climáticas (TMY):</span>
-           <button 
-             onClick={() => setShowHSP(!showHSP)}
-             className={cn(
-               "flex items-center gap-1.5 px-2 py-1 border rounded-sm transition-all active:scale-95",
-               showHSP 
-                ? "bg-sky-500/10 border-sky-500 text-sky-500" 
-                : "bg-slate-950 border-slate-800 text-slate-600 hover:text-slate-400 hover:border-slate-700"
-             )}
-           >
-             <Sun size={10} />
-             <span className="text-[11px] font-black uppercase tracking-tighter">HSP</span>
-           </button>
-           <button 
-             onClick={() => setShowTemp(!showTemp)}
-             className={cn(
-               "flex items-center gap-1.5 px-2 py-1 border rounded-sm transition-all active:scale-95",
-               showTemp 
-                ? "bg-rose-500/10 border-rose-500 text-rose-500" 
-                : "bg-slate-950 border-slate-800 text-slate-600 hover:text-slate-400 hover:border-slate-700"
-             )}
-           >
-             <Thermometer size={10} />
-             <span className="text-[11px] font-black uppercase tracking-tighter">TEMP</span>
-           </button>
+            <span className="text-[10px] text-slate-600 uppercase font-black tracking-widest mr-1">Camadas TMY:</span>
+            <button 
+              onClick={() => setShowHSP(!showHSP)}
+              className={cn(
+                "flex items-center gap-1.5 px-2 py-0.5 border rounded-sm transition-all active:scale-95",
+                showHSP 
+                 ? "bg-amber-500/10 border-amber-500 text-amber-500" 
+                 : "bg-slate-950 border-slate-800 text-slate-600 hover:text-slate-400 hover:border-slate-700"
+              )}
+            >
+              <Sun size={10} />
+              <span className="text-[10px] font-black uppercase tracking-tighter">HSP</span>
+            </button>
+            <button 
+              onClick={() => setShowTemp(!showTemp)}
+              className={cn(
+                "flex items-center gap-1.5 px-2 py-0.5 border rounded-sm transition-all active:scale-95",
+                showTemp 
+                 ? "bg-rose-500/10 border-rose-500 text-rose-500" 
+                 : "bg-slate-950 border-slate-800 text-slate-600 hover:text-slate-400 hover:border-slate-700"
+              )}
+            >
+              <Thermometer size={10} />
+              <span className="text-[10px] font-black uppercase tracking-tighter">TEMP</span>
+            </button>
         </div>
 
         {/* Legenda Dinâmica */}
-        <div className="hidden lg:flex items-center gap-4 h-6">
+        <div className="flex items-center gap-4 h-5">
            <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-sky-500 rounded-sm" />
-              <span className="text-[11px] text-slate-500 uppercase font-bold tracking-wider">Histórico</span>
+              <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Histórico</span>
            </div>
            <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-sky-500/30 rounded-sm" />
-              <span className="text-[11px] text-slate-500 uppercase font-bold tracking-wider">Simulado</span>
+              <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Simulado</span>
            </div>
         </div>
       </div>
 
-      {/* ── ÁREA DO GRÁFICO (REDUZIDA) ────────────────────────────────── */}
-      <div className="flex-1 relative min-h-[160px] max-h-[220px]">
+      {/* ── ÁREA DO GRÁFICO (FLEXÍVEL) ────────────────────────────────── */}
+      <div className="flex-1 relative min-h-[140px] max-h-none">
         {isEmpty ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none opacity-40">
             <Zap size={24} className="text-sky-500/40 mb-2" />
@@ -192,11 +227,19 @@ export const ConsumptionChart: React.FC = () => {
                 axisLine={false} 
                 className="tabular-nums"
               />
-              {(showHSP || showTemp) && (
+              {showHSP && (
                 <YAxis 
-                  yAxisId="climate"
+                  yAxisId="hsp"
                   orientation="right"
-                  domain={[0, 45]}
+                  hide={true}
+                  domain={climateDomains.hspDomain}
+                />
+              )}
+              {showTemp && (
+                <YAxis 
+                  yAxisId="temp"
+                  orientation="right"
+                  domain={climateDomains.tempDomain}
                   tick={{ fill: '#475569', fontSize: 11, fontFamily: 'var(--font-mono)' }} 
                   width={35} 
                   tickLine={false} 
@@ -228,18 +271,18 @@ export const ConsumptionChart: React.FC = () => {
 
               {showHSP && (
                 <Line
-                  yAxisId="climate"
+                  yAxisId="hsp"
                   type="monotone"
                   dataKey="hsp"
-                  stroke="#0ea5e9"
-                  strokeWidth={2}
-                  dot={false}
+                  stroke="#f59e0b"
+                  strokeWidth={2.5}
+                  dot={{ r: 2, fill: '#f59e0b', strokeWidth: 0 }}
                   isAnimationActive={false}
                 />
               )}
               {showTemp && (
                 <Line
-                  yAxisId="climate"
+                  yAxisId="temp"
                   type="monotone"
                   dataKey="temp"
                   stroke="#f43f5e"
@@ -256,9 +299,9 @@ export const ConsumptionChart: React.FC = () => {
 
       {/* ── GRADE DE EDIÇÃO DIRETA (12 MESES) ────────────────────────── */}
       {!isEmpty && (
-        <div className="flex flex-col gap-2">
-           <span className="text-[11px] text-slate-600 uppercase font-black tracking-widest ml-1">Lançamento por Mês Elétrico (History Grid)</span>
-           <div className="grid grid-cols-6 lg:grid-cols-12 gap-1.5 p-2 bg-slate-900 border border-slate-800/80 rounded-sm">
+        <div className="flex flex-col gap-1.5 shrink-0">
+           <span className="text-[9px] text-slate-600 uppercase font-black tracking-widest ml-1">Lançamento por Mês Elétrico (History Grid)</span>
+           <div className="grid grid-cols-6 lg:grid-cols-12 gap-1 p-1.5 bg-slate-900 border border-slate-800/80 rounded-sm">
               {chartData.map((d, i) => (
                 <div key={d.mes} className="flex flex-col items-center gap-1 group">
                    <label className="text-[11px] text-slate-500 group-hover:text-sky-500 transition-colors uppercase font-bold tracking-tighter">

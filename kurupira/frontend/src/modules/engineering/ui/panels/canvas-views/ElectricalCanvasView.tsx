@@ -151,6 +151,7 @@ export const ElectricalCanvasView: React.FC = () => {
               limitInversorVMax={dashboardData.limitInverterVMax}
               limitMpptVMin={dashboardData.limitMpptVMinGlobal}
               limitMpptVMax={dashboardData.limitMpptVMaxGlobal}
+              limitVStart={dashboardData.limitMpptVMinGlobal} // Aproximação Vstart = Vmin
            />
 
            <div className="flex flex-col gap-3">
@@ -162,7 +163,7 @@ export const ElectricalCanvasView: React.FC = () => {
                const strCount = mppt.stringsCount || 0;
                const mpptMetrics = moduleSpecs ? calculateStringMetrics(moduleSpecs, mods, settings.minHistoricalTemp) : { vocMax: 0, vmpMin: 0, vmpMax: 0, vmpNominal: 0 };
                const localIsc = moduleSpecs ? moduleSpecs.isc : 0;
-               const localVoc = moduleSpecs ? moduleSpecs.voc : 0;
+               const localPmax = (repModule as any)?.electrical?.pmax || (repModule as any)?.pmax || 0;
 
                return (
                  <MPPTTopologyManager 
@@ -172,7 +173,7 @@ export const ElectricalCanvasView: React.FC = () => {
                    updateMPPT={updateMPPTConfig}
                    vocCalculado={mpptMetrics.vocMax}
                    iscCalculado={localIsc * strCount}
-                   potenciaMppt={(localVoc * 0.8 * localIsc * 0.9 * mods * strCount) / 1000} // Estimativa kWp DC
+                   potenciaMppt={(localPmax * mods * strCount) / 1000} // Potência STC do arranjo
                    vMaxInversor={dashboardData.limitInverterVMax}
                    iscMaxMppt={dashboardData.limitIscMaxMppt} 
                  />
