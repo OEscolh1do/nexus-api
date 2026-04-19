@@ -4,9 +4,11 @@ import { useSolarStore, selectModules } from '@/core/state/solarStore';
 
 import { ComposerBlockModule } from './canvas-views/composer/ComposerBlockModule';
 import { ComposerBlockInverter } from './canvas-views/composer/ComposerBlockInverter';
+import { ComposerBlockArrangement } from './canvas-views/composer/ComposerBlockArrangement';
 import { useUIStore } from '@/core/state/uiStore';
 import { cn } from '@/lib/utils';
 import { usePanelStore } from '../../store/panelStore';
+import { useSystemComposition } from '@/core/state/slices/systemCompositionSlice';
 
 // =============================================================================
 // LOCKED GHOST BLOCK — Peça faltante no quebra-cabeça
@@ -60,6 +62,7 @@ const LockedBlock: React.FC<LockedBlockProps> = ({ label, icon, color, hint }) =
 const SiteBlock: React.FC = () => {
     const focusedBlock = useUIStore(s => s.activeFocusedBlock);
     const setFocusedBlock = useUIStore(s => s.setFocusedBlock);
+    const selectEntity = useUIStore(s => s.selectEntity);
     
     const clientData = useSolarStore(s => s.clientData);
     const weatherData = useSolarStore(s => s.weatherData);
@@ -75,7 +78,10 @@ const SiteBlock: React.FC = () => {
 
     return (
         <div 
-            onClick={() => setFocusedBlock('site')}
+            onClick={() => {
+                setFocusedBlock('site');
+                selectEntity('site', 'project-site', 'Projeto');
+            }}
             className={cn(
                 "relative rounded-none border flex flex-col overflow-visible transition-all duration-300 z-40 cursor-pointer",
                 isFocused 
@@ -225,14 +231,17 @@ const ConsumptionBlock: React.FC = () => {
 // =============================================================================
 
 export const LeftOutliner: React.FC<{ onToggle?: () => void; hideHeader?: boolean }> = ({ onToggle, hideHeader = false }) => {
-    const consumption = useSolarStore(s => s.clientData?.averageConsumption || 0);
     const city = useSolarStore(s => s.clientData?.city || '');
     const state = useSolarStore(s => s.clientData?.state || '');
     const modules = useSolarStore(selectModules);
     const totalModules = modules.length;
+    
+    // Métricas da Composição (Gates de Progressão)
+    const { consumptionBlock, arrangementBlock } = useSystemComposition();
 
     const hasLocation = city !== '' && state !== '';
-    const isConsumptionValid = consumption > 0;
+    const isConsumptionValid = consumptionBlock.status === 'complete';
+    const isArrangementValid = arrangementBlock.status !== 'empty';
     const isModulesValid = totalModules > 0;
 
     return (
@@ -272,9 +281,6 @@ export const LeftOutliner: React.FC<{ onToggle?: () => void; hideHeader?: boolea
                         />
                     )}
 
-                    {/* 3. Módulos FV — Junta entre Consumo e Módulos */}
-                    <div className="h-1" />
-
                     {isConsumptionValid ? (
                         <ComposerBlockModule />
                     ) : (
@@ -286,17 +292,31 @@ export const LeftOutliner: React.FC<{ onToggle?: () => void; hideHeader?: boolea
                         />
                     )}
 
-                    {/* 4. Inversor — Junta entre Módulos e Inversor */}
+                    {/* 4. Arranjo Físico — Junta entre Módulos e Arranjo */}
                     <div className="h-1" />
 
                     {isModulesValid ? (
+                        <ComposerBlockArrangement />
+                    ) : (
+                        <LockedBlock
+                            label="Arranjo Físico"
+                            icon={<MapPin size={11} />}
+                            color="sky"
+                            hint="Selecione os módulos no catálogo para liberar o desenho do arranjo"
+                        />
+                    )}
+
+                    {/* 5. Inversor — Junta entre Módulos e Inversor */}
+                    <div className="h-1" />
+
+                    {isArrangementValid ? (
                         <ComposerBlockInverter />
                     ) : (
                         <LockedBlock
                             label="Inversor"
                             icon={<Cpu size={11} />}
                             color="amber"
-                            hint={isModulesValid ? "Tudo pronto" : "Siga a ordem dos blocos superiores"}
+                            hint={isArrangementValid ? "Tudo pronto" : "Desenhe o arranjo no mapa para liberar inversor"}
                         />
                     )}
                 </div>

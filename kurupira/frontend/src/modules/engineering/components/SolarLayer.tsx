@@ -15,18 +15,19 @@ import { Polygon, useMapEvents } from 'react-leaflet';
 import L, { type LeafletMouseEvent } from 'leaflet';
 
 import { useSolarStore } from '@/core/state/solarStore';
-import { useUIStore } from '@/core/state/uiStore';
+import { useUIStore, type Tool } from '@/core/state/uiStore';
 import { selectModulesStable } from '@/core/state/solarSelectors';
 import type { LatLngTuple } from '@/core/utils/geoUtils';
 import type { PlacedModule } from '@/core/state/slices/projectSlice';
 import { ParametricRoofBlock, suppressNextMapClick } from './ParametricRoofBlock';
+import { ProjectSiteMarker } from './ProjectSiteMarker';
 
 // =============================================================================
 // TYPES & STYLES
 // =============================================================================
 
 interface SolarLayerProps {
-  activeTool: 'SELECT' | 'POLYGON' | 'MEASURE' | 'PLACE_MODULE';
+  activeTool: Tool;
 }
 
 const MODULE_POLYGON_STYLE = {
@@ -164,6 +165,9 @@ export const SolarLayer: React.FC<SolarLayerProps> = ({ activeTool }) => {
 
   return (
     <>
+      {/* ── PROJECT SITE REFERENCE (Layout 0 Guide) ── */}
+      <ProjectSiteMarker />
+
       {/* ── INSTALLATION AREAS (Freeform CSG Blocks) ── */}
       {(installationAreas || []).map(area => (
         <ParametricRoofBlock 

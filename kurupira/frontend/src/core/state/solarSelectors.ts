@@ -69,8 +69,17 @@ export const selectSimulatedItemsStable = createMemoSelector(
 // SELETORES DE PROJETO (PGFX-02)
 // =============================================================================
 
-/** Coordenadas do sítio */
+/** Coordenadas da Viewport do Mapa */
 export const selectCoordinates = (s: SolarState) => s.project.coordinates;
+
+/** Coordenadas do Sítio (salvas no Bloco de Projeto) — Estabilizado com Memo */
+export const selectProjectSiteLocation = createMemoSelector(
+  (s: SolarState) => `${s.clientData.lat}_${s.clientData.lng}`,
+  (serialized) => {
+    const [lat, lng] = serialized.split('_').map(Number);
+    return { lat, lng };
+  }
+);
 
 /** Áreas de Instalação (Freeform) */
 export const selectInstallationAreas = (s: SolarState) => s.project.installationAreas;

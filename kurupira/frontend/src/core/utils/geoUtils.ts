@@ -84,3 +84,24 @@ export function calcModulePolygon(
     lng + dy * Math.sin(rad) + dx * Math.cos(rad),
   ]) as LatLngTuple[];
 }
+
+/**
+ * Calcula a área de um polígono em metros quadrados usando a fórmula de Shoelace (Cadarço).
+ * Assume que os vértices estão em um sistema de coordenadas métricas locais (X, Y).
+ * 
+ * @param vertices - Array de vértices locais {x, y}
+ * @returns Área em m²
+ */
+export function calcPolygonAreaM2(vertices: { x: number; y: number }[]): number {
+  if (vertices.length < 3) return 0;
+  
+  let area = 0;
+  for (let i = 0; i < vertices.length; i++) {
+    const { x: x1, y: y1 } = vertices[i];
+    const { x: x2, y: y2 } = vertices[(i + 1) % vertices.length];
+    
+    area += (x1 * y2) - (x2 * y1);
+  }
+  
+  return Math.abs(area) / 2;
+}

@@ -2,7 +2,7 @@ import React from 'react';
 import { Polygon, Marker } from 'react-leaflet';
 import L, { LeafletEvent } from 'leaflet';
 import { InstallationArea } from '@/core/state/slices/projectSlice';
-import { useUIStore } from '@/core/state/uiStore';
+import { useUIStore, type Tool } from '@/core/state/uiStore';
 import { useSolarStore } from '@/core/state/solarStore';
 
 /**
@@ -18,7 +18,7 @@ export const suppressNextMapClick = { value: false };
 
 interface ParametricRoofBlockProps {
   roof: InstallationArea;
-  activeTool: string;
+  activeTool: Tool;
   activeModuleSpec: any;
 }
 

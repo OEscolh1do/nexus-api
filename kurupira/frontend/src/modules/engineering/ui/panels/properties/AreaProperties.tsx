@@ -9,11 +9,12 @@ interface AreaPropertiesProps {
 }
 
 const SURFACE_LABELS: Record<SurfaceType, string> = {
-  roof: 'Telhado',
+  ceramic: 'Telha Cerâmica',
+  metallic: 'Telha Metálica',
+  fibrocement: 'Fibrocimento',
+  slab: 'Laje',
   ground: 'Solo',
   carport: 'Carport',
-  slab: 'Laje',
-  other: 'Outro',
 };
 
 function computePolygonArea(vertices: { x: number; y: number }[]): number {

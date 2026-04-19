@@ -20,31 +20,73 @@ import React, { useEffect } from 'react';
 import { MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import type { Map as LeafletMap } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import ReactLeafletGoogleLayer from 'react-leaflet-google-layer';
 
 import { useCanvasSize } from '../components/CanvasContainer';
 import { useSolarStore } from '@/core/state/solarStore';
 import { useCenterContent } from '../store/panelStore';
-import { selectCoordinates, selectZoom } from '@/core/state/solarSelectors';
+import { selectCoordinates, selectZoom, selectProjectSiteLocation } from '@/core/state/solarSelectors';
+import { useUIStore, type Tool } from '@/core/state/uiStore';
 import { SolarLayer } from './SolarLayer';
 import { MapMeasureTool } from './MapMeasureTool';
 import { MapFlyToSync } from './MapFlyToSync';
+import { MapLayout0Lock } from './MapLayout0Lock';
 
-// =============================================================================
+// = =============================================================================
 // TILE CONFIG
 // =============================================================================
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
+const GOOGLE_MAPS_TOKEN = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
 
-const tileUrl = MAPBOX_TOKEN
-  ? `https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`
-  : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+// =============================================================================
+// FALLBACK PROVIDERS (Usados quando o token proprietário está ausente)
+// =============================================================================
+const OSM_FALLBACK = {
+  url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+  attribution: '© <a href="https://www.openstreetmap.org/">OpenStreetMap</a>',
+  maxNativeZoom: 19
+};
 
-const tileAttribution = MAPBOX_TOKEN
-  ? '© <a href="https://www.mapbox.com/">Mapbox</a>'
-  : '© <a href="https://www.openstreetmap.org/">OpenStreetMap</a>';
+const ESRI_SATELLITE_FALLBACK = {
+  url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EBP, and the GIS User Community',
+  maxNativeZoom: 19
+};
 
-// OSM tiles only support zoom 0-19. Mapbox satellite supports up to 22.
-const MAX_ZOOM = MAPBOX_TOKEN ? 22 : 19;
+const getTileConfig = (mapType: 'SATELLITE' | 'STREET' | 'GOOGLE_SATELLITE') => {
+  // Limite global de zoom da UI (nível 24 permite precisão centimétrica extrema)
+  const UI_MAX_ZOOM = 24;
+
+  if (!MAPBOX_TOKEN) {
+    if (mapType === 'SATELLITE') {
+      return {
+        ...ESRI_SATELLITE_FALLBACK,
+        maxZoom: UI_MAX_ZOOM,
+        tileSize: 256,
+        zoomOffset: 0
+      };
+    }
+    
+    return {
+      ...OSM_FALLBACK,
+      maxZoom: UI_MAX_ZOOM,
+      tileSize: 256,
+      zoomOffset: 0
+    };
+  }
+
+  const style = mapType === 'SATELLITE' ? 'mapbox/satellite-v9' : 'mapbox/streets-v12';
+  
+  return {
+    url: `https://api.mapbox.com/styles/v1/${style}/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`,
+    attribution: '© <a href="https://www.mapbox.com/">Mapbox</a>',
+    maxNativeZoom: 22,
+    maxZoom: UI_MAX_ZOOM,
+    tileSize: 512,
+    zoomOffset: -1
+  };
+};
 
 // =============================================================================
 // SUB-COMPONENTS
@@ -108,17 +150,25 @@ const MapMinimapObserver: React.FC = () => {
   const isMinimap = centerContent !== 'map';
 
   useEffect(() => {
+    let timer: any;
     if (isMinimap) {
       map.dragging.disable();
       map.scrollWheelZoom.disable();
       map.doubleClickZoom.disable();
-      setTimeout(() => map.invalidateSize(), 150);
+      timer = setTimeout(() => {
+        if (map) map.invalidateSize();
+      }, 150);
     } else {
       map.dragging.enable();
       map.scrollWheelZoom.enable();
       map.doubleClickZoom.enable();
-      setTimeout(() => map.invalidateSize(), 150);
+      timer = setTimeout(() => {
+        if (map) map.invalidateSize();
+      }, 150);
     }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [map, isMinimap]);
 
   return null;
@@ -173,23 +223,35 @@ export const globalLeafletMapRef: { current: LeafletMap | null } = { current: nu
 
 interface MapCoreProps {
   /** Ferramenta ativa — dita o comportamento de interação */
-  activeTool: 'SELECT' | 'POLYGON' | 'MEASURE' | 'PLACE_MODULE';
+  activeTool: Tool;
+  /** Indica se o usuário está em navegação livre (pós-origem do desenho) */
+  isNavigating?: boolean;
+  children?: React.ReactNode;
 }
 
-const MapCoreInner: React.FC<MapCoreProps> = ({ activeTool }) => {
+const MapCoreInner: React.FC<MapCoreProps> = ({ activeTool, isNavigating = false, children }) => {
   const coordinates = useSolarStore(selectCoordinates);
+  const siteLocation = useSolarStore(selectProjectSiteLocation);
   const zoom = useSolarStore(selectZoom);
 
-  // Fallback central: Manaus (sede Neonorte) se coordenadas não definidas
+  // Cadeia de Prioridade de Centro (SPEC-SITE-SYNC):
+  // 1. Viewport salva (project.coordinates)
+  // 2. Localização do Sítio (clientData.lat/lng)
+  // 3. Fallback (Manaus)
   const center: [number, number] = coordinates
     ? [coordinates.lat, coordinates.lng]
-    : [-3.1316, -60.0233];
+    : (siteLocation.lat && siteLocation.lng)
+      ? [siteLocation.lat, siteLocation.lng]
+      : [-3.1316, -60.0233];
+
+  const mapType = useUIStore(s => s.mapType);
+  const tileConfig = getTileConfig(mapType);
 
   return (
     <MapContainer
       center={center}
-      zoom={Math.min(zoom, MAX_ZOOM)}
-      maxZoom={MAX_ZOOM}
+      zoom={Math.min(zoom, tileConfig.maxZoom)}
+      maxZoom={tileConfig.maxZoom}
       minZoom={3}
       zoomControl={false}
       attributionControl={false}
@@ -198,15 +260,27 @@ const MapCoreInner: React.FC<MapCoreProps> = ({ activeTool }) => {
       {/* Exposes the map instance gobally */}
       <MapRefExposer />
 
-      {/* Tile Layer — Mapbox satélite com fallback OSM */}
-      <TileLayer
-        url={tileUrl}
-        attribution={tileAttribution}
-        maxZoom={MAX_ZOOM}
-        tileSize={MAPBOX_TOKEN ? 512 : 256}
-        zoomOffset={MAPBOX_TOKEN ? -1 : 0}
-        crossOrigin={true}
-      />
+      {/* Tile Layer — Mapbox satélite/streets com fallback OSM/Esri */}
+      {mapType !== 'GOOGLE_SATELLITE' && (
+        <TileLayer
+          key={tileConfig.url}
+          url={tileConfig.url}
+          attribution={tileConfig.attribution}
+          maxZoom={tileConfig.maxZoom}
+          maxNativeZoom={tileConfig.maxNativeZoom}
+          tileSize={tileConfig.tileSize}
+          zoomOffset={tileConfig.zoomOffset}
+          crossOrigin={true}
+        />
+      )}
+
+      {/* Google Maps Layer (requer API Key no .env.local) */}
+      {mapType === 'GOOGLE_SATELLITE' && (
+        <ReactLeafletGoogleLayer 
+          apiKey={GOOGLE_MAPS_TOKEN || ''} 
+          type="satellite"
+        />
+      )}
 
       {/* Sincronização de resize, visibilidade e viewport */}
       <MapInvalidator />
@@ -214,10 +288,12 @@ const MapCoreInner: React.FC<MapCoreProps> = ({ activeTool }) => {
       <MapMinimapObserver />
       <MapViewSync />
       <MapFlyToSync />
-
+      <MapLayout0Lock isNavigating={isNavigating} />
+      <MapRefExposer />
       {/* Camada de geometria solar */}
       <SolarLayer activeTool={activeTool} />
       <MapMeasureTool activeTool={activeTool} />
+      {children}
     </MapContainer>
   );
 };

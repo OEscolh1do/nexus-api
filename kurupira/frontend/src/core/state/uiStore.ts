@@ -23,16 +23,18 @@ import { create } from 'zustand';
 // TYPES
 // =============================================================================
 
-export type Tool = 'SELECT' | 'POLYGON' | 'MEASURE' | 'PLACE_MODULE';
+export type Tool = 'SELECT' | 'POLYGON' | 'MEASURE' | 'PLACE_MODULE' | 'STRINGING' | 'SUBTRACT' | 'DROP_POINT';
 
 export type WorkspaceMode = 'SIMULATION' | 'ELECTRICAL' | 'REPORTS' | 'PROPOSAL';
+
+export type CanvasViewMode = 'CONTEXT' | 'BLUEPRINT' | 'DIAGRAM' | 'UNIFILAR';
 
 export type FocusedBlock = 'consumption' | 'module' | 'arrangement' | 'inverter' | 'simulation' | 'site' | 'proposal' | 'map' | null;
 
 /** Etapa da animação do Dimensionamento Inteligente (Spec 03 §2.3) */
 export type AutoSizingStep = 'idle' | 'consumption' | 'module' | 'inverter' | 'done';
 
-export type EntityType = 'none' | 'module' | 'inverter' | 'string' | 'vertex' | 'polygon' | 'area' | 'placed-module';
+export type EntityType = 'none' | 'module' | 'inverter' | 'string' | 'vertex' | 'polygon' | 'area' | 'placed-module' | 'site';
 
 export interface SelectedEntity {
   type: EntityType;
@@ -47,7 +49,7 @@ const EMPTY_SELECTION: SelectedEntity = { type: 'none', id: null, label: '', mul
 // STORE
 // =============================================================================
 
-interface UIState {
+export interface UIState {
   /** Ferramenta ativa na Ribbon */
   activeTool: Tool;
   setActiveTool: (tool: Tool) => void;
@@ -71,14 +73,24 @@ interface UIState {
   activeFocusedBlock: FocusedBlock;
   setFocusedBlock: (block: FocusedBlock) => void;
 
+  /** Modo de Visualização do Canvas (estilo Blender: Context/Blueprint/Diagram/Unifilar) */
+  canvasViewMode: CanvasViewMode;
+  setCanvasViewMode: (mode: CanvasViewMode) => void;
+
   /** Etapa da animação do Dimensionamento Inteligente */
   autoSizingStep: AutoSizingStep;
-  setAutoSizingStep: (step: AutoSizingStep) => void;
+  /** Modo de Satélite em Alta Visibilidade (ignora filtros do modo Blueprint) */
+  isSatelliteHighVis: boolean;
+  toggleSatelliteHighVis: () => void;
   /**
    * Dispara a animação sequencial de lego-snap:
    * idle → consumption → module → inverter → done → setFocusedBlock('module')
    */
   triggerAutoSizing: () => void;
+
+  /** Tipo de mapa base (Satélite Mapbox/Esri, Google Satellite ou Padrão/Rua) */
+  mapType: 'SATELLITE' | 'STREET' | 'GOOGLE_SATELLITE';
+  setMapType: (type: 'SATELLITE' | 'STREET' | 'GOOGLE_SATELLITE') => void;
 
   /** Estado do Modal/Drawer Suspenso de Premissas (Menu Configurações do Projeto) */
   isSettingsDrawerOpen: boolean;
@@ -136,13 +148,16 @@ export const useUIStore = create<UIState>((set) => ({
   setViewportSnapshot: (base64) => set({ viewportSnapshot: base64 }),
 
   workspaceMode: 'SIMULATION',
-  setWorkspaceMode: (mode) => set({ workspaceMode: mode }),
+  setWorkspaceMode: (mode: WorkspaceMode) => set({ workspaceMode: mode }),
 
   activeFocusedBlock: 'site',
-  setFocusedBlock: (block) => set({ activeFocusedBlock: block }),
+  setFocusedBlock: (block: FocusedBlock) => set({ activeFocusedBlock: block }),
+
+  canvasViewMode: 'CONTEXT',
+  setCanvasViewMode: (mode: CanvasViewMode) => set({ canvasViewMode: mode }),
 
   autoSizingStep: 'idle',
-  setAutoSizingStep: (step) => set({ autoSizingStep: step }),
+  setAutoSizingStep: (step: AutoSizingStep) => set({ autoSizingStep: step }),
   triggerAutoSizing: () => {
     // Animação sequencial: cada etapa dura 400ms (lego-snap)
     set({ autoSizingStep: 'consumption' });
@@ -154,9 +169,15 @@ export const useUIStore = create<UIState>((set) => ({
     }, 1200);
   },
 
+  isSatelliteHighVis: false,
+  toggleSatelliteHighVis: () => set((state) => ({ isSatelliteHighVis: !state.isSatelliteHighVis })),
+
   isSettingsDrawerOpen: false,
   toggleSettingsDrawer: () => set((state) => ({ isSettingsDrawerOpen: !state.isSettingsDrawerOpen })),
   closeSettingsDrawer: () => set({ isSettingsDrawerOpen: false }),
+
+  mapType: 'SATELLITE',
+  setMapType: (type) => set({ mapType: type }),
 }));
 
 // =============================================================================

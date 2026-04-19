@@ -52,7 +52,7 @@ Ao clicar no bloco:
 ### 2.4 Placeholder
 
 Se nenhuma área for desenhada:
-- Botão "Abrir mapa para desenhar o Arranjo" → Foca no bloco (`arrangement`) e invoca a ferramenta (`DRAW_AREA`) na **Layer 1**.
+- Botão "Abrir mapa para desenhar o Arranjo" → Foca no bloco (`arrangement`) e invoca a ferramenta (`POLYGON`) na **Layer 1**.
 
 ---
 
@@ -64,21 +64,21 @@ Derivado no `systemCompositionSlice` com `shoelaceAreaM2`. Passa parâmetros ao 
 ### 3.2 O Arranjo como Objeto de Dados
 O objeto do arranjo não contém módulos soltos. Ele contém **Strings**, e as Strings contém Módulos.
 ```typescript
-export type RoofType = 'ceramic' | 'metallic' | 'fibrocement' | 'slab' | 'ground' | 'carport';
+export type SurfaceType = 'ceramic' | 'metallic' | 'fibrocement' | 'slab' | 'ground' | 'carport';
 
 interface PhysicalArrangement {
   id: string;
   polygon: Coordinate[];
   areaM2: number;
   orientation: { azimuth: number, tilt: number }; // Requisito crítico para simulação
-  roofType: RoofType; // Define a estrutura mecânica BOS e o coeficiente térmico
+  surfaceType: SurfaceType; // Define a estrutura mecânica BOS e o coeficiente térmico
   // Referência reversa (Módulos associados à área respeitam esta orientação)
 }
 ```
 
 ### 3.3 Seleção Físico-Mecânica (UI)
 Ao visualizar um `PhysicalArrangement` selecionado na *Layer de Arranjo Físico*:
-- O *HUD de Ferramentas* exibe o Dropdown/Segmented Control para escolha do **Tipo de Telhado** (`RoofType`).
+- O *HUD de Ferramentas* exibe o Dropdown/Segmented Control para escolha do **Tipo de Superfície** (`SurfaceType`).
 - A escolha é renderizada visualmente no LeftOutliner (sub-chip do bloco indicando a estrutura).
 
 ---
@@ -87,7 +87,7 @@ Ao visualizar um `PhysicalArrangement` selecionado na *Layer de Arranjo Físico*
 
 - Deve ser garantida a persistência do `azimuth` e `tilt` para cálculo do Vmp e Isc por MPPT.
 - O bloco dispara o check `SystemHealthCheck` se módulos em diferentes orientações forem ligados à mesma entrada MPPT.
-- **Obrigatório:** A persistência correta do `roofType`, que dita as subpistas de fluxo de ar para inferir o coeficiente térmico global (Uv) e perdas termodinâmicas no cálculo final de geração.
+- **Obrigatório:** A persistência correta do `surfaceType`, que dita as subpistas de fluxo de ar para inferir o coeficiente térmico global (Uv) e perdas termodinâmicas no cálculo final de geração.
 
 ---
 
@@ -95,9 +95,9 @@ Ao visualizar um `PhysicalArrangement` selecionado na *Layer de Arranjo Físico*
 
 - [ ] Clicar no Bloco Arranjo isola a **Camada 1 (Roof/Obstacles)** no MapCore e oculta ou reduz a opacidade das demais.
 - [ ] O objeto salva `azimuth` e `tilt` para garantir viés correto nos cálculos de mismatch.
-- [ ] O usuário consegue selecionar o Tipo de Telhado (`roofType`) visualmente no HUD de desenho e visualizá-lo como metadado no LeftOutliner.
-- [ ] Chips calculam área, FDI e consistência (`△N` delta de módulos).
-- [ ] Sem áreas desenhadas, o botão ativa a ferramenta `DRAW_AREA`.
+- [ ] O usuário consegue selecionar o Tipo de Superfície (`surfaceType`) visualmente no HUD de desenho e visualizá-lo como metadado no LeftOutliner.
+- [ ] Chips calculam área, FDI e consistência (`△N` delta de módulos: físico vs lógico).
+- [ ] Sem áreas desenhadas, o botão ativa a ferramenta `POLYGON`.
 
 ---
 

@@ -20,6 +20,7 @@ import { useSolarStore, selectModules } from '@/core/state/solarStore';
 import { useTechStore } from '@/modules/engineering/store/useTechStore';
 import { toArray } from '@/core/types/normalized.types';
 import { useElectricalValidation } from '@/modules/engineering/hooks/useElectricalValidation';
+import { calcPolygonAreaM2 } from '@/core/utils/geoUtils';
 
 // =============================================================================
 // TYPES
@@ -46,6 +47,7 @@ export interface ConnectorStatus {
 
 export interface SystemCompositionView {
   consumptionBlock: BlockStatus;
+  arrangementBlock: BlockStatus;
   moduleBlock: BlockStatus;
   inverterBlock: BlockStatus;
   /** C1: Consumo → Módulos (kWp alvo) */
@@ -78,6 +80,13 @@ export function useSystemComposition(): SystemCompositionView {
   const totalModules = modules.length;
   const totalDcKwp = modules.reduce((sum, m) => sum + ((m.power || 0) / 1000), 0);
 
+  // — Arranjo Físico —
+  const installationAreas = useSolarStore(s => s.project.installationAreas);
+  const placedModules = useSolarStore(s => s.project.placedModules);
+  const totalPhysicalModules = placedModules.length;
+  const totalAreaM2 = installationAreas.reduce((sum, area) => sum + calcPolygonAreaM2(area.localVertices), 0);
+  const deltaModules = totalModules - totalPhysicalModules;
+
   // — Inversores (TechStore) —
   const techInverters = toArray(useTechStore(s => s.inverters));
   const techInv = techInverters[0] ?? null;
@@ -105,6 +114,27 @@ export function useSystemComposition(): SystemCompositionView {
   const consumptionBlock: BlockStatus = {
     status: avgConsumption > 0 ? 'complete' : 'empty',
     chips: consumptionChips,
+  };
+
+  // =========================================================================
+  // BLOCO ARRANJO FÍSICO
+  // =========================================================================
+  const arrangementChips: BlockChip[] = [];
+  if (totalAreaM2 > 0) {
+    arrangementChips.push({ label: 'Área', value: `${totalAreaM2.toFixed(1)} m²`, severity: 'ok' });
+  }
+  
+  if (totalModules > 0 || totalPhysicalModules > 0) {
+    arrangementChips.push({ 
+      label: 'Consistência', 
+      value: `Δ${Math.abs(deltaModules)}`, 
+      severity: deltaModules === 0 ? 'ok' : 'warn' 
+    });
+  }
+
+  const arrangementBlock: BlockStatus = {
+    status: totalAreaM2 === 0 ? 'empty' : deltaModules === 0 ? 'complete' : 'warning',
+    chips: arrangementChips,
   };
 
   // =========================================================================
@@ -186,6 +216,7 @@ export function useSystemComposition(): SystemCompositionView {
 
   return {
     consumptionBlock,
+    arrangementBlock,
     moduleBlock,
     inverterBlock,
     connectorC1,

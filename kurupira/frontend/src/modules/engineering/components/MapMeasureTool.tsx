@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useMapEvents, Polyline, Tooltip, CircleMarker } from 'react-leaflet';
 import L from 'leaflet';
+import { type Tool } from '@/core/state/uiStore';
 
 /**
  * =============================================================================
@@ -15,7 +16,7 @@ import L from 'leaflet';
  */
 
 interface MapMeasureToolProps {
-  activeTool: string;
+  activeTool: Tool;
 }
 
 export const MapMeasureTool: React.FC<MapMeasureToolProps> = ({ activeTool }) => {

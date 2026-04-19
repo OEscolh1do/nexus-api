@@ -29,6 +29,7 @@ import { SimulationCanvasView } from './canvas-views/SimulationCanvasView';
 import { ElectricalCanvasView } from './canvas-views/ElectricalCanvasView';
 import { ConsumptionCanvasView } from './canvas-views/ConsumptionCanvasView';
 import { ModuleCanvasView } from './canvas-views/ModuleCanvasView';
+import { PhysicalCanvasView } from './canvas-views/PhysicalCanvasView';
 import { PropertiesGroup } from './groups/PropertiesGroup';
 import { SettingsModule } from '@/modules/settings/SettingsModule';
 import { DocumentationModule } from '@/modules/documentation/DocumentationModule';
@@ -127,6 +128,7 @@ const CenterCanvasInner: React.FC = () => {
   const activeOverlayView = focusedBlock === 'site'        ? 'site' :
                             focusedBlock === 'consumption' ? 'consumption' :
                             focusedBlock === 'module'      ? 'module-selection' :
+                            focusedBlock === 'arrangement' ? 'arrangement' :
                             focusedBlock === 'inverter'    ? 'electrical' :
                             focusedBlock === 'simulation'  ? 'simulation' : 
                             'none';
@@ -192,6 +194,10 @@ const CenterCanvasInner: React.FC = () => {
             <ModuleCanvasView />
           </FrozenViewContainer>
           
+          <FrozenViewContainer isActive={activeOverlayView === 'arrangement'}>
+            <PhysicalCanvasView />
+          </FrozenViewContainer>
+
           <FrozenViewContainer isActive={activeOverlayView === 'simulation'}>
             <SimulationCanvasView />
           </FrozenViewContainer>

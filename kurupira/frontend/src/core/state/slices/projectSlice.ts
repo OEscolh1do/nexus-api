@@ -19,7 +19,7 @@ import { calcModulePolygon, type LatLngTuple } from '@/core/utils/geoUtils';
 // TYPES
 // =============================================================================
 
-export type SurfaceType = 'roof' | 'ground' | 'carport' | 'slab' | 'other';
+export type SurfaceType = 'ceramic' | 'metallic' | 'fibrocement' | 'slab' | 'ground' | 'carport';
 
 export interface LocalVertex { x: number; y: number; }
 
@@ -76,6 +76,7 @@ export interface ProjectSlice {
 
   // Áreas de Instalação (Freeform)
   spawnArea: (center: LatLngTuple, widthM?: number, heightM?: number, azimuth?: number) => void;
+  spawnFreeformArea: (points: LatLngTuple[]) => void;
   updateArea: (id: string, data: Partial<Omit<InstallationArea, 'id' | 'placedModuleIds' | 'localVertices'>>) => void;
   deleteArea: (id: string) => void;
   clearAreas: () => void;
@@ -263,10 +264,43 @@ export const createProjectSlice: StateCreator<
       center,
       azimuth,
       pitch: 15,
-      surfaceType: 'roof',
+      surfaceType: 'ceramic',
       localVertices: verticesFromRect(widthM, heightM),
       placedModuleIds: []
     };
+    return { project: { ...s.project, installationAreas: [...s.project.installationAreas, newArea] } };
+  }),
+  
+  spawnFreeformArea: (points) => set((s) => {
+    if (s.project.projectStatus === 'approved' || points.length < 3) return s;
+    
+    // 1. Calcular Centro Pivo (Media)
+    const latSum = points.reduce((acc, p) => acc + p[0], 0);
+    const lngSum = points.reduce((acc, p) => acc + p[1], 0);
+    const center: LatLngTuple = [latSum / points.length, lngSum / points.length];
+    
+    // 2. Converter LatLng -> Local XY (Meters)
+    const earthRadius = 6378137;
+    const latRads = center[0] * (Math.PI / 180);
+    
+    const localVertices: LocalVertex[] = points.map(p => {
+      const dLat = p[0] - center[0];
+      const dLng = p[1] - center[1];
+      const y = dLat * (Math.PI / 180) * earthRadius;
+      const x = dLng * (Math.PI / 180) * earthRadius * Math.cos(latRads);
+      return { x, y };
+    });
+    
+    const newArea: InstallationArea = {
+      id: generateId('area_drawn'),
+      center,
+      azimuth: 0, // Desenho livre assume azimuth 0 inicial (vértices já contém a rotação)
+      pitch: 15,
+      surfaceType: 'ceramic',
+      localVertices,
+      placedModuleIds: []
+    };
+    
     return { project: { ...s.project, installationAreas: [...s.project.installationAreas, newArea] } };
   }),
 

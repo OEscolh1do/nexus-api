@@ -26,7 +26,14 @@ export const MapFlyToSync: React.FC = () => {
   useEffect(() => {
     if (!selectedEntity.id) return;
 
-    if (selectedEntity.type === 'module') {
+    if (selectedEntity.type === 'site') {
+      const siteLat = useSolarStore.getState().clientData.lat;
+      const siteLng = useSolarStore.getState().clientData.lng;
+      if (siteLat && siteLng) {
+        map.flyTo([siteLat, siteLng], 18, { duration: 1.2 });
+      }
+    }
+    else if (selectedEntity.type === 'module') {
       const mod = placedModules.find((m: PlacedModule) => m.id === selectedEntity.id);
       if (mod) {
         map.flyTo(mod.center, 21, { duration: 0.6 });
