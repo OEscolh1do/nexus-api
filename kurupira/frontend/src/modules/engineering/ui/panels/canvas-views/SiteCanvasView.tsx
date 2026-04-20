@@ -2,42 +2,19 @@ import {
   FileText, Navigation, ThermometerSun, MapPin, Loader2, Search, 
   Plus, Minus, Calendar, Sun, Lightbulb, Zap, Home 
 } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import { Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useSolarStore } from '@/core/state/solarStore';
 import { useCallback, useEffect, useState } from 'react';
+import { MapCore } from '../../../components/MapCore';
 import { fetchWeatherAnalysis } from '@/services/weatherService';
 import { cn } from '@/lib/utils';
-
-// ── Leaflet marker fix ─────────────────────────────────────────────────────
-const defaultIcon = L.icon({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
 
 const MapClickHandler: React.FC<{ onLocationSelect: (lat: number, lng: number) => void }> = ({ onLocationSelect }) => {
   useMapEvents({ click: (e) => onLocationSelect(e.latlng.lat, e.latlng.lng) });
   return null;
 };
-
-const MapViewUpdater: React.FC<{ lat: number; lng: number }> = ({ lat, lng }) => {
-  const map = useMap();
-  useEffect(() => {
-    if (lat !== 0 && lng !== 0) map.flyTo([lat, lng], Math.max(map.getZoom(), 16), { duration: 0.8 });
-  }, [lat, lng, map]);
-  return null;
-};
-
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
-const tileUrl = MAPBOX_TOKEN
-  ? `https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`
-  : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
 // ── Field primitives ───────────────────────────────────────────────────────
 const fieldBase = 'w-full bg-slate-950 border border-slate-800 rounded-sm px-2.5 py-1 text-[11px] font-mono outline-none transition-all';
@@ -338,14 +315,17 @@ export const SiteCanvasView: React.FC = () => {
 
         {/* ── Mapa Satelital ─────────────────────────────── */}
         <div className="flex-1 min-h-[260px] relative group select-none">
-          <MapContainer center={mapCenter} zoom={clientData.lat ? 17 : 12} className="w-full h-full" zoomControl={false} attributionControl={false}>
-            <TileLayer url={tileUrl} maxZoom={22} />
+          <MapCore 
+            activeTool="SELECT" 
+            center={mapCenter} 
+            zoom={clientData.lat ? 17 : 12} 
+            showLayers={false}
+          >
             <MapClickHandler onLocationSelect={handleMapClick} />
-            <MapViewUpdater lat={activeLat} lng={activeLng} />
             {clientData.lat !== undefined && clientData.lat !== 0 && (
-              <Marker position={[activeLat, activeLng]} icon={defaultIcon} />
+              <Marker position={[activeLat, activeLng]} />
             )}
-          </MapContainer>
+          </MapCore>
 
           {/* HUD de Telemetria (Geolocalização) */}
           <div className="absolute bottom-3 left-3 z-[1000] flex flex-col gap-1 pointer-events-none">

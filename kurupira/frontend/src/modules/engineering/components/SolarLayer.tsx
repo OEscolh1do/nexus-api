@@ -21,6 +21,7 @@ import type { LatLngTuple } from '@/core/utils/geoUtils';
 import type { PlacedModule } from '@/core/state/slices/projectSlice';
 import { ParametricRoofBlock, suppressNextMapClick } from './ParametricRoofBlock';
 import { ProjectSiteMarker } from './ProjectSiteMarker';
+import { BlueprintMask } from './BlueprintMask';
 
 // =============================================================================
 // TYPES & STYLES
@@ -165,6 +166,9 @@ export const SolarLayer: React.FC<SolarLayerProps> = ({ activeTool }) => {
 
   return (
     <>
+      {/* ── BLUEPRINT MASK (PGFX-04) ── */}
+      <BlueprintMask />
+
       {/* ── PROJECT SITE REFERENCE (Layout 0 Guide) ── */}
       <ProjectSiteMarker />
 

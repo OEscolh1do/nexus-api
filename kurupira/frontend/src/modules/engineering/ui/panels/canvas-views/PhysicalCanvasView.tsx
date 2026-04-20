@@ -1,23 +1,29 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { 
   Hash,
   X,
-  Lock,
-  Eye,
+  Camera,
+  MapPin,
   type LucideIcon
 } from 'lucide-react';
-import { useMapEvents, Polyline, Marker as LeafletMarker, Tooltip, Polygon as LeafletPolygon } from 'react-leaflet';
+import { 
+  useMapEvents, 
+  Polyline, 
+  Marker as LeafletMarker, 
+  Tooltip, 
+  Polygon as LeafletPolygon
+} from 'react-leaflet';
 import L from 'leaflet';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/core/state/uiStore';
 import { useSolarStore } from '@/core/state/solarStore';
 import { MapCore } from '../../../components/MapCore';
 import { WebGLOverlay } from '../../../components/WebGLOverlay';
-import { CanvasViewModes } from '../../components/CanvasViewModes';
-import { SiteToolbar } from './toolbars/SiteToolbar';
-import { ArrangementToolbar } from './toolbars/ArrangementToolbar';
-import { ElectricalToolbar } from './toolbars/ElectricalToolbar';
-import { GlobalLayerToolbar } from './toolbars/GlobalLayerToolbar';
+import { ViewLayerSelector } from '../../components/ViewLayerSelector';
+import { MainActionIsland } from './toolbars/MainActionIsland';
+import { DraftingIsland } from './toolbars/DraftingIsland';
+import { SearchIsland } from './toolbars/SearchIsland';
 
 // =============================================================================
 // TYPES & CONSTANTS
@@ -102,6 +108,7 @@ interface DrawingEngineProps {
 const DrawingEngine: React.FC<DrawingEngineProps> = ({ activeTool, points, setPoints }) => {
   const [mousePos, setMousePos] = useState<[number, number] | null>(null);
   const [isShiftPressed, setIsShiftPressed] = useState(false);
+  const addDropPoint = useSolarStore(s => s.addDropPoint);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => { if (e.key === 'Shift') setIsShiftPressed(true); };
@@ -129,15 +136,18 @@ const DrawingEngine: React.FC<DrawingEngineProps> = ({ activeTool, points, setPo
 
   const map = useMapEvents({
     click: (e) => {
-      if (activeTool !== 'POLYGON') return;
-      let pos = e.latlng;
-      if (points.length > 0) {
-        pos = getSnappedPos(pos, points[points.length - 1]);
+      if (activeTool === 'POLYGON' || activeTool === 'SUBTRACT' || activeTool === 'MEASURE') {
+        let pos = e.latlng;
+        if (points.length > 0) {
+          pos = getSnappedPos(pos, points[points.length - 1]);
+        }
+        setPoints(prev => [...prev, [pos.lat, pos.lng]]);
+      } else if (activeTool === 'DROP_POINT') {
+        addDropPoint([e.latlng.lat, e.latlng.lng]);
       }
-      setPoints(prev => [...prev, [pos.lat, pos.lng]]);
     },
     mousemove: (e) => {
-      if (activeTool !== 'POLYGON') return;
+      if (activeTool !== 'POLYGON' && activeTool !== 'SUBTRACT' && activeTool !== 'MEASURE') return;
       let pos = e.latlng;
       if (points.length > 0) {
         pos = getSnappedPos(pos, points[points.length - 1]);
@@ -146,13 +156,15 @@ const DrawingEngine: React.FC<DrawingEngineProps> = ({ activeTool, points, setPo
     }
   });
 
-  if (activeTool !== 'POLYGON' || points.length === 0) return null;
+  if ((activeTool !== 'POLYGON' && activeTool !== 'SUBTRACT' && activeTool !== 'MEASURE') || points.length === 0) return null;
+
+  const color = activeTool === 'SUBTRACT' ? "#f43f5e" : activeTool === 'MEASURE' ? "#10b981" : "#6366f1";
 
   return (
     <>
-      <Polyline positions={points} color="#6366f1" weight={3} dashArray="5, 10" />
+      <Polyline positions={points} color={color} weight={3} dashArray="5, 10" />
       {mousePos && (
-        <Polyline positions={[points[points.length - 1], mousePos]} color="#6366f1" weight={2} opacity={0.5} dashArray="2, 4">
+        <Polyline positions={[points[points.length - 1], mousePos]} color={color} weight={2} opacity={0.5} dashArray="2, 4">
           <Tooltip permanent direction="center" className="bg-slate-900 border-none text-indigo-400 font-mono text-[10px] p-0.5 rounded-sm shadow-xl">
              {map.distance(L.latLng(points[points.length - 1]), L.latLng(mousePos)).toFixed(2)}m
           </Tooltip>
@@ -163,7 +175,7 @@ const DrawingEngine: React.FC<DrawingEngineProps> = ({ activeTool, points, setPo
         const dist = prev ? map.distance(L.latLng(prev), L.latLng(p)) : null;
         return (
           <React.Fragment key={i}>
-            <LeafletMarker position={p} icon={L.divIcon({ className: 'bg-white border-2 border-indigo-600 rounded-full', iconSize: [8, 8], iconAnchor: [4, 4] })} />
+            <LeafletMarker position={p} icon={L.divIcon({ className: activeTool === 'SUBTRACT' ? 'bg-rose-500 border-2 border-white rounded-full' : 'bg-white border-2 border-indigo-600 rounded-full', iconSize: [8, 8], iconAnchor: [4, 4] })} />
             {dist && (
               <Polyline positions={[prev!, p]} color="transparent" opacity={0}>
                 <Tooltip permanent direction="center" className="bg-slate-900/80 border-none text-slate-300 font-mono text-[9px] p-0.5 rounded-sm">
@@ -178,39 +190,68 @@ const DrawingEngine: React.FC<DrawingEngineProps> = ({ activeTool, points, setPo
   );
 };
 
-// =============================================================================
-// SUB-COMPONENTS: DRAWING LAYER (HUD)
-// =============================================================================
+const DropPointLayer: React.FC = () => {
+  const dropPoints = useSolarStore(s => s.project.dropPoints);
+  const removeDropPoint = useSolarStore(s => s.removeDropPoint);
+  const updateDropPoint = useSolarStore(s => s.updateDropPoint);
+  const activeTool = useUIStore(s => s.activeTool);
 
-const PhysicalDrawingLayer: React.FC<{ activeTool: string; pointsCount: number; onReset: () => void }> = ({ activeTool, pointsCount, onReset }) => {
-  if (activeTool !== 'POLYGON') return null;
-  
-  return (
-    <div className="absolute inset-0 z-[1100] pointer-events-none">
-      <div className="absolute top-14 left-1/2 -translate-x-1/2 px-4 py-2 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-sm shadow-2xl flex items-center gap-4 pointer-events-auto animate-in fade-in slide-in-from-top-4">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-          <span className="text-[10px] font-black text-slate-200 uppercase tracking-widest font-mono">
-            CAD Mode: {pointsCount} vértices marcados
-          </span>
+  const dropIcon = L.divIcon({
+    html: renderToStaticMarkup(
+      <div className="relative group">
+        <div className="absolute inset-0 bg-rose-500 blur-sm opacity-50 group-hover:opacity-100 transition-opacity rounded-full" />
+        <div className="relative w-8 h-8 bg-slate-900 border-2 border-rose-500 rounded-lg flex items-center justify-center shadow-2xl">
+          <MapPin size={16} className="text-rose-500" />
         </div>
-        
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={onReset}
-            className="px-2 py-1 text-[9px] font-black uppercase tracking-widest bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-700 hover:border-rose-500/50 rounded-sm transition-all"
-          >
-            Cancelar
-          </button>
-          <button 
-            disabled={pointsCount < 3}
-            className="px-2 py-1 text-[9px] font-black uppercase tracking-widest bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-400/50 rounded-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            Finalizar (Enter)
-          </button>
+        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-rose-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap uppercase tracking-tighter">
+          Saída CC
         </div>
       </div>
-    </div>
+    ),
+    className: '',
+    iconSize: [32, 32],
+    iconAnchor: [16, 16]
+  });
+
+  return (
+    <>
+      {dropPoints.map(dp => (
+        <LeafletMarker 
+          key={dp.id} 
+          position={dp.center} 
+          icon={dropIcon}
+          draggable={activeTool === 'MOVE'}
+          eventHandlers={{
+            dragend: (e) => {
+              const marker = e.target;
+              const position = marker.getLatLng();
+              updateDropPoint(dp.id, [position.lat, position.lng]);
+            },
+            contextmenu: () => removeDropPoint(dp.id)
+          }}
+        />
+      ))}
+    </>
+  );
+};
+
+const ObstacleLayer: React.FC<{ areas: any[] }> = ({ areas }) => {
+  return (
+    <>
+      {areas.map(area => (
+        (area.obstacles || []).map((obs: any) => (
+          <LeafletPolygon 
+            key={obs.id}
+            positions={obs.polygon}
+            fillColor="#fb7185" // rose-400
+            fillOpacity={0.4}
+            color="#f43f5e" // rose-500
+            weight={1}
+            dashArray="5, 5"
+          />
+        ))
+      ))}
+    </>
   );
 };
 
@@ -218,28 +259,6 @@ const PhysicalDrawingLayer: React.FC<{ activeTool: string; pointsCount: number; 
 // SUB-COMPONENTS: STRINGING LAYERS
 // =============================================================================
 
-const StringHUD: React.FC<{ selectedCount: number; vocTotal: number; iscMax: number; onClear: () => void; onFinalize: () => void }> = ({ selectedCount, vocTotal, iscMax, onClear, onFinalize }) => {
-  if (selectedCount === 0) return null;
-  return (
-    <div className="absolute top-14 left-1/2 -translate-x-1/2 px-4 py-2 bg-slate-900/90 backdrop-blur-md border border-indigo-500/30 rounded-sm shadow-2xl flex items-center gap-6 pointer-events-auto animate-in fade-in slide-in-from-top-4 z-[2000]">
-      <div className="flex items-center gap-3 pr-4 border-r border-slate-800">
-        <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.6)] animate-pulse" />
-        <div className="flex flex-col">
-          <span className="text-[8px] text-slate-500 uppercase font-black tracking-tighter leading-none">Configurando String</span>
-          <span className="text-cyan-400 font-black text-xs uppercase font-mono tracking-widest">{selectedCount} Módulos</span>
-        </div>
-      </div>
-      <div className="flex items-center gap-6 font-mono tabular-nums">
-        <div className="flex flex-col"><span className="text-[8px] text-slate-500 uppercase font-black tracking-tighter">Voc Total</span><span className={cn("font-bold text-xs", vocTotal > 800 ? "text-rose-400" : "text-slate-200")}>{vocTotal.toFixed(2)}V</span></div>
-        <div className="flex flex-col"><span className="text-[8px] text-slate-500 uppercase font-black tracking-tighter">Isc</span><span className="text-slate-200 font-bold text-xs">{iscMax.toFixed(2)}A</span></div>
-      </div>
-      <div className="flex items-center gap-2 pl-4 border-l border-slate-800">
-        <button onClick={onClear} className="px-2 py-1 text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-400 transition-colors">Limpar</button>
-        <button onClick={onFinalize} className="px-3 py-1 text-[9px] font-black uppercase tracking-widest bg-cyan-600 hover:bg-cyan-500 text-white border border-cyan-400/50 rounded-sm transition-all shadow-lg">Finalizar</button>
-      </div>
-    </div>
-  );
-};
 
 const StringPathOverlay: React.FC<{ moduleIds: string[]; placedModules: any[] }> = ({ moduleIds, placedModules }) => {
   if (moduleIds.length < 2) return null;
@@ -275,7 +294,7 @@ const ModuleInteractionLayer: React.FC<{ activeTool: string; placedModules: any[
 // =============================================================================
 
 const AnatomyView: React.FC<{ isOpen: boolean; onClose: () => void; surfaceType: string; onSurfaceChange: (type: string) => void }> = ({ isOpen, onClose, surfaceType, onSurfaceChange }) => {
-  if (!isOpen) return null;
+  // D4: sem early-return — usa CSS transition para slide (sheet lateral)
 
   const getAnatomyContent = (type: string) => {
     switch (type.toLowerCase()) {
@@ -327,14 +346,45 @@ const AnatomyView: React.FC<{ isOpen: boolean; onClose: () => void; surfaceType:
   const content = getAnatomyContent(surfaceType);
 
   return (
-    <div className="absolute top-4 right-4 w-72 bg-slate-950/95 backdrop-blur-xl border border-slate-800 rounded-sm shadow-2xl z-[2000] overflow-hidden animate-in fade-in slide-in-from-right-4 duration-300">
+    // D4: Sheet lateral direito — largura fixa, slide da borda, z abaixo do ViewSwitcher (z-[1200] vs z-[2000])
+    <div className={cn(
+      "absolute top-0 right-0 bottom-0 w-64 bg-slate-950/98 backdrop-blur-xl border-l border-slate-800 shadow-[-8px_0_32px_rgba(0,0,0,0.5)] z-[1200] overflow-hidden flex flex-col transition-transform duration-300 ease-in-out",
+      isOpen ? "translate-x-0" : "translate-x-full pointer-events-none"
+    )}>
       <div className="flex items-center justify-between px-3 py-2 border-b border-slate-800 bg-slate-900/50">
         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-mono">Anatomia do Suporte</span>
         <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors">
           <X size={14} />
         </button>
       </div>
-      <div className="p-4 flex flex-col gap-4">
+
+      {/* Seletor de Superfície dentro da Anatomia (D4) */}
+      <div className="px-3 py-2 border-b border-slate-800/60 bg-slate-900/20">
+        <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest block mb-1.5">Mudar Superfície</span>
+        <div className="grid grid-cols-2 gap-1">
+          {[
+            { value: 'ceramica', label: 'Cerâmica' },
+            { value: 'metalico', label: 'Metálico' },
+            { value: 'fibrocimento', label: 'Fibro' },
+            { value: 'laje', label: 'Laje' }
+          ].map(type => (
+            <button
+              key={type.value}
+              onClick={() => onSurfaceChange(type.value)}
+              className={cn(
+                "px-1.5 py-1 text-[9px] font-black uppercase tracking-tight rounded-[2px] transition-all text-center",
+                surfaceType === type.value
+                  ? "bg-indigo-600 text-white"
+                  : "text-slate-500 hover:bg-slate-800 hover:text-slate-300 border border-slate-800"
+              )}
+            >
+              {type.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="p-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar">
         <div className="aspect-video bg-slate-900/50 border border-slate-800/50 rounded-sm flex items-center justify-center relative group">
           {content.svg}
           <div className="absolute inset-0 bg-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -355,13 +405,13 @@ const AnatomyView: React.FC<{ isOpen: boolean; onClose: () => void; surfaceType:
         </div>
         <button 
           onClick={() => {
-             const types = ['Cerâmica', 'Metálico', 'Fibrocimento', 'Laje'];
+             const types = ['ceramica', 'metalico', 'fibrocimento', 'laje'];
              const next = types[(types.indexOf(surfaceType) + 1) % types.length];
              onSurfaceChange(next);
           }}
-          className="w-full py-2 bg-slate-900 border border-slate-800 hover:border-indigo-500/50 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-400 transition-all"
+          className="w-full py-2 bg-slate-900 border border-slate-800 hover:border-indigo-500/50 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-400 transition-all font-mono"
         >
-          Trocar Fixação
+          Próximo Sistema
         </button>
       </div>
     </div>
@@ -378,21 +428,22 @@ export const PhysicalCanvasView: React.FC = () => {
   const setActiveTool = useUIStore(s => s.setActiveTool);
   const canvasViewMode = useUIStore(s => s.canvasViewMode);
   const setCanvasViewMode = useUIStore(s => s.setCanvasViewMode);
-  const isSatelliteHighVis = useUIStore(s => s.isSatelliteHighVis);
 
-  const [isAnatomyOpen, setIsAnatomyOpen] = useState(false);
-  const [drawingPoints, setDrawingPoints] = useState<[number, number][]>([]);
-  
-  const [selectedModuleIds, setSelectedModuleIds] = useState<string[]>([]);
+  // Anatomia migrada de useState local → Zustand (persiste entre re-renders)
+  const isAnatomyPanelOpen = useUIStore(s => s.isAnatomyPanelOpen);
+  const closeAnatomyPanel = useUIStore(s => s.closeAnatomyPanel);
+
+  const [drawingPoints, setDrawingPoints] = React.useState<[number, number][]>([]);
+  const [selectedModuleIds, setSelectedModuleIds] = React.useState<string[]>([]);
+
   const placedModules = useSolarStore(s => s.project.placedModules);
   const installationAreas = useSolarStore(s => s.project.installationAreas) || [];
-  const selectedEntityId = useUIStore(s => s.selectedEntity.id);
-  const focusedBlock = useUIStore(s => s.activeFocusedBlock);
   
   const moduleSpecs = useSolarStore(s => s.modules);
   const assignModulesToString = useSolarStore(s => s.assignModulesToString);
   const spawnFreeformArea = useSolarStore(s => s.spawnFreeformArea);
-  const autoLayoutArea = useSolarStore(s => s.autoLayoutArea);
+  const spawnObstacle = useSolarStore(s => s.spawnObstacle);
+  const selectedAreaId = useUIStore(s => s.selectedEntity.type === 'area' ? s.selectedEntity.id : null);
   const updateClientData = useSolarStore(s => s.updateClientData);
 
   // Electrical Calculation for String
@@ -417,11 +468,11 @@ export const PhysicalCanvasView: React.FC = () => {
 
   // Area & Perimeter Calculation
   const stats = useMemo(() => {
-    // If drawing, show drawing stats
-    if (drawingPoints.length >= 3) {
-      const r = 6371000;
-      const p0 = drawingPoints[0];
-      const localCoords = drawingPoints.map(p => {
+    const r = 6371000;
+    const calcPathArea = (pts: [number, number][]) => {
+      if (pts.length < 3) return 0;
+      const p0 = pts[0];
+      const localCoords = pts.map(p => {
         const dy = (p[0] - p0[0]) * (Math.PI / 180) * r;
         const dx = (p[1] - p0[1]) * (Math.PI / 180) * r * Math.cos(p0[0] * Math.PI / 180);
         return [dx, dy];
@@ -433,49 +484,82 @@ export const PhysicalCanvasView: React.FC = () => {
          area += localCoords[i][0] * localCoords[j][1];
          area -= localCoords[j][0] * localCoords[i][1];
       }
-      area = Math.abs(area) / 2;
-      
-      return {
-        areaTot: area,
-        areaUtil: area * 0.9,
-        modulos: Math.floor(area / 2.3), 
-        modulosMeta: 20,
-        fdi: 1.15
-      };
-    }
-    
-    // Otherwise, aggregate from all stored areas
-    let totalArea = 0;
-    for (const area of installationAreas) {
-      // Simple area calculation from localVertices
-      let a = 0;
-      const v = area.localVertices;
-      for (let i = 0; i < v.length; i++) {
-        const j = (i + 1) % v.length;
-        a += v[i].x * v[j].y;
-        a -= v[j].x * v[i].y;
+      return Math.abs(area) / 2;
+    };
+
+    const calcPathLength = (pts: [number, number][]) => {
+      let len = 0;
+      for (let i = 0; i < pts.length - 1; i++) {
+        const p1 = pts[i];
+        const p2 = pts[i+1];
+        const dLat = (p2[0] - p1[0]) * (Math.PI / 180) * r;
+        const dLng = (p2[1] - p1[1]) * (Math.PI / 180) * r * Math.cos(p1[0] * Math.PI / 180);
+        len += Math.sqrt(dLat * dLat + dLng * dLng);
       }
-      totalArea += Math.abs(a) / 2;
-    }
+      return len;
+    };
+
+    // Current Drawing Stats
+    const drawingArea = calcPathArea(drawingPoints);
+    const drawingLen = calcPathLength(drawingPoints);
+
+    // Global Project Stats
+    let totalArea = 0;
+    let obstacleArea = 0;
+
+    installationAreas.forEach(area => {
+      // Area total do polígono principal
+      // Nota: as áreas já estão em vertices locais métricos no projectSlice se viermos de lá, 
+      // mas aqui recalculamos do LatLng para consistência na UI.
+      totalArea += calcPathArea(area.polygon);
+      
+      // Subtrair todas as obstruções
+      area.obstacles.forEach(obs => {
+        obstacleArea += calcPathArea(obs.polygon);
+      });
+    });
 
     return {
       areaTot: totalArea,
-      areaUtil: totalArea * 0.9,
+      areaUtil: Math.max(0, totalArea - obstacleArea),
       modulos: placedModules.length,
-      modulosMeta: 20,
-      fdi: totalArea > 0 ? (placedModules.length * 0.55) / (totalArea * 0.15) : 0 // heuristic
+      modulosMeta: (clientData as any).estimatedModules || 20,
+      fdi: totalArea > 0 ? (placedModules.length * 0.55) / 10 : 0, // Placeholder FDI
+      currentDraw: {
+        area: drawingArea,
+        length: drawingLen
+      }
     };
-  }, [drawingPoints, installationAreas, placedModules.length]);
+  }, [drawingPoints, installationAreas, placedModules, clientData]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const k = e.key.toLowerCase();
       if (e.key === 'Escape') { setDrawingPoints([]); setActiveTool('SELECT'); }
+      
+      // Viewport Modes
       if (e.key === '1') setCanvasViewMode('CONTEXT');
       if (e.key === '2') setCanvasViewMode('BLUEPRINT');
       if (e.key === '3') setCanvasViewMode('DIAGRAM');
       if (e.key === '4') setCanvasViewMode('UNIFILAR');
+
+      // Universal Tools
+      if (k === 's') setActiveTool('SELECT');
+      if (k === 'g') setActiveTool('MOVE');
+      if (k === 'h') setActiveTool('PAN');
+      
+      // Layer Tools
+      if (k === 'p') setActiveTool('POLYGON');
+      if (k === 's') setActiveTool('SUBTRACT');
+      if (k === 'd') setActiveTool('DROP_POINT');
+      if (k === 'm') setActiveTool('MEASURE');
+
       if (e.key === 'Enter' && drawingPoints.length >= 3) { 
-        spawnFreeformArea(drawingPoints);
+        if (activeTool === 'POLYGON') {
+          spawnFreeformArea(drawingPoints);
+        } else if (activeTool === 'SUBTRACT' && selectedAreaId) {
+          spawnObstacle(selectedAreaId, drawingPoints);
+        }
         setDrawingPoints([]); 
         setActiveTool('SELECT');
       }
@@ -484,95 +568,24 @@ export const PhysicalCanvasView: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [drawingPoints, setActiveTool]);
 
+  const isDrawingActive = activeTool === 'POLYGON' || activeTool === 'SUBTRACT';
+  const isDropPointActive = activeTool === 'DROP_POINT';
+  const isMeasureActive = activeTool === 'MEASURE';
+  const isStringingActive = selectedModuleIds.length > 0;
+
   return (
     <div className="relative w-full h-full flex flex-col bg-slate-950 overflow-hidden select-none">
-      <div className="h-10 shrink-0 bg-slate-900/95 border-b border-slate-800 flex items-center justify-between px-4 z-[1100] backdrop-blur-md">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)] animate-pulse" />
-            <span className="text-[11px] font-black text-slate-200 uppercase tracking-[0.2em] font-mono">Arranjo Físico</span>
-          </div>
-          <div className="h-4 w-px bg-slate-800" />
-          <div className="flex items-center gap-6 font-mono text-[11px] tabular-nums">
-            <div className="flex flex-col">
-              <span className="text-[8px] text-slate-500 uppercase font-black tracking-tighter">Área Total</span>
-              <span className="text-slate-300 font-bold">{stats.areaTot.toFixed(1)}m²</span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[8px] text-slate-500 uppercase font-black tracking-tighter">Módulos</span>
-              <div className="flex items-baseline gap-1">
-                <span className={cn("font-bold", stats.modulos < stats.modulosMeta ? "text-amber-400" : "text-indigo-400")}>{stats.modulos}/{stats.modulosMeta}</span>
-                <span className="text-[9px] text-slate-600">UN</span>
-              </div>
-            </div>
-            <div className="flex gap-1.5 items-center">
-              <span className="text-slate-600 font-black uppercase text-[9px]">FDI Est.</span>
-              <span className="text-emerald-500 font-bold">{stats.fdi.toFixed(2)}</span>
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          {focusedBlock === 'arrangement' && (
-            <div className="flex items-center gap-1.5 p-1 bg-slate-950/50 border border-slate-800 rounded-sm mr-2">
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Superfície</span>
-              <div className="flex items-center gap-1">
-                {['Cerâmica', 'Metálico', 'Fibrocimento', 'Laje'].map(type => (
-                  <button
-                    key={type}
-                    onClick={() => updateClientData({ roofType: type as any })}
-                    className={cn(
-                      "px-2 py-0.5 text-[9px] font-black uppercase tracking-tight rounded-[2px] transition-all",
-                      (clientData.roofType === type || (!clientData.roofType && type === 'Cerâmica'))
-                        ? "bg-indigo-600 text-white shadow-lg"
-                        : "text-slate-500 hover:bg-slate-800 hover:text-slate-300"
-                    )}
-                  >
-                    {type}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          <div className="flex items-center gap-1.5 p-1 bg-slate-950/50 border border-slate-800 rounded-sm">
-            <button 
-              disabled={!selectedEntityId}
-              onClick={() => selectedEntityId && autoLayoutArea(selectedEntityId)}
-              className={cn("px-2 py-1 text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1", selectedEntityId ? "text-indigo-400 hover:bg-indigo-500/10" : "text-slate-600 opacity-50 cursor-not-allowed")}
-            >
-              <Lock size={10} /> Auto-Layout
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* ── D1: TopRibbon local ELIMINADO — canvas começa direto ── */}
 
       <div className="flex-1 flex min-h-0 relative bg-slate-950/20">
-        {/* Floating Toolbar Island */}
-        <div className="absolute left-4 top-4 bottom-4 w-10 bg-slate-900/90 border border-slate-800 shadow-[0_0_40px_rgba(0,0,0,0.6),0_10px_15px_-3px_rgba(0,0,0,0.4)] flex flex-col items-center py-3 gap-4 z-[1100] custom-scrollbar overflow-y-auto backdrop-blur-md rounded-lg select-none">
-          <GlobalLayerToolbar />
-          
-          <div className="w-6 h-px bg-slate-800/60 my-1 shrink-0" />
-
-          {focusedBlock === 'site' && <SiteToolbar />}
-          {focusedBlock === 'arrangement' && <ArrangementToolbar />}
-          {(focusedBlock === 'module' || focusedBlock === 'inverter' || focusedBlock === 'simulation') && <ElectricalToolbar />}
-          
-          <div className="w-6 h-px bg-slate-800/60 my-1 shrink-0" />
-
-          <RibbonSection>
-            <ToolbarButton 
-               icon={Eye} 
-               label="Anatomia" 
-               active={isAnatomyOpen} 
-               onClick={() => setIsAnatomyOpen(!isAnatomyOpen)} 
-            />
-          </RibbonSection>
-        </div>
+        <SearchIsland />
+        <MainActionIsland />
+        <DraftingIsland />
 
         <div className="flex-1 relative min-w-0 bg-slate-950 overflow-hidden">
           <div className={cn(
             "absolute inset-0 transition-all duration-700 ease-in-out", 
-            (canvasViewMode === 'BLUEPRINT' && !isSatelliteHighVis) ? "brightness-[0.4] saturate-0 opacity-60" : 
-            (canvasViewMode === 'BLUEPRINT' && isSatelliteHighVis) ? "brightness-100 saturate-100 opacity-80" :
+            (canvasViewMode === 'BLUEPRINT') ? "brightness-[0.4] saturate-0 opacity-60" : 
             (canvasViewMode === 'DIAGRAM' || canvasViewMode === 'UNIFILAR') ? "brightness-0 opacity-0" :
             "brightness-100 saturate-100 opacity-100"
           )}>
@@ -580,6 +593,8 @@ export const PhysicalCanvasView: React.FC = () => {
               <WebGLOverlay />
               <DrawingEngine activeTool={activeTool} points={drawingPoints} setPoints={setDrawingPoints} />
               <SafeEdgeOverlay points={drawingPoints} />
+              <ObstacleLayer areas={installationAreas} />
+              <DropPointLayer />
               <ModuleInteractionLayer 
                 activeTool={activeTool} 
                 placedModules={placedModules} 
@@ -596,62 +611,176 @@ export const PhysicalCanvasView: React.FC = () => {
             canvasViewMode === 'BLUEPRINT' ? "opacity-10" : "opacity-0"
           )} style={{ backgroundImage: `linear-gradient(#4f46e5 1px, transparent 1px), linear-gradient(90deg, #4f46e5 1px, transparent 1px)`, backgroundSize: '40px 40px' }} />
           
-          <CanvasViewModes />
-          
-          <PhysicalDrawingLayer activeTool={activeTool} pointsCount={drawingPoints.length} onReset={() => setDrawingPoints([])} />
-          <StringHUD 
-            selectedCount={selectedModuleIds.length} 
-            vocTotal={stringElectrical.voc} 
-            iscMax={stringElectrical.isc} 
-            onClear={() => setSelectedModuleIds([])}
-            onFinalize={() => {
-              assignModulesToString(selectedModuleIds, 'GENERIC_INV', 1);
-              setSelectedModuleIds([]);
-              setActiveTool('SELECT');
-            }}
-          />
+          {/* Seletor de Camadas — alinhado à esquerda, acima da MainActionIsland */}
+          <ViewLayerSelector />
+
+          {/* D5: HUDs de CAD e Stringing REMOVIDOS do canvas — agora no footer */}
+
+          {/* D4: AnatomyView como sheet lateral direito — não colide com ViewSwitcher */}
           <AnatomyView 
-            isOpen={isAnatomyOpen} 
-            onClose={() => setIsAnatomyOpen(false)} 
-            surfaceType={clientData.roofType || 'Cerâmica'} 
+            isOpen={isAnatomyPanelOpen} 
+            onClose={closeAnatomyPanel} 
+            surfaceType={clientData.roofType || 'ceramica'} 
             onSurfaceChange={(type) => updateClientData({ roofType: type as any })}
           />
+
           <div className="absolute bottom-4 right-4 z-[1100]">
-            <button className="flex items-center gap-2 px-3 py-1.5 bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-sm hover:border-indigo-500/50 transition-all group">
-              <span className="text-[10px] font-black text-slate-500 group-hover:text-indigo-400 uppercase tracking-widest font-mono">Bancada de Fotos</span>
-              <div className="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-[10px] text-slate-400">0</div>
+            <button 
+              title="Bancada de Fotos"
+              className="flex items-center justify-center p-2 bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-lg hover:border-indigo-500/50 transition-all group relative"
+            >
+              <Camera size={18} className="text-slate-500 group-hover:text-indigo-400 transition-colors" />
+              <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-indigo-600 flex items-center justify-center text-[7px] font-black text-white shadow-lg">0</div>
             </button>
           </div>
         </div>
       </div>
 
       <div className="h-10 shrink-0 bg-slate-900 border-t border-slate-800 flex items-center px-4 z-[1100]">
-        <div className="flex-1 flex items-center gap-8 font-mono text-[11px] tabular-nums tracking-wider h-full">
-          <div className="flex items-center gap-2 h-full">
-            <Hash size={12} className="text-slate-600" />
-            <div className="flex gap-4">
-              <div className="flex gap-1.5"><span className="text-slate-600 font-black">LAT</span><span className="text-indigo-400 font-bold">{clientData.lat?.toFixed(6) ?? '-3.1316'}</span></div>
-              <div className="flex gap-1.5"><span className="text-slate-600 font-black">LNG</span><span className="text-indigo-400 font-bold">{clientData.lng?.toFixed(6) ?? '-60.0233'}</span></div>
+        {isDrawingActive ? (
+          /* CAD Mode HUD */
+          <div className="flex-1 flex items-center gap-4 font-mono text-[11px] h-full animate-in fade-in duration-150">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+              <span className="text-[10px] font-black text-indigo-300 uppercase tracking-widest font-mono">
+                CAD MODE — {drawingPoints.length} vértice{drawingPoints.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+            <div className="h-4 w-px bg-slate-800" />
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => { setDrawingPoints([]); setActiveTool('SELECT'); }}
+                className="px-2 py-0.5 text-[9px] font-black uppercase tracking-widest bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-700 hover:border-rose-500/50 rounded-sm transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                disabled={drawingPoints.length < 3 || (activeTool === 'SUBTRACT' && !selectedAreaId)}
+                onClick={() => {
+                  if (drawingPoints.length >= 3) { 
+                    if (activeTool === 'POLYGON') spawnFreeformArea(drawingPoints);
+                    else if (activeTool === 'SUBTRACT' && selectedAreaId) spawnObstacle(selectedAreaId, drawingPoints);
+                    setDrawingPoints([]); 
+                    setActiveTool('SELECT'); 
+                  }
+                }}
+                className="px-2 py-0.5 text-[9px] font-black uppercase tracking-widest bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-400/50 rounded-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                {activeTool === 'SUBTRACT' && !selectedAreaId ? 'Selecione uma Área' : 'Finalizar (Enter)'}
+              </button>
             </div>
           </div>
-          <div className="h-4 w-px bg-slate-800" />
-          <div className="flex items-center gap-6">
-            <div className="flex gap-1.5 items-center">
-              <span className="text-slate-600 font-black uppercase text-[9px]">Área Útil</span>
-              <span className="text-emerald-400 font-bold">{stats.areaUtil.toFixed(1)}m²</span>
-              <span className="text-slate-600 text-[9px]">({((stats.areaUtil / (stats.areaTot || 1)) * 100).toFixed(1)}%)</span>
+        ) : isStringingActive ? (
+          /* Stringing HUD */
+          <div className="flex-1 flex items-center gap-6 font-mono text-[11px] h-full animate-in fade-in duration-150">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.6)] animate-pulse" />
+              <div className="flex flex-col">
+                <span className="text-[8px] text-slate-500 uppercase font-black tracking-tighter leading-none">Configurando String</span>
+                <span className="text-cyan-400 font-black text-xs uppercase tracking-widest">{selectedModuleIds.length} Módulos</span>
+              </div>
             </div>
-            <div className="flex gap-1.5 items-center">
-              <span className="text-slate-600 font-black uppercase text-[9px]">Trilhos</span>
-              <span className="text-indigo-300 font-bold">~{stats.areaTot > 0 ? (stats.areaTot * 0.8).toFixed(1) : '0'}m</span>
+            <div className="h-4 w-px bg-slate-800" />
+            <div className="flex items-center gap-6 tabular-nums">
+              <div className="flex flex-col">
+                <span className="text-[8px] text-slate-500 uppercase font-black tracking-tighter">Voc Total</span>
+                <span className={cn("font-bold text-xs", stringElectrical.voc > 800 ? "text-rose-400" : "text-slate-200")}>{stringElectrical.voc.toFixed(2)}V</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[8px] text-slate-500 uppercase font-black tracking-tighter">Isc</span>
+                <span className="text-slate-200 font-bold text-xs">{stringElectrical.isc.toFixed(2)}A</span>
+              </div>
+            </div>
+            <div className="h-4 w-px bg-slate-800" />
+            <div className="flex items-center gap-2">
+              <button onClick={() => setSelectedModuleIds([])} className="px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-400 transition-colors">Limpar</button>
+              <button
+                onClick={() => { assignModulesToString(selectedModuleIds, 'GENERIC_INV', 1); setSelectedModuleIds([]); setActiveTool('SELECT'); }}
+                className="px-3 py-0.5 text-[9px] font-black uppercase tracking-widest bg-cyan-600 hover:bg-cyan-500 text-white border border-cyan-400/50 rounded-sm transition-all"
+              >Finalizar</button>
             </div>
           </div>
-        </div>
-        <div className="flex items-center gap-4 border-l border-slate-800 pl-4 h-full">
-           <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Motor On-Thread</span>
-           </div>
+        ) : isDropPointActive ? (
+          /* Drop Point Mode HUD */
+          <div className="flex-1 flex items-center gap-4 font-mono text-[11px] h-full animate-in fade-in duration-150">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+              <span className="text-[10px] font-black text-rose-300 uppercase tracking-widest font-mono">
+                POSICIONAR SAÍDA CC — Clique no mapa para marcar o ponto de saída
+              </span>
+            </div>
+            <div className="h-4 w-px bg-slate-800" />
+            <button
+               onClick={() => setActiveTool('SELECT')}
+               className="px-2 py-0.5 text-[9px] font-black uppercase tracking-widest bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-700 hover:border-rose-500/50 rounded-sm transition-all"
+            >
+              Cancelar
+            </button>
+          </div>
+        ) : isMeasureActive ? (
+          /* Measure Mode HUD */
+          <div className="flex-1 flex items-center gap-6 font-mono text-[11px] h-full animate-in fade-in duration-150">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)] animate-pulse" />
+              <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest font-mono">
+                MÉTRICA INTELIGENTE — {drawingPoints.length} ponto{drawingPoints.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+            <div className="h-4 w-px bg-slate-800" />
+            <div className="flex items-center gap-6 tabular-nums">
+              <div className="flex flex-col">
+                <span className="text-[8px] text-slate-500 uppercase font-black tracking-tighter">Comprimento Total</span>
+                <span className="text-slate-200 font-bold text-xs">{stats.currentDraw.length.toFixed(2)}m</span>
+              </div>
+              {drawingPoints.length >= 3 && (
+                <div className="flex flex-col animate-in zoom-in-95 duration-200">
+                  <span className="text-[8px] text-slate-500 uppercase font-black tracking-tighter text-emerald-500/80">Área Fechada</span>
+                  <span className="text-emerald-400 font-bold text-xs">{stats.currentDraw.area.toFixed(2)}m²</span>
+                </div>
+              )}
+            </div>
+            <div className="h-4 w-px bg-slate-800" />
+            <div className="flex items-center gap-4">
+               <button 
+                  onClick={() => setDrawingPoints([])} 
+                  className="text-slate-500 hover:text-slate-300 transition-colors uppercase text-[9px] font-black"
+               >
+                 Limpar
+               </button>
+               <button
+                  onClick={() => setActiveTool('SELECT')}
+                  className="px-2 py-0.5 text-[9px] font-black uppercase tracking-widest bg-slate-800 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 border border-slate-700 hover:border-emerald-500/50 rounded-sm transition-all"
+               >
+                 Sair (Esc)
+               </button>
+            </div>
+          </div>
+        ) : (
+          /* Estado padrão: telemetria passiva com todos os KPIs */
+          <div className="flex-1 flex items-center gap-6 font-mono text-[11px] tabular-nums tracking-wider h-full">
+            <div className="flex items-center gap-2">
+              <Hash size={12} className="text-slate-600" />
+              <div className="flex gap-3">
+                <div className="flex gap-1.5"><span className="text-slate-600 font-black">LAT</span><span className="text-indigo-400 font-bold">{clientData.lat?.toFixed(6) ?? '-3.1316'}</span></div>
+                <div className="flex gap-1.5"><span className="text-slate-600 font-black">LNG</span><span className="text-indigo-400 font-bold">{clientData.lng?.toFixed(6) ?? '-60.0233'}</span></div>
+              </div>
+            </div>
+            <div className="h-4 w-px bg-slate-800" />
+            <div className="flex items-center gap-4">
+              <div className="flex gap-1.5 items-center"><span className="text-slate-600 font-black uppercase text-[9px]">Área</span><span className="text-slate-300 font-bold">{stats.areaTot.toFixed(1)}m²</span></div>
+              <div className="flex gap-1.5 items-center"><span className="text-slate-600 font-black uppercase text-[9px]">Útil</span><span className="text-emerald-400 font-bold">{stats.areaUtil.toFixed(1)}m²</span></div>
+              <div className="flex gap-1.5 items-center">
+                <span className="text-slate-600 font-black uppercase text-[9px]">Mods</span>
+                <span className={cn("font-bold", stats.modulos < stats.modulosMeta ? "text-amber-400" : "text-indigo-400")}>{stats.modulos}/{stats.modulosMeta}</span>
+              </div>
+              <div className="flex gap-1.5 items-center"><span className="text-slate-600 font-black uppercase text-[9px]">FDI</span><span className="text-emerald-500 font-bold">{stats.fdi.toFixed(2)}</span></div>
+              <div className="flex gap-1.5 items-center"><span className="text-slate-600 font-black uppercase text-[9px]">Trilhos</span><span className="text-indigo-300 font-bold">~{stats.areaTot > 0 ? (stats.areaTot * 0.8).toFixed(1) : '0'}m</span></div>
+            </div>
+          </div>
+        )}
+        <div className="flex items-center gap-2 border-l border-slate-800 pl-4 h-full">
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Motor On-Thread</span>
         </div>
       </div>
       <style>{` .custom-scrollbar::-webkit-scrollbar { width: 4px; } .custom-scrollbar::-webkit-scrollbar-track { background: transparent; } .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 2px; } .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #334155; } `}</style>

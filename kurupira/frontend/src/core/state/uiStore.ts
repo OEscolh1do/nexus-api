@@ -23,7 +23,7 @@ import { create } from 'zustand';
 // TYPES
 // =============================================================================
 
-export type Tool = 'SELECT' | 'POLYGON' | 'MEASURE' | 'PLACE_MODULE' | 'STRINGING' | 'SUBTRACT' | 'DROP_POINT';
+export type Tool = 'SELECT' | 'MOVE' | 'PAN' | 'POLYGON' | 'MEASURE' | 'PLACE_MODULE' | 'STRINGING' | 'SUBTRACT' | 'DROP_POINT';
 
 export type WorkspaceMode = 'SIMULATION' | 'ELECTRICAL' | 'REPORTS' | 'PROPOSAL';
 
@@ -79,9 +79,7 @@ export interface UIState {
 
   /** Etapa da animação do Dimensionamento Inteligente */
   autoSizingStep: AutoSizingStep;
-  /** Modo de Satélite em Alta Visibilidade (ignora filtros do modo Blueprint) */
-  isSatelliteHighVis: boolean;
-  toggleSatelliteHighVis: () => void;
+  setAutoSizingStep: (step: AutoSizingStep) => void;
   /**
    * Dispara a animação sequencial de lego-snap:
    * idle → consumption → module → inverter → done → setFocusedBlock('module')
@@ -96,6 +94,15 @@ export interface UIState {
   isSettingsDrawerOpen: boolean;
   toggleSettingsDrawer: () => void;
   closeSettingsDrawer: () => void;
+
+  /** Painel lateral de Anatomia do Suporte (D4: migrado de useState local → Zustand) */
+  isAnatomyPanelOpen: boolean;
+  toggleAnatomyPanel: () => void;
+  closeAnatomyPanel: () => void;
+  
+  /** Busca de Endereço (Explorer) */
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -169,14 +176,19 @@ export const useUIStore = create<UIState>((set) => ({
     }, 1200);
   },
 
-  isSatelliteHighVis: false,
-  toggleSatelliteHighVis: () => set((state) => ({ isSatelliteHighVis: !state.isSatelliteHighVis })),
 
   isSettingsDrawerOpen: false,
   toggleSettingsDrawer: () => set((state) => ({ isSettingsDrawerOpen: !state.isSettingsDrawerOpen })),
   closeSettingsDrawer: () => set({ isSettingsDrawerOpen: false }),
 
-  mapType: 'SATELLITE',
+  isAnatomyPanelOpen: false,
+  toggleAnatomyPanel: () => set((state) => ({ isAnatomyPanelOpen: !state.isAnatomyPanelOpen })),
+  closeAnatomyPanel: () => set({ isAnatomyPanelOpen: false }),
+
+  searchQuery: '',
+  setSearchQuery: (query) => set({ searchQuery: query }),
+
+  mapType: 'GOOGLE_SATELLITE',
   setMapType: (type) => set({ mapType: type }),
 }));
 

@@ -17,7 +17,7 @@
  */
 
 import React, { useEffect } from 'react';
-import { MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, useMap, useMapEvents } from 'react-leaflet';
 import type { Map as LeafletMap } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import ReactLeafletGoogleLayer from 'react-leaflet-google-layer';
@@ -27,66 +27,19 @@ import { useSolarStore } from '@/core/state/solarStore';
 import { useCenterContent } from '../store/panelStore';
 import { selectCoordinates, selectZoom, selectProjectSiteLocation } from '@/core/state/solarSelectors';
 import { useUIStore, type Tool } from '@/core/state/uiStore';
+import { cn } from '@/lib/utils';
 import { SolarLayer } from './SolarLayer';
 import { MapMeasureTool } from './MapMeasureTool';
 import { MapFlyToSync } from './MapFlyToSync';
 import { MapLayout0Lock } from './MapLayout0Lock';
+import { MapViewAutoFit } from './MapViewAutoFit';
 
-// = =============================================================================
+// =============================================================================
 // TILE CONFIG
 // =============================================================================
 
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
 const GOOGLE_MAPS_TOKEN = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
-
-// =============================================================================
-// FALLBACK PROVIDERS (Usados quando o token proprietário está ausente)
-// =============================================================================
-const OSM_FALLBACK = {
-  url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-  attribution: '© <a href="https://www.openstreetmap.org/">OpenStreetMap</a>',
-  maxNativeZoom: 19
-};
-
-const ESRI_SATELLITE_FALLBACK = {
-  url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-  attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EBP, and the GIS User Community',
-  maxNativeZoom: 19
-};
-
-const getTileConfig = (mapType: 'SATELLITE' | 'STREET' | 'GOOGLE_SATELLITE') => {
-  // Limite global de zoom da UI (nível 24 permite precisão centimétrica extrema)
-  const UI_MAX_ZOOM = 24;
-
-  if (!MAPBOX_TOKEN) {
-    if (mapType === 'SATELLITE') {
-      return {
-        ...ESRI_SATELLITE_FALLBACK,
-        maxZoom: UI_MAX_ZOOM,
-        tileSize: 256,
-        zoomOffset: 0
-      };
-    }
-    
-    return {
-      ...OSM_FALLBACK,
-      maxZoom: UI_MAX_ZOOM,
-      tileSize: 256,
-      zoomOffset: 0
-    };
-  }
-
-  const style = mapType === 'SATELLITE' ? 'mapbox/satellite-v9' : 'mapbox/streets-v12';
-  
-  return {
-    url: `https://api.mapbox.com/styles/v1/${style}/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`,
-    attribution: '© <a href="https://www.mapbox.com/">Mapbox</a>',
-    maxNativeZoom: 22,
-    maxZoom: UI_MAX_ZOOM,
-    tileSize: 512,
-    zoomOffset: -1
-  };
-};
+const UI_MAX_ZOOM = 24;
 
 // =============================================================================
 // SUB-COMPONENTS
@@ -196,6 +149,20 @@ const MapViewSync: React.FC = () => {
 };
 
 /**
+ * MapPropSync — Sincroniza props externas com o Leaflet.
+ * Útil para Previews/Modais onde o centro é controlado via props, não pelo store.
+ */
+const MapPropSync: React.FC<{ center?: [number, number]; zoom?: number }> = ({ center, zoom }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (center && center[0] !== 0) {
+      map.flyTo(center, zoom ?? map.getZoom(), { duration: 1.2 });
+    }
+  }, [center, zoom, map]);
+  return null;
+};
+
+/**
  * MapRefExposer -- Extrai a instância real do Leaflet via contexto
  * e injeta na nossa ref global para que scripts fora do React possam usá-la.
  */
@@ -226,75 +193,95 @@ interface MapCoreProps {
   activeTool: Tool;
   /** Indica se o usuário está em navegação livre (pós-origem do desenho) */
   isNavigating?: boolean;
+  /** Centro opcional (sobrescreve o store) */
+  center?: [number, number];
+  /** Zoom opcional (sobrescreve o store) */
+  zoom?: number;
+  /** Se deve mostrar camadas de engenharia (SolarLayer, Measure, etc) */
+  showLayers?: boolean;
+  /** Se o mapa é apenas leitura (não sincroniza pan/zoom de volta para o store) */
+  readOnly?: boolean;
   children?: React.ReactNode;
 }
 
-const MapCoreInner: React.FC<MapCoreProps> = ({ activeTool, isNavigating = false, children }) => {
+const MapCoreInner: React.FC<MapCoreProps> = ({ 
+  activeTool, 
+  isNavigating = false, 
+  center: propsCenter,
+  zoom: propsZoom,
+  showLayers = true,
+  readOnly = false,
+  children 
+}) => {
   const coordinates = useSolarStore(selectCoordinates);
   const siteLocation = useSolarStore(selectProjectSiteLocation);
-  const zoom = useSolarStore(selectZoom);
+  const storeZoom = useSolarStore(selectZoom);
+  const canvasViewMode = useUIStore(s => s.canvasViewMode);
 
   // Cadeia de Prioridade de Centro (SPEC-SITE-SYNC):
-  // 1. Viewport salva (project.coordinates)
-  // 2. Localização do Sítio (clientData.lat/lng)
-  // 3. Fallback (Manaus)
-  const center: [number, number] = coordinates
-    ? [coordinates.lat, coordinates.lng]
-    : (siteLocation.lat && siteLocation.lng)
-      ? [siteLocation.lat, siteLocation.lng]
-      : [-3.1316, -60.0233];
+  // 1. Props (sobrescreve tudo)
+  // 2. Viewport salva (project.coordinates)
+  // 3. Localização do Sítio (clientData.lat/lng)
+  // 4. Fallback (Manaus)
+  const finalCenter: [number, number] = propsCenter 
+    ? propsCenter
+    : coordinates
+      ? [coordinates.lat, coordinates.lng]
+      : (siteLocation.lat && siteLocation.lng)
+        ? [siteLocation.lat, siteLocation.lng]
+        : [-3.1316, -60.0233];
 
-  const mapType = useUIStore(s => s.mapType);
-  const tileConfig = getTileConfig(mapType);
+  const finalZoom = propsZoom ?? Math.min(storeZoom, UI_MAX_ZOOM);
 
   return (
-    <MapContainer
-      center={center}
-      zoom={Math.min(zoom, tileConfig.maxZoom)}
-      maxZoom={tileConfig.maxZoom}
-      minZoom={3}
-      zoomControl={false}
-      attributionControl={false}
-      style={{ width: '100%', height: '100%' }}
-    >
-      {/* Exposes the map instance gobally */}
-      <MapRefExposer />
+    <div className={cn(
+      "w-full h-full transition-colors duration-700",
+      canvasViewMode === 'BLUEPRINT' ? "bg-slate-900" : "bg-slate-950"
+    )}>
+      <MapContainer
+        center={finalCenter}
+        zoom={finalZoom}
+        maxZoom={UI_MAX_ZOOM}
+        minZoom={3}
+        zoomControl={false}
+        attributionControl={false}
+        style={{ width: '100%', height: '100%', background: 'transparent' }}
+      >
+        {/* Exposes the map instance gobally */}
+        <MapRefExposer />
 
-      {/* Tile Layer — Mapbox satélite/streets com fallback OSM/Esri */}
-      {mapType !== 'GOOGLE_SATELLITE' && (
-        <TileLayer
-          key={tileConfig.url}
-          url={tileConfig.url}
-          attribution={tileConfig.attribution}
-          maxZoom={tileConfig.maxZoom}
-          maxNativeZoom={tileConfig.maxNativeZoom}
-          tileSize={tileConfig.tileSize}
-          zoomOffset={tileConfig.zoomOffset}
-          crossOrigin={true}
-        />
-      )}
+        {/* Sincronização de props externas (centro/zoom via props) */}
+        <MapPropSync center={propsCenter} zoom={propsZoom} />
 
-      {/* Google Maps Layer (requer API Key no .env.local) */}
-      {mapType === 'GOOGLE_SATELLITE' && (
-        <ReactLeafletGoogleLayer 
-          apiKey={GOOGLE_MAPS_TOKEN || ''} 
-          type="satellite"
-        />
-      )}
+        {/* Google Maps Layer — Oculto em modo Prancheta (CAD Mode) */}
+        {canvasViewMode !== 'BLUEPRINT' && (
+          <ReactLeafletGoogleLayer 
+            apiKey={GOOGLE_MAPS_TOKEN || ''} 
+            type="satellite"
+          />
+        )}
 
-      {/* Sincronização de resize, visibilidade e viewport */}
-      <MapInvalidator />
-      <MapVisibilityObserver />
-      <MapMinimapObserver />
-      <MapViewSync />
-      <MapFlyToSync />
-      <MapLayout0Lock isNavigating={isNavigating} />
-      <MapRefExposer />
-      {/* Camada de geometria solar */}
-      <SolarLayer activeTool={activeTool} />
-      <MapMeasureTool activeTool={activeTool} />
-      {children}
-    </MapContainer>
+        {/* Sincronização de resize, visibilidade e viewport */}
+        <MapInvalidator />
+        <MapVisibilityObserver />
+        <MapMinimapObserver />
+        {!readOnly && <MapViewSync />}
+        {!readOnly && <MapFlyToSync />}
+        <MapLayout0Lock isNavigating={isNavigating} />
+        
+        {/* Auto-zoom ao mudar para modo Prancheta */}
+        {!readOnly && <MapViewAutoFit />}
+
+        {/* Camada de geometria solar (Opcional) */}
+        {showLayers && (
+          <>
+            <SolarLayer activeTool={activeTool} />
+            <MapMeasureTool activeTool={activeTool} />
+          </>
+        )}
+        {children}
+      </MapContainer>
+    </div>
   );
 };
 

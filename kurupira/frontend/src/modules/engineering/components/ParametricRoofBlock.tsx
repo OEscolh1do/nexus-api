@@ -50,26 +50,6 @@ const AREA_SELECTED_STYLE = {
   dashArray: '4, 2',
 };
 
-// =============================================================================
-// HELPERS: Local vertex -> Global LatLng
-// =============================================================================
-
-function localVerticesToLatLng(
-  area: InstallationArea
-): [number, number][] {
-  const [lat, lng] = area.center;
-  const angleRad = area.azimuth * (Math.PI / 180);
-  const earthRadius = 6378137;
-  const latRads = lat * (Math.PI / 180);
-
-  return area.localVertices.map(v => {
-    const rx = v.x * Math.cos(angleRad) - v.y * Math.sin(angleRad);
-    const ry = v.x * Math.sin(angleRad) + v.y * Math.cos(angleRad);
-    const dLat = (ry / earthRadius) * (180 / Math.PI);
-    const dLng = (rx / (earthRadius * Math.cos(latRads))) * (180 / Math.PI);
-    return [lat + dLat, lng + dLng] as [number, number];
-  });
-}
 
 function globalLatLngToLocal(
   area: InstallationArea,
@@ -131,8 +111,6 @@ export const ParametricRoofBlock: React.FC<ParametricRoofBlockProps> = ({ roof: 
 
   const isSelected = (selectedEntity.type === 'polygon' || selectedEntity.type === 'area') && selectedEntity.id === area.id;
 
-  // Derive global polygon from localVertices
-  const polygonPoints = React.useMemo(() => localVerticesToLatLng(area), [area]);
 
   let currentStyle = AREA_POLYGON_STYLE;
   if (isSelected) currentStyle = AREA_SELECTED_STYLE;
@@ -140,7 +118,7 @@ export const ParametricRoofBlock: React.FC<ParametricRoofBlockProps> = ({ roof: 
   return (
     <>
       <Polygon
-        positions={polygonPoints}
+        positions={area.polygon}
         pathOptions={currentStyle}
         eventHandlers={{
           mouseover: (e) => {
@@ -184,7 +162,7 @@ export const ParametricRoofBlock: React.FC<ParametricRoofBlockProps> = ({ roof: 
       
       {/* ── GRIPS (Only when selected) ── */}
       {isSelected && (
-        <FreeformGrips area={area} polygonPoints={polygonPoints} />
+        <FreeformGrips area={area} polygonPoints={area.polygon} />
       )}
     </>
   );

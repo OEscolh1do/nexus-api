@@ -19,40 +19,12 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   X, MapPin, ArrowRight, Loader2
 } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
-import L from 'leaflet';
+import { Marker } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import { MapCore } from '@/modules/engineering/components/MapCore';
 import { KurupiraClient } from '@/services/NexusClient';
 import { calcKWpAlvo } from '@/core/state/slices/journeySlice';
 
-// Fix default marker icon (Leaflet + bundler issue)
-const defaultIcon = L.icon({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
-L.Marker.prototype.options.icon = defaultIcon;
-
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
-
-const tileUrl = MAPBOX_TOKEN
-  ? `https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`
-  : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-
-/** Syncs map center when lat/lng change */
-const MapViewUpdater: React.FC<{ lat: number; lng: number }> = ({ lat, lng }) => {
-  const map = useMap();
-  useEffect(() => {
-    if (lat !== 0 && lng !== 0) {
-      map.flyTo([lat, lng], 18, { duration: 1.5 });
-    }
-  }, [lat, lng, map]);
-  return null;
-};
 
 // =============================================================================
 // TIPOS
@@ -239,20 +211,18 @@ export const SiteContextModal: React.FC<SiteContextModalProps> = ({
                 Localização do Sítio
               </h3>
               
-              {/* Map Container (Leaflet Restored) */}
+              {/* Map Container (Standardized MapCore) */}
               <div className="flex-1 min-h-[220px] rounded border border-slate-800 bg-slate-900/50 relative overflow-hidden group/map z-0">
                 {context.lat !== 0 ? (
-                  <MapContainer
+                  <MapCore
+                    activeTool="SELECT"
                     center={[context.lat, context.lng]}
                     zoom={18}
-                    className="w-full h-full"
-                    zoomControl={false}
-                    attributionControl={false}
+                    readOnly={true}
+                    showLayers={false}
                   >
-                    <TileLayer url={tileUrl} />
                     <Marker position={[context.lat, context.lng]} />
-                    <MapViewUpdater lat={context.lat} lng={context.lng} />
-                  </MapContainer>
+                  </MapCore>
                 ) : (
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-700 bg-slate-900/50">
                     <MapPin size={32} className="mb-2 opacity-20" />

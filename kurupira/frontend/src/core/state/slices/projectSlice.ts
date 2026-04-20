@@ -23,6 +23,18 @@ export type SurfaceType = 'ceramic' | 'metallic' | 'fibrocement' | 'slab' | 'gro
 
 export interface LocalVertex { x: number; y: number; }
 
+export interface Obstacle {
+  id: string;
+  localVertices: LocalVertex[];
+  polygon: LatLngTuple[]; // Cache absoluto
+}
+
+export interface DropPoint {
+  id: string;
+  center: LatLngTuple;
+  label?: string;
+}
+
 export interface InstallationArea {
   id: string;
   center: LatLngTuple;     // Ponto pivô global no mapa
@@ -32,8 +44,12 @@ export interface InstallationArea {
 
   // NÚCLEO FREEFORM — Offsets métricos relativos ao center [0,0]
   localVertices: LocalVertex[];
+  
+  // CACHE ABSOLUTO GEOGRÁFICO (LatLng para Leaflet/Prancheta)
+  polygon: LatLngTuple[];
 
   placedModuleIds: string[]; // Relação Pai-Filho
+  obstacles: Obstacle[];     // Zonas de exclusão
 }
 
 export interface PlacedModule {
@@ -61,6 +77,7 @@ export interface ProjectData {
   zoom: number;
   installationAreas: InstallationArea[];
   placedModules: PlacedModule[];
+  dropPoints: DropPoint[];
   projectStatus: 'draft' | 'approved';
 }
 
@@ -89,6 +106,10 @@ export interface ProjectSlice {
   addAreaVertex: (areaId: string, afterIndex: number, x: number, y: number) => void;
   removeAreaVertex: (areaId: string, vertexIndex: number) => void;
 
+  // Obstruções (CSG Subtraction)
+  spawnObstacle: (areaId: string, points: LatLngTuple[]) => void;
+  removeObstacle: (areaId: string, obstacleId: string) => void;
+
   // Módulos
   placeModule: (areaId: string, offsetX: number, offsetY: number, moduleSpecId: string, widthM: number, heightM: number) => void;
   removePlacedModule: (id: string) => void;
@@ -98,6 +119,11 @@ export interface ProjectSlice {
   assignModulesToString: (moduleIds: string[], inverterId: string, mpptId: number) => void;
   approveProject: () => void;
   setProjectStatus: (status: 'draft' | 'approved') => void;
+
+  // Drop Points (CC Out)
+  addDropPoint: (center: LatLngTuple) => void;
+  removeDropPoint: (id: string) => void;
+  updateDropPoint: (id: string, center: LatLngTuple) => void;
 }
 
 // =============================================================================
@@ -109,6 +135,7 @@ const initialProjectData: ProjectData = {
   zoom: 19,
   installationAreas: [],
   placedModules: [],
+  dropPoints: [],
   projectStatus: 'draft',
 };
 
@@ -166,14 +193,24 @@ function isPointInPolygon(pt: LocalVertex, polygon: LocalVertex[]): boolean {
 /**
  * Verifica se os 4 cantos de um retângulo estão dentro do polígono.
  */
-function isRectInsidePolygon(cx: number, cy: number, hw: number, hh: number, polygon: LocalVertex[]): boolean {
+function isRectInsidePolygon(cx: number, cy: number, hw: number, hh: number, polygon: LocalVertex[], obstacles: Obstacle[] = []): boolean {
   const corners: LocalVertex[] = [
     { x: cx - hw, y: cy - hh },
     { x: cx + hw, y: cy - hh },
     { x: cx + hw, y: cy + hh },
     { x: cx - hw, y: cy + hh },
   ];
-  return corners.every(c => isPointInPolygon(c, polygon));
+  
+  // Deve estar dentro do polígono principal
+  const isInside = corners.every(c => isPointInPolygon(c, polygon));
+  if (!isInside) return false;
+
+  // NÃO deve estar dentro de nenhuma obstrução
+  const isInObstacle = corners.some(c => 
+    obstacles.some(obs => isPointInPolygon(c, obs.localVertices))
+  );
+
+  return !isInObstacle;
 }
 
 /**
@@ -182,7 +219,8 @@ function isRectInsidePolygon(cx: number, cy: number, hw: number, hh: number, pol
 function cleanOrphanModules(
   placedModules: PlacedModule[],
   areaId: string,
-  localVertices: LocalVertex[]
+  localVertices: LocalVertex[],
+  obstacles: Obstacle[] = []
 ): { kept: PlacedModule[]; removedIds: string[] } {
   const kept: PlacedModule[] = [];
   const removedIds: string[] = [];
@@ -194,7 +232,7 @@ function cleanOrphanModules(
     }
     const hw = mod.widthM / 2;
     const hh = mod.heightM / 2;
-    if (isRectInsidePolygon(mod.offsetX_M, mod.offsetY_M, hw, hh, localVertices)) {
+    if (isRectInsidePolygon(mod.offsetX_M, mod.offsetY_M, hw, hh, localVertices, obstacles)) {
       kept.push(mod);
     } else {
       removedIds.push(mod.id);
@@ -202,6 +240,32 @@ function cleanOrphanModules(
   }
 
   return { kept, removedIds };
+}
+
+/** 
+ * Recalcula as posições absolutas (GEO Cache) de uma área baseado nos vértices locais 
+ */
+function deriveAbsoluteAreaPolygon(area: Partial<InstallationArea> & { center: LatLngTuple; localVertices: LocalVertex[]; azimuth: number; obstacles?: Obstacle[] }): { polygon: LatLngTuple[]; obstacles: Obstacle[] } {
+  const [lat, lng] = area.center;
+  const angleRad = area.azimuth * (Math.PI / 180);
+  const earthRadius = 6378137;
+  const latRads = lat * (Math.PI / 180);
+
+  const projectPoint = (v: LocalVertex): LatLngTuple => {
+    const rx = v.x * Math.cos(angleRad) - v.y * Math.sin(angleRad);
+    const ry = v.x * Math.sin(angleRad) + v.y * Math.cos(angleRad);
+    const dLat = (ry / earthRadius) * (180 / Math.PI);
+    const dLng = (rx / (earthRadius * Math.cos(latRads))) * (180 / Math.PI);
+    return [lat + dLat, lng + dLng] as LatLngTuple;
+  };
+
+  const polygon = area.localVertices.map(projectPoint);
+  const obstacles = (area.obstacles || []).map(obs => ({
+    ...obs,
+    polygon: obs.localVertices.map(projectPoint)
+  }));
+
+  return { polygon, obstacles };
 }
 
 /** 
@@ -259,13 +323,17 @@ export const createProjectSlice: StateCreator<
 
   spawnArea: (center, widthM = 10, heightM = 5, azimuth = 0) => set((s) => {
     if (s.project.projectStatus === 'approved') return s;
+    const localVertices = verticesFromRect(widthM, heightM);
+    const { polygon, obstacles } = deriveAbsoluteAreaPolygon({ center, localVertices, azimuth, obstacles: [] });
     const newArea: InstallationArea = {
       id: generateId('area'),
       center,
       azimuth,
       pitch: 15,
       surfaceType: 'ceramic',
-      localVertices: verticesFromRect(widthM, heightM),
+      localVertices,
+      polygon,
+      obstacles,
       placedModuleIds: []
     };
     return { project: { ...s.project, installationAreas: [...s.project.installationAreas, newArea] } };
@@ -291,13 +359,17 @@ export const createProjectSlice: StateCreator<
       return { x, y };
     });
     
+    const { polygon, obstacles } = deriveAbsoluteAreaPolygon({ center, localVertices, azimuth: 0, obstacles: [] });
+
     const newArea: InstallationArea = {
       id: generateId('area_drawn'),
       center,
-      azimuth: 0, // Desenho livre assume azimuth 0 inicial (vértices já contém a rotação)
+      azimuth: 0, 
       pitch: 15,
       surfaceType: 'ceramic',
       localVertices,
+      polygon,
+      obstacles,
       placedModuleIds: []
     };
     
@@ -311,7 +383,14 @@ export const createProjectSlice: StateCreator<
     if (areaIndex === -1) return s;
 
     const oldArea = s.project.installationAreas[areaIndex];
-    const newArea = { ...oldArea, ...data };
+    let newArea = { ...oldArea, ...data };
+
+    // Recalcula polígono absoluto se centro, azimute ou vértices mudarem
+    if (data.center || data.azimuth !== undefined) {
+      const { polygon, obstacles } = deriveAbsoluteAreaPolygon(newArea);
+      newArea.polygon = polygon;
+      newArea.obstacles = obstacles;
+    }
 
     const newAreas = [...s.project.installationAreas];
     newAreas[areaIndex] = newArea;
@@ -374,8 +453,13 @@ export const createProjectSlice: StateCreator<
       id: newAreaId,
       center: [area.center[0], area.center[1] + offsetLng],
       localVertices: area.localVertices.map(v => ({ ...v })),
+      obstacles: area.obstacles.map(obs => ({ ...obs, localVertices: [...obs.localVertices], polygon: [] })),
+      polygon: [],
       placedModuleIds: [],
     };
+    const { polygon, obstacles } = deriveAbsoluteAreaPolygon(clonedArea);
+    clonedArea.polygon = polygon;
+    clonedArea.obstacles = obstacles;
 
     // Clonar módulos filhos com novos IDs
     const clonedModules: PlacedModule[] = [];
@@ -419,11 +503,15 @@ export const createProjectSlice: StateCreator<
     const newVertices = [...area.localVertices];
     newVertices[vertexIndex] = { x, y };
 
-    const { kept, removedIds } = cleanOrphanModules(s.project.placedModules, areaId, newVertices);
+    const { kept, removedIds } = cleanOrphanModules(s.project.placedModules, areaId, newVertices, area.obstacles);
     const newPlacedModuleIds = area.placedModuleIds.filter(id => !removedIds.includes(id));
 
     const newAreas = [...s.project.installationAreas];
-    newAreas[areaIndex] = { ...area, localVertices: newVertices, placedModuleIds: newPlacedModuleIds };
+    const updatedArea = { ...area, localVertices: newVertices, placedModuleIds: newPlacedModuleIds };
+    const { polygon, obstacles } = deriveAbsoluteAreaPolygon(updatedArea);
+    updatedArea.polygon = polygon;
+    updatedArea.obstacles = obstacles;
+    newAreas[areaIndex] = updatedArea;
 
     return { project: { ...s.project, installationAreas: newAreas, placedModules: kept } };
   }),
@@ -438,7 +526,11 @@ export const createProjectSlice: StateCreator<
     newVertices.splice(afterIndex + 1, 0, { x, y });
 
     const newAreas = [...s.project.installationAreas];
-    newAreas[areaIndex] = { ...area, localVertices: newVertices };
+    const updatedArea = { ...area, localVertices: newVertices };
+    const { polygon, obstacles } = deriveAbsoluteAreaPolygon(updatedArea);
+    updatedArea.polygon = polygon;
+    updatedArea.obstacles = obstacles;
+    newAreas[areaIndex] = updatedArea;
 
     return { project: { ...s.project, installationAreas: newAreas } };
   }),
@@ -454,11 +546,15 @@ export const createProjectSlice: StateCreator<
 
     const newVertices = area.localVertices.filter((_, i) => i !== vertexIndex);
 
-    const { kept, removedIds } = cleanOrphanModules(s.project.placedModules, areaId, newVertices);
+    const { kept, removedIds } = cleanOrphanModules(s.project.placedModules, areaId, newVertices, area.obstacles);
     const newPlacedModuleIds = area.placedModuleIds.filter(id => !removedIds.includes(id));
 
     const newAreas = [...s.project.installationAreas];
-    newAreas[areaIndex] = { ...area, localVertices: newVertices, placedModuleIds: newPlacedModuleIds };
+    const updatedArea = { ...area, localVertices: newVertices, placedModuleIds: newPlacedModuleIds };
+    const { polygon, obstacles } = deriveAbsoluteAreaPolygon(updatedArea);
+    updatedArea.polygon = polygon;
+    updatedArea.obstacles = obstacles;
+    newAreas[areaIndex] = updatedArea;
 
     return { project: { ...s.project, installationAreas: newAreas, placedModules: kept } };
   }),
@@ -482,13 +578,78 @@ export const createProjectSlice: StateCreator<
       y: v.y * scaleY
     }));
 
-    const { kept, removedIds } = cleanOrphanModules(s.project.placedModules, id, newVertices);
+    const { kept, removedIds } = cleanOrphanModules(s.project.placedModules, id, newVertices, area.obstacles);
     const newPlacedModuleIds = area.placedModuleIds.filter(modId => !removedIds.includes(modId));
 
     const newAreas = [...s.project.installationAreas];
-    newAreas[areaIndex] = { ...area, localVertices: newVertices, placedModuleIds: newPlacedModuleIds };
+    const updatedArea = { ...area, localVertices: newVertices, placedModuleIds: newPlacedModuleIds };
+    const { polygon, obstacles } = deriveAbsoluteAreaPolygon(updatedArea);
+    updatedArea.polygon = polygon;
+    updatedArea.obstacles = obstacles;
+    newAreas[areaIndex] = updatedArea;
 
     return { project: { ...s.project, installationAreas: newAreas, placedModules: kept } };
+  }),
+
+  // ─── OBSTRUÇÕES ────────────────────────────────────────────────────────────
+
+  spawnObstacle: (areaId, points) => set((s) => {
+    if (s.project.projectStatus === 'approved' || points.length < 3) return s;
+    const areaIndex = s.project.installationAreas.findIndex(a => a.id === areaId);
+    if (areaIndex === -1) return s;
+    const area = s.project.installationAreas[areaIndex];
+
+    // Converter LatLng -> Local XY
+    const earthRadius = 6378137;
+    const latRads = area.center[0] * (Math.PI / 180);
+    const angleRad = area.azimuth * (Math.PI / 180);
+
+    const localVertices: LocalVertex[] = points.map(p => {
+      const dLat = p[0] - area.center[0];
+      const dLng = p[1] - area.center[1];
+      const ry = dLat * (Math.PI / 180) * earthRadius;
+      const rx = dLng * (Math.PI / 180) * earthRadius * Math.cos(latRads);
+      
+      // Rotacionar de volta para o sistema local da área (azimute)
+      return {
+        x: rx * Math.cos(-angleRad) - ry * Math.sin(-angleRad),
+        y: rx * Math.sin(-angleRad) + ry * Math.cos(-angleRad)
+      };
+    });
+
+    const newObstacle: Obstacle = {
+      id: generateId('obs'),
+      localVertices,
+      polygon: [] // Será preenchido pelo derive
+    };
+
+    const newAreas = [...s.project.installationAreas];
+    const updatedArea = { ...area, obstacles: [...area.obstacles, newObstacle] };
+    const { polygon, obstacles } = deriveAbsoluteAreaPolygon(updatedArea);
+    updatedArea.polygon = polygon;
+    updatedArea.obstacles = obstacles;
+    newAreas[areaIndex] = updatedArea;
+
+    // Remover módulos que colidirem com o novo obstáculo
+    const { kept } = cleanOrphanModules(s.project.placedModules, areaId, area.localVertices, updatedArea.obstacles);
+
+    return { project: { ...s.project, installationAreas: newAreas, placedModules: kept } };
+  }),
+
+  removeObstacle: (areaId, obstacleId) => set((s) => {
+    if (s.project.projectStatus === 'approved') return s;
+    const areaIndex = s.project.installationAreas.findIndex(a => a.id === areaId);
+    if (areaIndex === -1) return s;
+    const area = s.project.installationAreas[areaIndex];
+
+    const newAreas = [...s.project.installationAreas];
+    const updatedArea = { ...area, obstacles: area.obstacles.filter(o => o.id !== obstacleId) };
+    const { polygon, obstacles } = deriveAbsoluteAreaPolygon(updatedArea);
+    updatedArea.polygon = polygon;
+    updatedArea.obstacles = obstacles;
+    newAreas[areaIndex] = updatedArea;
+
+    return { project: { ...s.project, installationAreas: newAreas } };
   }),
 
   // ─── AUTO-LAYOUT (GRID + RAYCASTING) ─────────────────────────────────────
@@ -586,8 +747,8 @@ export const createProjectSlice: StateCreator<
           }
           if (collides) continue;
 
-          // Ray-Casting: verificar se os 4 cantos do painel estão dentro do polígono
-          if (isRectInsidePolygon(cx, cy, halfW, halfH, area.localVertices)) {
+          // Ray-Casting: verificar se os 4 cantos do painel estão dentro do polígono principal E FORA das obstruções
+          if (isRectInsidePolygon(cx, cy, halfW, halfH, area.localVertices, area.obstacles)) {
             const mId = generateId('pm_auto');
             let placed: PlacedModule = {
               id: mId,
@@ -658,8 +819,8 @@ export const createProjectSlice: StateCreator<
     // Boundary check: verificar se o módulo cabe dentro do polígono
     const halfW = widthM / 2;
     const halfH = heightM / 2;
-    if (!isRectInsidePolygon(offsetX, offsetY, halfW, halfH, area.localVertices)) {
-      return s; // Módulo fora da área — ignorado
+    if (!isRectInsidePolygon(offsetX, offsetY, halfW, halfH, area.localVertices, area.obstacles)) {
+      return s; // Módulo fora da área ou sobre obstrução — ignorado
     }
 
     const moduleId = generateId('pm');
@@ -742,4 +903,30 @@ export const createProjectSlice: StateCreator<
   setProjectStatus: (status) => set((s) => ({
     project: { ...s.project, projectStatus: status }
   })),
+
+  // ─── DROP POINTS ───────────────────────────────────────────────────────────
+
+  addDropPoint: (center) => set((s) => {
+    if (s.project.projectStatus === 'approved') return s;
+    const newDP: DropPoint = {
+      id: generateId('dp'),
+      center
+    };
+    return { project: { ...s.project, dropPoints: [...s.project.dropPoints, newDP] } };
+  }),
+
+  removeDropPoint: (id) => set((s) => {
+    if (s.project.projectStatus === 'approved') return s;
+    return { project: { ...s.project, dropPoints: s.project.dropPoints.filter(dp => dp.id !== id) } };
+  }),
+
+  updateDropPoint: (id, center) => set((s) => {
+    if (s.project.projectStatus === 'approved') return s;
+    return {
+      project: {
+        ...s.project,
+        dropPoints: s.project.dropPoints.map(dp => dp.id === id ? { ...dp, center } : dp)
+      }
+    };
+  }),
 });
