@@ -3,7 +3,6 @@ import { Marker, Tooltip } from 'react-leaflet';
 import L from 'leaflet';
 import { useSolarStore } from '@/core/state/solarStore';
 import { useUIStore } from '@/core/state/uiStore';
-import { cn } from '@/lib/utils';
 
 /**
  * PROJECT SITE MARKER

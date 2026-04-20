@@ -220,6 +220,7 @@ export const SiteContextModal: React.FC<SiteContextModalProps> = ({
                     zoom={18}
                     readOnly={true}
                     showLayers={false}
+                    forceViewMode="CONTEXT"
                   >
                     <Marker position={[context.lat, context.lng]} />
                   </MapCore>

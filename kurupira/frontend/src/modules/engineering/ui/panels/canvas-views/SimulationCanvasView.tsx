@@ -108,13 +108,17 @@ export const SimulationCanvasView: React.FC = () => {
   const updateMonthlyConsumption = useSolarStore((s) => s.updateMonthlyConsumption);
   const setIrradiationData = useSolarStore((s) => s.setIrradiationData);
   const modules = useSolarStore(selectModules);
+  const placedModules = useSolarStore((s) => s.project.placedModules);
   const getPerformanceRatio = useTechStore((s) => s.getPerformanceRatio);
+  const getAdditivePerformanceRatio = useTechStore((s) => s.getAdditivePerformanceRatio);
+  const prCalculationMode = useTechStore((s) => s.prCalculationMode);
 
   // ── Derived ──
-  const prDecimal = getPerformanceRatio();
+  const isAdditive = prCalculationMode === 'additive';
+  const prDecimal = isAdditive ? getAdditivePerformanceRatio() : getPerformanceRatio();
   
-  // ── 2.1.0: Cálculo de Potência Conectada (Topologia) em vez do Inventário Bruto ──
-  // Isso elimina a "geração fantasma" de módulos que existem no projeto mas não estão em strings.
+  // ── 4.0.0: Cálculo de Potência Conectada (Híbrido) ──
+  // Considera Strings Lógicas (V4), Strings Físicas (Map) e fallback para Inventário Físico.
   const techStrings = useTechStore((s) => s.strings.entities);
   const modulesById = useMemo(() => {
     const map: Record<string, any> = {};
@@ -124,13 +128,53 @@ export const SimulationCanvasView: React.FC = () => {
 
   const totalPowerKw = useMemo(() => {
     let totalW = 0;
+    const handledPlacedModuleIds = new Set<string>();
+
+    // 1. Strings Lógicas (V4)
     Object.values(techStrings).forEach(str => {
       str.moduleIds.forEach(mid => {
-        if (modulesById[mid]) totalW += modulesById[mid].power;
+        // mid pode ser ID de PlacedModule (pm_...) ou de Spec (mod_...)
+        const pm = placedModules.find(p => p.id === mid);
+        if (pm) {
+          const spec = modulesById[pm.moduleSpecId];
+          if (spec) {
+            totalW += spec.power;
+            handledPlacedModuleIds.add(pm.id);
+          }
+        } else if (modulesById[mid]) {
+          totalW += modulesById[mid].power;
+        }
       });
     });
+
+    // 2. Strings Físicas (Atribuídas via propriedades no mapa)
+    placedModules.forEach(pm => {
+      if (pm.stringData && !handledPlacedModuleIds.has(pm.id)) {
+        const spec = modulesById[pm.moduleSpecId];
+        if (spec) {
+          totalW += spec.power;
+          handledPlacedModuleIds.add(pm.id);
+        }
+      }
+    });
+
+    // 3. Fallback (Médio): Se potência conectada for 0, usamos o inventário físico (Mapa)
+    if (totalW === 0 && placedModules.length > 0) {
+      placedModules.forEach(pm => {
+        const spec = modulesById[pm.moduleSpecId];
+        if (spec) totalW += spec.power;
+      });
+    }
+
+    // 4. Fallback (Geral/Comercial): Se o mapa estiver vazio, usamos o inventário do catálogo (Módulos)
+    // Isso sincroniza com a view de "Módulos" (Ato 2) e garante que o Dashboard mostre dados 
+    // mesmo em fluxos de venda rápida sem design espacial.
+    if (totalW === 0) {
+      totalW = modules.reduce((acc, m) => acc + m.power, 0);
+    }
+
     return totalW / 1000;
-  }, [techStrings, modulesById]);
+  }, [techStrings, placedModules, modulesById, modules]);
 
   const avgHsp = hsp.length > 0 ? hsp.reduce((a: number, b: number) => a + b, 0) / 12 : 0;
 

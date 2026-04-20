@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useSolarStore, selectModules } from '@/core/state/solarStore';
-import { useUIStore } from '@/core/state/uiStore';
+
 import { useCatalogStore } from '../../../store/useCatalogStore';
 import { useTechKPIs } from '../../../hooks/useTechKPIs';
 import { mapCatalogToSpecs } from '../../../utils/catalogMappers';
 import { calculateCorrectedVoltage } from '../../../utils/electricalMath';
-import { Package, Search, Info, CheckCircle, ArrowRight, Loader2, AlertCircle, AlertTriangle, X } from 'lucide-react';
+import { Package, Search, Info, CheckCircle, Loader2, AlertCircle, AlertTriangle, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/simple-dialog';
 
@@ -21,7 +21,7 @@ export const ModuleCanvasView: React.FC = () => {
   const projectModules = useSolarStore(selectModules);
   const kWpAlvo = useSolarStore(s => s.kWpAlvo);
   const setModules = useSolarStore(s => s.setModules);
-  const setFocusedBlock = useUIStore(s => s.setFocusedBlock);
+
   
   // Store de Catálogo (DB)
   const { 
@@ -92,9 +92,6 @@ export const ModuleCanvasView: React.FC = () => {
     }
   };
 
-  const handleGoToArrangement = () => {
-    setFocusedBlock('arrangement');
-  };
 
   return (
     <div className="w-full h-full flex flex-col bg-slate-950 p-4 gap-4 overflow-hidden">
@@ -357,41 +354,6 @@ ${(minQty * pmod / 1000).toFixed(2)} kWp x ${hspReal.toFixed(2)} HSP x 30 dias x
 
       </div>
 
-      {/* FAIXA CTTA (Sincronizada com kWp) — Estética de Status Bar Industrial */}
-      <div className="mt-auto px-4 py-3 bg-slate-900 border border-slate-800 rounded-none shadow-2xl flex items-center justify-between gap-6">
-         <div className="flex items-center gap-6">
-            <div className="flex flex-col">
-              <span className="text-[8px] text-slate-600 uppercase font-black tracking-[0.2em] mb-1">Project Status</span>
-              <div className={cn(
-                "flex items-center gap-2",
-                kpi.totalDC >= (kWpAlvo ?? 0) * 0.95 ? "text-emerald-500" : "text-amber-500"
-              )}>
-                <CheckCircle size={14} className="stroke-[3]" />
-                <span className="text-sm font-black font-mono tabular-nums leading-none tracking-tighter">
-                   {kpi.totalDC.toFixed(2)} <span className="text-[10px] font-bold">KWP</span> definido / {kWpAlvo?.toFixed(2)} <span className="text-[10px] font-bold">ALVO</span>
-                </span>
-              </div>
-            </div>
-
-            <div className="w-[1px] h-8 bg-slate-800" />
-
-            <div className="flex flex-col">
-              <span className="text-[8px] text-slate-600 uppercase font-black tracking-[0.2em] mb-1">Equipment</span>
-              <span className="text-[11px] font-bold text-slate-300 uppercase leading-none tracking-tight">
-                {activeModule ? `${activeModule.manufacturer} ${activeModule.power}WP` : 'None Selected'}
-              </span>
-            </div>
-         </div>
-         
-         <button 
-           onClick={handleGoToArrangement}
-           disabled={!activeModule}
-           className="flex items-center gap-3 px-8 py-2.5 bg-amber-600 hover:bg-amber-500 active:bg-amber-400 disabled:opacity-30 disabled:grayscale disabled:cursor-not-allowed text-slate-950 text-[10px] font-black uppercase tracking-[0.15em] rounded-none transition-all shadow-lg active:scale-[0.98]"
-         >
-           Avançar para Design Espacial
-           <ArrowRight size={14} strokeWidth={3} />
-         </button>
-      </div>
 
       {/* DIÁLOGO DE CONFIRMAÇÃO DE SUBSTITUIÇÃO */}
       <Dialog open={!!pendingModule} onOpenChange={(open) => !open && setPendingModule(null)}>

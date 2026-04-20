@@ -146,19 +146,10 @@ export const SolarLayer: React.FC<SolarLayerProps> = ({ activeTool }) => {
   }, [activeTool, spawnArea, clearSelection]);
 
   // Register map events
-  const map = useMapEvents({
+  useMapEvents({
     click: handleMapClick,
   });
 
-  // Disable map dragging when using drawing tools
-  React.useEffect(() => {
-    if (activeTool === 'POLYGON' || activeTool === 'PLACE_MODULE') {
-      map.dragging.disable();
-    } else {
-      map.dragging.enable();
-    }
-    return () => { map.dragging.enable(); };
-  }, [activeTool, map]);
 
   // ==========================================================================
   // RENDER

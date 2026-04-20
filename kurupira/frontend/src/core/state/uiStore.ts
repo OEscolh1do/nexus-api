@@ -86,7 +86,7 @@ export interface UIState {
    */
   triggerAutoSizing: () => void;
 
-  /** Tipo de mapa base (Satélite Mapbox/Esri, Google Satellite ou Padrão/Rua) */
+  /** Tipo de mapa base (Google Satellite ou Padrão/Rua) */
   mapType: 'SATELLITE' | 'STREET' | 'GOOGLE_SATELLITE';
   setMapType: (type: 'SATELLITE' | 'STREET' | 'GOOGLE_SATELLITE') => void;
 

@@ -18,7 +18,7 @@
 
 import React, { useEffect } from 'react';
 import { MapContainer, useMap, useMapEvents } from 'react-leaflet';
-import type { Map as LeafletMap } from 'leaflet';
+import L, { type Map as LeafletMap } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import ReactLeafletGoogleLayer from 'react-leaflet-google-layer';
 
@@ -26,13 +26,13 @@ import { useCanvasSize } from '../components/CanvasContainer';
 import { useSolarStore } from '@/core/state/solarStore';
 import { useCenterContent } from '../store/panelStore';
 import { selectCoordinates, selectZoom, selectProjectSiteLocation } from '@/core/state/solarSelectors';
-import { useUIStore, type Tool } from '@/core/state/uiStore';
+import { useUIStore, type Tool, type CanvasViewMode } from '@/core/state/uiStore';
 import { cn } from '@/lib/utils';
 import { SolarLayer } from './SolarLayer';
 import { MapMeasureTool } from './MapMeasureTool';
 import { MapFlyToSync } from './MapFlyToSync';
 import { MapLayout0Lock } from './MapLayout0Lock';
-import { MapViewAutoFit } from './MapViewAutoFit';
+import { MapZoomSlider } from './MapZoomSlider';
 
 // =============================================================================
 // TILE CONFIG
@@ -94,35 +94,56 @@ const MapVisibilityObserver: React.FC = () => {
 };
 
 /**
- * MapMinimapObserver — Escuta o estado isMinimap e trava interações
- * do Leaflet quando ele está encapsulado na doca (evitando bugs de scroll).
+ * MapInteractionOrchestrator — Gerencia hierarquicamente as permissões de 
+ * navegação do Leaflet (Pan/Zoom) com base no contexto e ferramenta.
  */
-const MapMinimapObserver: React.FC = () => {
+const MapInteractionOrchestrator: React.FC<{ activeTool: Tool; isNavigating?: boolean }> = ({ activeTool, isNavigating = false }) => {
   const map = useMap();
+  const canvasViewMode = useUIStore(s => s.canvasViewMode);
+  const installationAreas = useSolarStore(s => s.project.installationAreas) || [];
   const centerContent = useCenterContent();
   const isMinimap = centerContent !== 'map';
 
+  // REGRA DE OURO: Enquanto não houver áreas, o mapa está ancorado (Layout 0).
+  const isLayout0 = installationAreas.length === 0;
+  const isAnchorLocked = isLayout0 && !isNavigating;
+
   useEffect(() => {
     let timer: any;
-    if (isMinimap) {
+    
+    // NÍVEL 1: Sidebar (minimapa) ou Trava de Âncora (Layout 0) -> Bloqueio Absoluto
+    if (isMinimap || isAnchorLocked) {
       map.dragging.disable();
       map.scrollWheelZoom.disable();
       map.doubleClickZoom.disable();
-      timer = setTimeout(() => {
-        if (map) map.invalidateSize();
-      }, 150);
-    } else {
+    } 
+    // NÍVEL 2: Modo Prancheta (BLUEPRINT) -> Bloqueio por ferramenta
+    else if (canvasViewMode === 'BLUEPRINT') {
+      map.scrollWheelZoom.disable(); // Forçado: sem zoom via scroll em modo técnico
+      if (activeTool === 'PAN') {
+        map.dragging.enable();
+        map.doubleClickZoom.enable();
+      } else {
+        map.dragging.disable();
+        map.doubleClickZoom.disable();
+      }
+    } 
+    // NÍVEL 3: Modo Satélite (CONTEXT) -> Navegação Livre (Menos Scroll)
+    else {
       map.dragging.enable();
-      map.scrollWheelZoom.enable();
+      map.scrollWheelZoom.disable(); // Forçado: consistência de UX
       map.doubleClickZoom.enable();
-      timer = setTimeout(() => {
-        if (map) map.invalidateSize();
-      }, 150);
     }
+
+    // Invalida o tamanho após mudança de estado para evitar tiles fantasmagóricos
+    timer = setTimeout(() => {
+      if (map) map.invalidateSize();
+    }, 150);
+
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [map, isMinimap]);
+  }, [map, isMinimap, isAnchorLocked, canvasViewMode, activeTool]);
 
   return null;
 };
@@ -134,9 +155,14 @@ const MapMinimapObserver: React.FC = () => {
 const MapViewSync: React.FC = () => {
   const setZoom = useSolarStore(s => s.setZoom);
   const setCoordinates = useSolarStore(s => s.setCoordinates);
+  const installationAreas = useSolarStore(s => s.project.installationAreas) || [];
 
   useMapEvents({
     moveend: (e) => {
+      // REGRA DE BLINDAGEM: Não salvar coordenadas se estivermos na Camada 0.
+      // Isso impede que um arrasto "suje" a referência original do endereço.
+      if (installationAreas.length === 0) return;
+
       const center = e.target.getCenter();
       setCoordinates(center.lat, center.lng);
     },
@@ -155,8 +181,14 @@ const MapViewSync: React.FC = () => {
 const MapPropSync: React.FC<{ center?: [number, number]; zoom?: number }> = ({ center, zoom }) => {
   const map = useMap();
   useEffect(() => {
-    if (center && center[0] !== 0) {
-      map.flyTo(center, zoom ?? map.getZoom(), { duration: 1.2 });
+    if (!center || center[0] === 0 || center[1] === 0) return;
+
+    const currentCenter = map.getCenter();
+    const target = L.latLng(center[0], center[1]);
+    
+    // Distância considerável (> 1m) para evitar loops e jitters
+    if (currentCenter.distanceTo(target) > 1) {
+      map.flyTo(target, zoom ?? map.getZoom(), { duration: 1.2 });
     }
   }, [center, zoom, map]);
   return null;
@@ -201,6 +233,8 @@ interface MapCoreProps {
   showLayers?: boolean;
   /** Se o mapa é apenas leitura (não sincroniza pan/zoom de volta para o store) */
   readOnly?: boolean;
+  /** Força um modo de visualização específico (ex: CONTEXT para modais) */
+  forceViewMode?: CanvasViewMode;
   children?: React.ReactNode;
 }
 
@@ -211,25 +245,32 @@ const MapCoreInner: React.FC<MapCoreProps> = ({
   zoom: propsZoom,
   showLayers = true,
   readOnly = false,
+  forceViewMode,
   children 
 }) => {
   const coordinates = useSolarStore(selectCoordinates);
   const siteLocation = useSolarStore(selectProjectSiteLocation);
   const storeZoom = useSolarStore(selectZoom);
-  const canvasViewMode = useUIStore(s => s.canvasViewMode);
+  const storeViewMode = useUIStore(s => s.canvasViewMode);
+  
+  const canvasViewMode = forceViewMode ?? storeViewMode;
+
+  const installationAreas = useSolarStore(s => s.project.installationAreas) || [];
 
   // Cadeia de Prioridade de Centro (SPEC-SITE-SYNC):
   // 1. Props (sobrescreve tudo)
-  // 2. Viewport salva (project.coordinates)
-  // 3. Localização do Sítio (clientData.lat/lng)
+  // 2. Localização do Sítio (clientData.lat/lng) — Prioridade 1 se Áreas === 0
+  // 3. Viewport salva (project.coordinates) — Só ativa após o início do projeto
   // 4. Fallback (Manaus)
   const finalCenter: [number, number] = propsCenter 
     ? propsCenter
-    : coordinates
-      ? [coordinates.lat, coordinates.lng]
-      : (siteLocation.lat && siteLocation.lng)
-        ? [siteLocation.lat, siteLocation.lng]
-        : [-3.1316, -60.0233];
+    : (installationAreas.length === 0 && siteLocation.lat && siteLocation.lng)
+      ? [siteLocation.lat, siteLocation.lng]
+      : coordinates
+        ? [coordinates.lat, coordinates.lng]
+        : (siteLocation.lat && siteLocation.lng)
+          ? [siteLocation.lat, siteLocation.lng]
+          : [-3.1316, -60.0233];
 
   const finalZoom = propsZoom ?? Math.min(storeZoom, UI_MAX_ZOOM);
 
@@ -264,13 +305,13 @@ const MapCoreInner: React.FC<MapCoreProps> = ({
         {/* Sincronização de resize, visibilidade e viewport */}
         <MapInvalidator />
         <MapVisibilityObserver />
-        <MapMinimapObserver />
+        <MapInteractionOrchestrator activeTool={activeTool} isNavigating={isNavigating} />
         {!readOnly && <MapViewSync />}
         {!readOnly && <MapFlyToSync />}
         <MapLayout0Lock isNavigating={isNavigating} />
         
-        {/* Auto-zoom ao mudar para modo Prancheta */}
-        {!readOnly && <MapViewAutoFit />}
+        {/* Controle Deslizante de Zoom (Centro Inferior) */}
+        {!readOnly && <MapZoomSlider />}
 
         {/* Camada de geometria solar (Opcional) */}
         {showLayers && (

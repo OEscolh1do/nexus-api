@@ -3,7 +3,6 @@ import {
   Plus, Minus, Calendar, Sun, Lightbulb, Zap, Home 
 } from 'lucide-react';
 import { Marker, useMapEvents } from 'react-leaflet';
-import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useSolarStore } from '@/core/state/solarStore';
 import { useCallback, useEffect, useState } from 'react';
@@ -107,23 +106,38 @@ export const SiteCanvasView: React.FC = () => {
       for (const variant of variants) {
         const query = variant.query.replace(/\s+/g, ' ').trim();
         let coords: { lat: number; lng: number } | null = null;
-        if (MAPBOX_TOKEN) {
-          const resp = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&country=BR&limit=1&types=address,postcode,place`);
-          const data = await resp.json();
-          if (data.features?.length > 0) { const [lng, lat] = data.features[0].center; coords = { lat, lng }; }
-        } else {
-          const resp = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`, { headers: { 'Accept-Language': 'pt-BR' } });
+        
+        // Nominatim (OpenStreetMap) geocoding - Free and reliable fallback
+        try {
+          const resp = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`, { 
+            headers: { 'Accept-Language': 'pt-BR' } 
+          });
           const data = await resp.json();
           if (data?.length > 0) coords = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+        } catch (e) {
+          console.error('Nominatim Error:', e);
         }
-        if (coords) { finalCoords = coords; finalType = variant.type as any; break; }
+
+        if (coords) { 
+          finalCoords = coords; 
+          finalType = variant.type as any; 
+          break; 
+        }
       }
+      
       if (finalCoords) {
         updateClientData({ lat: parseFloat(finalCoords.lat.toFixed(6)), lng: parseFloat(finalCoords.lng.toFixed(6)) });
         setGeocodeStatus(finalType);
-      } else { setGeocodeStatus('error'); }
-    } catch (err) { console.error('SITE_GEOC_ERROR:', err); setGeocodeStatus('error'); }
-    finally { setIsGeocoding(false); setTimeout(() => setGeocodeStatus('idle'), 4000); }
+      } else { 
+        setGeocodeStatus('error'); 
+      }
+    } catch (err) { 
+      console.error('SITE_GEOC_ERROR:', err); 
+      setGeocodeStatus('error'); 
+    } finally { 
+      setIsGeocoding(false); 
+      setTimeout(() => setGeocodeStatus('idle'), 4000); 
+    }
   };
 
   // ── Climate Sync ───────────────────────────────────────────────────────

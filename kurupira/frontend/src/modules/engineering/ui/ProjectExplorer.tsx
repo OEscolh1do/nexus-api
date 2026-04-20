@@ -43,16 +43,22 @@ export interface ProjectCard {
   updatedAt: string;
 }
 
-// Gera URL de tile satélite estático via OpenStreetMap tile server (grátis, sem API key)
-function buildStaticMapUrl(lat: number | null | undefined, lng: number | null | undefined): string | null {
-  if (!lat || !lng) return null;
-  // Calcula tile x/y no zoom 17 (nível de telhado) e retorna tile individual 256x256
-  const zoom = 17;
-  const n = Math.pow(2, zoom);
-  const x = Math.floor(((lng + 180) / 360) * n);
-  const y = Math.floor((1 - Math.log(Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)) / Math.PI) / 2 * n);
-  return `https://tile.openstreetmap.org/${zoom}/${x}/${y}.png`;
-}
+// Conecta com a chave do Google Maps injetada via Vite
+
+
+// Gera URL de imagem satélite estática via Google Static Maps API (Premium Aesthetic)
+const buildStaticMapUrl = (lat?: number | null, lng?: number | null) => {
+  const placeholder = 'https://via.placeholder.com/400x200?text=Mapa+indispon%C3%ADvel';
+  if (!lat || !lng) return placeholder;
+  
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  if (!apiKey || apiKey === 'undefined' || apiKey.length < 5) {
+    console.warn('[ProjectExplorer] Google Maps API Key is missing or invalid.');
+    return placeholder;
+  }
+
+  return `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=19&size=400x200&maptype=satellite&key=${apiKey}`;
+};
 
 // Extrator do Swagger/API local para ProjectCard
 const mapSummaryToCard = (summary: TechnicalDesignSummary): ProjectCard => {

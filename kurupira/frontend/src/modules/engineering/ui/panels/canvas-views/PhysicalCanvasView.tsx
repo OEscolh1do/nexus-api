@@ -21,7 +21,9 @@ import { useSolarStore } from '@/core/state/solarStore';
 import { MapCore } from '../../../components/MapCore';
 import { WebGLOverlay } from '../../../components/WebGLOverlay';
 import { ViewLayerSelector } from '../../components/ViewLayerSelector';
-import { MainActionIsland } from './toolbars/MainActionIsland';
+import { ManipulationIsland } from './toolbars/ManipulationIsland';
+import { NavigationIsland } from './toolbars/NavigationIsland';
+import { VisionIsland } from './toolbars/VisionIsland';
 import { DraftingIsland } from './toolbars/DraftingIsland';
 import { SearchIsland } from './toolbars/SearchIsland';
 
@@ -29,6 +31,15 @@ import { SearchIsland } from './toolbars/SearchIsland';
 // TYPES & CONSTANTS
 // =============================================================================
 
+
+interface SubTool {
+  id: string;
+  icon: LucideIcon;
+  label: string;
+  onClick: () => void;
+  active: boolean;
+  shortcut?: string;
+}
 
 interface ToolbarButtonProps {
   icon: LucideIcon;
@@ -38,32 +49,112 @@ interface ToolbarButtonProps {
   onClick: () => void;
   shortcut?: string;
   className?: string;
+  subTools?: SubTool[];
 }
 
 // =============================================================================
 // SUB-COMPONENTS: RIBBONS
 // =============================================================================
 
-export const ToolbarButton: React.FC<ToolbarButtonProps> = ({ icon: Icon, label, active, disabled, onClick, shortcut, className }) => (
-  <button
-    disabled={disabled}
-    onClick={onClick}
-    title={`${label}${shortcut ? ` (${shortcut})` : ''}`}
-    className={cn(
-      "group relative flex items-center justify-center w-8 h-8 rounded-[4px] transition-all duration-150 outline-none",
-      active 
-        ? "bg-indigo-500 text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)] scale-[0.98]" 
-        : "text-slate-500 hover:bg-slate-800 hover:text-slate-200 active:scale-95",
-      disabled && "opacity-20 grayscale cursor-not-allowed scale-[0.9]",
-      className
-    )}
-  >
-    <Icon size={16} strokeWidth={active ? 2.5 : 2} />
-    {active && (
-      <div className="absolute -left-1.5 w-[2px] h-4 bg-indigo-500 rounded-full shadow-[0_0_8px_rgba(99,102,241,0.8)]" />
-    )}
-  </button>
-);
+export const ToolbarButton: React.FC<ToolbarButtonProps> = ({ 
+  icon: Icon, 
+  label, 
+  active, 
+  disabled, 
+  onClick, 
+  shortcut, 
+  className,
+  subTools 
+}) => {
+  const [showFlyout, setShowFlyout] = useState(false);
+  const closeTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  const toggleFlyout = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (disabled || !subTools) return;
+    setShowFlyout(!showFlyout);
+  };
+
+  const handleMouseEnter = () => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (!showFlyout) return;
+    closeTimerRef.current = setTimeout(() => {
+      setShowFlyout(false);
+    }, 300);
+  };
+
+  return (
+    <div 
+      className="relative group/tool" 
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <button
+        disabled={disabled}
+        onClick={() => {
+          if (!disabled) onClick();
+        }}
+        title={`${label}${shortcut ? ` (${shortcut})` : ''}`}
+        className={cn(
+          "relative flex items-center justify-center w-8 h-8 rounded-[4px] transition-all duration-150 outline-none",
+          active 
+            ? "bg-indigo-500 text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)] scale-[0.98]" 
+            : "text-slate-500 hover:bg-slate-800 hover:text-slate-200 active:scale-95",
+          disabled && "opacity-20 grayscale cursor-not-allowed scale-[0.9]",
+          className
+        )}
+      >
+        <Icon size={16} strokeWidth={active ? 2.5 : 2} />
+        
+        {/* Indicador de Seleção Ativa */}
+        {active && (
+          <div className="absolute -left-1.5 w-[2px] h-4 bg-indigo-500 rounded-full shadow-[0_0_8px_rgba(99,102,241,0.8)]" />
+        )}
+
+        {/* Zona de Clique do Grupo (Split-click area) */}
+        {subTools && subTools.length > 0 && (
+          <div 
+            onClick={toggleFlyout}
+            className="absolute bottom-0 right-0 w-4 h-4 flex items-end justify-end cursor-pointer group-hover/tool:bg-white/5 rounded-br-[4px] transition-colors"
+          >
+            <div className="mb-[1px] mr-[1px] w-0 h-0 border-l-[4px] border-l-transparent border-b-[4px] border-b-slate-400 group-hover/tool:border-b-white transition-colors" />
+          </div>
+        )}
+      </button>
+
+      {/* Flyout Menu (Sub-tools) */}
+      {showFlyout && subTools && subTools.length > 0 && (
+        <>
+          {/* Bridge to prevent gap closing */}
+          <div className="absolute left-full top-0 w-2 h-full cursor-default" />
+          
+          <div className="absolute left-full ml-2 top-0 flex gap-1 p-1 bg-slate-900/95 backdrop-blur-md border border-slate-700/50 shadow-2xl rounded-lg z-[1200] animate-in fade-in slide-in-from-left-1 duration-200">
+             {subTools.map((tool) => (
+               <ToolbarButton
+                 key={tool.id}
+                 icon={tool.icon}
+                 label={tool.label}
+                 active={tool.active}
+                 onClick={() => {
+                   tool.onClick();
+                   setShowFlyout(false);
+                 }}
+                 shortcut={tool.shortcut}
+                 className="w-8 h-8"
+               />
+             ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
 
 export const RibbonSection: React.FC<{ children: React.ReactNode; disabled?: boolean }> = ({ children, disabled }) => (
   <div className={cn(
@@ -579,8 +670,14 @@ export const PhysicalCanvasView: React.FC = () => {
 
       <div className="flex-1 flex min-h-0 relative bg-slate-950/20">
         <SearchIsland />
-        <MainActionIsland />
-        <DraftingIsland />
+        
+        {/* ── STACK DE ILHAS (Lado Esquerdo) ── */}
+        <div className="absolute left-6 top-24 flex flex-col gap-3 items-center z-[1100]">
+          <ManipulationIsland />
+          <NavigationIsland />
+          <VisionIsland />
+          <DraftingIsland />
+        </div>
 
         <div className="flex-1 relative min-w-0 bg-slate-950 overflow-hidden">
           <div className={cn(

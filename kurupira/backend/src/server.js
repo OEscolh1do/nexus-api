@@ -143,10 +143,75 @@ async function fetchLeadsBatch(ids) {
 // List all designs (scoped by tenant)
 // Extrai métricas resumidas do blob designData (evita enviar o blob inteiro na listagem)
 function extractDesignMetrics(designData) {
-  if (!designData?.solar) {
-    return { 
-      targetPowerKwp: 0, 
-      averageConsumptionKwh: 0, 
+  try {
+    // Tratamento defensivo: se designData for string, tenta parsear
+    let data = designData;
+    if (typeof designData === 'string') {
+      try {
+        data = JSON.parse(designData);
+      } catch (e) {
+        console.error('[Metrics] Failed to parse designData string:', e);
+      }
+    }
+
+    // Se não houver dados solares ou técnicos, retorna zerado
+    if (!data?.solar) {
+      return { 
+        targetPowerKwp: 0, 
+        averageConsumptionKwh: 0, 
+        lat: null, 
+        lng: null, 
+        clientName: null, 
+        city: null, 
+        state: null,
+        moduleCount: 0,
+        inverterCount: 0,
+        voltage: null
+      };
+    }
+
+    const cd = data.solar.clientData || {};
+    const avgConsumption = cd.averageConsumption || 0;
+    const lat = cd.lat || null;
+    const lng = cd.lng || null;
+    const clientName = cd.clientName || null;
+    const city = cd.city || null;
+    const state = cd.state || null;
+    const voltage = cd.voltage || null;
+
+    // Equipamentos — Sincronizado com V3.1 (Zustand Slices)
+    // Módulos: Contagem real de painéis na prancheta (Physical Canvas)
+    const moduleCount = data.solar.project?.placedModules?.length || 0;
+    
+    // Inversores: Contagem de IDs na coleção normalizada do TechStore (agora em data.tech)
+    const inverterCount = data.tech?.inverters?.ids?.length || 0;
+
+    // kWp = placedModules × potência do módulo selecionado
+    const moduleIds = data.solar.modules?.ids || [];
+    const entities = data.solar.modules?.entities || {};
+    const firstModule = moduleIds.length > 0 ? entities[moduleIds[0]] : null;
+    
+    // Campo power pode vir como power ou powerWp dependendo da origem do catálogo
+    const modulePowerW = firstModule?.power || firstModule?.powerWp || 0;
+    const systemKwp = (moduleCount * modulePowerW) / 1000;
+
+    return {
+      targetPowerKwp: Math.round(systemKwp * 100) / 100,
+      averageConsumptionKwh: Math.round(avgConsumption),
+      lat: lat && lat !== 0 ? lat : null,
+      lng: lng && lng !== 0 ? lng : null,
+      clientName,
+      city,
+      state,
+      moduleCount,
+      inverterCount,
+      voltage
+    };
+  } catch (error) {
+    console.error('[Metrics] Extraction failed:', error);
+    return {
+      targetPowerKwp: 0,
+      averageConsumptionKwh: 0,
       lat: null, 
       lng: null, 
       clientName: null, 
@@ -157,39 +222,6 @@ function extractDesignMetrics(designData) {
       voltage: null
     };
   }
-
-  const cd = designData.solar.clientData || {};
-  const avgConsumption = cd.averageConsumption || 0;
-  const lat = cd.lat || null;
-  const lng = cd.lng || null;
-  const clientName = cd.clientName || null;
-  const city = cd.city || null;
-  const state = cd.state || null;
-  const voltage = cd.voltage || null;
-
-  // Equipamentos
-  const moduleCount = designData.solar.project?.placedModules?.length || 0;
-  const inverterCount = designData.solar.inverters?.ids?.length || 0;
-
-  // kWp = placedModules × potência do módulo selecionado
-  const moduleIds = designData.solar.modules?.ids || [];
-  const entities = designData.solar.modules?.entities || {};
-  const firstModule = moduleIds.length > 0 ? entities[moduleIds[0]] : null;
-  const modulePowerW = firstModule?.power || 0;
-  const systemKwp = (moduleCount * modulePowerW) / 1000;
-
-  return {
-    targetPowerKwp: Math.round(systemKwp * 100) / 100,
-    averageConsumptionKwh: Math.round(avgConsumption),
-    lat: lat && lat !== 0 ? lat : null,
-    lng: lng && lng !== 0 ? lng : null,
-    clientName,
-    city,
-    state,
-    moduleCount,
-    inverterCount,
-    voltage
-  };
 }
 
 app.get("/api/v1/designs", authenticateToken, async (req, res) => {
@@ -220,6 +252,9 @@ app.get("/api/v1/designs", authenticateToken, async (req, res) => {
         designData: undefined, // Não enviar blob completo na listagem
         targetPowerKwp: metrics.targetPowerKwp,
         averageConsumptionKwh: metrics.averageConsumptionKwh,
+        moduleCount: metrics.moduleCount,
+        inverterCount: metrics.inverterCount,
+        voltage: metrics.voltage,
         lat: d.latitude ?? metrics.lat,
         lng: d.longitude ?? metrics.lng,
         clientName: metrics.clientName,

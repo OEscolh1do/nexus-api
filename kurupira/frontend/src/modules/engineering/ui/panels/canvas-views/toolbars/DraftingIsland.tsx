@@ -1,5 +1,5 @@
 import React from 'react';
-import { Square, MapPin, Ruler } from 'lucide-react';
+import { Square } from 'lucide-react';
 import { useUIStore } from '@/core/state/uiStore';
 import { ToolbarButton } from '../PhysicalCanvasView';
 import { ArrangementToolbar } from './ArrangementToolbar';
@@ -28,7 +28,7 @@ export const DraftingIsland: React.FC = () => {
   if (!isCreationMode) return null;
 
   return (
-    <div className="absolute left-20 top-1/2 -translate-y-1/2 flex flex-col items-center py-4 px-1 gap-4 bg-slate-900/90 backdrop-blur-md border border-slate-800 shadow-[0_12px_48px_rgba(0,0,0,0.6)] rounded-xl z-[1100] animate-in fade-in slide-in-from-left-6 duration-500 select-none w-11 overflow-y-auto custom-scrollbar max-h-[80vh]">
+    <div className="flex flex-col items-center py-4 px-1 gap-4 bg-slate-900/90 backdrop-blur-md border border-slate-800 shadow-[0_12px_48px_rgba(0,0,0,0.6)] rounded-xl animate-in fade-in slide-in-from-top-4 duration-500 select-none w-11 overflow-y-auto custom-scrollbar max-h-[60vh]">
       
       <div className="flex flex-col gap-4 items-center w-full">
         {/* Layer 0 / Site Tools se estiver em contexto */}
@@ -40,22 +40,6 @@ export const DraftingIsland: React.FC = () => {
                 active={activeTool === 'POLYGON'} 
                 onClick={() => setActiveTool('POLYGON')} 
                 shortcut="P"
-                className="w-8 h-8"
-             />
-             <ToolbarButton 
-                icon={MapPin} 
-                label="Saída CC" 
-                active={activeTool === 'DROP_POINT'} 
-                onClick={() => setActiveTool('DROP_POINT')} 
-                shortcut="D"
-                className="w-8 h-8"
-             />
-             <ToolbarButton 
-                icon={Ruler} 
-                label="Medir" 
-                active={activeTool === 'MEASURE'} 
-                onClick={() => setActiveTool('MEASURE')} 
-                shortcut="M"
                 className="w-8 h-8"
              />
           </div>

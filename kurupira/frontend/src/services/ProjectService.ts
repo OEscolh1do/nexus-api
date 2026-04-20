@@ -68,6 +68,8 @@ export const ProjectService = {
         await KurupiraClient.designs.update(activeProjectId, {
           designData,
           status: 'IN_PROGRESS',
+          latitude: solarState.clientData?.lat || null,
+          longitude: solarState.clientData?.lng || null,
         });
       } else {
         // Criar novo projeto (iacaLeadId vem do deep link do Iaçã; null = standalone)

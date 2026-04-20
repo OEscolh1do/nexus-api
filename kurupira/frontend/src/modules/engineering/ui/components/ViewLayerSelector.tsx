@@ -16,9 +16,9 @@ export const ViewLayerSelector: React.FC = () => {
     const setViewMode = useUIStore(s => s.setCanvasViewMode);
 
     const MODES: { id: CanvasViewMode; label: string; icon: any; shortcut: string }[] = [
-        { id: 'CONTEXT', label: 'Contexto', icon: Image, shortcut: '1' },
-        { id: 'BLUEPRINT', label: 'Blueprint', icon: Box, shortcut: '2' },
-        { id: 'DIAGRAM', label: 'Diagrama', icon: Layers, shortcut: '3' },
+        { id: 'CONTEXT', label: 'Locação', icon: Image, shortcut: '1' },
+        { id: 'BLUEPRINT', label: 'Prancheta', icon: Box, shortcut: '2' },
+        { id: 'DIAGRAM', label: 'Topologia', icon: Layers, shortcut: '3' },
         { id: 'UNIFILAR', label: 'Unifilar', icon: Zap, shortcut: '4' },
     ];
 

@@ -1,26 +1,27 @@
-Este documento mapeia a arquitetura visual e funcional do cockpit de **Arranjo Físico**. O design segue a estética de "Ferramenta de Engenharia" com alta densidade de dados e controles iconográficos puros.
+Este documento mapeia a arquitetura visual e funcional do cockpit de **Arranjo Físico**. O design segue a estética de "Ferramenta de Engenharia" com a arquitetura **Zero-UI**, caracterizada pela ausência de barras fixas e o uso de **Ilhas Flutuantes Contextuais**.
 
-## 0. Desenho Técnico do Layout (Mockup de Interface)
+## 0. Desenho Técnico do Layout (Zero-UI Architecture)
 
 ```mermaid
 graph TD
-    subgraph Cockpit ["Cockpit Kurupira: Physical Canvas View"]
-        TopRibbon["Top Ribbon (Header - 40px) [Stats | Surface | Auto-Layout]"]
+    subgraph Cockpit ["Cockpit Kurupira: Vertical Stack Architecture"]
+        SearchIsland["SearchIsland (top-center) [Address Finder]"]
+        LayerSelector["ViewLayerSelector (top-left) [Horizontal: 1,2,3,4]"]
         
-        subgraph MainContainer ["Área Central (Main Engine)"]
-            Island["Floating Island (40px) [Layers | CAD Tools]"]
+        subgraph MainViewport ["Main Design Area"]
+            CoreIsland["Core Island (left-6 top-24) [Navigation: S,H,G,M]"]
+            DraftIsland["Drafting Island (left-6 top-400) [CAD Contextual Tools]"]
             Canvas["Motor de Mapa (Leaflet + WebGL)"]
-            HUDs["Contextual Overlays (CAD HUD | String HUD)"]
-            ViewSwitcher["View Selector (top-right)"]
+            AnatomySheet["Anatomy Panel (right-drawer) [3D Visuals]"]
         end
         
-        StatusBar["Status Bar (Footer - 40px) [Coords | Telemetry | Pulse]"]
+        StatusBar["Status Bar (Footer - 40px) [Telemetry | CAD HUD | Pulse]"]
     end
 
-    TopRibbon --- MainContainer
-    MainContainer --- StatusBar
-    Island -.-> Canvas
-    ViewSwitcher -.-> Canvas
+    LayerSelector -.-> Canvas
+    CoreIsland -.-> Canvas
+    DraftIsland -.-> Canvas
+    SearchIsland -.-> Canvas
 ```
 
 ---
@@ -29,146 +30,114 @@ graph TD
 1. **Z-Base**: Mapa Cartográfico (Google/Mapbox/Esri)
 2. **Z-GFX**: Motor WebGL (WebGLOverlay) - Renderização de módulos e blocos.
 3. **Z-UI-Interativa**: Camadas Leaflet (Markers, Polygons de desenho).
-4. **Z-Overlays**: Ribbons, Island Toolbars e HUDs de Telemetria.
+4. **Z-Floating-UI**: ViewLayerSelector, CoreIsland (top-24), DraftingIsland (top-400) e SearchIsland (z-1100 a z-1200).
+5. **Z-Panels**: Anatomy Sheet (Side drawer).
 
 ---
 
-## 2. Componentes de Interface (Layout 40px Engineering Grid)
-O cockpit é construído sobre uma unidade básica de **40px (10 unidades Tailwind)**, garantindo alinhamento industrial.
+## 2. Componentes de Interface (Floating Islands)
+O cockpit elimina sidebars tradicionais em favor de pílulas flutuantes com `backdrop-blur` e bordas industriais, agora alinhadas em uma coluna única à esquerda.
 
-### 2.1 Faixa Superior (Top Ribbon - h-10)
-Localizada no topo do `PhysicalCanvasView`, contém os parâmetros globais da área selecionada.
-- **KPIs Elétricos**:
-    - `Módulos`: Contador de módulos instalados vs. meta do dimensionamento.
-    - `FDI Est.`: Fator de Dimensionamento do Inversor calculado em tempo real para a área.
-- **Seletor de Superfície (SurfaceSelector)**:
-    - Tipos: `Cerâmica`, `Metálico`, `Fibrocimento`, `Laje`.
-    - Função: Altera o `roofType` no estado global, impactando o cálculo de trilhos e fixadores.
-- **Controles CAD**:
-    - `Auto-Layout`: Gatilho para o motor de preenchimento automático da área selecionada.
+### 2.1 View Layer Selector (Horizontal - top-left)
+Localizado no topo esquerdo (`left-6 top-8`), permite alternar a "consciência" técnica do canvas.
+- **Nomenclatura Técnica**:
+    - `1`: **Locação** (Mapeamento geográfico).
+    - `2`: **Prancheta** (Desenho CAD e Arranjo).
+    - `3`: **Topologia** (Lógica de interconexão).
+    - `4`: **Unifilar** (Diagrama normativo).
 
-### 2.2 Ilha Flutuante (Left Island - Floating Toolbar)
-Barra vertical suspensa à esquerda operando em modo `backdrop-blur`.
-- **GlobalLayerToolbar (Map Control)**:
-    - Seleção de Provedor: Satellite (Mapbox), Google (Alta Recência), Streets (OSM).
-    - Toggle: `High Visibility Satellite` (Filtro de contraste).
-    - Shortcuts: Zoom In/Out via botões de UI.
-- **ArrangementToolbar (Drawing Tools)**:
-    - `Área` (POLYGON): Desenho do perímetro da área de instalação.
-    - `Corredor Técnico` (SUBTRACT): Desenho de zonas de exclusão/manutenção internas.
-    - `Orientação`: Toggle entre Retrato (Portrait) e Paisagem (Landscape).
-    - `Ajustar`: Acesso a parâmetros finos de afastamento (Eave, Ridge).
-- **Inspectors**:
-    - `Anatomia`: Toggle para visualização 3D/explodida da estrutura de fixação.
+### 2.2 Atomic Action Islands (Stacked - left-6 top-24)
+O cockpit utiliza o padrão de **Tool Stacks** (Grupos de Ferramentas) com interação **Split-click** para máxima velocidade operacional.
 
-### 2.3 Barra de Status e Telemetria (Footer)
-Localizada na base, fornece feedback geométrico e de sistema.
-- **Coordenadas**: Visualização de Lat/Lng em tempo real.
-- **Estatísticas Geométricas**:
-    - `Área Útil`: Soma das áreas desenhadas subtraindo os corredores técnicos.
-    - `Trilhos`: Estimativa linear (m) baseada na tipologia de superfície e área total.
-- **System Pulse**: Indicador visual do status do motor gráfico (`Motor On-Thread` com animação pulse).
+- **Interação (Split-click)**:
+    - **Corpo do Botão**: Ativa instantaneamente a ferramenta visível (Zero Latency).
+    - **Canto Inferior Direito (Hitbox Otimizada)**: Um alvo de clique dedicado sobre o indicador visual que abre o menu **Flyout** lateral.
+- **Feedback Visual**: Botões com sub-ferramentas exibem um triângulo no canto. O ícone principal do slot é atualizado para refletir a ferramenta ativa do grupo.
 
-### 2.4 Seletor de Vistas (View Engine HUD)
-Localizado no canto superior direito (`top-4 right-4`), permite alternar a "consciência" do canvas.
-- **Estética**: Estilo Blender/CAD, botões compactos com ícones `Lucide`.
-- **Feedback Ativo**: Fundo indigo (`bg-indigo-600`) com sombra de brilho difuso.
-- **Atalhos Rápidos**: Teclas `1` a `4`.
+#### 2.2.1 Manipulation Island (Grouped)
+- **Foco**: Controle e alteração de objetos.
+- **Ferramentas Agrupadas**: `Selecionar` (S), `Mover / Transformar` (G).
+
+#### 2.2.2 Navigation Island
+- **Foco**: Deslocamento e leitura da cena.
+- **Ferramentas**: `Mão / Pan` (H), `Medir / Régua` (M).
+
+#### 2.2.3 Vision Island
+- **Foco**: Diagnósticos visuais.
+- **Ferramentas**: `Anatomia` (Eye).
+
+### 2.3 Drafting Island (Creation - Stacked)
+Ilha contextual que emerge para tarefas de criação, integrada à base da pilha vertical. Aparece apenas nos modos **Locação** e **Prancheta**.
+- **Site Controls**: `Área` (POLYGON).
+- **Arrangement**: Seletor de Superfície (`C`, `M`, `F`, `L`), `Auto-Layout`.
+- **Electrical**: Ferramentas de `Stringing` e `Interconexão`.
+
+### 2.4 Navigation Lock (Arranjo Mode)
+No modo **Arranjo (Prancheta)**, a navegação do canvas (arrasto e scroll) é **travada por padrão**.
+- **Regra**: O deslocamento do "papel" só é permitido quando a ferramenta **Mão (PAN)** estiver ativa.
+- **Objetivo**: Evitar deslocamentos acidentais da viewport durante o posicionamento milimétrico de equipamentos.
+
+### 2.4 Status Bar e HUDs (Footer)
+Concentra telemetria passiva e feedbacks de modos ativos (CAD/Stringing).
+- **Telemetria**: Lat/Lng, Área Total, Área Útil, FDI e Contador de Módulos.
+- **CAD HUD**: Ativado durante o desenho, exibe contagem de vértices e botões de `Finalizar/Cancelar`.
+- **Stringing HUD**: Exibe `Voc Total` e `Isc` em tempo real durante a conexão.
 
 ---
 
 ## 3. Arquitetura das Visões (The Four Pillars)
-Cada visão altera drasticamente o processamento visual do cockpit para focar em diferentes disciplinas de engenharia.
 
-### 3.1 Modo Contexto (Shortcut: 1)
-**Propósito**: Validação de arredores e obstáculos reais.
-- **Visual**: Satélite em brilho total (`brightness-100`), cores naturais.
-- **Foco**: Posicionamento macro, identificação de árvores, chaminés e sombras de vizinhos.
+### 3.1 Modo Locação (Shortcut: 1)
+**Propósito**: Identificação de obstáculos e posicionamento macro.
+- **Visual**: Satélite em brilho total, foco em detalhes geográficos reais.
 
-### 3.2 Modo Blueprint (Shortcut: 2)
+### 3.2 Modo Prancheta (Shortcut: 2)
 **Propósito**: Design técnico e precisão de desenho.
-- **Visual**: Satélite desaturado e escurecido (`brightness-[0.4] saturate-0`).
-- **Grid Técnico**: Sobreposição de malha induzida em linha Indigo (`#4f46e5`) com espaçamento de `40px` (representando escala métrica ajustável).
-- **Contraste**: Geometrias WebGL e linhas de desenho CAD ganham brilho intenso sobre o fundo escuro.
+- **Visual**: Satélite desaturado com Grid Técnico Indigo (#4f46e5).
+- **Foco**: Geometrias WebGL ganham contraste máximo sobre o fundo escurecido.
 
-### 3.3 Modo Diagrama (Shortcut: 3)
-**Propósito**: Análise de fluxos e blocos lógicos.
-- **Visual**: Mapa cartográfico totalmente oculto (`opacity-0`). Fundo sólido em `slate-950`.
-- **Foco**: Conectividade entre áreas de instalação e inversores, sem poluição visual geográfica.
+### 3.3 Modo Topologia (Shortcut: 3)
+**Propósito**: Análise de blocos lógicos.
+- **Visual**: Mapa oculto. Fundo sólido em `slate-950`.
 
 ### 3.4 Modo Unifilar (Shortcut: 4)
 **Propósito**: Diagramação elétrica normativa.
-- **Visual**: Abstração total. Linhas de stringing tornam-se o elemento primário.
-- **Foco**: Cálculo de perdas, queda de tensão e balanceamento de strings.
-
----
-
-## 4. HUDs de Interação (Contextual Overlays)
-Interfaces dinâmicas que aparecem no topo do canvas (`Top-Center`) durante ações específicas:
-
-### 3.1 Painel CAD (Modo Desenho)
-Ativado ao selecionar áreas ou corredores técnicos.
-- **Feedback**: Contador de vértices marcados no polígono atual.
-- **Ações**: Botões de `Cancelar` e `Finalizar` (também acionado via tecla `Enter`).
-- **Animação**: Entrada via `slide-in-from-top-4`.
-
-### 3.2 Painel de Stringing (Validação Elétrica)
-Ativado durante a ferramenta de conexão de módulos.
-- **Métricas**: Exibe contagem de módulos selecionados em tempo real.
-- **Guardrails**:
-    - `Voc Total`: Soma das voltagens em circuito aberto. Alerta visual (cor `#f43f5e` / `rose-500`) se o valor exceder **800V**.
-    - `Isc`: Corrente de curto-circuito máxima detectada na string.
 
 ---
 
 ## 4. Engenharia de Gesto e Feedback Visual
-Especificações técnicas dos elementos gráficos de auxílio ao design:
-
-### 4.1 Linhas de Guia e Snapping
-- **Geometria de Área**: Linhas em `#6366f1` (Indigo-500), peso 3, tracejado `5, 10`.
-- **Cotas Temporárias**: Tooltips exibindo a distância entre vértices em tempo real (ex: `12.50m`).
-- **Snapping**: Ponto de atração magnética (`getSnappedPos`) que força ângulos ortogonais ou alinhamento com vértices adjacentes.
-
-### 4.2 Lógica de Cores por Contexto
-- **Desenho Ativo**: Indigo (`#6366f1`) - Foco na criação de polígonos.
-- **Stringing Ativo**: Cyan (`#22d3ee`) - Representação de fluxo de energia CC.
-- **Aviso de Erro/Limite**: Rose (`#f43f5e`) - Violação de norma técnica ou limite elétrico.
+- **Desenho Ativo**: Indigo (#6366f1) - Perímetros de área.
+- **Stringing Ativo**: Cyan (#22d3ee) - Fluxo CC.
+- **Violance de Limite**: Rose (#f43f5e) - Sobrevoltagem de string (>800V).
 
 ---
 
 ## 5. Atalhos de Teclado (Shortcuts)
 | Comando | Tecla | Função |
 | :--- | :---: | :--- |
-| **Polygon** | `P` | Ativa ferramenta de desenho de área |
-| **Subtract** | `S` | Ativa ferramenta de corredor técnico |
-| **Drop Point** | `D` | Marca a saída de cabos CC (Site Mode) |
-| **Measure** | `M` | Régua de medição linear |
-| **Cancel** | `ESC` | Reseta a ferramenta ativa para SELECT |
-- **Foco**: Seleção de provedor de dados e nitidez de imagem.
+| **Locação** | `1` | Modo Contexto Geográfico |
+| **Prancheta** | `2` | Modo Desenho CAD |
+| **Topologia** | `3` | Modo Esquema Lógico |
+| **Unifilar** | `4` | Modo Elétrico Normativo |
+| **Polygon** | `P` | Desenhar perímetro |
+| **Pan** | `H` | Ferramenta Mão |
+| **Measure** | `M` | Régua |
 
 ---
 
-## 6. Lógica de Snapping e Precisão
-A precisão centimétrica é garantida por dois sistemas:
-1. **Snapping Ortogonal**: Força linhas retas em ângulos de 90° durante o desenho de áreas.
-2. **Snapping de Vértice**: Magnatismo que atrai o cursor para pontos existentes a uma distância de `10px` na tela.
-
----
-
-## 7. Referências Técnicas (Código)
+## 6. Referências Técnicas (Código)
 - **Orquestrador**: `PhysicalCanvasView.tsx`
-- **Toolbar Arranjo**: `toolbars/ArrangementToolbar.tsx`
-- **Motor de Tiles**: `MapCore.tsx`
+- **Core Island**: `toolbars/MainActionIsland.tsx`
+- **Drafting Island**: `toolbars/DraftingIsland.tsx`
+- **Layer Selector**: `components/ViewLayerSelector.tsx`
 - **Estado Global**: `uiStore.ts`
-- **Visualização 3D**: `AnatomyView.tsx`
 
 ---
 
-## 8. Workflow de Projeto (The Engineering Path)
-Sequência lógica de utilização da interface para um projeto de sucesso:
-
-1. **Camada Site (1)**: Uso da `SiteToolbar` para delimitar o perímetro do telhado (`P`) e locar a saída CC (`D`).
-2. **Camada Arranjo (2)**: Seleção da superfície no `SurfaceSelector` -> Desenho de corretores técnicos (`S`) -> Acionamento do `Auto-Layout`.
-3. **Refinamento Visual (Blueprint)**: Troca para a visão `Blueprint (2)` para validar alinhamentos sob alto contraste.
-4. **Conectorização (Electrical)**: Utilização do modo `Contexto` para selecionar módulos e criar strings através da `StringToolbar`.
+## 7. Workflow de Projeto (The Zero-UI Path)
+1. **Locação (1)**: Uso da `SearchIsland` para centro geográfico -> `DraftingIsland` para desenhar perímetro (`P`).
+2. **Prancheta (2)**: Seleção da superfície (`C`, `M`, `F`, `L`) -> Acionamento do `Auto-Layout`.
+3. **Topologia (3)**: Refinamento das conexões entre strings e inversores.
+4. **Validação (4)**: Verificação final de `Voc` e `FDI` no Footer antes do fechamento do projeto.
+ão do modo `Contexto` para selecionar módulos e criar strings através da `StringToolbar`.
 5. **Validação Final**: Verificação das métricas de `FDI` e `Voc` nos HUDs superiores antes da exportação.

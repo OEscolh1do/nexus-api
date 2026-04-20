@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import { useMap } from 'react-leaflet';
-import { useUIStore, type UIState } from '@/core/state/uiStore';
 import { useSolarStore } from '@/core/state/solarStore';
 import { selectProjectSiteLocation } from '@/core/state/solarSelectors';
 import type { SolarState } from '@/core/state/solarStore';
@@ -20,66 +19,42 @@ interface MapLayout0LockProps {
  */
 export const MapLayout0Lock: React.FC<MapLayout0LockProps> = ({ isNavigating }) => {
   const map = useMap();
-  const focusedBlock = useUIStore((s: UIState) => s.activeFocusedBlock);
   const installationAreas = useSolarStore((s: SolarState) => s.project.installationAreas) || [];
   const siteLocation = useSolarStore(selectProjectSiteLocation);
 
-  const isLayout0 = focusedBlock === 'arrangement' && installationAreas.length === 0;
+  const isLayout0 = installationAreas.length === 0;
   const shouldLock = isLayout0 && !isNavigating;
 
   useEffect(() => {
     if (!shouldLock || !siteLocation.lat || !siteLocation.lng) {
-      map.dragging.enable();
-      map.doubleClickZoom.enable();
-      map.scrollWheelZoom.enable();
       return;
     }
 
     const lockedCenter: [number, number] = [siteLocation.lat, siteLocation.lng];
 
-    // 1. Configuração Inicial da Trava
-    map.setView(lockedCenter, map.getZoom(), { animate: false });
-    map.dragging.disable();
-    map.doubleClickZoom.disable();
-    map.scrollWheelZoom.disable(); // Desabilita o nato para não perseguir o mouse
+    // 1. Configuração Inicial e Recentralização Automática
+    // Forçamos o centro no marcador sempre que houver mudança de estado ou zoom
+    map.setView(lockedCenter, map.getZoom(), { animate: true });
 
-    // 2. Lógica de Zoom Centripetal Manual
-    const handleWheel = (e: any) => {
-      // Ignora se não estiver locado
-      if (!shouldLock) return;
-      
-      // Captura o delta do scroll original
-      const delta = e.originalEvent?.deltaY;
-      if (delta === undefined) return;
-      
-      const currentZoom = map.getZoom();
-      const newZoom = delta > 0 ? currentZoom - 1 : currentZoom + 1;
-
-      // Executa o zoom forçando o centro do projeto
-      map.setView(lockedCenter, newZoom, { animate: true });
-    };
-
-    // 3. Blindagem de Movimento (Anti-Desvio)
+    // 2. Blindagem de Movimento (Anti-Desvio)
     const forceCenter = () => {
-      if (shouldLock) {
+      if (!shouldLock) return;
+
+      const currentCenter = map.getCenter();
+      // Threshold de 0.5 metros para evitar flutuações de ponto flutuante e recursão
+      if (currentCenter.distanceTo(lockedCenter) > 0.5) {
         map.setView(lockedCenter, map.getZoom(), { animate: false });
       }
     };
 
-    // Registrar Eventos
-    map.on('wheel', handleWheel);
-    map.on('movestart', forceCenter);
-    map.on('zoomstart', forceCenter);
+    // Registrar Eventos de Estabilização
+    // REMOVIDO: 'movestart' causa recursão infinita ao chamar setView dentro do handler.
+    // O bloqueio de arrasto já é feito pelo MapInteractionOrchestrator.
+    map.on('zoomend', forceCenter);
 
     // Cleanup
     return () => {
-      map.off('wheel', handleWheel);
-      map.off('movestart', forceCenter);
-      map.off('zoomstart', forceCenter);
-      
-      map.dragging.enable();
-      map.doubleClickZoom.enable();
-      map.scrollWheelZoom.enable();
+      map.off('zoomend', forceCenter);
     };
   }, [map, shouldLock, siteLocation.lat, siteLocation.lng]);
 
