@@ -285,6 +285,8 @@ app.get("/api/v1/designs/:id", authenticateToken, async (req, res) => {
       success: true,
       data: {
         ...design,
+        lat: design.latitude,
+        lng: design.longitude,
         leadContext: leadContext || { unavailable: true, message: 'Contexto comercial indisponível' }
       }
     });

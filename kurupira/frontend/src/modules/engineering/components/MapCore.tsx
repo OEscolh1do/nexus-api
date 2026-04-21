@@ -97,7 +97,15 @@ const MapVisibilityObserver: React.FC = () => {
  * MapInteractionOrchestrator — Gerencia hierarquicamente as permissões de 
  * navegação do Leaflet (Pan/Zoom) com base no contexto e ferramenta.
  */
-const MapInteractionOrchestrator: React.FC<{ activeTool: Tool; isNavigating?: boolean }> = ({ activeTool, isNavigating = false }) => {
+const MapInteractionOrchestrator: React.FC<{ 
+  activeTool: Tool; 
+  isNavigating?: boolean;
+  variant?: 'TECHNICAL' | 'EXPLORATION';
+}> = ({ 
+  activeTool, 
+  isNavigating = false,
+  variant = 'TECHNICAL'
+}) => {
   const map = useMap();
   const canvasViewMode = useUIStore(s => s.canvasViewMode);
   const installationAreas = useSolarStore(s => s.project.installationAreas) || [];
@@ -111,15 +119,28 @@ const MapInteractionOrchestrator: React.FC<{ activeTool: Tool; isNavigating?: bo
   useEffect(() => {
     let timer: any;
     
+    // PERFIL: EXPLORAÇÃO (Livre)
+    if (variant === 'EXPLORATION') {
+      map.dragging.enable();
+      map.scrollWheelZoom.enable();
+      map.doubleClickZoom.enable();
+    }
+    // PERFIL: TÉCNICO (Travado)
     // NÍVEL 1: Sidebar (minimapa) ou Trava de Âncora (Layout 0) -> Bloqueio Absoluto
-    if (isMinimap || isAnchorLocked) {
+    else if (isMinimap || isAnchorLocked) {
       map.dragging.disable();
       map.scrollWheelZoom.disable();
       map.doubleClickZoom.disable();
+      map.keyboard.disable();
+      map.touchZoom.disable();
+      map.boxZoom.disable();
     } 
     // NÍVEL 2: Modo Prancheta (BLUEPRINT) -> Bloqueio por ferramenta
     else if (canvasViewMode === 'BLUEPRINT') {
       map.scrollWheelZoom.disable(); // Forçado: sem zoom via scroll em modo técnico
+      map.keyboard.disable();
+      map.touchZoom.disable();
+      map.boxZoom.disable();
       if (activeTool === 'PAN') {
         map.dragging.enable();
         map.doubleClickZoom.enable();
@@ -133,6 +154,9 @@ const MapInteractionOrchestrator: React.FC<{ activeTool: Tool; isNavigating?: bo
       map.dragging.enable();
       map.scrollWheelZoom.disable(); // Forçado: consistência de UX
       map.doubleClickZoom.enable();
+      map.keyboard.enable();
+      map.touchZoom.enable();
+      map.boxZoom.enable();
     }
 
     // Invalida o tamanho após mudança de estado para evitar tiles fantasmagóricos
@@ -143,7 +167,7 @@ const MapInteractionOrchestrator: React.FC<{ activeTool: Tool; isNavigating?: bo
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [map, isMinimap, isAnchorLocked, canvasViewMode, activeTool]);
+  }, [map, isMinimap, isAnchorLocked, canvasViewMode, activeTool, variant]);
 
   return null;
 };
@@ -235,6 +259,8 @@ interface MapCoreProps {
   readOnly?: boolean;
   /** Força um modo de visualização específico (ex: CONTEXT para modais) */
   forceViewMode?: CanvasViewMode;
+  /** Variante de comportamento: TÉCNICA (Arranjo) ou EXPLORAÇÃO (Projeto/Sítio) */
+  variant?: 'TECHNICAL' | 'EXPLORATION';
   children?: React.ReactNode;
 }
 
@@ -246,6 +272,7 @@ const MapCoreInner: React.FC<MapCoreProps> = ({
   showLayers = true,
   readOnly = false,
   forceViewMode,
+  variant = 'TECHNICAL',
   children 
 }) => {
   const coordinates = useSolarStore(selectCoordinates);
@@ -305,13 +332,17 @@ const MapCoreInner: React.FC<MapCoreProps> = ({
         {/* Sincronização de resize, visibilidade e viewport */}
         <MapInvalidator />
         <MapVisibilityObserver />
-        <MapInteractionOrchestrator activeTool={activeTool} isNavigating={isNavigating} />
+        <MapInteractionOrchestrator activeTool={activeTool} isNavigating={isNavigating} variant={variant} />
         {!readOnly && <MapViewSync />}
         {!readOnly && <MapFlyToSync />}
-        <MapLayout0Lock isNavigating={isNavigating} />
         
-        {/* Controle Deslizante de Zoom (Centro Inferior) */}
-        {!readOnly && <MapZoomSlider />}
+        {/* Componentes Específicos do Perfil TÉCNICO */}
+        {variant === 'TECHNICAL' && (
+          <>
+            <MapLayout0Lock isNavigating={isNavigating} />
+            {!readOnly && <MapZoomSlider />}
+          </>
+        )}
 
         {/* Camada de geometria solar (Opcional) */}
         {showLayers && (

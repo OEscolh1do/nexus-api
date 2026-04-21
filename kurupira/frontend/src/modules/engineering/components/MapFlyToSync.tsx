@@ -30,7 +30,7 @@ export const MapFlyToSync: React.FC = () => {
       const siteLat = useSolarStore.getState().clientData.lat;
       const siteLng = useSolarStore.getState().clientData.lng;
       if (siteLat && siteLng) {
-        map.flyTo([siteLat, siteLng], 18, { duration: 1.2 });
+        map.flyTo([siteLat, siteLng], map.getZoom(), { duration: 1.2 });
       }
     }
     else if (selectedEntity.type === 'module') {

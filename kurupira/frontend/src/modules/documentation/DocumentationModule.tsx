@@ -64,4 +64,3 @@ export const DocumentationModule: React.FC = () => {
   );
 };
 
-export default DocumentationModule;

@@ -334,6 +334,7 @@ export const SiteCanvasView: React.FC = () => {
             center={mapCenter} 
             zoom={clientData.lat ? 17 : 12} 
             showLayers={false}
+            variant="EXPLORATION"
           >
             <MapClickHandler onLocationSelect={handleMapClick} />
             {clientData.lat !== undefined && clientData.lat !== 0 && (

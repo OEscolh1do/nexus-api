@@ -48,13 +48,12 @@ export interface ProjectCard {
 
 // Gera URL de imagem satélite estática via Google Static Maps API (Premium Aesthetic)
 const buildStaticMapUrl = (lat?: number | null, lng?: number | null) => {
-  const placeholder = 'https://via.placeholder.com/400x200?text=Mapa+indispon%C3%ADvel';
-  if (!lat || !lng) return placeholder;
+  if (!lat || !lng || lat === 0 || lng === 0) return null;
   
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   if (!apiKey || apiKey === 'undefined' || apiKey.length < 5) {
     console.warn('[ProjectExplorer] Google Maps API Key is missing or invalid.');
-    return placeholder;
+    return null;
   }
 
   return `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=19&size=400x200&maptype=satellite&key=${apiKey}`;
@@ -375,6 +374,7 @@ const ProjectCardComponent: React.FC<{
   onArchive: (e: React.MouseEvent) => void;
   onDelete: (e: React.MouseEvent) => void;
 }> = ({ project, onClick, onArchive, onDelete }) => {
+  const [mapError, setMapError] = useState(false);
   const status = STATUS_CONFIG[project.technicalStatus] || STATUS_CONFIG.DRAFT;
   const { commercialContext: ctx } = project;
   const seed = getPatternSeed(ctx.clientName);
@@ -441,17 +441,24 @@ const ProjectCardComponent: React.FC<{
         {/* ── RIGHT COLUMN: SITE VISUAL ── */}
         <div className="w-[120px] flex flex-col border-l border-slate-900 bg-black/20">
           <div className="relative aspect-square w-full overflow-hidden bg-slate-950 border-b border-slate-900">
-            {project.thumbnailUrl ? (
+            {project.thumbnailUrl && !mapError ? (
               <img 
                 src={project.thumbnailUrl} 
                 alt="Site" 
-                className="w-full h-full object-cover grayscale opacity-20 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700 scale-110 group-hover:scale-100" 
+                onError={() => setMapError(true)}
+                className="w-full h-full object-cover grayscale opacity-40 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700 scale-110 group-hover:scale-100" 
               />
             ) : (
               <div className="absolute inset-0 grid grid-cols-4 gap-px bg-slate-950/40 p-2 opacity-30">
                 {patternCells.map((isLit, i) => (
                   <div key={i} className={`rounded-none ${isLit ? 'bg-indigo-500/30' : 'bg-slate-800/10'}`} />
                 ))}
+                {/* HUD Overlay for missing map */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                   <div className="text-[7px] font-black text-slate-700 uppercase tracking-widest text-center px-1">
+                      {mapError ? "MAP_ERROR" : "NO_COORD"}
+                   </div>
+                </div>
               </div>
             )}
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(2,6,23,0.8)_100%)] pointer-events-none" />

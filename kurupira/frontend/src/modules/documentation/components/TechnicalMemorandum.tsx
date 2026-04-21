@@ -110,4 +110,4 @@ export const TechnicalMemorandum: React.FC = () => {
   );
 };
 
-export default TechnicalMemorandum;
+

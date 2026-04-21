@@ -1,5 +1,5 @@
 import React from 'react';
-import { Hand, Ruler } from 'lucide-react';
+import { Hand, Ruler, Target } from 'lucide-react';
 import { useUIStore } from '@/core/state/uiStore';
 import { ToolbarButton } from '../PhysicalCanvasView';
 
@@ -23,6 +23,18 @@ export const NavigationIsland: React.FC = () => {
         onClick={() => setActiveTool('PAN')} 
         shortcut="H"
         className="w-8 h-8"
+        subTools={[
+          {
+            id: 'CENTER',
+            icon: Target,
+            label: 'Centralizar no Sítio',
+            active: false,
+            onClick: () => {
+              // Dispara o MapFlyToSync.tsx para voar de volta ao centro
+              useUIStore.getState().selectEntity('site', 'site_1');
+            }
+          }
+        ]}
       />
       <ToolbarButton 
         icon={Ruler} 

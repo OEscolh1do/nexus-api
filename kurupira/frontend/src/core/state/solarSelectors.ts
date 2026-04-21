@@ -82,7 +82,7 @@ export const selectProjectSiteLocation = createMemoSelector(
 );
 
 /** Áreas de Instalação (Freeform) */
-export const selectInstallationAreas = (s: SolarState) => s.project.installationAreas;
+
 
 /** Zoom do mapa */
 export const selectZoom = (s: SolarState) => s.project.zoom;

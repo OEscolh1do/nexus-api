@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useMap } from 'react-leaflet';
+import L from 'leaflet';
 import { useSolarStore } from '@/core/state/solarStore';
 import { selectProjectSiteLocation } from '@/core/state/solarSelectors';
 import type { SolarState } from '@/core/state/solarStore';
@@ -33,28 +34,30 @@ export const MapLayout0Lock: React.FC<MapLayout0LockProps> = ({ isNavigating }) 
     const lockedCenter: [number, number] = [siteLocation.lat, siteLocation.lng];
 
     // 1. Configuração Inicial e Recentralização Automática
-    // Forçamos o centro no marcador sempre que houver mudança de estado ou zoom
     map.setView(lockedCenter, map.getZoom(), { animate: true });
 
-    // 2. Blindagem de Movimento (Anti-Desvio)
+    // 2. Paredes de Chumbo (Hard Bounds)
+    // Impede fisicamente que o Leaflet mova a viewport para fora de uma caixa minúscula (~10 metros)
+    // Isso garante que mesmo se um evento passar pelos disables, a câmera bateria na parede
+    const latLngCenter = L.latLng(lockedCenter);
+    const bounds = latLngCenter.toBounds(10);
+    map.setMaxBounds(bounds);
+
+    // 3. Blindagem de Movimento (Anti-Desvio) para eventos de zoom
     const forceCenter = () => {
       if (!shouldLock) return;
-
       const currentCenter = map.getCenter();
-      // Threshold de 0.5 metros para evitar flutuações de ponto flutuante e recursão
       if (currentCenter.distanceTo(lockedCenter) > 0.5) {
         map.setView(lockedCenter, map.getZoom(), { animate: false });
       }
     };
 
-    // Registrar Eventos de Estabilização
-    // REMOVIDO: 'movestart' causa recursão infinita ao chamar setView dentro do handler.
-    // O bloqueio de arrasto já é feito pelo MapInteractionOrchestrator.
     map.on('zoomend', forceCenter);
 
     // Cleanup
     return () => {
       map.off('zoomend', forceCenter);
+      map.setMaxBounds(null as any); // Remove a parede invisível ao destravar
     };
   }, [map, shouldLock, siteLocation.lat, siteLocation.lng]);
 

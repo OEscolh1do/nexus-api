@@ -686,7 +686,7 @@ export const PhysicalCanvasView: React.FC = () => {
             (canvasViewMode === 'DIAGRAM' || canvasViewMode === 'UNIFILAR') ? "brightness-0 opacity-0" :
             "brightness-100 saturate-100 opacity-100"
           )}>
-            <MapCore activeTool={activeTool} isNavigating={drawingPoints.length > 1}>
+            <MapCore activeTool={activeTool}>
               <WebGLOverlay />
               <DrawingEngine activeTool={activeTool} points={drawingPoints} setPoints={setDrawingPoints} />
               <SafeEdgeOverlay points={drawingPoints} />
