@@ -49,7 +49,7 @@ export const DraftingIsland: React.FC = () => {
         {activeFocusedBlock === 'arrangement' && !isSiteMode && <ArrangementToolbar />}
 
         {/* Camadas Elétricas */}
-        {(activeFocusedBlock === 'module' || activeFocusedBlock === 'inverter' || activeFocusedBlock === 'simulation') && !isSiteMode && (
+        {(activeFocusedBlock === 'module' || activeFocusedBlock === 'inverter' || activeFocusedBlock === 'projection') && !isSiteMode && (
           <ElectricalToolbar />
         )}
       </div>

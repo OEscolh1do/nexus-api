@@ -1,10 +1,11 @@
-import React from 'react';
-import { Zap, MapPin, Sun, Cpu, Lock, ChevronsLeft } from 'lucide-react';
+import { Zap, MapPin, Sun, Cpu, Lock, ChevronsLeft, TrendingUp, FileText } from 'lucide-react';
 import { useSolarStore, selectModules } from '@/core/state/solarStore';
 
 import { ComposerBlockModule } from './canvas-views/composer/ComposerBlockModule';
 import { ComposerBlockInverter } from './canvas-views/composer/ComposerBlockInverter';
 import { ComposerBlockArrangement } from './canvas-views/composer/ComposerBlockArrangement';
+import { ComposerBlockProjection } from './canvas-views/composer/ComposerBlockProjection';
+import { ComposerBlockProposal } from './canvas-views/composer/ComposerBlockProposal';
 import { useUIStore } from '@/core/state/uiStore';
 import { cn } from '@/lib/utils';
 import { usePanelStore } from '../../store/panelStore';
@@ -29,18 +30,20 @@ const LockedBlock: React.FC<LockedBlockProps> = ({ label, icon, color, hint }) =
             <div className="px-3 py-2.5 flex items-center gap-2 opacity-25">
                 <div className={cn(
                     "w-5 h-5 rounded flex items-center justify-center border shadow-inner",
-                    color === 'sky' ? "bg-sky-500/10 text-sky-400 border-sky-500/20" :
-                    color === 'amber' ? "bg-amber-500/10 text-amber-500 border-amber-500/20" :
+                        color === 'sky'     ? "bg-sky-500/10 text-sky-400 border-sky-500/20" :
+                    color === 'amber'   ? "bg-amber-500/10 text-amber-500 border-amber-500/20" :
                     color === 'emerald' ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                    color === 'teal'    ? "bg-teal-500/10 text-teal-400 border-teal-500/20" :
                     "bg-slate-800 text-slate-600 border-slate-700/50"
                 )}>
                 {icon}
             </div>
                 <span className={cn(
                     "text-[9px] font-black uppercase tracking-widest leading-none",
-                    color === 'sky' ? "text-sky-500" :
-                    color === 'amber' ? "text-amber-500" :
+                                    color === 'sky'     ? "text-sky-500" :
+                    color === 'amber'   ? "text-amber-500" :
                     color === 'emerald' ? "text-emerald-500" :
+                    color === 'teal'    ? "text-teal-400" :
                     "text-slate-600"
                 )}>
                 {label}
@@ -243,6 +246,9 @@ export const LeftOutliner: React.FC<{ onToggle?: () => void; hideHeader?: boolea
     const isConsumptionValid = consumptionBlock.status === 'complete';
     const isArrangementValid = arrangementBlock.status !== 'empty';
     const isModulesValid = totalModules > 0;
+    const isProjectionUnlocked = isConsumptionValid && isModulesValid && isArrangementValid;
+    const isApproved = useSolarStore(s => s.project.projectStatus === 'approved');
+    const isProposalUnlocked = isProjectionUnlocked && isApproved;
 
     return (
         <div className="h-full bg-slate-950 flex flex-col overflow-hidden relative">
@@ -317,6 +323,34 @@ export const LeftOutliner: React.FC<{ onToggle?: () => void; hideHeader?: boolea
                             icon={<Cpu size={11} />}
                             color="amber"
                             hint={isArrangementValid ? "Tudo pronto" : "Desenhe o arranjo no mapa para liberar inversor"}
+                        />
+                    )}
+
+                    {/* 6. Projeção — Último bloco da jornada */}
+                    <div className="h-1" />
+
+                    {isProjectionUnlocked ? (
+                        <ComposerBlockProjection />
+                    ) : (
+                        <LockedBlock
+                            label="Projeção"
+                            icon={<TrendingUp size={11} />}
+                            color="amber"
+                            hint="Complete Consumo, Módulos e Arranjo para liberar a projeção"
+                        />
+                    )}
+
+                    {/* 7. Proposta — Final da Jornada */}
+                    <div className="h-1" />
+
+                    {isProposalUnlocked ? (
+                        <ComposerBlockProposal />
+                    ) : (
+                        <LockedBlock
+                            label="Proposta"
+                            icon={<FileText size={11} />}
+                            color="indigo"
+                            hint="Salve o projeto na Projeção para liberar a proposta"
                         />
                     )}
                 </div>

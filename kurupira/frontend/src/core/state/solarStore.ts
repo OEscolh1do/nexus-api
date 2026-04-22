@@ -27,6 +27,7 @@ import { EngineeringSlice, createEngineeringSlice } from './slices/engineeringSl
 import { ElectricalSlice, createElectricalSlice } from './slices/electricalSlice';
 import { ProjectSlice, createProjectSlice } from './slices/projectSlice';
 import { JourneySlice, createJourneySlice } from './slices/journeySlice';
+import { ProposalSlice, createProposalSlice } from './slices/proposalSlice';
 
 // PRÉ-1: fromArray mantido para uso em actions do store (addModule, etc.)
 import { fromArray } from '@/core/types/normalized.types';
@@ -66,6 +67,7 @@ export type SolarState =
   & ElectricalSlice
   & ProjectSlice
   & JourneySlice
+  & ProposalSlice
   & UIState;
 
 /**
@@ -109,6 +111,7 @@ export const useSolarStore = create<SolarState>()(
           ...createElectricalSlice(set, get, api),
           ...createProjectSlice(set, get, api),
           ...createJourneySlice(set, get, api),
+          ...createProposalSlice(set, get, api),
 
           ...createUISlice(set, get, api),
         }),
@@ -259,9 +262,11 @@ export const useSolarStore = create<SolarState>()(
 
           // UI (apenas role)
           userRole: state.userRole,
-          // NÃO persistir activeModule - sempre começa no CRM
-          // NÃO persistir kWpAlvo - é derivado e recalculado na hidratação
+          // Journey: apenas o fator de crescimento persiste; kWpAlvo é recalculado
           loadGrowthFactor: state.loadGrowthFactor,
+          
+          // Proposta (Comercial)
+          proposalData: state.proposalData,
         }),
       }
     ),

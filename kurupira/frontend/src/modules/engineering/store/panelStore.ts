@@ -26,7 +26,7 @@ import { create } from 'zustand';
  * IDs dos grupos registrados no dock.
  * Extensível — novos grupos podem ser adicionados sem alterar a store.
  */
-export type PanelGroupId = 'site' | 'simulation' | 'electrical' | 'module-selection' | 'properties' | 'minimap' | 'documentation' | 'proposal' | 'settings';
+export type PanelGroupId = 'site' | 'projection' | 'electrical' | 'module-selection' | 'properties' | 'minimap' | 'documentation' | 'proposal' | 'settings';
 
 // =============================================================================
 // STORE
@@ -35,7 +35,7 @@ export type PanelGroupId = 'site' | 'simulation' | 'electrical' | 'module-select
 interface PanelState {
   /**
    * Qual conteúdo está renderizado no Center Slot.
-   * Default: 'simulation' — Simulação Energética. Pode ser 'map' ou outro PanelGroupId.
+   * Default: 'projection' — Simulação Energética. Pode ser 'map' ou outro PanelGroupId.
    */
   centerContent: 'map' | PanelGroupId;
 

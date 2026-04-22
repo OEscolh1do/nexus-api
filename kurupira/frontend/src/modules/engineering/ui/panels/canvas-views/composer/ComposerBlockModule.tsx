@@ -144,12 +144,22 @@ export const ComposerBlockModule: React.FC = () => {
 
                         <div className="flex items-center gap-1.5 translate-x-1 group-hover:translate-x-0 transition-transform duration-200">
                             <div className="flex items-center bg-slate-950/80 rounded-[2px] border border-slate-800/80 overflow-hidden shadow-inner">
-                                <button onClick={() => handleDecrement(group)} className="w-5 h-5 flex items-center justify-center text-slate-500 hover:text-amber-400 hover:bg-slate-800 text-[10px] transition-all">−</button>
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); handleDecrement(group); }} 
+                                    className="w-5 h-5 flex items-center justify-center text-slate-500 hover:text-amber-400 hover:bg-slate-800 text-[10px] transition-all"
+                                >
+                                    −
+                                </button>
                                 <div className="w-[1px] h-3 bg-slate-800/50" />
-                                <button onClick={() => handleIncrement(group)} className="w-5 h-5 flex items-center justify-center text-slate-500 hover:text-amber-400 hover:bg-slate-800 text-[10px] transition-all">+</button>
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); handleIncrement(group); }} 
+                                    className="w-5 h-5 flex items-center justify-center text-slate-500 hover:text-amber-400 hover:bg-slate-800 text-[10px] transition-all"
+                                >
+                                    +
+                                </button>
                             </div>
                             <button
-                                onClick={() => handleRemoveGroup(group)}
+                                onClick={(e) => { e.stopPropagation(); handleRemoveGroup(group); }}
                                 className="w-5 h-5 flex items-center justify-center text-slate-700 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
                             >
                                 <Trash2 size={10} />

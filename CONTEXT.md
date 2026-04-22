@@ -31,6 +31,12 @@ A interface transitou de um modelo arredondado / gamificado ("B2C") para uma den
   - 🔵 **Consumo / Demanda**: Tons de Azul (`sky`, `blue`, `cyan`).
   - 🟠 **Geração / Fontes / Equipamentos**: Tons de Laranja/Âmbar (`amber`, `orange`).
   - 🟢 🟣 **Métricas / Fatores / Destaques Especiais**: Tons de Verde (`emerald`, `teal`) e Roxo (`purple`, `violet`).
+  - ⚫ **Matriz Neutra & Profundidade (Grays/Slates)**:
+    - **Slate-950 / Black**: Fundo primário do canvas e áreas de vácuo.
+    - **Slate-900 / 800**: Superfícies de painéis, sidebars e containers estruturais.
+    - **Slate-700 / 600**: Divisores, bordas de componentes e estados inativos/hover.
+    - **Slate-400 / 300**: Tipografia de dados secundários e rótulos de unidade (kW, V, A).
+    - **Slate-100 / White**: Texto de leitura primária e valores de alta prioridade.
 
 ### Paradigma de Composição: Pilha Lego
 O **LeftOutliner** não é mais uma árvore hierárquica, mas um **Compositor de Blocos Intertravados**:
@@ -42,6 +48,21 @@ O **LeftOutliner** não é mais uma árvore hierárquica, mas um **Compositor de
 - **MenuBar CAD Style**: Top Ribbon com menus clássicos (Arquivo, Editar, Exibir, Projeto) e widgets de saúde sistêmica (Health Check).
 - **Bottom Workspace Tabs**: Navegação "Excel-style" para alternar rapidamente entre Views do CanvasCenter (`Mapa`, `Simulação`, `Elétrica`).
 - **CenterCanvas Permanente**: O motor gráfico (Leaflet + WebGL) nunca desmonta, servindo de portal para o minimapa quando outras views estão ativas.
+
+---
+
+## 📐 REGRAS DE DOMÍNIO & ENGENHARIA
+
+### Premissas Financeiras (Tarifação e Net Metering)
+
+#### **Taxa Fixa (Custo de Disponibilidade)**
+Regulamentada pela **ANEEL (Resolução Normativa n° 1000/2021)**, representa o valor mínimo faturável para cobrir a infraestrutura da rede.
+- **Natureza**: Cobrança obrigatória, independente de haver consumo ou geração no período.
+- **Impacto no Solar**: O sistema fotovoltaico pode reduzir a fatura de energia, mas nunca abaixo desse patamar mínimo.
+- **Valores por Padrão de Entrada**:
+  - 🏠 **Monofásico**: 30 kWh
+  - 🏠🏠 **Bifásico**: 50 kWh
+  - 🏭 **Trifásico**: 100 kWh
 
 ---
 

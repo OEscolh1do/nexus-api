@@ -25,15 +25,15 @@ import { useCenterContent, usePanelStore, type PanelGroupId } from '../../store/
 // Canvas Views
 import { MapCanvasView } from './canvas-views/MapCanvasView';
 import { SiteCanvasView } from './canvas-views/SiteCanvasView';
-import { SimulationCanvasView } from './canvas-views/SimulationCanvasView';
+import { ProjectionCanvasView } from './canvas-views/ProjectionCanvasView';
 import { ElectricalCanvasView } from './canvas-views/ElectricalCanvasView';
 import { ConsumptionCanvasView } from './canvas-views/ConsumptionCanvasView';
 import { ModuleCanvasView } from './canvas-views/ModuleCanvasView';
 import { PhysicalCanvasView } from './canvas-views/PhysicalCanvasView';
+import { ProposalCanvasView } from './canvas-views/ProposalCanvasView';
 import { PropertiesGroup } from './groups/PropertiesGroup';
 import { SettingsModule } from '@/modules/settings/SettingsModule';
 import { DocumentationModule } from '@/modules/documentation/DocumentationModule';
-import { ProposalModule } from '@/modules/proposal/ProposalModule';
 
 // =============================================================================
 // REGISTRY — Grupos renderizáveis no center
@@ -41,13 +41,13 @@ import { ProposalModule } from '@/modules/proposal/ProposalModule';
 
 const CANVAS_VIEWS_REGISTRY: Partial<Record<PanelGroupId, React.FC>> = {
   site: SiteCanvasView,
-  simulation: SimulationCanvasView,
+  projection: ProjectionCanvasView,
   electrical: ElectricalCanvasView,
   'module-selection': ModuleCanvasView,
   properties: PropertiesGroup,
   settings: SettingsModule,
   documentation: DocumentationModule,
-  proposal: ProposalModule,
+  proposal: ProposalCanvasView,
 };
 
 // =============================================================================
@@ -130,7 +130,8 @@ const CenterCanvasInner: React.FC = () => {
                             focusedBlock === 'module'      ? 'module-selection' :
                             focusedBlock === 'arrangement' ? 'arrangement' :
                             focusedBlock === 'inverter'    ? 'electrical' :
-                            focusedBlock === 'simulation'  ? 'simulation' : 
+                            focusedBlock === 'projection'  ? 'projection' : 
+                            focusedBlock === 'proposal'    ? 'proposal' :
                             'none';
 
   // SPEC-003: Alvo do portal assíncrono
@@ -198,8 +199,12 @@ const CenterCanvasInner: React.FC = () => {
             <PhysicalCanvasView />
           </FrozenViewContainer>
 
-          <FrozenViewContainer isActive={activeOverlayView === 'simulation'}>
-            <SimulationCanvasView />
+          <FrozenViewContainer isActive={activeOverlayView === 'projection'}>
+            <ProjectionCanvasView />
+          </FrozenViewContainer>
+
+          <FrozenViewContainer isActive={activeOverlayView === 'proposal'}>
+            <ProposalCanvasView />
           </FrozenViewContainer>
 
         </div>

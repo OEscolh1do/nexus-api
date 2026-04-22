@@ -29,7 +29,7 @@ export type WorkspaceMode = 'SIMULATION' | 'ELECTRICAL' | 'REPORTS' | 'PROPOSAL'
 
 export type CanvasViewMode = 'CONTEXT' | 'BLUEPRINT' | 'DIAGRAM' | 'UNIFILAR';
 
-export type FocusedBlock = 'consumption' | 'module' | 'arrangement' | 'inverter' | 'simulation' | 'site' | 'proposal' | 'map' | null;
+export type FocusedBlock = 'consumption' | 'module' | 'arrangement' | 'inverter' | 'projection' | 'site' | 'proposal' | 'map' | null;
 
 /** Etapa da animação do Dimensionamento Inteligente (Spec 03 §2.3) */
 export type AutoSizingStep = 'idle' | 'consumption' | 'module' | 'inverter' | 'done';
@@ -100,6 +100,11 @@ export interface UIState {
   toggleAnatomyPanel: () => void;
   closeAnatomyPanel: () => void;
   
+  /** Painel lateral de Perdas (Projeção) */
+  isLossSidebarOpen: boolean;
+  toggleLossSidebar: () => void;
+  closeLossSidebar: () => void;
+
   /** Busca de Endereço (Explorer) */
   searchQuery: string;
   setSearchQuery: (query: string) => void;
@@ -187,6 +192,10 @@ export const useUIStore = create<UIState>((set) => ({
 
   searchQuery: '',
   setSearchQuery: (query) => set({ searchQuery: query }),
+
+  isLossSidebarOpen: false,
+  toggleLossSidebar: () => set((state) => ({ isLossSidebarOpen: !state.isLossSidebarOpen })),
+  closeLossSidebar: () => set({ isLossSidebarOpen: false }),
 
   mapType: 'GOOGLE_SATELLITE',
   setMapType: (type) => set({ mapType: type }),

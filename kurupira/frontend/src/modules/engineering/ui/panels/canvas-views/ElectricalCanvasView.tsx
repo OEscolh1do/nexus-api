@@ -114,8 +114,8 @@ export const ElectricalCanvasView: React.FC = () => {
 
 
   // Handlers Finais
-  const handleGoToSimulation = () => {
-    setFocusedBlock('simulation');
+  const handleGoToProjection = () => {
+    setFocusedBlock('projection');
     restoreMap();
   };
 
@@ -207,7 +207,7 @@ export const ElectricalCanvasView: React.FC = () => {
                <CheckCircle size={16} /> Dimensionamento Elétrico Termodinâmico Válido
              </span>
              <button 
-               onClick={handleGoToSimulation}
+               onClick={handleGoToProjection}
                className="flex items-center gap-2 px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-950 text-sm font-bold rounded-sm shadow-lg transition-all focus:ring-2 focus:ring-emerald-400 focus:outline-none"
              >
                Prosseguir para Simulação Energética

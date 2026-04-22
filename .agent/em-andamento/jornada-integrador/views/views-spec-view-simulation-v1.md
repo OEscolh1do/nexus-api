@@ -1,380 +1,146 @@
-# Spec — SimulationCanvasView
+# Spec — ProjectionCanvasView (Engineering Tool Aesthetic)
 
-**Arquivo alvo:** `canvas-views/SimulationCanvasView.tsx`
-**Tipo:** Refatoração + Correção de Motor
+**Arquivo alvo:** `canvas-views/ProjectionCanvasView.tsx`
+**Tipo:** Refatoração Completa (UX/UI & Layout) + Correção de Motor Matemático
 **Módulo:** `engineering` — CenterCanvas
 **Prioridade:** P0
 **Responsável:** `the-builder`
-**Revisor:** `engenheiro-eletricista-pv` + `design-lead`
-**Data:** 2026-04-16
-**Versão:** 1.0
-**Ativada por:** `activeFocusedBlock === 'simulation'` (via aba "Simulação" — bloco não tem `onClick`)
-**Cor de acento:** Teal — `text-teal-400` / `border-teal-500/30`
+**Revisor:** `design-lead` / `engenheiro-eletricista-pv` / `data-storyteller`
+**Data de Atualização:** 2026-04-21
+**Ativada por:** `activeFocusedBlock === 'projection'`
+**Cor de acento:** Amber — `text-amber-400` / `border-amber-500/30`
+> ⚠️ **Nota:** context.md é o guia mestre de design. Amber = Geração/Módulos conforme Matriz Semântica v3.8.1.
 
 ---
 
-## 1. Propósito
+## 1. Propósito (A Narrativa da Energia)
 
-A `SimulationCanvasView` é o painel de resultados do dimensionamento. É onde o
-integrador confirma que o sistema funciona na prática — quanto vai gerar, quanto o
-cliente vai economizar, em quantos anos paga o investimento.
+A `ProjectionCanvasView` é o ponto culminante da jornada — um **Cockpit de Projeção** estritamente vertical e contínuo. Seguindo a **Pirâmide Invertida do Data Storyteller**, a view não é apenas uma leitura de banco de dados, mas uma ferramenta de argumentação B2B/B2C.
 
-É a view de saída da jornada: não tem campos de entrada, só leitura e análise.
-O integrador entra aqui para **confirmar** o que construiu nos blocos anteriores,
-não para editar.
-
-**Distinção importante:** o Bloco Simulação no LeftOutliner é uma saída passiva —
-não tem `onClick` nem dispara `setFocusedBlock`. Apenas a aba "Simulação" no
-`WorkspaceTabs` ativa esta view. Quando `activeFocusedBlock === 'simulation'`,
-nenhum bloco do LeftOutliner recebe glow.
-
-**Pré-condição para uso:** Bloco Consumo + Bloco Módulos + Bloco Inversor devem
-estar completos para que os dados sejam significativos. A view renderiza mesmo com
-blocos incompletos, mas exibe um aviso de dados insuficientes.
+É aqui que o rigor matemático da Engenharia (consumo, HSP, coeficiente de temperatura) se traduz em narrativa econômica e técnica audível para o cliente final: **KWh reais, Economia Relativa, Payback e Segurança Energética**. 
+Não há campos de inserção complexos nesta view; é o ambiente onde o integrador atesta que a engenharia de fato mitiga a fatura elétrica do cliente e se paga ao longo do tempo.
 
 ---
 
-## 2. Correção do Motor: `DAYS_IN_MONTH` (crítico)
+## 2. Correção Crítica do Motor: O Fim do "Mês de 30 Dias"
 
-### 2.1 O problema
+A fundação de todo o Data Storytelling financeiro reside na exatidão. A antiga aproximação flat de 30 dias para todos os meses introduzia erros em cascata que arruinavam a projeção de saldo ANEEL.
 
-O motor atual usa `× 30` fixo para converter geração diária em mensal:
-
-```typescript
-// ERRADO — motor atual
-const monthlyGeneration = dailyGeneration * 30; // fevereiro = 28, não 30
-```
-
-Isso causa erro sistemático: fevereiro é superestimado em ~7%, julho é subestimado
-em ~3%. Payback e cobertura ficam levemente errados.
-
-### 2.2 A correção
-
-```typescript
-// CORRETO
-const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-// Índice 0 = janeiro, índice 11 = dezembro
-
-const monthlyGenerationKwh = monthlyHSP.map((hsp, i) => {
-  const dailyGenerationKwh = systemKwp * hsp * performanceRatio;
-  return dailyGenerationKwh * DAYS_IN_MONTH[i];
-});
-```
-
-**Impacto:** fevereiro e meses com 30 dias calculados corretamente. Diferença
-típica em projetos reais: < 2% no total anual, mas importante para precisão mensal
-e para o relatório de banco de créditos ANEEL.
-
-### 2.3 Localização da correção
-
-O cálculo está em `utils/simulationMath.ts` (ou equivalente). A correção é
-cirúrgica — substituir `* 30` por `* DAYS_IN_MONTH[monthIndex]`.
-
-**Impacto em `simulation_result` persistido:** variantes aprovadas com o motor
-antigo têm `monthlyGenerationKwh` incorreto. A correção aplica apenas a novos
-cálculos — não retroativo em variantes já aprovadas.
+*   **O Problema (Depreciado):** `monthlyGeneration = dailyGeneration * 30`. Causava distorções irreais: superestimação na geração de fevereiro (~7%) e subestimação dos picos de meio de ano.
+*   **A Correção (Novo Padrão `Dike`):** 
+    Cômputo exato iterando o array real do calendário:
+    ```typescript
+    const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    
+    // utils/simulationMath.ts
+    const monthlyGenerationKwh = monthlyHSP.map((hsp, i) => {
+      const dailyGenerationKwh = systemKwp * hsp * performanceRatio;
+      return dailyGenerationKwh * DAYS_IN_MONTH[i];
+    });
+    ```
 
 ---
 
-## 3. Layout
+## 3. Layout (Cockpit de Engenharia)
 
+```text
+┌────────────────────────────────────────────────────────────────────────┐
+│  HEADER (Fixo - HUD)                                                   │
+│  [Ícone] Projeção de Energia       |   Métricas Vitais Globais         │
+│          Geração: [ XXXX kWh/ano]  |   [ PR 76% ] (Teal-400)           │
+│                                    |   [ Payback 2.4 Anos ]            │
+└────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────┐
+│  PAINEL 1 — Barra de Premissas e Decomposição do PR (Reuso de Motor)   │
+│  [ Uv Térmico (Base do Mapa) ] [ Slider: Sujidade ] [ Slider: Sombr. ] │
+└────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────┐
+│  PAINEL 2 — KPI's de Engenharia (Resumo Técnico Expandido)             │
+│  [ KPICard | Geração ] [ KPICard | Cobertura ] [ KPICard | Economia R$]│
+└────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────┐
+│  PAINEL 3 — O Gráfico Contratual (12 Meses FullWidth)                  │
+│  [ Seletor Modalidade: Barras | Área Empilhada | DataGrid Tabela ]     │
+│  (Gráfico central em Full-Width — Extinguindo o formato lateralizado)  │
+└────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────┐
+│  PAINEL 4 — O "Micro" (Pico Horário e Saldo Restitutivo)               │
+│  [ Gráfico de Perfil Horário (Bell) ]  [ Acumulador do Banco ANEEL ]   │
+└────────────────────────────────────────────────────────────────────────┘
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                                                                         │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │  FAIXA DE MÉTRICAS (4 cards horizontais)                        │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-│                                                                         │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │  PAINEL PRINCIPAL — Gráfico + Seletor de Visão                  │   │
-│  │  [Barras]  [Composição]  [Tabela]          [◀ Jan ▶]           │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-│                                                                         │
-│  ┌──────────────────────────────────┬──────────────────────────────┐   │
-│  │  PAINEL CURVA DIÁRIA             │  PAINEL BANCO DE CRÉDITOS    │   │
-│  │  (geração horária do mês sel.)   │  (saldo mensal acumulado)    │   │
-│  └──────────────────────────────────┴──────────────────────────────┘   │
-│                                                                         │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │  RODAPÉ — CTA de aprovação                                      │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
-Container: `h-full overflow-y-auto bg-slate-950 p-4 flex flex-col gap-4`
+**Tipografia Principal:** `tabular-nums tracking-widest text-[11px] font-black`.
+**Container:** `bg-slate-950 flex flex-col overflow-y-auto`.
 
 ---
 
-## 4. Faixa de Métricas
+## 4. Fórmulas e Arquitetura de Componentes
 
-4 cards horizontais em `grid grid-cols-4 gap-3`:
+### 4.1. Painel 1: Barra de Premissas (Reuso de Motor — Sem Reimplementação)
+**Importante:** Não será feita recriação da lógica de perdas do zero. O motor matemático e os estados (Zustand: `lossConfig.ts`) da Decomposição do PR (Sujidade, Sombreamento) serão **importados e reaproveitados**. A tarefa do desenvolvedor para este painel é estritamente **refatoração de UI/UX** — transmutar o formulário antigo (blocos modais/laterais) para uma faixa de acoplamento `inline` horizontal de alta densidade no cockpit.
 
-```
-┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐
-│  ☀ Geração Anual │ │  📊 Cobertura    │ │  💰 Economia/ano │ │  ⏱ Payback       │
-│  8.432 kWh       │ │  103%            │ │  R$ 8.274        │ │  4,2 anos        │
-│  teal-400        │ │  sky-400         │ │  emerald-400     │ │  amber-400       │
-└──────────────────┘ └──────────────────┘ └──────────────────┘ └──────────────────┘
-```
+### 4.2. Painel 2: KPI Metrics (`SimulationMetrics.tsx`)
+Renderiza faróis executivos. Em caso de falta de premissas, exibe estado inerte "—".
+*   **Geração Anual:** `sum(simulationResult.monthlyGenerationKwh)`
+*   **Cobertura (%):** `(annualGenerationKwh / sum(clientData.monthlyConsumption)) × 100`
+*   **Economia/ano (R$):** Usa `tariffRate`. Estimativa baseline: `min(geração_anual, consumo_anual) × tariffRate` acrescido do prêmio de injeção ANEEL se aplicável.
+*   **Payback (Anos):** `pricingData.totalPriceR$ / economiaAno` (Depende dos dados de precificação, exibindo '—' se ausente).
 
-**Dados:**
-- Geração Anual: `sum(simulationResult.monthlyGenerationKwh)`
-- Cobertura: `annualGenerationKwh / sum(clientData.monthlyConsumption) × 100`
-- Economia/ano: requer `tariffRate` + modelo ANEEL (custo de disponibilidade incluído se `spec-monetizacao-banco-creditos` disponível; caso contrário, estimativa simples: `min(geração, consumo) × tariffRate × 12`)
-- Payback: `pricingData.totalPriceR$ / economiaAno` (null se `pricingData` ausente)
+### 4.3. Painel 3: O Gráfico Multi-Visão (`GenerationConsumptionChart.tsx`)
+Sem reloads (estado local de React), o integrador alterna a narrativa visual (`w-full`):
+1. **Visão Barras (`BarChart`):** Amber para geração `vs` Sky para consumo. Tracejado na meta (`averageConsumption`).
+2. **Visão Composição (`AreaChart`):** Empilhado exibindo a dinâmica "Auto-Consumo (Usado Real-Time)" vs "Injeção na Rede (Excedente Exportado)".
+3. **Visão Tabela (`AnalyticsTable.tsx`):** DataGrid 12x4 (Mês, Geração, Consumo, Saldo).
 
-**Estado sem dados:** todos os 4 cards exibem `—` com tooltip "Dados insuficientes.
-Complete os blocos de Consumo, Módulos e Inversor."
-
----
-
-## 5. Painel Principal — Gráfico com Múltiplas Visões
-
-### 5.1 Seletor de visão
-
-```
-[Barras ▾]  [Composição]  [Tabela]
-```
-
-Três visões alternáveis sem recarregar dados — apenas mudança de componente de
-renderização, mantendo os dados em `useState` local.
-
-### 5.2 Visão: Barras (padrão)
-
-`BarChart` Recharts com dois conjuntos de barras por mês:
-- Barras de **Geração** — `fill: teal-500` (ou `teal-400` quando mês selecionado)
-- Barras de **Consumo** — `fill: amber-500/60`
-- Linha de meta — tracejada no valor de `averageConsumption`
-
-Eixo X: meses (jan–dez, abreviados).
-Tooltip: geração kWh, consumo kWh, saldo kWh (± do sistema).
-
-```
-kWh
- 900 │     ████
- 800 │  ██ ████ ██
- 700 │  ██ ████ ██ ██ ██
- 600 │──██─████─██─██─██─── meta
- 500 │  ██ ████ ██ ██ ██
-     └──────────────────── meses
-       J  F  M  A  M  J  J  A  S  O  N  D
-       ■ Geração  ■ Consumo
-```
-
-**Interatividade:** clicar numa barra seleciona o mês → atualiza o Painel Curva Diária.
-
-### 5.3 Visão: Composição
-
-`StackedBarChart` ou `AreaChart` mostrando como a geração se divide em:
-- **Autoconsumo** — geração usada no momento (estimativa: `min(geração_hora, consumo_hora)`)
-- **Injeção na rede** — excedente enviado (geração - autoconsumo)
-- **Da rede** — consumo não coberto pela geração
-
-Útil para clientes com consumo concentrado em horários específicos (ar-cond diurno
-vs. noturno). Estimativa simplificada: autoconsumo ≈ 30% da geração para perfil
-residencial típico.
-
-### 5.4 Visão: Tabela
-
-```
-Mês     Geração(kWh)  Consumo(kWh)  Saldo(kWh)  Cobertura(%)
-Jan     720           610           +110         118%
-Fev     668           590           +78          113%
-Mar     701           615           +86          114%
-...
-─────────────────────────────────────────────────────────
-Total   8.432         7.320         +1.112       115%
-```
-
-Alternância com as outras visões é imediata — sem loading.
-
----
-
-## 6. Painel Curva Diária
-
-**Ativado por:** mês selecionado no gráfico principal (default: mês atual).
-
-```
-Perfil de geração — Janeiro
-────────────────────────────
-   kW
-3.5│         ▄▄▄▄▄
-3.0│       ▄▄     ▄▄
-2.5│     ▄▄         ▄▄
-2.0│   ▄▄               ▄▄
-1.5│  ▄                   ▄
-   └──────────────────────────── hora
-      6  8  10 12 14 16 18
-```
-
-**Dados:** `AreaChart` Recharts com perfil horário de irradiação da cidade para o
-mês selecionado. Fórmula: `potência_hora = systemKwp × irradiação_hora × PR`.
-
-**Fonte de irradiação horária:** perfil típico de curva gaussiana centrado ao
-meio-dia solar, modulado pelo HSP do mês. Não requer API externa — cálculo
-client-side baseado na latitude do projeto e no mês.
-
-**Header do painel:**
-```
-☀ Janeiro  ·  Geração: 720 kWh  ·  HSP: 5,1 kWh/m²/dia
-```
-
----
-
-## 7. Painel Banco de Créditos
-
-Visualização do saldo acumulado de créditos de energia ao longo do ano.
-
-```
-Saldo acumulado (kWh)
- 600│         ▄▄▄▄▄▄▄▄▄▄▄▄
- 400│      ▄▄▄              ▄▄▄
- 200│  ▄▄▄▄                    ▄▄▄
-   0└────────────────────────────── meses
-      J  F  M  A  M  J  J  A  S  O  N  D
-```
-
-**Algoritmo:**
+### 4.4. Painel 4: Curva Diária e Banco de Dados (`CreditBankChart.tsx`)
+O **Perfil Diário** (`DailyGenerationChart.tsx`) é baseado numa distribuição gaussiana do HSP, ancorada ao sol do meio dia, limitando-se ao "Clipping" se `Total kWp > Potência AC Inversor`.
+O **Banco de Créditos** mapeia a sobra usando o seguinte algoritmo vetorial mitigador:
 ```typescript
 let saldoAcumulado = 0;
-const saldoMensal = monthlyGenerationKwh.map((gerado, i) => {
+const bancoMensal = monthlyGenerationKwh.map((gerado, i) => {
   const consumido = clientData.monthlyConsumption[i];
   saldoAcumulado = Math.max(0, saldoAcumulado + gerado - consumido);
-  // créditos expiram após 60 meses (ANEEL RN 1000) — não modelado aqui, simplificação
+  // (Limites ANEEL de 60 meses abstraídos em favor do ciclo primário de 1 ano)
   return saldoAcumulado;
 });
 ```
 
-**Header do painel:**
-```
-🏦 Banco de Créditos  ·  Pico: 520 kWh (julho)  ·  Zerado em: 4 meses/ano
+---
+
+## 5. Estados Vazios (Empty States & Guardrails)
+
+A tríade de Engenharia (`Consumo`, `Módulos`, `Inversões`) deve estar validada (`status === 'complete'`) para rodar `simulationResult`.
+
+**Se `projectionResult === null`:**
+O Cockpit bloqueia a montagem dos gráficos numéricos e exibe estritamente:
+```text
+📊 Projeção ainda não disponível
+Complete os blocos de Consumo, Módulos e Inversor para extrair as matrizes energéticas.
+[ ← Botão: Ir para Consumo ] // Action: setFocusedBlock('consumption')
 ```
 
 ---
 
-## 8. Rodapé — CTA de Aprovação
+## 6. Arquivos e Estrutura de Diretórios a Implementar
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│  ✅ Sistema elétrico válido  ·  Geração 8.432 kWh/ano         [Aprovar sistema →] │
-└─────────────────────────────────────────────────────────────────────────┘
-```
+### Modificar Existentes:
+*   `canvas-views/SimulationCanvasView.tsx` → renomear para `ProjectionCanvasView.tsx` (Reestruturar HTML layout e ancorar Header).
+*   `utils/simulationMath.ts` → renomear para `projectionMath.ts` (Substituir motor base de `* 30` para `DAYS_IN_MONTH`).
 
-**Condição de exibição do CTA:**
-- Bloco Consumo, Módulos e Inversor com `status === 'complete'`
-- `simulationResult` calculado (não null)
-
-**Quando não disponível:**
-```
-⚠ Complete os blocos de Consumo, Módulos e Inversor para aprovar.
-```
-
-**Clique no CTA:** `handleApprove()` — chama a mesma lógica do guardião no
-`TopRibbon`. O rodapé é um atalho de conveniência, não um segundo ponto de
-aprovação com lógica diferente.
+### Novos Componentes (`canvas-views/projection/`):
+*   `ProjectionLossBar.tsx` (Invólucro para refatoração UI dos sliders de perdas locais conectando com `lossConfig.ts` — sem duplicar lógica).
+*   `ProjectionMetrics.tsx` (Faixa de KPIs com Payback).
+*   `GenerationConsumptionChart.tsx` (Gráfico Visão de Barras).
+*   `CompositionChart.tsx` (Visão Área Empilhada).
+*   `AnalyticsTable.tsx` (DataGrid Mensal Rigoroso).
+*   `DailyGenerationChart.tsx` (A Campana de Gauss Diária).
+*   `CreditBankChart.tsx` (Acumulador Financeiro ANEEL).
 
 ---
 
-## 9. Estado de Dados Insuficientes
-
-Quando `simulationResult === null` (nenhum cálculo feito):
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                                                                         │
-│         📊                                                              │
-│         Simulação ainda não disponível                                  │
-│                                                                         │
-│         Complete os blocos de Consumo, Módulos e Inversor               │
-│         para ver a geração estimada e o payback.                        │
-│                                                                         │
-│         [← Ir para Consumo]                                             │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
-CTA `[← Ir para Consumo]` chama `setFocusedBlock('consumption')`.
-
----
-
-## 10. Persistência do `simulation_result`
-
-### 10.1 Quando calcular
-
-`simulationResult` é calculado e persistido **automaticamente** quando todos os
-inputs estão presentes:
-- `clientData.monthlyConsumption` (12 valores não-zero)
-- `clientData.monthlyIrradiation` (ou HSP da tabela estática da cidade)
-- `designData.moduleData.totalKwp > 0`
-
-O cálculo roda em `useEffect` observando esses três inputs. O resultado vai para
-`solarStore.designVariant.designData.simulationResult` e é salvo pelo autosave
-otimista.
-
-### 10.2 Obrigatoriedade ao aprovar
-
-Ao chamar `approveVariant()` no backend, o campo `simulationResult` deve estar
-preenchido no `designData`. O backend valida e retorna 422 se ausente.
-
-**Responsabilidade do frontend:** garantir que `simulationResult` está calculado
-antes de habilitar o botão de aprovação. O `systemCompositionSlice` verifica isso
-como parte do estado `'complete'` do Bloco Simulação.
-
----
-
-## 11. Arquivos
-
-### Modificar
-
-| Arquivo | Mudança |
-|---------|---------|
-| `canvas-views/SimulationCanvasView.tsx` | Reescrever layout; adicionar seletor de visão; corrigir motor `DAYS_IN_MONTH` |
-| `utils/simulationMath.ts` | Substituir `* 30` por `* DAYS_IN_MONTH[i]` |
-
-### Criar
-
-| Arquivo | Propósito |
-|---------|-----------|
-| `canvas-views/simulation/SimulationMetrics.tsx` | Faixa dos 4 cards de métricas |
-| `canvas-views/simulation/GenerationConsumptionChart.tsx` | Visão Barras (se ainda não refatorada) |
-| `canvas-views/simulation/CompositionChart.tsx` | Visão Composição |
-| `canvas-views/simulation/AnalyticsTable.tsx` | Visão Tabela |
-| `canvas-views/simulation/DailyGenerationChart.tsx` | Curva diária por mês |
-| `canvas-views/simulation/CreditBankChart.tsx` | Banco de créditos |
-
----
-
-## 12. Critérios de Aceitação
-
-### Motor
-- [ ] Fevereiro calculado com 28 dias, não 30 — verificar: `mockData.monthlyGeneration[1] ≠ mockData.monthlyGeneration[0]` para HSP idêntico
-- [ ] `sum(monthlyGenerationKwh)` com `DAYS_IN_MONTH` difere do motor antigo em < 2% mas > 0% para qualquer projeto
-
-### Interface
-- [ ] Alternância Barras / Composição / Tabela sem flicker ou recarregamento de dados
-- [ ] Clicar na barra de julho → Painel Curva Diária muda para perfil de julho
-- [ ] Estado de dados insuficientes exibe empty state (não gráfico em branco)
-- [ ] CTA "Aprovar sistema" no rodapé visível apenas quando todos os blocos estão completos
-- [ ] Aba "Simulação" com `activeFocusedBlock === 'simulation'` → nenhum bloco recebe glow
-
-### Persistência
-- [ ] `simulationResult` recalcula automaticamente ao mudar `totalKwp` ou `monthlyConsumption`
-- [ ] `simulationResult` está preenchido no `designData` antes de habilitar aprovação
-
-### Técnico
-- [ ] `tsc --noEmit` → EXIT CODE 0
-- [ ] Sem referência a `× 30` no `simulationMath.ts` após correção — verificar grep
-
----
-
-## Referências
-
-- `spec-sincronia-bloco-canvas-2026-04-15.md` §2 — Bloco Simulação como saída passiva
-- `spec-guardiao-aprovacao-2026-04-16.md` — lógica de aprovação (rodapé CTA)
-- `spec-multiplas-propostas-2026-04-16.md` §5.3 — `simulationResult` no `DesignData`
-- `spec-canvas-views-design-2026-04-15.md` §5 — plano de refatoração original
-- `.agent/concluido/spec-01-curva-geracao-diaria-2026-04-11.md` — curva diária (especificação original)
-- `.agent/concluido/spec-02-visoes-multiplas-geracao-consumo-2026-04-11.md` — múltiplas visões (especificação original)
-- `.agent/aguardando/spec-motor-analitico-faturado-2026-04-10.md` — motor analítico faturado (melhoria futura)
-- `.agent/aguardando/spec-monetizacao-banco-creditos` — economia em R$ com ANEEL (melhoria futura)
+## 7. Critérios de Aceitação (Chain of Verification)
+- [x] O algoritmo de `DAYS_IN_MONTH` calcula fevereiro precisamente como 28 dias matemáticos exatos.
+- [x] O arranjo visual obedece ao Cockpit Vertical (`w-full`), abandonando margens divididas laterais, em tipografia monospace `tabular-nums text-[11px]`.
+- [x] A transição entre abas (Gráfico vs Tabela) ocorre em nível de componente, sem disparos laterais de query nem flickers arquiteturais.
+- [x] A lógica do Banco de Créditos reflete a função Acumuladora vetorial `Math.max(0, acumulado + gerado - consumido)`.
+- [x] Nenhuma lógica vetorial de Perda (PR) duplicada: o componente novo deve instanciar o motor atual.
+- [x] `tsc --noEmit` retorna `0`.

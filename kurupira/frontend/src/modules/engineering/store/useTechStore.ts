@@ -66,6 +66,7 @@ export interface Inverter { id?: string; manufacturer: string; model: string; no
 interface TechState {
   lossProfile: LossProfile;
   selectedModuleId: string | null;
+  cosip: number; // R$ Iluminação Pública
   
   // Inverters State (PRÉ-1: normalizado)
   inverters: NormalizedCollection<InverterState>;
@@ -76,6 +77,7 @@ interface TechState {
   resetLosses: () => void;
   resetProject: () => void;
   setSelectedModuleId: (id: string | null) => void;
+  setCosip: (val: number) => void;
   
   // Inverter Actions
   addInverter: (equipment: any, providedId?: string) => void;
@@ -139,10 +141,13 @@ export const useTechStore = create<TechState>()(
       inverters: createEmptyCollection<InverterState>(),
       strings: createEmptyCollection<LogicalString>(),
       prCalculationMode: 'additive', // Default per user request
+      cosip: 35.00,
 
       setPrCalculationMode: (mode) => set({ prCalculationMode: mode }),
 
       setSelectedModuleId: (id) => set({ selectedModuleId: id }),
+
+      setCosip: (val) => set({ cosip: val }),
 
       addInverter: (equipment, providedId) => set(state => {
           // Defensivo: mppts pode vir como array (CatalogStore) ou number (adapter/SolarStore)
@@ -296,7 +301,8 @@ export const useTechStore = create<TechState>()(
           inverters: createEmptyCollection<InverterState>(),
           strings: createEmptyCollection<LogicalString>(),
           selectedModuleId: null,
-          prCalculationMode: 'additive'
+          prCalculationMode: 'additive',
+          cosip: 35.00
       }),
 
       getPerformanceRatio: () => {
