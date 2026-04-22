@@ -11,7 +11,9 @@ export const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
 export interface ProjectionMonthData {
   month: string;
-  cons: number;
+  cons: number; // Total for backward compat if needed, but we'll use the parts
+  baseCons: number;
+  addedLoad: number;
   gen: number;
   excedente: number;
   deficit: number;
@@ -46,25 +48,29 @@ export interface ProjectionStats {
   roiData: ROIYearData[];
   waterfallData: FinancialWaterfallData[];
   totalGen: number;
-  totalCons: number;
+  totalCons: number; // Total combined
+  totalBaseCons: number; // Historical only
+  totalAddedLoad: number; // Simulated only
   coverage: number;
   economiaAno: number;
   faturaNovaMedia: number;
   faturaOriginalMedia: number;
+  faturaBaseMedia: number; // Fatura sem as cargas novas
 }
 
 export function calculateProjectionStats(params: {
   totalPowerKw: number;
   hsp: number[];
   monthlyConsumption: number[];
+  additionalLoadsMonthly?: number[]; // [Jan...Dez] em kWh
   prDecimal: number;
   connectionType?: string;
   tariffRate: number;
   cosip: number;
 }): ProjectionStats {
   const { 
-    totalPowerKw, hsp, monthlyConsumption, prDecimal, 
-    connectionType, tariffRate, cosip 
+    totalPowerKw, hsp, monthlyConsumption, additionalLoadsMonthly,
+    prDecimal, connectionType, tariffRate, cosip 
   } = params;
 
   function getMinAvailability(conn: string | undefined): number {
@@ -75,9 +81,13 @@ export function calculateProjectionStats(params: {
 
   const minChargeKwh = getMinAvailability(connectionType);
   let sumCons = 0, sumGen = 0, sumEconomia = 0, sumFaturaNova = 0, sumFaturaOriginal = 0;
+  let sumBaseCons = 0, sumAddedLoad = 0, sumFaturaBase = 0;
 
   const barData = MONTHS.map((month, i) => {
-    const cons = +(monthlyConsumption[i] || 0).toFixed(2);
+    const baseCons = monthlyConsumption[i] || 0;
+    const addedLoad = additionalLoadsMonthly ? (additionalLoadsMonthly[i] || 0) : 0;
+    const cons = +(baseCons + addedLoad).toFixed(2);
+
     const days = DAYS_IN_MONTH[i];
     const gen = +(totalPowerKw * (hsp[i] || 0) * prDecimal * days).toFixed(2);
     
@@ -88,19 +98,36 @@ export function calculateProjectionStats(params: {
     const savingsKwh = Math.min(gen, Math.max(0, cons - minChargeKwh));
     const economiaMes = +(savingsKwh * tariffRate).toFixed(2);
 
-    // Fatura Original: Consumo * Tarifa + COSIP
+    // Fatura Original: (Base + Adicional) * Tarifa + COSIP
     const faturaOriginal = +(cons * tariffRate + cosip).toFixed(2);
+    
+    // Fatura Base: Apenas o que ele paga HOJE
+    const faturaBase = +(baseCons * tariffRate + cosip).toFixed(2);
     
     // Fatura Nova: (Max(MinCharge, Cons - Gen) * Tarifa) + COSIP
     const faturaNova = +(Math.max(minChargeKwh, cons - gen) * tariffRate + cosip).toFixed(2);
 
     sumCons += cons;
+    sumBaseCons += baseCons;
+    sumAddedLoad += addedLoad;
     sumGen += gen;
     sumEconomia += economiaMes;
     sumFaturaOriginal += faturaOriginal;
+    sumFaturaBase += faturaBase;
     sumFaturaNova += faturaNova;
 
-    return { month, cons, gen, excedente, deficit, economiaMes, faturaOriginal, faturaNova };
+    return { 
+      month, 
+      cons, 
+      baseCons, 
+      addedLoad, 
+      gen, 
+      excedente, 
+      deficit, 
+      economiaMes, 
+      faturaOriginal, 
+      faturaNova 
+    };
   });
 
   // Banco de créditos ANEEL
@@ -129,6 +156,8 @@ export function calculateProjectionStats(params: {
   const effectiveSolarSavings = Math.min(avgGen, Math.max(0, avgCons - minChargeKwh)) * tariffRate;
 
   const waterfallData: FinancialWaterfallData[] = [
+    { label: 'Fatura Atual', value: sumFaturaBase / 12, display: sumFaturaBase / 12, type: 'base' },
+    { label: 'Custo Novas Cargas', value: (sumFaturaOriginal - sumFaturaBase) / 12, display: (sumFaturaOriginal - sumFaturaBase) / 12, type: 'addition' },
     { label: 'Custo Disponibilidade', value: availabilityCost, display: availabilityCost, type: 'base' },
     { label: 'Energia Compensável', value: compensableEnergy, display: compensableEnergy, type: 'addition' },
     { label: 'Economia Solar', value: -effectiveSolarSavings, display: effectiveSolarSavings, type: 'reduction' },
@@ -165,9 +194,12 @@ export function calculateProjectionStats(params: {
     waterfallData,
     totalGen: +sumGen.toFixed(0),
     totalCons: +sumCons.toFixed(0),
+    totalBaseCons: +sumBaseCons.toFixed(0),
+    totalAddedLoad: +sumAddedLoad.toFixed(0),
     coverage,
     economiaAno: +sumEconomia.toFixed(2),
     faturaNovaMedia: +avgFaturaNova.toFixed(2),
     faturaOriginalMedia: +(sumFaturaOriginal / 12).toFixed(2),
+    faturaBaseMedia: +(sumFaturaBase / 12).toFixed(2),
   };
 }

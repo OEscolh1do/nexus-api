@@ -40,7 +40,14 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
             <tr key={d.month} className="border-b border-slate-900/50 hover:bg-slate-900/40 transition-colors">
               <td className="px-3 py-1.5 font-black text-slate-300">{d.month}</td>
               <td className="px-3 py-1.5 font-mono text-amber-400">{Math.round(d.gen).toLocaleString('pt-BR')}</td>
-              <td className="px-3 py-1.5 font-mono text-sky-400">{Math.round(d.cons).toLocaleString('pt-BR')}</td>
+              <td className="px-3 py-1.5 font-mono text-sky-400 flex flex-col">
+                <span>{Math.round(d.cons).toLocaleString('pt-BR')}</span>
+                {d.addedLoad > 0 && (
+                  <span className="text-[7px] text-slate-600 font-bold uppercase tracking-tighter -mt-0.5">
+                    ({Math.round(d.baseCons)} + {Math.round(d.addedLoad)})
+                  </span>
+                )}
+              </td>
               <td className="px-3 py-1.5 font-mono text-violet-400">{Math.round(d.excedente).toLocaleString('pt-BR')}</td>
               <td className="px-3 py-1.5 font-mono text-rose-400">{Math.round(d.deficit).toLocaleString('pt-BR')}</td>
               <td className="px-3 py-1.5 font-mono text-emerald-300 font-black">

@@ -22,9 +22,9 @@ interface KpiCardProps {
 }
 
 const KpiCard: React.FC<KpiCardProps> = ({ 
-  label, value, unit, color, borderColor = 'border-slate-800/60', icon, sub 
+  label, value, unit, color, icon, sub 
 }) => (
-  <div className={cn('flex flex-col gap-1 px-4 py-3 border-r', borderColor, 'min-w-0')}>
+  <div className="flex flex-col gap-1 px-4 py-3 bg-black/40 hover:bg-black/60 transition-colors min-w-0">
     <div className="flex items-center gap-1.5">
       <span className={cn('opacity-60', color)}>{icon}</span>
       <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest truncate">
@@ -32,7 +32,7 @@ const KpiCard: React.FC<KpiCardProps> = ({
       </span>
     </div>
     <div className="flex items-baseline gap-1">
-      <span className={cn('text-xl font-black font-mono tabular-nums tracking-tighter leading-none', color)}>
+      <span className={cn('text-lg sm:text-xl font-black font-mono tabular-nums tracking-tighter leading-none', color)}>
         {value}
       </span>
       <span className="text-[9px] font-bold text-slate-500 uppercase shrink-0">{unit}</span>
@@ -46,6 +46,7 @@ const KpiCard: React.FC<KpiCardProps> = ({
 interface ProjectionMetricsProps {
   totalGen: number;
   totalCons: number;
+  addedLoadKwh: number; // Total anual adicional
   coverage: number;
   economiaAno: number;
   totalPowerKw: number;
@@ -56,6 +57,7 @@ interface ProjectionMetricsProps {
 export const ProjectionMetrics: React.FC<ProjectionMetricsProps> = ({
   totalGen,
   totalCons,
+  addedLoadKwh,
   coverage,
   economiaAno,
   totalPowerKw,
@@ -66,7 +68,7 @@ export const ProjectionMetrics: React.FC<ProjectionMetricsProps> = ({
   const treesSaved = totalGen * TREE_FACTOR;
 
   return (
-    <div className="shrink-0 flex items-stretch border-b border-slate-800/60 bg-black/20 overflow-x-auto custom-scrollbar">
+    <div className="shrink-0 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-px border-b border-slate-800/60 bg-slate-800/40 overflow-hidden">
       <KpiCard
         label="Geração Estimada"
         value={totalGen.toLocaleString('pt-BR')}
@@ -100,6 +102,14 @@ export const ProjectionMetrics: React.FC<ProjectionMetricsProps> = ({
         sub={`${moduleCount} módulo${moduleCount !== 1 ? 's' : ''}`}
       />
       <KpiCard
+        label="Carga Adicionada"
+        value={addedLoadKwh.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
+        unit="kWh/ano"
+        color="text-sky-400"
+        icon={<Activity size={10} />}
+        sub="Simulações de Consumo"
+      />
+      <KpiCard
         label="Árvores Plantadas"
         value={Math.round(treesSaved).toString()}
         unit="un"
@@ -112,7 +122,6 @@ export const ProjectionMetrics: React.FC<ProjectionMetricsProps> = ({
         value={co2Saved.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
         unit="kg/ano"
         color="text-sky-400"
-        borderColor="border-transparent"
         icon={<Cloud size={10} />}
         sub="Matriz Elétrica BR"
       />

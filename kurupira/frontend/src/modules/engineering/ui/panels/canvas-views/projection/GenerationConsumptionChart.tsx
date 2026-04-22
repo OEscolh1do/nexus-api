@@ -47,8 +47,29 @@ export const GenerationConsumptionChart: React.FC<GenerationConsumptionChartProp
           iconType="circle" 
           wrapperStyle={{ fontSize: '10px', fontWeight: 800, color: '#94a3b8', paddingTop: '10px' }} 
         />
-        <Bar dataKey="cons" name="Consumo (kWh)" fill="#0ea5e9" radius={[2, 2, 0, 0]} maxBarSize={32} />
-        <Bar dataKey="gen"  name="Geração (kWh)" fill="#f59e0b" radius={[2, 2, 0, 0]} maxBarSize={32} />
+        <Bar 
+          dataKey="baseCons" 
+          name="Consumo Base (kWh)" 
+          stackId="cons" 
+          fill="#0ea5e9" 
+          radius={[0, 0, 0, 0]} 
+          maxBarSize={32} 
+        />
+        <Bar 
+          dataKey="addedLoad" 
+          name="Carga Adicional (kWh)" 
+          stackId="cons" 
+          fill="#0369a1" 
+          radius={[2, 2, 0, 0]} 
+          maxBarSize={32} 
+        />
+        <Bar 
+          dataKey="gen"  
+          name="Geração (kWh)" 
+          fill="#f59e0b" 
+          radius={[2, 2, 0, 0]} 
+          maxBarSize={32} 
+        />
       </BarChart>
     </ResponsiveContainer>
   );

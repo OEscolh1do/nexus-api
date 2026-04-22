@@ -157,6 +157,31 @@ export const ProjectionCanvasView: React.FC = () => {
     return totalW / 1000;
   }, [techStrings, placedModules, modulesById, modules]);
 
+  // ── Derived: Cargas Adicionadas (Simulações de Consumo Futuro) ───────────────
+  const simulatedItems = useSolarStore((s) => s.simulatedItems.entities);
+  
+  const additionalLoadsMonthly = useMemo(() => {
+    const months = Array(12).fill(0);
+    Object.values(simulatedItems).forEach((item) => {
+      // Cálculo base: (W * Fator * Horas * Dias * Qtd) / 1000 = kWh/mês
+      const monthlyKwh = (item.power * (item.dutyCycle ?? 1) * item.hoursPerDay * (item.daysPerMonth ?? 30) * item.qty) / 1000;
+      
+      if (item.perfil === 'verao') {
+        // Perfil Sazonal: Ar-condicionado/Refrigeração
+        const factors = [1.5, 1.5, 1.2, 0.8, 0.5, 0.5, 0.5, 0.5, 0.8, 1.2, 1.5, 1.5];
+        factors.forEach((f, i) => { months[i] += monthlyKwh * f; });
+      } else if (item.perfil === 'inverno') {
+        // Perfil Sazonal: Aquecimento
+        const factors = [0.5, 0.5, 0.8, 1.2, 1.5, 1.5, 1.5, 1.5, 1.2, 0.8, 0.5, 0.5];
+        factors.forEach((f, i) => { months[i] += monthlyKwh * f; });
+      } else {
+        // Constante (Ex: Carregador EV, Maquinário)
+        for (let i = 0; i < 12; i++) { months[i] += monthlyKwh; }
+      }
+    });
+    return months;
+  }, [simulatedItems]);
+
   // ── Gate: dados suficientes? ────────────────────────────────────────────────
   const hasData = totalPowerKw > 0 && hsp.some((v: number) => v > 0);
 
@@ -187,12 +212,13 @@ export const ProjectionCanvasView: React.FC = () => {
       totalPowerKw,
       hsp,
       monthlyConsumption,
+      additionalLoadsMonthly,
       prDecimal,
       connectionType,
       tariffRate,
       cosip
     });
-  }, [hasData, totalPowerKw, hsp, monthlyConsumption, prDecimal, connectionType, tariffRate, cosip]);
+  }, [hasData, totalPowerKw, hsp, monthlyConsumption, additionalLoadsMonthly, prDecimal, connectionType, tariffRate, cosip]);
 
   // ═════════════════════════════════════════════════════════════════════════
   // RENDER
@@ -317,6 +343,7 @@ export const ProjectionCanvasView: React.FC = () => {
           <ProjectionMetrics
             totalGen={stats!.totalGen}
             totalCons={stats!.totalCons}
+            addedLoadKwh={additionalLoadsMonthly.reduce((a, b) => a + b, 0)}
             coverage={stats!.coverage}
             economiaAno={stats!.economiaAno}
             totalPowerKw={totalPowerKw}

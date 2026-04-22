@@ -2,6 +2,7 @@ import React from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, LabelList } from 'recharts';
 import { FinancialWaterfallData } from '../../../../utils/projectionMath';
 import { ArrowDownRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface FinancialBalanceChartProps {
   data: FinancialWaterfallData[];
@@ -36,44 +37,61 @@ const CustomTooltip = ({ active, payload }: any) => {
 };
 
 export const FinancialBalanceChart: React.FC<FinancialBalanceChartProps> = ({ data }) => {
-  // Extrair valores para a comparação simplificada (De acordo com a nova lógica de segregação)
+  // Extrair valores do motor de cálculo
+  const faturaBase = data.find(d => d.label === 'Fatura Atual')?.value || 0;
+  const custoAdicional = data.find(d => d.label === 'Custo Novas Cargas')?.value || 0;
   const availability = data.find(d => d.label === 'Custo Disponibilidade')?.value || 0;
-  const compensable = data.find(d => d.label === 'Energia Compensável')?.value || 0;
   const cosip = data.find(d => d.label === 'Iluminação Pública')?.value || 0;
   const savings = data.find(d => d.label === 'Economia Solar')?.value || 0;
   const newTotal = data.find(d => d.label === 'Nova Fatura')?.value || 0;
 
-  const originalTotal = availability + compensable;
+  const hasAdditionalLoad = custoAdicional > 1; // Tolerance for floating point
+  const projectedTotal = faturaBase + custoAdicional;
 
   const chartData = [
     {
       name: 'ATUAL',
-      total: originalTotal + cosip,
+      total: faturaBase,
       type: 'before',
-      details: [
-        { label: 'Energia da Rede', value: originalTotal },
-        { label: 'Ilum. Pública', value: cosip }
-      ]
-    },
-    {
-      name: 'COM SOLAR',
-      total: newTotal,
-      type: 'after',
-      details: [
-        { label: 'Piso ANEEL', value: availability },
-        { label: 'Ilum. Pública', value: cosip }
-      ]
+      details: [{ label: 'Consumo Histórico', value: faturaBase }]
     }
   ];
 
-  const savingsPct = originalTotal > 0 ? (Math.abs(savings) / (originalTotal + cosip) * 100).toFixed(0) : 0;
+  if (hasAdditionalLoad) {
+    chartData.push({
+      name: 'PROJETADO',
+      total: projectedTotal,
+      type: 'projected',
+      details: [
+        { label: 'Carga Base', value: faturaBase },
+        { label: 'Novas Cargas', value: custoAdicional }
+      ]
+    });
+  }
+
+  chartData.push({
+    name: 'COM SOLAR',
+    total: newTotal,
+    type: 'after',
+    details: [
+      { label: 'Piso ANEEL', value: availability },
+      { label: 'Ilum. Pública', value: cosip }
+    ]
+  });
+
+  // A economia deve ser comparada ao que ele PAGARIA (Projetado) se não tivesse solar
+  const comparisonBase = hasAdditionalLoad ? projectedTotal : faturaBase;
+  const savingsPct = comparisonBase > 0 ? (Math.abs(savings) / comparisonBase * 100).toFixed(0) : 0;
 
   return (
     <div className="w-full h-full flex flex-col">
       <div className="flex-1 min-h-0 relative">
         {/* Selo de Economia Flutuante */}
-        {originalTotal > 0 && (
-          <div className="absolute top-[35%] left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center pointer-events-none select-none">
+        {comparisonBase > 0 && (
+          <div className={cn(
+            "absolute top-[35%] z-10 flex flex-col items-center pointer-events-none select-none transition-all duration-500",
+            hasAdditionalLoad ? "left-[66%]" : "left-1/2 -translate-x-1/2"
+          )}>
             <div className="bg-emerald-500/10 border border-emerald-500/20 backdrop-blur-md px-3 py-2 rounded-sm flex flex-col items-center shadow-xl animate-in fade-in zoom-in duration-500">
               <div className="flex items-center gap-1 text-emerald-400">
                 <ArrowDownRight size={14} className="animate-bounce" />
@@ -106,9 +124,17 @@ export const FinancialBalanceChart: React.FC<FinancialBalanceChartProps> = ({ da
               {chartData.map((entry, index) => (
                 <Cell 
                   key={`cell-${index}`} 
-                  fill={entry.type === 'before' ? '#1e293b' : '#10b981'} 
-                  fillOpacity={entry.type === 'before' ? 0.8 : 0.9}
-                  stroke={entry.type === 'before' ? '#334155' : '#34d399'}
+                  fill={
+                    entry.type === 'before' ? '#1e293b' : 
+                    entry.type === 'projected' ? '#334155' :
+                    '#10b981'
+                  } 
+                  fillOpacity={entry.type === 'after' ? 0.9 : 0.8}
+                  stroke={
+                    entry.type === 'before' ? '#334155' : 
+                    entry.type === 'projected' ? '#475569' :
+                    '#34d399'
+                  }
                   strokeWidth={1}
                 />
               ))}
@@ -116,12 +142,12 @@ export const FinancialBalanceChart: React.FC<FinancialBalanceChartProps> = ({ da
                 dataKey="total" 
                 position="top" 
                 content={(props: any) => {
-                  const { x, y, width, value } = props;
+                  const { x, y, width, value, index } = props;
                   return (
                     <text 
                       x={x + width / 2} 
                       y={y - 12} 
-                      fill={value > originalTotal ? '#94a3b8' : '#34d399'} 
+                      fill={chartData[index].type === 'after' ? '#34d399' : '#94a3b8'} 
                       textAnchor="middle" 
                       className="text-[12px] font-black font-mono tabular-nums"
                     >
