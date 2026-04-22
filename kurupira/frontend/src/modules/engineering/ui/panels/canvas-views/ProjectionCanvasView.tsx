@@ -230,89 +230,98 @@ export const ProjectionCanvasView: React.FC = () => {
       {/* ── Main Viewport (Central) ────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar">
 
-
       {/* ══════════════════════════════════════════════════════════════════
           HEADER HUD — Barra fixa de identidade e métricas vitais
       ══════════════════════════════════════════════════════════════════ */}
-      <div className="shrink-0 flex items-center gap-0 border-b border-amber-900/40 bg-gradient-to-r from-amber-950/40 to-slate-950 sticky top-0 z-10">
-        <div className="flex items-center gap-3 px-5 py-3 border-r border-amber-900/30">
-          <div className="w-6 h-6 rounded-sm flex items-center justify-center bg-amber-500/10 border border-amber-500/20 text-amber-400">
-            <TrendingUp size={13} />
+      <div className="shrink-0 flex items-center gap-0 border-b border-slate-800/60 bg-[#020617] sticky top-0 z-20 h-14">
+        
+        {/* Identidade da View */}
+        <div className="flex items-center gap-2 sm:gap-3 px-4 sm:px-6 h-full border-r border-slate-800/40 bg-gradient-to-b from-amber-500/[0.03] to-transparent shrink-0">
+          <div className="w-8 h-8 rounded-sm flex items-center justify-center bg-amber-500/10 border border-amber-500/20 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.05)]">
+            <TrendingUp size={16} />
           </div>
-          <div className="flex flex-col">
-            <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest leading-none">
-              Cockpit de Projeção
-            </span>
+          <div className="hidden sm:flex flex-col">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black text-amber-500 uppercase tracking-[0.2em] leading-none">
+                Projection
+              </span>
+              <div className="w-1 h-1 rounded-full bg-amber-500/40 animate-pulse" />
+            </div>
             {stats && (
-              <span className="text-[9px] text-amber-700 font-bold uppercase tracking-tight mt-0.5">
-                {stats.totalGen.toLocaleString('pt-BR')} kWh/ano estimados
+              <span className="hidden lg:block text-[9px] text-slate-500 font-bold uppercase tracking-tight mt-1 font-mono">
+                {stats.totalGen.toLocaleString('pt-BR')} kWh/year est.
               </span>
             )}
           </div>
         </div>
 
-        <div className="flex items-center divide-x divide-slate-800/60 ml-auto">
+        {/* Controles & Métricas (Lado Direito) */}
+        <div className="flex items-center h-full ml-auto divide-x divide-slate-800/40 overflow-hidden">
           
-          {/* Toggles de Visão (Ruído vs Teórica) */}
-          <div className="flex items-center px-4 gap-1">
-            <button
-              onClick={() => setWithNoise(false)}
-              className={cn(
-                "px-2 py-1 text-[8px] font-black uppercase tracking-widest transition-all border",
-                !withNoise 
-                  ? "bg-sky-500/20 border-sky-500/40 text-sky-400" 
-                  : "bg-slate-900/50 border-slate-800 text-slate-500 hover:text-slate-400"
-              )}
-            >
-              Curva Teórica
-            </button>
-            <button
-              onClick={() => setWithNoise(true)}
-              className={cn(
-                "px-2 py-1 text-[8px] font-black uppercase tracking-widest transition-all border",
-                withNoise 
-                  ? "bg-amber-500/20 border-amber-500/40 text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.1)]" 
-                  : "bg-slate-900/50 border-slate-800 text-slate-500 hover:text-slate-400"
-              )}
-            >
-              Simulação Realista
-            </button>
+          {/* Segmented Toggle: Engine Mode */}
+          <div className="flex items-center px-3 sm:px-6 shrink-0">
+            <div className="flex bg-slate-900/50 p-1 rounded-sm border border-slate-800/60">
+              <button
+                onClick={() => setWithNoise(false)}
+                className={cn(
+                  "px-2 sm:px-3 py-1 text-[8px] font-black uppercase tracking-widest transition-all rounded-[1px]",
+                  !withNoise 
+                    ? "bg-slate-800 text-sky-400 shadow-sm" 
+                    : "text-slate-500 hover:text-slate-400"
+                )}
+              >
+                <span className="sm:inline">Teórica</span>
+                <span className="sm:hidden text-[10px]">T</span>
+              </button>
+              <button
+                onClick={() => setWithNoise(true)}
+                className={cn(
+                  "px-2 sm:px-3 py-1 text-[8px] font-black uppercase tracking-widest transition-all rounded-[1px]",
+                  withNoise 
+                    ? "bg-amber-500/10 text-amber-400 shadow-[inset_0_0_8px_rgba(245,158,11,0.1)]" 
+                    : "text-slate-500 hover:text-slate-400"
+                )}
+              >
+                <span className="sm:inline">Realista</span>
+                <span className="sm:hidden text-[10px]">R</span>
+              </button>
+            </div>
           </div>
 
+          {/* PR Inspector */}
           <button
             onClick={() => useUIStore.getState().toggleLossSidebar()}
             className={cn(
-              "flex flex-col items-end px-5 py-2 transition-all group relative border-l border-slate-800/60",
-              useUIStore((s) => s.isLossSidebarOpen)
-                ? "bg-amber-500/10"
-                : "hover:bg-amber-500/5"
+              "flex flex-col items-center justify-center px-3 sm:px-6 h-full transition-all group relative min-w-[80px] sm:min-w-[100px] shrink-0",
+              useUIStore((s) => s.isLossSidebarOpen) ? "bg-amber-500/5" : "hover:bg-slate-900/40"
             )}
           >
-            <div className="flex items-center gap-1.5 leading-none">
-              <span className="text-[9px] font-black text-slate-600 group-hover:text-amber-500/70 uppercase tracking-widest transition-colors">
-                Decomposição PR
-              </span>
-              <Sliders size={8} className={cn(
-                "transition-colors",
-                useUIStore((s) => s.isLossSidebarOpen) ? "text-amber-400" : "text-slate-700 group-hover:text-amber-500/60"
-              )} />
-            </div>
-            <div className="flex items-baseline gap-1 mt-0.5">
+            <span className="text-[8px] font-black text-slate-500 group-hover:text-amber-500/70 uppercase tracking-widest transition-colors mb-0.5">
+              PR
+            </span>
+            <div className="flex items-center gap-1.5">
               <span className={cn(
-                "text-[14px] font-black font-mono tabular-nums leading-none transition-transform origin-right group-active:scale-95",
-                useUIStore((s) => s.isLossSidebarOpen) ? "text-amber-300" : "text-amber-400 group-hover:text-amber-300"
+                "text-[13px] sm:text-[15px] font-black font-mono tabular-nums leading-none tracking-tighter",
+                useUIStore((s) => s.isLossSidebarOpen) ? "text-amber-300" : "text-amber-400"
               )}>
                 {prPct}%
               </span>
-              <span className="text-[8px] font-bold text-slate-700 group-hover:text-amber-600/70 uppercase">PR</span>
+              <Sliders size={10} className={cn(
+                "hidden xs:block transition-colors",
+                useUIStore((s) => s.isLossSidebarOpen) ? "text-amber-400" : "text-slate-700 group-hover:text-slate-500"
+              )} />
             </div>
+            {useUIStore((s) => s.isLossSidebarOpen) && (
+              <div className="absolute bottom-0 left-0 w-full h-[2px] bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
+            )}
           </button>
 
+          {/* Metric Block: Cobertura */}
           {stats && (
-            <div className="flex flex-col items-end px-5 py-2">
-              <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Cobertura</span>
+            <div className="flex flex-col items-center justify-center px-3 sm:px-6 h-full min-w-[80px] sm:min-w-[100px] bg-gradient-to-b from-transparent to-slate-900/20 shrink-0">
+              <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">COV</span>
               <span className={cn(
-                'text-[14px] font-black font-mono tabular-nums leading-none',
+                'text-[13px] sm:text-[15px] font-black font-mono tabular-nums leading-none tracking-tighter',
                 stats.coverage >= 100 ? 'text-emerald-400' : 'text-rose-400'
               )}>
                 {Math.round(stats.coverage)}%
@@ -320,13 +329,16 @@ export const ProjectionCanvasView: React.FC = () => {
             </div>
           )}
 
-          <div className="flex flex-col items-end px-5 py-2">
-            <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Potência CC</span>
-            <span className="text-[14px] font-black font-mono tabular-nums text-slate-300 leading-none">
-              {totalPowerKw.toFixed(2)} kWp
-            </span>
+          {/* Metric Block: Potência (Oculto em telas menores) */}
+          <div className="hidden md:flex flex-col items-center justify-center px-6 h-full min-w-[100px] shrink-0">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Capacity</span>
+            <div className="flex items-baseline gap-1">
+              <span className="text-[15px] font-black font-mono tabular-nums text-slate-200 leading-none tracking-tighter">
+                {totalPowerKw.toFixed(2)}
+              </span>
+              <span className="text-[8px] font-bold text-slate-600 uppercase">kWp</span>
+            </div>
           </div>
-
 
         </div>
       </div>

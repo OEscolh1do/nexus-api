@@ -25,47 +25,59 @@ interface DailyGenerationChartProps {
 export const DailyGenerationChart: React.FC<DailyGenerationChartProps> = ({ 
   data 
 }) => {
+  // Ajusta o intervalo dos ticks do eixo X conforme a largura da tela (lógica simplificada)
+  const getTickInterval = () => {
+    if (typeof window !== 'undefined' && window.innerWidth < 640) return 23; // Exibe menos ticks em mobile
+    return 15; // Padrão para desktop
+  };
+
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <AreaChart data={data} margin={{ top: 10, right: 8, left: -24, bottom: 0 }}>
-        <defs>
-          <linearGradient id="gradDaily" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%"  stopColor="#f59e0b" stopOpacity={0.6} />
-            <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.05} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid strokeDasharray="2 4" stroke="#1e293b" vertical={false} />
-        <XAxis 
-          dataKey="hora" 
-          stroke="#334155" 
-          tick={{ fill: '#475569', fontSize: 9 }} 
-          axisLine={false} 
-          tickLine={false} 
-          interval={15} 
-        />
-        <YAxis 
-          stroke="#334155" 
-          tick={{ fill: '#475569', fontSize: 9 }} 
-          axisLine={false} 
-          tickLine={false} 
-        />
-        <Tooltip 
-          {...TOOLTIP_STYLE} 
-          formatter={(value: number | string | undefined) => [`${Number(value || 0).toFixed(3)} kWh`, 'Geração']}
-          labelStyle={{ color: '#64748b', marginBottom: '4px' }}
-        />
-        
-        {/* Camada de Geração (Destaque Único) */}
-        <Area 
-          type="monotone" 
-          dataKey="Geração (kWh)" 
-          name="Geração"
-          stroke="#f59e0b" 
-          fill="url(#gradDaily)" 
-          strokeWidth={2} 
-          animationDuration={1000}
-        />
-      </AreaChart>
-    </ResponsiveContainer>
+    <div className="w-full h-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart 
+          data={data} 
+          margin={{ top: 10, right: 8, left: -25, bottom: 0 }}
+        >
+          <defs>
+            <linearGradient id="gradDaily" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%"  stopColor="#f59e0b" stopOpacity={0.4} />
+              <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="2 4" stroke="#1e293b" vertical={false} />
+          <XAxis 
+            dataKey="hora" 
+            stroke="#334155" 
+            tick={{ fill: '#475569', fontSize: 9, fontFamily: 'monospace' }} 
+            axisLine={false} 
+            tickLine={false} 
+            interval={getTickInterval()} 
+          />
+          <YAxis 
+            stroke="#334155" 
+            tick={{ fill: '#475569', fontSize: 9, fontFamily: 'monospace' }} 
+            axisLine={false} 
+            tickLine={false}
+            width={40}
+          />
+          <Tooltip 
+            {...TOOLTIP_STYLE} 
+            formatter={(value: number | string | undefined) => [`${Number(value || 0).toFixed(3)} kWh`, 'Geração']}
+            labelStyle={{ color: '#fbbf24', marginBottom: '4px', fontSize: '9px', textTransform: 'uppercase' }}
+          />
+          
+          <Area 
+            type="monotone" 
+            dataKey="Geração (kWh)" 
+            name="Geração"
+            stroke="#f59e0b" 
+            fill="url(#gradDaily)" 
+            strokeWidth={2} 
+            animationDuration={1000}
+            activeDot={{ r: 4, strokeWidth: 0, fill: '#f59e0b' }}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
   );
 };

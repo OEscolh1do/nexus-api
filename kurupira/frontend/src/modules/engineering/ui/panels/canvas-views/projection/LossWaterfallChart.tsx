@@ -85,36 +85,61 @@ export const LossWaterfallChart: React.FC = () => {
 
   const chartData = generateData();
 
+  // Encurta os rótulos para mobile
+  const formatLabel = (name: string) => {
+    if (typeof window !== 'undefined' && window.innerWidth < 640) {
+      const shortcuts: Record<string, string> = {
+        'Orientação': 'Ori.',
+        'Inclinação': 'Inc.',
+        'Sombreamento': 'Somb.',
+        'Horizonte': 'Horiz.',
+        'Temperatura': 'Temp.',
+        'Cabos CC': 'CC',
+        'Cabos AC': 'AC',
+        'Inversor': 'Inv.',
+        'Real (PR)': 'PR'
+      };
+      return shortcuts[name] || name.substring(0, 4) + '.';
+    }
+    return name;
+  };
+
   return (
     <div className="w-full h-full">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={chartData} margin={{ top: 20, right: 10, left: -25, bottom: 0 }}>
+        <BarChart 
+          data={chartData} 
+          margin={{ top: 25, right: 10, left: -25, bottom: 0 }}
+        >
           <CartesianGrid strokeDasharray="2 4" stroke="#1e293b" vertical={false} />
           <XAxis 
             dataKey="name" 
             stroke="#334155" 
-            tick={{ fill: '#475569', fontSize: 8, fontWeight: 700 }} 
+            tick={{ fill: '#475569', fontSize: 8, fontWeight: 700, fontFamily: 'monospace' }} 
             axisLine={false} 
             tickLine={false}
+            tickFormatter={formatLabel}
           />
           <YAxis 
-            domain={[0, 105]} 
+            domain={[0, 110]} 
             stroke="#334155" 
-            tick={{ fill: '#475569', fontSize: 9 }} 
+            tick={{ fill: '#475569', fontSize: 9, fontFamily: 'monospace' }} 
             axisLine={false} 
             tickLine={false} 
+            width={40}
           />
           <Tooltip 
+            cursor={{ fill: 'rgba(255,255,255,0.03)' }}
             content={({ active, payload }) => {
               if (active && payload && payload.length) {
                 const d = payload[0].payload;
                 return (
-                  <div className="bg-slate-950 border border-slate-800 p-2 shadow-xl rounded-sm">
-                    <p className="text-[10px] font-black text-slate-500 uppercase mb-1">{d.name}</p>
+                  <div className="bg-slate-950/90 backdrop-blur-md border border-slate-800 p-2 shadow-2xl rounded-sm">
+                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{d.name}</p>
                     <div className="flex items-baseline gap-1">
                       <span className={cn(
-                        "text-sm font-black",
-                        d.type === 'loss' ? "text-rose-500" : "text-white"
+                        "text-xs font-mono font-black",
+                        d.type === 'loss' ? "text-rose-500" : d.type === 'total' ? "text-emerald-400" : "text-slate-300"
                       )}>
                         {d.display.toFixed(2)}%
                       </span>
@@ -129,15 +154,15 @@ export const LossWaterfallChart: React.FC = () => {
             {chartData.map((entry, index) => (
               <Cell 
                 key={`cell-${index}`} 
-                fill={entry.type === 'base' ? '#334155' : entry.type === 'loss' ? '#f43f5e' : '#10b981'} 
-                fillOpacity={entry.type === 'loss' ? 0.6 : 0.8}
+                fill={entry.type === 'base' ? '#1e293b' : entry.type === 'loss' ? '#f43f5e' : '#10b981'} 
+                fillOpacity={entry.type === 'loss' ? 0.6 : 0.9}
               />
             ))}
             <LabelList 
               dataKey="display" 
               position="top" 
-              formatter={(v: any) => `${Number(v).toFixed(1)}%`}
-              style={{ fill: '#64748b', fontSize: 8, fontWeight: 'bold' }}
+              formatter={(v: any) => `${v > 0 ? '+' : ''}${Number(v).toFixed(1)}%`}
+              style={{ fill: '#475569', fontSize: 7, fontWeight: '900', fontFamily: 'monospace' }}
             />
           </Bar>
         </BarChart>

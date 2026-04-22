@@ -24,50 +24,69 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
   const sumDeficit   = data.reduce((a, d) => a + d.deficit, 0);
 
   return (
-    <div className="h-full overflow-auto custom-scrollbar">
-      <table className="w-full text-[10px]">
-        <thead>
-          <tr className="border-b border-slate-800">
-            {['Mês', 'Geração kWh', 'Consumo kWh', 'Excedente', 'Déficit', 'Economia'].map((h) => (
-              <th key={h} className="px-3 py-2 text-left font-black text-slate-600 uppercase tracking-widest">
+    <div className="h-full overflow-auto custom-scrollbar relative border border-slate-800/40 rounded-sm bg-slate-950/20">
+      <table className="w-full text-[9px] sm:text-[10px] border-collapse min-w-[600px]">
+        <thead className="sticky top-0 z-20 bg-slate-950 shadow-[0_1px_0_rgba(255,255,255,0.05)]">
+          <tr>
+            <th className="sticky left-0 z-30 bg-slate-950 px-4 py-2.5 text-left font-black text-slate-500 uppercase tracking-widest border-r border-slate-800/60 shadow-[2px_0_5_rgba(0,0,0,0.3)]">
+              Mês
+            </th>
+            {['Geração', 'Consumo', 'Excedente', 'Déficit', 'Economia'].map((h) => (
+              <th key={h} className="px-4 py-2.5 text-right font-black text-slate-600 uppercase tracking-widest">
                 {h}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody>
+        <tbody className="divide-y divide-slate-900/50">
           {data.map((d) => (
-            <tr key={d.month} className="border-b border-slate-900/50 hover:bg-slate-900/40 transition-colors">
-              <td className="px-3 py-1.5 font-black text-slate-300">{d.month}</td>
-              <td className="px-3 py-1.5 font-mono text-amber-400">{Math.round(d.gen).toLocaleString('pt-BR')}</td>
-              <td className="px-3 py-1.5 font-mono text-sky-400 flex flex-col">
-                <span>{Math.round(d.cons).toLocaleString('pt-BR')}</span>
-                {d.addedLoad > 0 && (
-                  <span className="text-[7px] text-slate-600 font-bold uppercase tracking-tighter -mt-0.5">
-                    ({Math.round(d.baseCons)} + {Math.round(d.addedLoad)})
-                  </span>
-                )}
+            <tr key={d.month} className="group hover:bg-slate-800/30 transition-colors">
+              <td className="sticky left-0 z-10 bg-slate-950 px-4 py-2 font-black text-slate-400 border-r border-slate-800/60 group-hover:text-slate-100 transition-colors shadow-[2px_0_5_rgba(0,0,0,0.3)]">
+                {d.month}
               </td>
-              <td className="px-3 py-1.5 font-mono text-violet-400">{Math.round(d.excedente).toLocaleString('pt-BR')}</td>
-              <td className="px-3 py-1.5 font-mono text-rose-400">{Math.round(d.deficit).toLocaleString('pt-BR')}</td>
-              <td className="px-3 py-1.5 font-mono text-emerald-300 font-black">
+              <td className="px-4 py-2 font-mono text-right text-amber-400 tabular-nums">
+                {Math.round(d.gen).toLocaleString('pt-BR')}
+              </td>
+              <td className="px-4 py-2 font-mono text-right text-sky-400 tabular-nums">
+                <div className="flex flex-col items-end">
+                  <span>{Math.round(d.cons).toLocaleString('pt-BR')}</span>
+                  {d.addedLoad > 0 && (
+                    <span className="text-[7px] text-slate-600 font-bold uppercase tracking-tighter -mt-0.5 opacity-60">
+                      (+{Math.round(d.addedLoad)})
+                    </span>
+                  )}
+                </div>
+              </td>
+              <td className="px-4 py-2 font-mono text-right text-violet-400 tabular-nums">
+                {Math.round(d.excedente).toLocaleString('pt-BR')}
+              </td>
+              <td className="px-4 py-2 font-mono text-right text-rose-400 tabular-nums">
+                {Math.round(d.deficit).toLocaleString('pt-BR')}
+              </td>
+              <td className="px-4 py-2 font-mono text-right text-emerald-400 font-black tabular-nums">
                 {tariffRate > 0 ? `R$ ${formatBRL(d.economiaMes)}` : '—'}
               </td>
             </tr>
           ))}
         </tbody>
-        <tfoot>
-          <tr className="border-t border-slate-700 bg-slate-900/40">
-            <td className="px-3 py-2 font-black text-slate-300">TOTAL</td>
-            <td className="px-3 py-2 font-mono font-black text-amber-300">{totalGen.toLocaleString('pt-BR')}</td>
-            <td className="px-3 py-2 font-mono font-black text-sky-300">{totalCons.toLocaleString('pt-BR')}</td>
-            <td className="px-3 py-2 font-mono font-black text-violet-300">
+        <tfoot className="sticky bottom-0 z-20">
+          <tr className="bg-slate-900 shadow-[0_-1px_0_rgba(255,255,255,0.05)] border-t-2 border-slate-700">
+            <td className="sticky left-0 z-30 bg-slate-900 px-4 py-3 font-black text-slate-300 border-r border-slate-800/60 shadow-[2px_0_5px_rgba(0,0,0,0.3)] uppercase tracking-wider">
+              TOTAL
+            </td>
+            <td className="px-4 py-3 font-mono font-black text-right text-amber-300 tabular-nums">
+              {totalGen.toLocaleString('pt-BR')}
+            </td>
+            <td className="px-4 py-3 font-mono font-black text-right text-sky-300 tabular-nums">
+              {totalCons.toLocaleString('pt-BR')}
+            </td>
+            <td className="px-4 py-3 font-mono font-black text-right text-violet-300 tabular-nums">
               {Math.round(sumExcedente).toLocaleString('pt-BR')}
             </td>
-            <td className="px-3 py-2 font-mono font-black text-rose-300">
+            <td className="px-4 py-3 font-mono font-black text-right text-rose-300 tabular-nums">
               {Math.round(sumDeficit).toLocaleString('pt-BR')}
             </td>
-            <td className="px-3 py-2 font-mono font-black text-emerald-300">
+            <td className="px-4 py-3 font-mono font-black text-right text-emerald-400 tabular-nums">
               {tariffRate > 0 ? `R$ ${formatBRL(economiaAno)}` : '—'}
             </td>
           </tr>

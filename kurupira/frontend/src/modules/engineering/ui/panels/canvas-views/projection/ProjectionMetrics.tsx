@@ -24,9 +24,9 @@ interface KpiCardProps {
 const KpiCard: React.FC<KpiCardProps> = ({ 
   label, value, unit, color, icon, sub 
 }) => (
-  <div className="flex flex-col gap-1 px-4 py-3 bg-black/40 hover:bg-black/60 transition-colors min-w-0">
+  <div className="flex flex-col gap-1 px-4 py-3 bg-slate-900/40 hover:bg-slate-900/60 transition-colors min-w-0">
     <div className="flex items-center gap-1.5">
-      <span className={cn('opacity-60', color)}>{icon}</span>
+      <span className={cn('opacity-70', color)}>{icon}</span>
       <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest truncate">
         {label}
       </span>
@@ -113,7 +113,7 @@ export const ProjectionMetrics: React.FC<ProjectionMetricsProps> = ({
         label="Árvores Plantadas"
         value={Math.round(treesSaved).toString()}
         unit="un"
-        color="text-emerald-500"
+        color="text-emerald-400"
         icon={<TreePine size={10} />}
         sub="Impacto por absorção"
       />
@@ -121,7 +121,7 @@ export const ProjectionMetrics: React.FC<ProjectionMetricsProps> = ({
         label="CO2 Evitado"
         value={co2Saved.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
         unit="kg/ano"
-        color="text-sky-400"
+        color="text-emerald-400"
         icon={<Cloud size={10} />}
         sub="Matriz Elétrica BR"
       />

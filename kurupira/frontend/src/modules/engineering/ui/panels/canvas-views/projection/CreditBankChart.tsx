@@ -23,7 +23,7 @@ const CustomTooltip = ({ active, payload }: any) => {
           )}
           {data.saque > 0 && (
             <div className="flex justify-between gap-4 items-center">
-              <span className="text-[9px] font-bold text-amber-500 uppercase">Reserva Utilizada</span>
+              <span className="text-[9px] font-bold text-sky-500 uppercase">Reserva Utilizada</span>
               <span className="text-[10px] font-black text-white tabular-nums">-{data.saque.toFixed(0)} kWh</span>
             </div>
           )}
@@ -43,72 +43,95 @@ interface CreditBankChartProps {
 }
 
 export const CreditBankChart: React.FC<CreditBankChartProps> = ({ data }) => {
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+
   // Preparar dados para visualização de saque (negativo no gráfico)
   const processedData = data.map(d => ({
     ...d,
     saqueVisual: -d.saque
   }));
 
+  // Formata o mês para apenas a inicial se o espaço for curto
+  const formatMonth = (value: string) => {
+    if (isMobile) return value.charAt(0).toUpperCase();
+    return value;
+  };
+
+  // Formata kWh para abreviação técnica (k para milhares)
+  const formatYAxis = (v: number) => {
+    if (Math.abs(v) >= 1000) return `${(v / 1000).toFixed(1)}k`;
+    return v.toString();
+  };
+
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <ComposedChart data={processedData} margin={{ top: 10, right: 8, left: -24, bottom: 0 }}>
-        <defs>
-          <linearGradient id="gradBank" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%"  stopColor="#8b5cf6" stopOpacity={0.25} />
-            <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        
-        <CartesianGrid strokeDasharray="2 4" stroke="#1e293b" vertical={false} />
-        
-        <XAxis 
-          dataKey="month" 
-          stroke="#334155" 
-          tick={{ fill: '#475569', fontSize: 9, fontWeight: 700 }} 
-          axisLine={false} 
-          tickLine={false} 
-        />
-        
-        <YAxis 
-          stroke="#334155" 
-          tick={{ fill: '#475569', fontSize: 9 }} 
-          axisLine={false} 
-          tickLine={false} 
-        />
-        
-        <Tooltip content={<CustomTooltip />} cursor={{ fill: '#1e293b', opacity: 0.3 }} />
-        
-        <ReferenceLine y={0} stroke="#334155" strokeWidth={1} />
+    <div className="w-full h-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <ComposedChart 
+          data={processedData} 
+          margin={{ top: 15, right: 10, left: -25, bottom: 0 }}
+        >
+          <defs>
+            <linearGradient id="gradBank" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%"  stopColor="#8b5cf6" stopOpacity={0.25} />
+              <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          
+          <CartesianGrid strokeDasharray="2 4" stroke="#1e293b" vertical={false} />
+          
+          <XAxis 
+            dataKey="month" 
+            stroke="#334155" 
+            tick={{ fill: '#475569', fontSize: 9, fontWeight: 700, fontFamily: 'monospace' }} 
+            axisLine={false} 
+            tickLine={false} 
+            tickFormatter={formatMonth}
+          />
+          
+          <YAxis 
+            stroke="#334155" 
+            tick={{ fill: '#475569', fontSize: 9, fontFamily: 'monospace' }} 
+            axisLine={false} 
+            tickLine={false} 
+            tickFormatter={formatYAxis}
+            width={40}
+          />
+          
+          <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.02)', opacity: 0.3 }} />
+          
+          <ReferenceLine y={0} stroke="#334155" strokeWidth={1} />
 
-        {/* Saldo Acumulado (Área de Fundo) */}
-        <Area
-          type="monotone"
-          dataKey="saldo"
-          stroke="#8b5cf6"
-          fill="url(#gradBank)"
-          strokeWidth={1.5}
-          isAnimationActive={true}
-        />
+          {/* Saldo Acumulado (Área de Fundo) */}
+          <Area
+            type="monotone"
+            dataKey="saldo"
+            stroke="#8b5cf6"
+            fill="url(#gradBank)"
+            strokeWidth={1.5}
+            isAnimationActive={true}
+            activeDot={{ r: 4, strokeWidth: 0, fill: '#8b5cf6' }}
+          />
 
-        {/* Depósitos (Geração Excedente) */}
-        <Bar 
-          dataKey="deposito" 
-          fill="#10b981" 
-          fillOpacity={0.7} 
-          radius={[2, 2, 0, 0]} 
-          barSize={12}
-        />
+          {/* Depósitos (Geração Excedente) */}
+          <Bar 
+            dataKey="deposito" 
+            fill="#10b981" 
+            fillOpacity={0.8} 
+            radius={[2, 2, 0, 0]} 
+            barSize={isMobile ? 8 : 12}
+          />
 
-        {/* Saques (Uso da Reserva) */}
-        <Bar 
-          dataKey="saqueVisual" 
-          fill="#f59e0b" 
-          fillOpacity={0.7} 
-          radius={[0, 0, 2, 2]} 
-          barSize={12}
-        />
-        
-      </ComposedChart>
-    </ResponsiveContainer>
+          {/* Saques (Uso da Reserva - Domínio Consumo) */}
+          <Bar 
+            dataKey="saqueVisual" 
+            fill="#0ea5e9" 
+            fillOpacity={0.8} 
+            radius={[0, 0, 2, 2]} 
+            barSize={isMobile ? 8 : 12}
+          />
+          
+        </ComposedChart>
+      </ResponsiveContainer>
+    </div>
   );
 };

@@ -26,45 +26,59 @@ interface CumulativeROIChartProps {
 }
 
 export const CumulativeROIChart: React.FC<CumulativeROIChartProps> = ({ data }) => {
+  // Formata valores monetários para abreviação técnica (k para milhares)
+  const formatYAxis = (v: number) => {
+    if (Math.abs(v) >= 1000) return `R$ ${v / 1000}k`;
+    return `R$ ${v}`;
+  };
+
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <AreaChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-        <defs>
-          <linearGradient id="gradROI" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%"  stopColor="#10b981" stopOpacity={0.4} />
-            <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid strokeDasharray="2 4" stroke="#1e293b" vertical={false} />
-        <XAxis 
-          dataKey="year" 
-          stroke="#334155" 
-          tick={{ fill: '#475569', fontSize: 10, fontWeight: 700 }} 
-          axisLine={false} 
-          tickLine={false}
-          label={{ value: 'Anos', position: 'insideBottomRight', offset: -5, fontSize: 8, fill: '#475569', fontWeight: 'bold' }}
-        />
-        <YAxis 
-          stroke="#334155" 
-          tickFormatter={(v) => `R$ ${v/1000}k`}
-          tick={{ fill: '#475569', fontSize: 10 }} 
-          axisLine={false} 
-          tickLine={false} 
-        />
-        <Tooltip 
-          {...TOOLTIP_STYLE} 
-          formatter={(value: any) => [formatBRL(Number(value)), 'Economia Acumulada']}
-          labelFormatter={(label) => `Ano ${label}`}
-        />
-        <Area 
-          type="monotone" 
-          dataKey="cumulative" 
-          stroke="#10b981" 
-          strokeWidth={3}
-          fill="url(#gradROI)" 
-          animationDuration={1500}
-        />
-      </AreaChart>
-    </ResponsiveContainer>
+    <div className="w-full h-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart 
+          data={data} 
+          margin={{ top: 10, right: 10, left: -15, bottom: 0 }}
+        >
+          <defs>
+            <linearGradient id="gradROI" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%"  stopColor="#10b981" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="2 4" stroke="#1e293b" vertical={false} />
+          <XAxis 
+            dataKey="year" 
+            stroke="#334155" 
+            tick={{ fill: '#475569', fontSize: 9, fontWeight: 700, fontFamily: 'monospace' }} 
+            axisLine={false} 
+            tickLine={false}
+            tickFormatter={(v) => `A${v}`}
+          />
+          <YAxis 
+            stroke="#334155" 
+            tickFormatter={formatYAxis}
+            tick={{ fill: '#475569', fontSize: 9, fontFamily: 'monospace' }} 
+            axisLine={false} 
+            tickLine={false} 
+            width={55}
+          />
+          <Tooltip 
+            {...TOOLTIP_STYLE} 
+            formatter={(value: any) => [formatBRL(Number(value)), 'Economia Acumulada']}
+            labelFormatter={(label) => `Ano ${label}`}
+            labelStyle={{ color: '#10b981', marginBottom: '4px' }}
+          />
+          <Area 
+            type="monotone" 
+            dataKey="cumulative" 
+            stroke="#10b981" 
+            strokeWidth={2}
+            fill="url(#gradROI)" 
+            animationDuration={1500}
+            activeDot={{ r: 4, strokeWidth: 0, fill: '#10b981' }}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
   );
 };
