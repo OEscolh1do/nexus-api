@@ -1,4 +1,4 @@
-import { Zap, MapPin, Sun, Cpu, Lock, ChevronsLeft, TrendingUp, FileText } from 'lucide-react';
+import { Zap, MapPin, Sun, Cpu, Lock, ChevronsLeft, TrendingUp } from 'lucide-react';
 import { useSolarStore, selectModules } from '@/core/state/solarStore';
 
 import { ComposerBlockModule } from './canvas-views/composer/ComposerBlockModule';
@@ -247,8 +247,6 @@ export const LeftOutliner: React.FC<{ onToggle?: () => void; hideHeader?: boolea
     const isArrangementValid = arrangementBlock.status !== 'empty';
     const isModulesValid = totalModules > 0;
     const isProjectionUnlocked = isConsumptionValid && isModulesValid && isArrangementValid;
-    const isApproved = useSolarStore(s => s.project.projectStatus === 'approved');
-    const isProposalUnlocked = isProjectionUnlocked && isApproved;
 
     return (
         <div className="h-full bg-slate-950 flex flex-col overflow-hidden relative">
@@ -340,19 +338,9 @@ export const LeftOutliner: React.FC<{ onToggle?: () => void; hideHeader?: boolea
                         />
                     )}
 
-                    {/* 7. Proposta — Final da Jornada */}
+                    {/* 7. Proposta — Sempre clicável; gate gerenciado pela ProposalCanvasView */}
                     <div className="h-1" />
-
-                    {isProposalUnlocked ? (
-                        <ComposerBlockProposal />
-                    ) : (
-                        <LockedBlock
-                            label="Proposta"
-                            icon={<FileText size={11} />}
-                            color="indigo"
-                            hint="Salve o projeto na Projeção para liberar a proposta"
-                        />
-                    )}
+                    <ComposerBlockProposal />
                 </div>
             </div>
         </div>

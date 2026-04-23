@@ -200,6 +200,10 @@ export const useSolarStore = create<SolarState>()(
           return {
             ...currentState,
             ...persistedState,
+            proposalData: {
+              ...currentState.proposalData,
+              ...(persistedState.proposalData || {}),
+            },
             project: {
               ...currentState.project,
               ...(persistedState.project || {}),
