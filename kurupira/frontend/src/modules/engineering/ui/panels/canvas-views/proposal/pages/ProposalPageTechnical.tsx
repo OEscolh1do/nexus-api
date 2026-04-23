@@ -3,7 +3,7 @@ import {
   AreaChart, Area, XAxis, YAxis,
   CartesianGrid, BarChart, Bar,
 } from 'recharts';
-import { MapPin, EyeOff } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import type { ProposalData } from '@/core/state/slices/proposalSlice';
 import type { ProjectionStats } from '@/modules/engineering/utils/projectionMath';
 
@@ -19,14 +19,9 @@ interface Props {
   [key: string]: any;
 }
 
-const GREEN       = '#2D6A4F';
-const GREEN_LIGHT = '#4CAF50';
-const PURPLE      = '#2D0A4E';
-
 /**
- * PÁGINA 3 — DIMENSIONAMENTO TÉCNICO
- * Fiel ao template: logo circular verde top-right, borda roxa no topo,
- * cards de irradiação em verde-bold, foto aérea, equipamentos com layout tabela vertical.
+ * PÁGINA 2 — DIMENSIONAMENTO TÉCNICO (Standardized)
+ * Cabeçalho Broken Grid, corpo branco técnico, métricas e equipamentos.
  */
 export const ProposalPageTechnical: React.FC<Props> = ({
   clientData,
@@ -37,7 +32,6 @@ export const ProposalPageTechnical: React.FC<Props> = ({
   firstInverter,
   inverterIds,
   stats,
-  isExportingPdf,
 }) => {
   const dateFormatted = new Intl.DateTimeFormat('pt-BR', {
     day: '2-digit', month: 'long', year: 'numeric',
@@ -47,263 +41,218 @@ export const ProposalPageTechnical: React.FC<Props> = ({
     ? (stats.totalGen / 365 / totalPowerKwp).toFixed(2)
     : '0.00';
 
+  // Cores unificadas
+  const GREEN = '#2D6A4F';
+  const GREEN_LIGHT = '#4CAF50';
+  const GREEN_MENTA = '#B7E4C7';
+  const GREEN_DARK = '#1a3d2b';
+  const PURPLE = '#2D0A4E';
+
   return (
     <div className="w-full min-h-[1123px] bg-white text-slate-800 flex flex-col font-sans relative overflow-hidden">
-      {/* Borda roxa topo — detalhe do template */}
-      <div style={{ height: '4px', backgroundColor: PURPLE }} />
+      
+      {/* ── HEADER PADRONIZADO (BROKEN GRID) ────────────────────────────── */}
+      <div
+        className="relative flex"
+        style={{ 
+          background: `linear-gradient(to right, ${GREEN} 0%, ${GREEN_LIGHT} 50%, ${GREEN_MENTA} 100%)`, 
+          minHeight: '280px',
+          borderTop: `6px solid ${GREEN_DARK}`,
+          marginBottom: '80px'
+        }}
+      >
+        <div className="flex-1 p-[48px] flex flex-col gap-4 z-10">
+          <div style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.15))' }}>
+            <img
+              src="/logos/logo-branco.png"
+              alt="Neonorte"
+              className="h-12 w-auto object-contain object-left"
+              style={{ maxWidth: '220px' }}
+            />
+          </div>
+          
+          <span style={{ 
+            fontSize: '12px', 
+            fontWeight: 800, 
+            color: '#FFFFFF', 
+            letterSpacing: '0.05em', 
+            marginTop: '4px',
+            textShadow: '0 1px 2px rgba(0,0,0,0.2)' 
+          }}>
+            {dateFormatted}
+          </span>
 
-      <div className="flex-1 p-[40px] flex flex-col gap-6">
-        {/* Header */}
-        <header className="flex justify-between items-start">
-          <div className="flex flex-col gap-1">
-            <h1
-              className="uppercase leading-tight"
-              style={{ fontSize: '22px', fontWeight: 900, color: PURPLE, letterSpacing: '0.01em' }}
-            >
-              Dimensionamento e<br />Viabilidade do Projeto
-            </h1>
-            <p style={{ fontSize: '10px', color: '#64748b', fontStyle: 'italic', maxWidth: '420px', lineHeight: '1.4' }}>
+          <div className="mt-6 flex flex-col gap-2 max-w-[420px]">
+            <p style={{ fontSize: '11px', fontWeight: 700, color: 'white', lineHeight: '1.4', textShadow: '0 1px 2px rgba(0,0,0,0.2)', opacity: 0.9 }}>
               No momento da contratação é estabelecido um contrato formal de prestação de serviços
               com a NEONORTE, responsável pelo faturamento e emissão de Nota Fiscal de Serviço.
             </p>
-            <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 600, letterSpacing: '0.12em' }}>
-              {dateFormatted}
-            </span>
           </div>
+        </div>
 
-          {/* Logo circular verde — badge do template */}
+        <div className="flex items-center justify-center relative z-20" style={{ paddingRight: '56px' }}>
           <div
-            className="flex items-center justify-center rounded-full overflow-hidden"
-            style={{ width: '72px', height: '72px', backgroundColor: GREEN_LIGHT, flexShrink: 0 }}
+            style={{ 
+              backgroundColor: 'white', 
+              border: '4px solid #111', 
+              padding: '44px 40px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              transform: 'translateY(100px)',
+              boxShadow: '0 25px 35px -5px rgba(0, 0, 0, 0.12)'
+            }}
           >
-            <img
-              src="/logos/simbolo-branco.png"
-              alt="Neonorte"
-              className="w-12 h-12 object-contain"
-            />
+            <h2 className="uppercase leading-[0.82]" style={{ fontSize: '58px', fontWeight: 900, color: PURPLE, letterSpacing: '-0.03em' }}>
+              DIMENSIO
+            </h2>
+            <h2 className="uppercase leading-[0.82]" style={{ fontSize: '58px', fontWeight: 900, color: PURPLE, letterSpacing: '-0.03em' }}>
+              NAMENTO
+            </h2>
           </div>
-        </header>
+        </div>
+      </div>
 
-        {/* Client + Project Summary */}
-        <section className="flex gap-4 items-start">
+      {/* ── CORPO BRANCO TÉCNICO ───────────────────────────────────────── */}
+      <div className="flex-1 p-[16px_48px_32px_48px] flex flex-col gap-6 relative">
+        <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
+          <img src="/logos/simbolo-verde.png" alt="" className="w-[600px] h-auto" />
+        </div>
+
+        <section className="relative z-10 flex gap-4 items-center">
+          <div className="w-0.5 h-6 bg-[#2D6A4F]" />
           <div className="flex flex-col">
-            <span style={{ fontSize: '10px', color: PURPLE, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '2px' }}>
+            <span style={{ fontSize: '12px', color: PURPLE, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
               {clientData.clientName || 'Cliente'}
             </span>
-            {/* Cards de potência + geração — estilo verde do template */}
-            <div className="flex gap-0 mt-1">
-              <div
-                className="px-5 py-3 flex flex-col"
-                style={{ backgroundColor: GREEN, color: 'white' }}
-              >
-                <span style={{ fontSize: '8px', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', opacity: 0.7 }}>
-                  PROJETO
-                </span>
-                <div className="flex items-baseline gap-1 mt-1">
-                  <span style={{ fontSize: '18px', fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>
-                    {totalPowerKwp.toFixed(2)}
-                  </span>
-                  <span style={{ fontSize: '11px', fontWeight: 700, opacity: 0.8 }}>kWp</span>
-                </div>
-              </div>
-              <div
-                className="px-5 py-3 flex flex-col"
-                style={{ backgroundColor: GREEN_LIGHT, color: 'white' }}
-              >
-                <span style={{ fontSize: '8px', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', opacity: 0.8 }}>
-                  GERAÇÃO
-                </span>
-                <div className="flex items-baseline gap-1 mt-1">
-                  <span style={{ fontSize: '18px', fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>
-                    {Math.round(stats.totalGen / 12).toLocaleString('pt-BR')}
-                  </span>
-                  <span style={{ fontSize: '11px', fontWeight: 700, opacity: 0.8 }}>kWh</span>
-                </div>
-              </div>
+            <span style={{ fontSize: '9px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Resumo de Capacidade e Performance</span>
+          </div>
+          
+          <div className="flex gap-0 ml-auto border border-slate-200 overflow-hidden rounded-sm shadow-sm">
+            <div className="px-5 py-2 flex flex-col items-center" style={{ backgroundColor: GREEN }}>
+              <span style={{ fontSize: '7px', fontWeight: 900, color: 'white', opacity: 0.8, textTransform: 'uppercase' }}>Projeto</span>
+              <span style={{ fontSize: '14px', fontWeight: 900, color: 'white' }}>{totalPowerKwp.toFixed(2)} kWp</span>
+            </div>
+            <div className="px-5 py-2 flex flex-col items-center" style={{ backgroundColor: GREEN_LIGHT }}>
+              <span style={{ fontSize: '7px', fontWeight: 900, color: 'white', opacity: 0.9, textTransform: 'uppercase' }}>Geração Média</span>
+              <span style={{ fontSize: '14px', fontWeight: 900, color: 'white' }}>{Math.round(stats.totalGen / 12).toLocaleString('pt-BR')} kWh</span>
             </div>
           </div>
         </section>
 
-        <div className="grid grid-cols-2 gap-6 flex-1">
+        <div className="grid grid-cols-2 gap-8 relative z-10 flex-1">
           {/* Coluna Esquerda: Texto + Gráficos */}
-          <div className="flex flex-col gap-5">
-            {/* Padrão Neonorte */}
+          <div className="flex flex-col gap-6">
             <div>
-              <h3 style={{ fontSize: '14px', fontWeight: 900, color: PURPLE, marginBottom: '8px' }}>
-                Padrão Neonorte
-              </h3>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-1 h-3 bg-[#4CAF50]" />
+                <h3 style={{ fontSize: '13px', fontWeight: 900, color: PURPLE, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Padrão de Qualidade Neonorte
+                </h3>
+              </div>
               {proposalData.customText ? (
-                <p style={{ fontSize: '11px', color: '#475569', lineHeight: '1.6', textAlign: 'justify' }}>
+                <p style={{ fontSize: '10.5px', color: '#334155', lineHeight: '1.6', textAlign: 'justify' }}>
                   {proposalData.customText}
                 </p>
               ) : (
-                <ul className="flex flex-col gap-1">
+                <div className="grid grid-cols-1 gap-2">
                   {[
                     'Inversores solares: 7 anos contra defeitos de fabricação.',
                     'Módulos FV: 25 anos na geração de energia (80% de eficiência).',
-                    'String Box e Estrutura: 12 meses de garantia contra defeitos de fabricação.',
-                    'Engenharia: 6 meses.',
-                    'Assistência e Consultoria Técnica do projeto: 6 meses.',
+                    'Engenharia e Consultoria: 6 meses de suporte dedicado.',
                   ].map((item, i) => (
-                    <li key={i} style={{ fontSize: '10px', color: '#475569', display: 'flex', gap: '6px', lineHeight: '1.4' }}>
-                      <span style={{ color: GREEN_LIGHT, fontWeight: 900, flexShrink: 0 }}>•</span>
-                      {item}
-                    </li>
+                    <div key={i} className="flex gap-3 items-center p-2 bg-slate-50 border-l-2 border-slate-200">
+                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: GREEN_LIGHT }} />
+                      <span style={{ fontSize: '10px', color: '#475569', fontWeight: 700 }}>{item}</span>
+                    </div>
                   ))}
-                </ul>
+                </div>
               )}
             </div>
 
-            {/* Histórico de Consumo */}
-            <div>
-              <h4 style={{ fontSize: '12px', fontWeight: 800, color: PURPLE, marginBottom: '8px' }}>
-                Histórico de consumo
-              </h4>
-              <div style={{ height: '110px', width: '100%' }}>
-                <AreaChart data={stats.barData} width={349} height={110}>
-                  {!isExportingPdf && (
-                    <defs>
-                      <linearGradient id="colorConsTechV2" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={PURPLE} stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor={PURPLE} stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                  )}
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="month" fontSize={8} axisLine={false} tickLine={false} tick={{fill: '#94a3b8'}} />
-                  <YAxis hide />
-                  <Area 
-                    type="monotone" 
-                    dataKey="cons" 
-                    stroke={PURPLE} 
-                    strokeWidth={2} 
-                    fillOpacity={isExportingPdf ? 0.2 : 1} 
-                    fill={isExportingPdf ? PURPLE : "url(#colorConsTechV2)"}
-                    dot={{ r: 2, fill: PURPLE }} 
-                    isAnimationActive={false} 
-                  />
-                </AreaChart>
+            <div className="grid grid-cols-1 gap-6">
+              <div>
+                <span style={{ fontSize: '9px', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px', display: 'block' }}>Histórico de Consumo Estimado</span>
+                <div style={{ height: '110px', width: '100%' }} className="bg-slate-50/50 p-2 rounded-sm border border-slate-100">
+                  <AreaChart data={stats.barData} width={340} height={100}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="month" fontSize={8} axisLine={false} tickLine={false} tick={{fill: '#94a3b8'}} />
+                    <YAxis hide />
+                    <Area type="monotone" dataKey="cons" stroke={PURPLE} strokeWidth={2} fill={PURPLE} fillOpacity={0.1} isAnimationActive={false} />
+                  </AreaChart>
+                </div>
               </div>
-            </div>
 
-            {/* Geração × Consumo */}
-            <div>
-              <h4 style={{ fontSize: '12px', fontWeight: 800, color: PURPLE, marginBottom: '8px' }}>
-                Geração × Consumo
-              </h4>
-              <div style={{ height: '110px', width: '100%' }}>
-                <BarChart data={stats.barData} width={349} height={110} margin={{top:0,right:0,left:-28,bottom:0}}>
-                  <XAxis dataKey="month" fontSize={8} axisLine={false} tickLine={false} />
-                  <YAxis fontSize={8} axisLine={false} tickLine={false} />
-                  <Bar dataKey="gen" fill={GREEN_LIGHT} radius={[2,2,0,0]} barSize={7} isAnimationActive={false} />
-                  <Bar dataKey="cons" fill={PURPLE} radius={[2,2,0,0]} barSize={7} isAnimationActive={false} />
-                </BarChart>
+              <div>
+                <span style={{ fontSize: '9px', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px', display: 'block' }}>Geração × Consumo (Mensal)</span>
+                <div style={{ height: '110px', width: '100%' }} className="bg-slate-50/50 p-2 rounded-sm border border-slate-100">
+                  <BarChart data={stats.barData} width={340} height={100} margin={{left: -20}}>
+                    <XAxis dataKey="month" fontSize={8} axisLine={false} tickLine={false} />
+                    <YAxis fontSize={8} axisLine={false} tickLine={false} />
+                    <Bar dataKey="gen" fill={GREEN_LIGHT} radius={[1,1,0,0]} barSize={8} isAnimationActive={false} />
+                    <Bar dataKey="cons" fill={PURPLE} radius={[1,1,0,0]} barSize={8} isAnimationActive={false} />
+                  </BarChart>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Coluna Direita: Foto + Métricas + Equipamentos */}
-          <div className="flex flex-col gap-4">
-            {/* Foto aérea ou placeholder */}
-            <div className="relative">
+          <div className="flex flex-col gap-6">
+            <div className="relative border-4 border-slate-100 shadow-lg overflow-hidden rounded-sm" style={{ height: '180px' }}>
               {clientData.lat && clientData.lng ? (
-                <div style={{ height: '140px', backgroundColor: '#e2e8f0', borderRadius: '2px', overflow: 'hidden', position: 'relative' }}>
-                  <img
-                    src={`https://maps.googleapis.com/maps/api/staticmap?center=${clientData.lat},${clientData.lng}&zoom=19&size=600x300&maptype=satellite&key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''}`}
-                    alt="Localização"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                  />
-                  <div style={{ position: 'absolute', bottom: '6px', left: '6px', backgroundColor: 'rgba(45,10,78,0.75)', color: 'white', padding: '2px 6px', fontSize: '8px', fontWeight: 700 }}>
-                    {`FV${new Date().getFullYear()}--- · ${clientData.clientName || ''}`}
-                  </div>
-                </div>
+                <img
+                  src={`https://maps.googleapis.com/maps/api/staticmap?center=${clientData.lat},${clientData.lng}&zoom=19&size=600x400&maptype=satellite&key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''}`}
+                  alt="Localização"
+                  className="w-full h-full object-cover"
+                />
               ) : (
-                <div style={{ height: '140px', backgroundColor: '#f1f5f9', borderRadius: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '6px', border: '1px dashed #cbd5e1' }}>
-                  <MapPin size={16} style={{ color: '#94a3b8' }} />
-                  <span style={{ fontSize: '9px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Imagem Aérea</span>
+                <div className="w-full h-full bg-slate-100 flex items-center justify-center flex-col gap-2">
+                  <MapPin size={24} className="text-slate-300" />
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Vista Aérea Indisponível</span>
                 </div>
               )}
-              {!proposalData.showMap && (
-                <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(255,255,255,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#e2e8f0', borderRadius: '20px', padding: '4px 10px' }}>
-                    <EyeOff size={10} style={{ color: '#64748b' }} />
-                    <span style={{ fontSize: '8px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Oculto no PDF</span>
-                  </div>
-                </div>
-              )}
+              <div className="absolute top-4 left-4 px-3 py-1 bg-purple-900/80 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-tighter">
+                FV{new Date().getFullYear()} — {clientData.clientName?.split(' ')[0] || ''}
+              </div>
             </div>
 
-            {/* Cards de métricas — verde bold fiel ao template */}
-            <div
-              className="flex items-center justify-between p-4"
-              style={{ backgroundColor: GREEN_LIGHT, borderRadius: '2px' }}
-            >
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 flex flex-col justify-center border-l-4 border-[#4CAF50] bg-slate-50">
+                <span style={{ fontSize: '8px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>Irradiação Local</span>
+                <span style={{ fontSize: '24px', fontWeight: 900, color: PURPLE }}>{avgHsp} <small style={{ fontSize: '10px' }}>Wh/m²</small></span>
+              </div>
+              <div className="p-4 flex flex-col justify-center border-l-4 border-[#2D6A4F] bg-slate-50">
+                <span style={{ fontSize: '8px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>Cobertura Média</span>
+                <span style={{ fontSize: '24px', fontWeight: 900, color: PURPLE }}>{stats.coverage.toFixed(0)}%</span>
+              </div>
+            </div>
+
+            {/* Tabela de Equipamentos — Engineering Aesthetic */}
+            <div className="border border-slate-200 rounded-sm overflow-hidden shadow-sm">
+              <div className="bg-slate-900 px-4 py-2 flex items-center justify-between">
+                <span style={{ fontSize: '9px', fontWeight: 900, color: 'white', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Especificação de Equipamentos</span>
+                <div className="w-1.5 h-1.5 rounded-full bg-[#4CAF50] animate-pulse" />
+              </div>
+              
               <div className="flex flex-col">
-                <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>
-                  Irradiação do Local
-                </span>
-                <span style={{ fontSize: '32px', fontWeight: 900, color: 'white', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-                  {avgHsp}
-                </span>
-                <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>
-                  Wh/m².dia
-                </span>
-              </div>
-              <div className="flex flex-col items-end">
-                <span style={{ fontSize: '40px', fontWeight: 900, color: 'white', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-                  {stats.coverage.toFixed(0)}%
-                </span>
-                <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>
-                  Média de Geração
-                </span>
-                <span style={{ fontSize: '8px', color: 'rgba(255,255,255,0.6)' }}>
-                  (Geração × Consumo)
-                </span>
-              </div>
-            </div>
-
-            {/* Equipamentos — tabela vertical fiel ao template */}
-            <div
-              className="flex overflow-hidden"
-              style={{ border: '1px solid #e2e8f0' }}
-            >
-              {/* Label vertical lateral */}
-              <div
-                style={{
-                  writingMode: 'vertical-rl',
-                  textOrientation: 'mixed',
-                  transform: 'rotate(180deg)',
-                  backgroundColor: GREEN,
-                  color: 'white',
-                  fontSize: '9px',
-                  fontWeight: 800,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.15em',
-                  padding: '12px 6px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                Equipamentos
-              </div>
-              {/* Dados */}
-              <div className="flex-1 flex flex-col">
-                <div style={{ padding: '10px 14px', borderBottom: '1px solid #f1f5f9', backgroundColor: '#fafafa' }}>
-                  <p style={{ fontSize: '11px', fontWeight: 800, color: '#1e293b' }}>
-                    Módulos: {totalModules} un.
-                  </p>
-                  <p style={{ fontSize: '9px', color: '#64748b', marginTop: '2px' }}>
-                    Fabricante: {firstModule?.manufacturer || 'Fabricante'} &nbsp;·&nbsp; Potência: {firstModule?.power || 550} Wp
+                <div className="p-3 border-b border-slate-100 bg-white">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-1.5 h-1.5 bg-[#4CAF50]" />
+                    <span style={{ fontSize: '11px', fontWeight: 900, color: '#1e293b' }}>Módulos Fotovoltaicos ({totalModules} un.)</span>
+                  </div>
+                  <p style={{ fontSize: '9px', color: '#64748b', marginLeft: '14px' }}>
+                    {firstModule?.manufacturer || 'Fabricante'} · {firstModule?.power || 550}Wp · Tecnologia de Alta Eficiência
                   </p>
                 </div>
-                <div style={{ padding: '10px 14px', backgroundColor: 'white' }}>
-                  <p style={{ fontSize: '11px', fontWeight: 800, color: '#1e293b' }}>
-                    Inversor(es): {inverterIds.length} un.
-                  </p>
-                  <p style={{ fontSize: '9px', color: '#64748b', marginTop: '2px' }}>
-                    Fabricante: {firstInverter?.snapshot?.manufacturer || 'PHB'} &nbsp;·&nbsp; Potência: {firstInverter ? ((firstInverter.snapshot?.nominalPower || 0) / 1000).toFixed(1) : '0'} kW
+                
+                <div className="p-3 bg-slate-50/50">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-1.5 h-1.5 bg-[#6A1B9A]" />
+                    <span style={{ fontSize: '11px', fontWeight: 900, color: '#1e293b' }}>Inversor(es) de String ({inverterIds.length} un.)</span>
+                  </div>
+                  <p style={{ fontSize: '9px', color: '#64748b', marginLeft: '14px' }}>
+                    {firstInverter?.snapshot?.manufacturer || 'PHB'} · {firstInverter ? ((firstInverter.snapshot?.nominalPower || 0) / 1000).toFixed(1) : '0'}kW · Monitoramento Integrado
                   </p>
                 </div>
               </div>
@@ -312,8 +261,7 @@ export const ProposalPageTechnical: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Barra de rodapé verde */}
-      <div style={{ height: '4px', backgroundColor: GREEN_LIGHT }} />
+      <div style={{ height: '6px', backgroundColor: GREEN_LIGHT }} />
     </div>
   );
 };

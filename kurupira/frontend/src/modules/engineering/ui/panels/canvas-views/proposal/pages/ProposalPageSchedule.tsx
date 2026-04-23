@@ -6,143 +6,151 @@ interface Props {
   [key: string]: any;
 }
 
-const GREEN       = '#4CAF50';
-const GREEN_DARK  = '#2D6A4F';
-const PURPLE      = '#2D0A4E';
-const PURPLE_MID  = '#6A1B9A';
-
 /**
  * PÁGINA 4 — CRONOGRAMA
- * Fiel ao template: foto de instalação solar como background, paleta verde/roxo,
- * cards com bordas arredondadas verdes, timeline com bolinhas roxas + linha pontilhada verde.
+ * Fiel ao template: cabeçalho Broken Grid (unificado), corpo branco técnico,
+ * resumo de etapas à esquerda e timeline detalhada à direita.
  */
-export const ProposalPageSchedule: React.FC<Props> = ({ proposalData, isExportingPdf }) => {
+export const ProposalPageSchedule: React.FC<Props> = ({ proposalData }) => {
   const stages = proposalData.executionSchedule || [];
 
+  // Cores unificadas
+  const GREEN = '#2D6A4F';
+  const GREEN_LIGHT = '#4CAF50';
+  const GREEN_MENTA = '#B7E4C7';
+  const GREEN_DARK = '#1a3d2b';
+  const PURPLE = '#2D0A4E';
+  const PURPLE_MID = '#6A1B9A';
+
+  const dateFormatted = new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit', month: 'long', year: 'numeric',
+  }).format(new Date()).toUpperCase();
+
+  // Cálculo Dinâmico de Prazo (Min - Max)
+  const totalDays = stages.reduce((acc, stage) => {
+    if (stage.durationText.toUpperCase().includes('CONTÍNUO')) return acc;
+    const matches = stage.durationText.match(/\d+/g);
+    if (!matches) return acc;
+    
+    const min = parseInt(matches[0]);
+    const max = matches[1] ? parseInt(matches[1]) : min;
+    
+    return {
+      min: acc.min + min,
+      max: acc.max + max
+    };
+  }, { min: 0, max: 0 });
+
+  const totalText = totalDays.min === totalDays.max
+    ? `${totalDays.min} DIAS`
+    : `${totalDays.min} - ${totalDays.max} DIAS`;
+
   return (
-    <div className="w-full min-h-[1123px] relative flex flex-col font-sans overflow-hidden">
-
-      {/* Background: gradiente simulando foto de painéis solares + overlay verde */}
+    <div className="w-full min-h-[1123px] bg-white relative flex flex-col font-sans overflow-hidden">
+      
+      {/* ── HEADER PADRONIZADO (BROKEN GRID) ────────────────────────────── */}
       <div
-        className="absolute inset-0"
-        style={{
-          background: isExportingPdf 
-            ? GREEN_DARK 
-            : `linear-gradient(135deg, 
-                rgba(76,175,80,0.92) 0%, 
-                rgba(45,106,79,0.88) 35%, 
-                rgba(76,175,80,0.70) 65%, 
-                rgba(200,230,201,0.85) 100%)`,
+        className="relative flex"
+        style={{ 
+          background: `linear-gradient(to right, ${GREEN} 0%, ${GREEN_LIGHT} 50%, ${GREEN_MENTA} 100%)`, 
+          minHeight: '280px',
+          borderTop: `6px solid ${GREEN_DARK}`,
+          marginBottom: '80px'
         }}
-      />
-      {/* Textura simulando telhado com painéis */}
-      {!isExportingPdf && (
-        <div
-          className="absolute inset-0 opacity-15"
-          style={{
-            backgroundImage: `repeating-linear-gradient(
-              45deg,
-              transparent, transparent 30px,
-              rgba(0,0,0,0.1) 30px, rgba(0,0,0,0.1) 32px
-            ), repeating-linear-gradient(
-              -45deg,
-              transparent, transparent 30px,
-              rgba(0,0,0,0.05) 30px, rgba(0,0,0,0.05) 32px
-            )`,
-          }}
-        />
-      )}
+      >
+        <div className="flex-1 p-[48px] flex flex-col gap-4 z-10">
+          <div style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.15))' }}>
+            <img
+              src="/logos/logo-branco.png"
+              alt="Neonorte"
+              className="h-12 w-auto object-contain object-left"
+              style={{ maxWidth: '220px' }}
+            />
+          </div>
+          
+          <span style={{ 
+            fontSize: '12px', 
+            fontWeight: 800, 
+            color: '#FFFFFF', 
+            letterSpacing: '0.05em', 
+            marginTop: '4px',
+            textShadow: '0 1px 2px rgba(0,0,0,0.2)' 
+          }}>
+            {dateFormatted}
+          </span>
 
-      <div className="relative z-10 flex flex-col h-full p-[40px]">
-        {/* Header */}
-        <div className="flex justify-between items-start mb-4">
-          <div />
-          <div className="flex flex-col items-end gap-1">
-            {/* Logo circular verde */}
-            <div
-              className="flex items-center justify-center rounded-full overflow-hidden"
-              style={{ width: '60px', height: '60px', backgroundColor: GREEN }}
-            >
-              <img
-                src="/logos/simbolo-branco.png"
-                alt="Neonorte"
-                className="w-10 h-10 object-contain"
-              />
+          <div className="mt-6 flex flex-col gap-3">
+            <p style={{ fontSize: '12px', fontWeight: 800, color: 'white', lineHeight: '1.4', textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>
+              SISTEMA EXECUTADO CONFORME PROJETO,<br />
+              VALIDADO EM TODAS AS NORMAS TÉCNICAS.
+            </p>
+            <div className="flex gap-4">
+              <span className="px-2 py-0.5 bg-white/20 rounded-sm text-[10px] font-black text-white border border-white/30">
+                ZERO VISAGEM
+              </span>
+              <span className="px-2 py-0.5 bg-white/20 rounded-sm text-[10px] font-black text-white border border-white/30">
+                1ª VISTORIA
+              </span>
             </div>
-            <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.7)', fontWeight: 600, letterSpacing: '0.15em' }}>
-              {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }).toUpperCase()}
-            </span>
           </div>
         </div>
 
-        {/* Título + Diferenciais — sobre foto */}
-        <div className="flex gap-6 mb-6">
-          {/* Box branco com CRONOGRAMA */}
+        <div className="flex items-center justify-center relative z-20" style={{ paddingRight: '56px' }}>
           <div
-            className="flex flex-col justify-center"
-            style={{ backgroundColor: 'white', padding: '28px 36px', minWidth: '260px' }}
+            style={{ 
+              backgroundColor: 'white', 
+              border: '4px solid #111', 
+              padding: '56px 48px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              transform: 'translateY(100px)',
+              boxShadow: '0 25px 35px -5px rgba(0, 0, 0, 0.12)'
+            }}
           >
-            <h2
-              className="uppercase leading-[0.85]"
-              style={{ fontSize: '52px', fontWeight: 900, color: PURPLE, letterSpacing: '-0.02em' }}
-            >
+            <h2 className="uppercase leading-[0.82]" style={{ fontSize: '68px', fontWeight: 900, color: PURPLE, letterSpacing: '-0.03em' }}>
               CRONO
             </h2>
-            <h2
-              className="uppercase leading-[0.85]"
-              style={{ fontSize: '52px', fontWeight: 900, color: PURPLE, letterSpacing: '-0.02em' }}
-            >
+            <h2 className="uppercase leading-[0.82]" style={{ fontSize: '68px', fontWeight: 900, color: PURPLE, letterSpacing: '-0.03em' }}>
               GRAMA
             </h2>
           </div>
+        </div>
+      </div>
 
-          {/* Texto de diferenciais sobre a foto */}
-          <div className="flex flex-col justify-center gap-3 flex-1">
-            <p style={{ fontSize: '12px', fontWeight: 700, color: 'white', lineHeight: '1.5' }}>
-              Sistema executado conforme projeto, validado em todas as Normas Técnicas, pronto para operação -{' '}
-              <strong style={{ color: 'white', fontWeight: 900 }}>ZERO VISAGEM</strong>
-            </p>
-            <p style={{ fontSize: '12px', fontWeight: 700, color: 'white', lineHeight: '1.5' }}>
-              Obra Aprovada pela EQUATORIAL, na{' '}
-              <strong style={{ color: 'white', fontWeight: 900 }}>PRIMEIRA VISTORIA</strong>
-            </p>
-          </div>
+      {/* ── CORPO BRANCO TÉCNICO ───────────────────────────────────────── */}
+      <div className="flex-1 p-[16px_48px_32px_48px] flex flex-col gap-6 relative">
+        <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
+          <img src="/logos/simbolo-verde.png" alt="" className="w-[600px] h-auto" />
         </div>
 
-        {/* Conteúdo: Etapas (esquerda) + Timeline (direita) */}
-        <div className="flex gap-6 flex-1">
-          {/* ESQUERDA — Cards de etapas estilo template (bordas verdes arredondadas) */}
-          <div className="flex flex-col gap-2" style={{ width: '240px' }}>
+        <div className="relative z-10 flex gap-10 flex-1">
+          {/* ESQUERDA — Resumo de Etapas */}
+          <div className="flex flex-col gap-2" style={{ width: '260px' }}>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-0.5 h-3 bg-[#2D6A4F]" />
+              <span style={{ fontSize: '9px', fontWeight: 900, color: GREEN_DARK, letterSpacing: '0.15em', textTransform: 'uppercase' }}>
+                Resumo de Execução
+              </span>
+            </div>
             {stages.map((stage) => (
               <div
                 key={stage.id}
-                className="flex items-center gap-0 overflow-hidden"
-                style={{
-                  border: `2px solid ${GREEN}`,
-                  borderRadius: '6px',
-                  backgroundColor: 'rgba(255,255,255,0.12)',
-                }}
+                className="flex items-stretch border border-slate-200 rounded-sm overflow-hidden bg-white/50 shadow-sm"
               >
-                {/* Label principal */}
                 <div
-                  className="flex flex-col items-center justify-center"
-                  style={{
-                    backgroundColor: GREEN,
-                    padding: '8px 14px',
-                    minWidth: '100px',
-                    textAlign: 'center',
-                  }}
+                  className="flex flex-col items-center justify-center p-2"
+                  style={{ backgroundColor: GREEN, minWidth: '110px' }}
                 >
-                  <span style={{ fontSize: '11px', fontWeight: 900, color: 'white', textTransform: 'uppercase', lineHeight: '1.1' }}>
+                  <span style={{ fontSize: '10px', fontWeight: 900, color: 'white', textTransform: 'uppercase', lineHeight: '1.1' }}>
                     {stage.label}
                   </span>
-                  <span style={{ fontSize: '8px', fontWeight: 600, color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', lineHeight: '1.2', marginTop: '2px' }}>
+                  <span style={{ fontSize: '7px', fontWeight: 700, color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', marginTop: '1px' }}>
                     {stage.sublabel}
                   </span>
                 </div>
-                {/* Duração */}
-                <div className="flex-1 px-3 py-1.5">
-                  <span style={{ fontSize: '9px', fontWeight: 700, color: 'white', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <div className="flex-1 flex items-center px-4">
+                  <span style={{ fontSize: '10px', fontWeight: 800, color: PURPLE, textTransform: 'uppercase' }}>
                     {stage.durationText}
                   </span>
                 </div>
@@ -150,86 +158,96 @@ export const ProposalPageSchedule: React.FC<Props> = ({ proposalData, isExportin
             ))}
           </div>
 
-          {/* DIREITA — Timeline vertical com bolinhas roxas + linha pontilhada verde */}
-          <div className="flex-1 relative flex flex-col">
-            {/* Linha vertical pontilhada */}
+          {/* DIREITA — Timeline Detalhada */}
+          <div className="flex-1 relative flex flex-col pl-8">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-0.5 h-3 bg-[#6A1B9A]" />
+              <span style={{ fontSize: '9px', fontWeight: 900, color: PURPLE, letterSpacing: '0.15em', textTransform: 'uppercase' }}>
+                Detalhamento das Etapas
+              </span>
+            </div>
+
+            {/* Linha vertical da timeline */}
             <div
               style={{
                 position: 'absolute',
-                left: '12px',
-                top: '14px',
-                bottom: '14px',
-                width: '2px',
-                borderLeft: `2px dashed ${GREEN}`,
+                left: '42px',
+                top: '50px',
+                bottom: '80px',
+                width: '1px',
+                borderLeft: `2px dashed ${GREEN}44`,
               }}
             />
 
             {stages.map((stage) => (
-              <div key={stage.id} className="flex items-start gap-4 mb-5 relative">
-                {/* Bolinha roxa */}
+              <div key={stage.id} className="flex items-start gap-6 mb-6 relative">
+                {/* Marker */}
                 <div
                   style={{
-                    width: '26px',
-                    height: '26px',
+                    width: '30px',
+                    height: '30px',
                     borderRadius: '50%',
-                    backgroundColor: PURPLE_MID,
-                    border: `2px solid ${GREEN}`,
+                    backgroundColor: 'white',
+                    border: `3px solid ${PURPLE_MID}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexShrink: 0,
-                    position: 'relative',
                     zIndex: 1,
+                    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'
                   }}
-                />
+                >
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: GREEN }} />
+                </div>
 
-                {/* Conteúdo */}
-                <div className="flex flex-col gap-0.5 flex-1">
-                  {/* Badge de duração */}
-                  <span
-                    style={{
-                      fontSize: '8px',
-                      fontWeight: 900,
-                      color: 'white',
-                      backgroundColor: PURPLE_MID,
-                      padding: '1px 6px',
-                      borderRadius: '10px',
-                      display: 'inline-block',
-                      width: 'fit-content',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.08em',
-                    }}
-                  >
-                    {stage.durationText}
-                  </span>
-                  <span style={{ fontSize: '11px', fontWeight: 900, color: 'white', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    {stage.label} — {stage.sublabel}
-                  </span>
-                  <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.7)', lineHeight: '1.4' }}>
+                <div className="flex flex-col gap-1 flex-1 pt-1">
+                  <div className="flex items-center gap-3">
+                    <span style={{ fontSize: '12px', fontWeight: 900, color: PURPLE, textTransform: 'uppercase' }}>
+                      {stage.label} — {stage.sublabel}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '8px',
+                        fontWeight: 900,
+                        color: 'white',
+                        backgroundColor: PURPLE_MID,
+                        padding: '2px 8px',
+                        borderRadius: '2px',
+                        textTransform: 'uppercase'
+                      }}
+                    >
+                      {stage.durationText}
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '10px', color: '#475569', lineHeight: '1.5', textAlign: 'justify', maxWidth: '420px' }}>
                     {stage.description}
                   </p>
                 </div>
               </div>
             ))}
 
-            {/* Total */}
-            <div
-              style={{
-                marginTop: 'auto',
-                padding: '8px 14px',
-                backgroundColor: 'rgba(255,255,255,0.1)',
-                border: `1px solid ${GREEN}`,
-                borderRadius: '4px',
-                display: 'inline-block',
-              }}
-            >
-              <span style={{ fontSize: '11px', fontWeight: 900, color: 'white', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                TOTAL: 37 - 40 DIAS
-              </span>
+            {/* Rodapé Dinâmico */}
+            <div className="mt-auto flex justify-end">
+              <div
+                className="px-8 py-3"
+                style={{ backgroundColor: PURPLE, borderLeft: `6px solid ${GREEN_LIGHT}` }}
+              >
+                <div className="flex flex-col">
+                  <span style={{ fontSize: '9px', fontWeight: 800, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                    Prazo Total Estimado
+                  </span>
+                  <span style={{ fontSize: '18px', fontWeight: 900, color: 'white', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    TOTAL: {totalText}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
+      
+      {/* Rodapé decorativo */}
+      <div style={{ height: '6px', backgroundColor: GREEN_LIGHT }} />
     </div>
   );
 };

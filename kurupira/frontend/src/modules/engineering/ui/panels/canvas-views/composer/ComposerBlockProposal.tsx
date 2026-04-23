@@ -90,7 +90,7 @@ export const ComposerBlockProposal: React.FC = () => {
           </span>
           <div className="flex items-baseline gap-1">
             <span className="text-lg font-black text-indigo-400 font-mono tabular-nums tracking-tighter leading-none">
-              {proposalData.validityDays}
+              {proposalData?.validityDays ?? 15}
             </span>
             <span className="text-[9px] font-bold text-indigo-600/80 uppercase">dias</span>
           </div>
@@ -100,11 +100,11 @@ export const ComposerBlockProposal: React.FC = () => {
       {/* ── Rodapé ────────────────────────────────────────────────────────── */}
       <div className="px-4 py-2 flex items-center gap-2 border-t border-indigo-900/20 bg-slate-950/40">
         <span className="text-[8px] text-slate-500 font-bold uppercase tracking-widest tabular-nums">
-          Garantia: {proposalData.warrantyYears} anos
+          {proposalData?.lineItems?.length ?? 0} itens
         </span>
         <span className="text-[8px] text-slate-700">·</span>
         <span className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">
-          Template: Neonorte A4
+          5 Páginas · A4
         </span>
       </div>
     </div>
