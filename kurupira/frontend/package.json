@@ -31,6 +31,7 @@
     "leaflet.gridlayer.googlemutant": "^0.16.0",
     "lodash.throttle": "^4.1.1",
     "lucide-react": "^0.561.0",
+    "pdf-parse": "^2.4.5",
     "pino": "^8.17.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",

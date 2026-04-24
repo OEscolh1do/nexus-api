@@ -28,6 +28,8 @@ function buildDesignData() {
       inverters: tech.inverters,
       strings: tech.strings,
       prCalculationMode: tech.prCalculationMode,
+      kWpAlvo: solar.kWpAlvo,
+      loadGrowthFactor: solar.loadGrowthFactor,
     },
   };
 }
@@ -41,6 +43,8 @@ function hydrateStores(designData: any) {
       ...designData.solar,
       project: { ...current.project, ...designData.solar.project },
       weatherData: designData.solar.weatherData || null,
+      kWpAlvo: designData.tech?.kWpAlvo ?? current.kWpAlvo,
+      loadGrowthFactor: designData.tech?.loadGrowthFactor ?? current.loadGrowthFactor,
     }));
   }
 

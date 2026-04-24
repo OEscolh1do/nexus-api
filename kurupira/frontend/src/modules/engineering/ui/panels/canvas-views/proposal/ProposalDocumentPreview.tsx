@@ -89,7 +89,6 @@ export const ProposalDocumentPreview: React.FC = () => {
     if (!isExportingPdf) return;
 
     const handlePrint = async () => {
-      console.log("🖨️ Acionando motor de impressão nativo (Pixel Perfect)...");
       
       // Aguarda os componentes carregarem no Portal
       await new Promise(resolve => setTimeout(resolve, 1500));

@@ -1,0 +1,30 @@
+{
+  "eval_id": 1,
+  "config": "with_skill",
+  "expectations": [
+    {
+      "text": "cobre-4-camadas",
+      "passed": true,
+      "evidence": "Explicitly structured as 4 layers with dense content in each."
+    },
+    {
+      "text": "menciona-ancoragem",
+      "passed": true,
+      "evidence": "Dedicated anchoring section with reverse anchoring, mental reframing vs CDI/SP500."
+    },
+    {
+      "text": "menciona-narrativa",
+      "passed": true,
+      "evidence": "5-act narrative arc table. Diagnosis: proposal has no character or story. Broca/Wernicke vs motor cortex."
+    },
+    {
+      "text": "tem-proximo-passo",
+      "passed": true,
+      "evidence": "Explicit Proximo passo recomendado section with actionable instruction."
+    }
+  ],
+  "summary": {
+    "pass_rate": 1.0
+  },
+  "notes": "100% pass rate. Neuroscientific depth significantly higher than baseline."
+}

@@ -5,7 +5,7 @@ import {
   AreaChart, Area,
   ResponsiveContainer,
 } from 'recharts';
-import { MapPin } from 'lucide-react';
+import { MapPin, Shield, Zap, Wrench, ClipboardCheck, Sparkles, TrendingUp } from 'lucide-react';
 import type { ProposalData } from '@/core/state/slices/proposalSlice';
 import type { ProjectionStats } from '@/modules/engineering/utils/projectionMath';
 
@@ -27,8 +27,8 @@ const GREEN_LIGHT = '#4CAF50';
 const GREEN_DARK  = '#1a3d2b';
 const PURPLE      = '#2D0A4E';
 const ORANGE      = '#F97316'; // Geração
-const BLUE        = '#3B82F6'; // Consumo Base
-const VIOLET      = '#8B5CF6'; // Carga Adicional
+const BLUE        = '#3B82F6'; // Consumo Base (Azul)
+const CYAN        = '#06B6D4'; // Carga Adicional (Cyan/Sky)
 
 // Bullets padrão (Garantias e Serviços)
 const DEFAULT_BULLETS = [
@@ -88,27 +88,8 @@ export const ProposalPageTechnical: React.FC<Props> = ({
   return (
     <div className="w-full min-h-[1123px] bg-white text-slate-800 flex flex-col font-sans relative overflow-hidden">
 
-      {/* Marcas de canto (Refined Engineering Ticks - Semi-Cross) */}
-      <div className="absolute top-0 left-0 w-24 h-24 z-50 pointer-events-none" style={{ margin: '16px' }}>
-        <div className="absolute top-0 left-[-12px] w-full h-[2px] bg-slate-300" />
-        <div className="absolute left-0 top-[-12px] w-[2px] h-full bg-slate-300" />
-        <div className="absolute top-0 left-0 w-1.5 h-1.5 bg-[#4CAF50] rounded-full -translate-x-1/2 -translate-y-1/2 shadow-[0_0_8px_rgba(76,175,80,0.5)]" />
-      </div>
-      <div className="absolute top-0 right-0 w-24 h-24 z-50 pointer-events-none" style={{ margin: '16px' }}>
-        <div className="absolute top-0 right-[-12px] w-full h-[2px] bg-slate-300" />
-        <div className="absolute right-0 top-[-12px] w-[2px] h-full bg-slate-300" />
-        <div className="absolute top-0 right-0 w-1.5 h-1.5 bg-[#4CAF50] rounded-full translate-x-1/2 -translate-y-1/2 shadow-[0_0_8px_rgba(76,175,80,0.5)]" />
-      </div>
-      <div className="absolute bottom-0 left-0 w-24 h-24 z-50 pointer-events-none" style={{ margin: '16px' }}>
-        <div className="absolute bottom-0 left-[-12px] w-full h-[2px] bg-slate-300" />
-        <div className="absolute left-0 bottom-[-12px] w-[2px] h-full bg-slate-300" />
-        <div className="absolute bottom-0 left-0 w-1.5 h-1.5 bg-[#4CAF50] rounded-full -translate-x-1/2 translate-y-1/2 shadow-[0_0_8px_rgba(76,175,80,0.5)]" />
-      </div>
-      <div className="absolute bottom-0 right-0 w-24 h-24 z-50 pointer-events-none" style={{ margin: '16px' }}>
-        <div className="absolute bottom-0 right-[-12px] w-full h-[2px] bg-slate-300" />
-        <div className="absolute right-0 bottom-[-12px] w-[2px] h-full bg-slate-300" />
-        <div className="absolute bottom-0 right-0 w-1.5 h-1.5 bg-[#4CAF50] rounded-full translate-x-1/2 translate-y-1/2 shadow-[0_0_8px_rgba(76,175,80,0.5)]" />
-      </div>
+      {/* ── DESIGN: MARKETING/PREMIUM OVERLAY ── */}
+      {/* Removemos os ticks técnicos de engenharia para um visual mais limpo */}
 
       {/* ══════════════════════════════════════════════════════════════════
           HEADER — Fundo branco, título preto display, data sup. direita
@@ -175,22 +156,10 @@ export const ProposalPageTechnical: React.FC<Props> = ({
         className="flex-1 flex gap-0 relative"
         style={{ padding: '0' }}
       >
-        {/* Marca d'água */}
-        <div className="absolute inset-0 flex items-center justify-center opacity-[0.025] pointer-events-none z-0">
-          <img src="/logos/simbolo-verde.png" alt="" style={{ width: '480px', height: 'auto' }} />
+        {/* Branding Watermark */}
+        <div className="absolute inset-0 flex items-center justify-center opacity-[0.035] pointer-events-none z-0">
+          <img src="/logos/simbolo-verde.png" alt="" style={{ width: '420px', height: 'auto' }} />
         </div>
-
-        {/* Blueprint Grid Sutil */}
-        <div 
-          className="absolute inset-0 pointer-events-none z-0 opacity-20"
-          style={{
-            backgroundImage: `
-              linear-gradient(to right, #CBD5E1 1px, transparent 1px),
-              linear-gradient(to bottom, #CBD5E1 1px, transparent 1px)
-            `,
-            backgroundSize: '20px 20px'
-          }}
-        />
 
         {/* ── COL. ESQUERDA ─────────────────────────────────────────────── */}
         <div
@@ -204,37 +173,15 @@ export const ProposalPageTechnical: React.FC<Props> = ({
             </span>
             
             <div 
-              className="relative"
+              className="relative rounded-md overflow-hidden shadow-md"
               style={{ 
                 display: 'grid', 
                 gridTemplateColumns: 'auto 140px 140px',
-                border: '1px solid #CBD5E1',
+                border: '1px solid #E2E8F0',
                 backgroundColor: 'white',
-                width: 'fit-content',
-                overflow: 'visible' // Garante que as cruzes não sejam cortadas
+                width: 'fit-content'
               }}
             >
-              {/* Corner Ticks (Semi-Cross) - Elevados para sobrepor a tabela */}
-              <div style={{ position: 'absolute', top: 0, left: 0, width: '20px', height: '20px', pointerEvents: 'none', zIndex: 50 }}>
-                <div style={{ position: 'absolute', top: 0, left: '-8px', width: '100%', height: '2px', backgroundColor: GREEN_DARK }} />
-                <div style={{ position: 'absolute', left: 0, top: '-8px', width: '2px', height: '100%', backgroundColor: GREEN_DARK }} />
-                <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '4px', backgroundColor: '#4CAF50', borderRadius: '50%', transform: 'translate(-50%, -50%)', boxShadow: '0 0 4px rgba(76,175,80,0.5)' }} />
-              </div>
-              <div style={{ position: 'absolute', top: 0, right: 0, width: '20px', height: '20px', pointerEvents: 'none', zIndex: 50 }}>
-                <div style={{ position: 'absolute', top: 0, right: '-8px', width: '100%', height: '2px', backgroundColor: GREEN_DARK }} />
-                <div style={{ position: 'absolute', right: 0, top: '-8px', width: '2px', height: '100%', backgroundColor: GREEN_DARK }} />
-                <div style={{ position: 'absolute', top: 0, right: 0, width: '4px', height: '4px', backgroundColor: '#4CAF50', borderRadius: '50%', transform: 'translate(50%, -50%)', boxShadow: '0 0 4px rgba(76,175,80,0.5)' }} />
-              </div>
-              <div style={{ position: 'absolute', bottom: 0, left: 0, width: '20px', height: '20px', pointerEvents: 'none', zIndex: 50 }}>
-                <div style={{ position: 'absolute', bottom: 0, left: '-8px', width: '100%', height: '2px', backgroundColor: GREEN_DARK }} />
-                <div style={{ position: 'absolute', left: 0, bottom: '-8px', width: '2px', height: '100%', backgroundColor: GREEN_DARK }} />
-                <div style={{ position: 'absolute', bottom: 0, left: 0, width: '4px', height: '4px', backgroundColor: '#4CAF50', borderRadius: '50%', transform: 'translate(-50%, 50%)', boxShadow: '0 0 4px rgba(76,175,80,0.5)' }} />
-              </div>
-              <div style={{ position: 'absolute', bottom: 0, right: 0, width: '20px', height: '20px', pointerEvents: 'none', zIndex: 50 }}>
-                <div style={{ position: 'absolute', bottom: 0, right: '-8px', width: '100%', height: '2px', backgroundColor: GREEN_DARK }} />
-                <div style={{ position: 'absolute', right: 0, bottom: '-8px', width: '2px', height: '100%', backgroundColor: GREEN_DARK }} />
-                <div style={{ position: 'absolute', bottom: 0, right: 0, width: '4px', height: '4px', backgroundColor: '#4CAF50', borderRadius: '50%', transform: 'translate(50%, 50%)', boxShadow: '0 0 4px rgba(76,175,80,0.5)' }} />
-              </div>
 
               {/* Label Vertical */}
               <div style={{
@@ -297,16 +244,26 @@ export const ProposalPageTechnical: React.FC<Props> = ({
             <p style={{ fontSize: '10.5px', color: '#334155', lineHeight: '1.55', marginBottom: '10px', textAlign: 'justify' }}>
               A elaboração do orçamento e avaliações técnicas são feitas sem qualquer compromisso ou custo.
             </p>
-            <div className="flex flex-col gap-2.5 pl-3 mt-2 py-1" style={{ borderLeft: `2px solid ${GREEN_LIGHT}40` }}>
-              {bullets.map((item, i) => (
-                <div key={i} className="flex gap-2.5 items-start">
-                  <div style={{ width: '4px', height: '4px', backgroundColor: GREEN_LIGHT, marginTop: '6px', flexShrink: 0 }} />
-                  <span style={{ fontSize: '10px', color: '#475569', lineHeight: '1.6' }}>
-                    {item.title && <strong style={{ color: '#1E293B', fontWeight: 800 }}>{item.title}: </strong>}
-                    {item.desc}
-                  </span>
-                </div>
-              ))}
+            <div className="flex flex-col gap-3 mt-3">
+              {bullets.map((item, i) => {
+                let Icon = Sparkles;
+                if (item.title?.includes('Inversor')) Icon = Zap;
+                if (item.title?.includes('Módulo')) Icon = Shield;
+                if (item.title?.includes('Engenharia')) Icon = ClipboardCheck;
+                if (item.title?.includes('Assistência')) Icon = Wrench;
+
+                return (
+                  <div key={i} className="flex gap-3 items-start p-2 rounded-md hover:bg-slate-50 transition-colors">
+                    <div className="p-1.5 rounded-md bg-green-50 text-green-600">
+                      <Icon size={14} />
+                    </div>
+                    <span style={{ fontSize: '10px', color: '#475569', lineHeight: '1.4' }}>
+                      {item.title && <strong style={{ color: '#1E293B', fontWeight: 800, display: 'block', marginBottom: '2px' }}>{item.title}</strong>}
+                      {item.desc}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -320,34 +277,29 @@ export const ProposalPageTechnical: React.FC<Props> = ({
             </div>
             <div className="flex items-center justify-between mb-[6px]">
               <span style={{ fontSize: '9px', fontWeight: 900, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', backgroundColor: BLUE }} />
-                  Carga Base
+                <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span style={{ display: 'inline-block', width: '20px', height: '6px', borderRadius: '10px', backgroundColor: BLUE }} />
+                  Consumo
                 </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', backgroundColor: VIOLET }} />
+                <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span style={{ display: 'inline-block', width: '20px', height: '6px', borderRadius: '10px', backgroundColor: CYAN }} />
                   Carga Adicional
                 </span>
               </span>
               {stats.totalAddedLoad > 0 && (
-                <span style={{ fontSize: '8px', fontWeight: 900, color: VIOLET, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <span style={{ fontSize: '8px', fontWeight: 900, color: CYAN, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   + {Math.round(stats.totalAddedLoad / 12).toLocaleString('pt-BR')} kWh/mês
                 </span>
               )}
             </div>
-            <div style={{ height: '110px', backgroundColor: 'white', border: '1px solid #E2E8F0', borderRadius: '2px', position: 'relative' }}>
-              {/* Crosshairs decorativos */}
-              <div style={{ position: 'absolute', top: '-3px', left: '-3px', width: '5px', height: '5px', borderTop: '1px solid #94A3B8', borderLeft: '1px solid #94A3B8', pointerEvents: 'none' }} />
-              <div style={{ position: 'absolute', top: '-3px', right: '-3px', width: '5px', height: '5px', borderTop: '1px solid #94A3B8', borderRight: '1px solid #94A3B8', pointerEvents: 'none' }} />
-              <div style={{ position: 'absolute', bottom: '-3px', left: '-3px', width: '5px', height: '5px', borderBottom: '1px solid #94A3B8', borderLeft: '1px solid #94A3B8', pointerEvents: 'none' }} />
-              <div style={{ position: 'absolute', bottom: '-3px', right: '-3px', width: '5px', height: '5px', borderBottom: '1px solid #94A3B8', borderRight: '1px solid #94A3B8', pointerEvents: 'none' }} />
-              <ResponsiveContainer width="100%" height={110}>
+            <div style={{ height: '160px', position: 'relative', overflow: 'hidden' }}>
+              <ResponsiveContainer width="100%" height={160}>
                 <AreaChart data={stats.barData} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                  <XAxis dataKey="month" fontSize={7} axisLine={false} tickLine={false} tick={{ fill: '#94A3B8' }} />
-                  <YAxis fontSize={7} axisLine={false} tickLine={false} tick={{ fill: '#CBD5E1' }} tickFormatter={yTickFormatter} width={28} />
+                  <XAxis dataKey="month" fontSize={9.5} axisLine={false} tickLine={false} tick={{ fill: '#475569', fontWeight: 700 }} />
+                  <YAxis fontSize={9.5} axisLine={false} tickLine={false} tick={{ fill: '#475569', fontWeight: 700 }} tickFormatter={yTickFormatter} width={32} />
                   <Area type="monotone" dataKey="baseCons" stackId="1" stroke={BLUE} fill={BLUE} fillOpacity={0.2} strokeWidth={1.5} isAnimationActive={false} />
-                  <Area type="monotone" dataKey="addedLoad" stackId="1" stroke={VIOLET} fill={VIOLET} fillOpacity={0.4} strokeWidth={1.5} isAnimationActive={false} />
+                  <Area type="monotone" dataKey="addedLoad" stackId="1" stroke={CYAN} fill={CYAN} fillOpacity={0.4} strokeWidth={1.5} isAnimationActive={false} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -495,9 +447,10 @@ export const ProposalPageTechnical: React.FC<Props> = ({
           <div className="grid grid-cols-2 gap-3">
             {/* Irradiação */}
             <div
+              className="shadow-sm rounded-md"
               style={{
                 padding: '12px 14px',
-                backgroundColor: '#F8FAFC',
+                background: 'linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)',
                 borderLeft: `4px solid ${GREEN_LIGHT}`,
                 display: 'flex',
                 flexDirection: 'column',
@@ -515,17 +468,19 @@ export const ProposalPageTechnical: React.FC<Props> = ({
 
             {/* Cobertura % — elemento dominante */}
             <div
+              className="shadow-md rounded-md"
               style={{
                 padding: '12px 14px',
-                backgroundColor: '#F0FDF4',
+                background: 'linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)',
                 borderLeft: `4px solid ${GREEN}`,
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '2px',
               }}
             >
-              <span style={{ fontSize: '7.5px', fontWeight: 900, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                Média de Geração
+              <span style={{ fontSize: '7.5px', fontWeight: 900, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <TrendingUp size={10} />
+                Economia Estimada
               </span>
               <span style={{ fontSize: '36px', fontWeight: 900, color: GREEN_LIGHT, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
                 {coveragePct}%
@@ -536,12 +491,12 @@ export const ProposalPageTechnical: React.FC<Props> = ({
 
           {/* ── Painel Equipamentos ───────────────────────────────────── */}
           <div
+            className="rounded-lg shadow-lg"
             style={{
-              border: '1px solid #CBD5E1',
-              borderRadius: '2px',
+              border: '1px solid #E2E8F0',
               overflow: 'hidden',
               display: 'flex',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+              backgroundColor: 'white'
             }}
           >
             {/* Label vertical rotacionada */}
@@ -582,7 +537,10 @@ export const ProposalPageTechnical: React.FC<Props> = ({
                       Potência: {(firstModule?.power || 550).toLocaleString('pt-BR')} Wp
                     </span>
                     <span style={{ fontSize: '9px', color: '#64748B' }}>
-                      Instalação: {clientData.installationType || 'Residencial Telhado'}
+                      Instalação: {clientData.installationType || 'Residencial'}
+                    </span>
+                    <span style={{ fontSize: '9px', color: '#64748B' }}>
+                      Telhado: {clientData.roofType || 'Cerâmico'}
                     </span>
                   </div>
                   {/* Thumbnail módulo — ícone SVG */}
@@ -673,34 +631,31 @@ export const ProposalPageTechnical: React.FC<Props> = ({
                 Projeção de Desempenho
               </h4>
             </div>
-            <span style={{ fontSize: '10px', fontWeight: 900, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.12em', display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <span style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '2px', backgroundColor: ORANGE, border: '1px solid rgba(0,0,0,0.05)' }} />
-                Geração
+            <div className="flex items-center gap-4 mb-3">
+              <span style={{ fontSize: '9px', fontWeight: 900, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span style={{ display: 'inline-block', width: '20px', height: '6px', borderRadius: '10px', backgroundColor: ORANGE }} />
+                  Geração
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span style={{ display: 'inline-block', width: '20px', height: '6px', borderRadius: '10px', backgroundColor: BLUE }} />
+                  Consumo
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span style={{ display: 'inline-block', width: '20px', height: '6px', borderRadius: '10px', backgroundColor: CYAN }} />
+                  Carga Adicional
+                </span>
               </span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <span style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '2px', backgroundColor: BLUE, border: '1px solid rgba(0,0,0,0.05)' }} />
-                Base
-              </span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <span style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '2px', backgroundColor: VIOLET, border: '1px solid rgba(0,0,0,0.05)' }} />
-                Adicional
-              </span>
-            </span>
-            <div style={{ height: '140px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '4px', padding: '10px 4px 4px 4px', position: 'relative' }}>
-              {/* Crosshairs decorativos */}
-              <div style={{ position: 'absolute', top: '-3px', left: '-3px', width: '5px', height: '5px', borderTop: '1px solid #94A3B8', borderLeft: '1px solid #94A3B8', pointerEvents: 'none' }} />
-              <div style={{ position: 'absolute', top: '-3px', right: '-3px', width: '5px', height: '5px', borderTop: '1px solid #94A3B8', borderRight: '1px solid #94A3B8', pointerEvents: 'none' }} />
-              <div style={{ position: 'absolute', bottom: '-3px', left: '-3px', width: '5px', height: '5px', borderBottom: '1px solid #94A3B8', borderLeft: '1px solid #94A3B8', pointerEvents: 'none' }} />
-              <div style={{ position: 'absolute', bottom: '-3px', right: '-3px', width: '5px', height: '5px', borderBottom: '1px solid #94A3B8', borderRight: '1px solid #94A3B8', pointerEvents: 'none' }} />
-              <ResponsiveContainer width="100%" height={126}>
+            </div>
+            <div style={{ height: '200px', position: 'relative', overflow: 'hidden', padding: '10px 0' }}>
+              <ResponsiveContainer width="100%" height={186}>
                 <BarChart data={stats.barData} margin={{ top: 4, right: 8, left: -8, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                  <XAxis dataKey="month" fontSize={8.5} axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontWeight: 700 }} />
-                  <YAxis fontSize={8.5} axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontWeight: 600 }} tickFormatter={yTickFormatter} width={32} />
-                  <Bar dataKey="gen"  fill={ORANGE} radius={[2,2,0,0]} barSize={10} isAnimationActive={false} />
-                  <Bar dataKey="baseCons" stackId="cons" fill={BLUE} radius={[0,0,0,0]} barSize={10} isAnimationActive={false} />
-                  <Bar dataKey="addedLoad" stackId="cons" fill={VIOLET} radius={[2,2,0,0]} barSize={10} isAnimationActive={false} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" strokeOpacity={0.8} />
+                  <XAxis dataKey="month" fontSize={9.5} axisLine={false} tickLine={false} tick={{ fill: '#475569', fontWeight: 700 }} />
+                  <YAxis fontSize={9.5} axisLine={false} tickLine={false} tick={{ fill: '#475569', fontWeight: 700 }} tickFormatter={yTickFormatter} width={36} />
+                  <Bar dataKey="gen"  fill={ORANGE} radius={[4,4,0,0]} barSize={12} isAnimationActive={false} />
+                  <Bar dataKey="baseCons" stackId="cons" fill={BLUE} radius={[0,0,0,0]} barSize={12} isAnimationActive={false} />
+                  <Bar dataKey="addedLoad" stackId="cons" fill={CYAN} radius={[4,4,0,0]} barSize={12} isAnimationActive={false} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

@@ -1,0 +1,11 @@
+{
+  "eval_id": 2,
+  "eval_name": "eval-dashboard-ceo",
+  "prompt": "Estou montando um dashboard para apresentar ao CEO da empresa todo mês. Ele tem 12 KPIs espalhados pela tela, 3 gráficos de pizza, tabelas com dados dos últimos 24 meses e filtros na lateral. Quero que ele consiga tomar decisões rápido. Como faço isso funcionar melhor?",
+  "assertions": [
+    {"name": "critica-pizza", "description": "Critica gráficos de pizza com justificativa de precisão perceptual"},
+    {"name": "reduz-kpis", "description": "Recomenda reduzir KPIs visíveis para 3–5"},
+    {"name": "modo-executivo", "description": "Sugere progressive disclosure ou visão executivo vs analista"},
+    {"name": "tem-proximo-passo", "description": "Termina com próximo passo acionável"}
+  ]
+}

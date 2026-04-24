@@ -177,33 +177,53 @@ function extractDesignMetrics(designData) {
     const clientName = cd.clientName || null;
     const city = cd.city || null;
     const state = cd.state || null;
-    const voltage = cd.voltage || null;
+    
+    // Tensão (Voltage): Tenta topo, depois invoices[0]
+    const voltage = cd.voltage || (cd.invoices && cd.invoices[0]?.voltage) || null;
+
+    // Potência Planejada (da Jornada)
+    let kWpAlvo = data.tech?.kWpAlvo || 0;
+    
+    // FALLBACK: Se o kWpAlvo estiver zerado (projetos antigos), tenta recalcular do consumo
+    if (kWpAlvo === 0 && avgConsumption > 0) {
+      const hsp = 4.5; // Média conservadora se não houver weatherData
+      kWpAlvo = (avgConsumption * 12) / (hsp * 365 * 0.80);
+    }
 
     // Equipamentos — Sincronizado com V3.1 (Zustand Slices)
-    // Módulos: Contagem real de painéis na prancheta (Physical Canvas)
-    const moduleCount = data.solar.project?.placedModules?.length || 0;
-    
-    // Inversores: Contagem de IDs na coleção normalizada do TechStore (agora em data.tech)
+    const placedModulesCount = data.solar.project?.placedModules?.length || 0;
     const inverterCount = data.tech?.inverters?.ids?.length || 0;
 
-    // kWp = placedModules × potência do módulo selecionado
     const moduleIds = data.solar.modules?.ids || [];
     const entities = data.solar.modules?.entities || {};
     const firstModule = moduleIds.length > 0 ? entities[moduleIds[0]] : null;
     
-    // Campo power pode vir como power ou powerWp dependendo da origem do catálogo
-    const modulePowerW = firstModule?.power || firstModule?.powerWp || 0;
+    // Se o usuário usou a prancheta 2D, usa placedModules. 
+    // Se não usou a prancheta, mas adicionou no catálogo (UI de equipamentos), usa moduleIds.length.
+    const moduleCount = placedModulesCount > 0 ? placedModulesCount : moduleIds.length;
+
+    const modulePowerW = firstModule?.power || firstModule?.powerWp || 550; // 550W como fallback de mercado
     const systemKwp = (moduleCount * modulePowerW) / 1000;
 
+    // kWp Final
+    const calculatedKwp = Math.round(systemKwp * 100) / 100;
+    const finalPowerKwp = calculatedKwp > 0 ? calculatedKwp : (Math.round(kWpAlvo * 100) / 100);
+
+    // Estimativa de Módulos
+    let finalModuleCount = moduleCount;
+    if (moduleCount === 0 && finalPowerKwp > 0) {
+      finalModuleCount = Math.ceil((finalPowerKwp * 1000) / modulePowerW);
+    }
+
     return {
-      targetPowerKwp: Math.round(systemKwp * 100) / 100,
+      targetPowerKwp: finalPowerKwp,
       averageConsumptionKwh: Math.round(avgConsumption),
       lat: lat && lat !== 0 ? lat : null,
       lng: lng && lng !== 0 ? lng : null,
       clientName,
       city,
       state,
-      moduleCount,
+      moduleCount: finalModuleCount,
       inverterCount,
       voltage
     };

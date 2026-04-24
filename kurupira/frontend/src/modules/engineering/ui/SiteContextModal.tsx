@@ -171,48 +171,61 @@ export const SiteContextModal: React.FC<SiteContextModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 sm:p-8">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
         onClick={onClose}
       />
 
-      {/* Modal Container */}
-      <div className="relative w-full max-w-5xl max-h-[85vh] bg-slate-900 rounded-md border border-slate-700 shadow-2xl overflow-hidden animate-in zoom-in-95 fade-in duration-300 flex flex-col">
+      {/* Modal Container (Engineering Terminal Aesthetic) */}
+      <div className="relative w-full max-w-5xl max-h-[90vh] bg-[#0B0D13] rounded-sm border border-slate-800 shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden animate-in zoom-in-95 fade-in duration-300 flex flex-col">
+        
+        {/* LCD Frame Details */}
+        <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-slate-700 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-slate-700 pointer-events-none" />
 
-        {/* ── HEADER ── */}
-        <div className="shrink-0 flex items-center justify-between px-5 py-3 border-b border-slate-700 bg-slate-900">
+        {/* ── HEADER (Telemetry Strip) ── */}
+        <div className="shrink-0 flex items-center justify-between px-5 py-3 border-b border-slate-800 bg-slate-900/50">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20 shadow-inner">
-              <MapPin size={16} className="text-indigo-400" />
+            <div className="w-8 h-8 rounded-sm bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+              <MapPin size={16} className="text-emerald-500" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-white tracking-tight">{context.clientName}</h2>
-              <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">{context.city}, {context.state} — {context.street}</p>
+              <h2 className="text-[12px] font-black text-slate-200 uppercase tracking-widest">{context.clientName}</h2>
+              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">{context.city}, {context.state} — {context.street}</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded hover:bg-slate-800 text-slate-500 hover:text-white transition-all"
-          >
-            <X size={16} />
-          </button>
+          <div className="flex items-center gap-4">
+             <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-slate-950 border border-slate-800 rounded-sm">
+                <div className="w-1.5 h-1.5 bg-amber-500 rounded-none animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
+                <span className="text-[9px] uppercase font-black tracking-widest text-slate-400">Contexto Sincronizado</span>
+             </div>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 flex items-center justify-center rounded-sm bg-slate-950 border border-slate-800 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30 text-slate-500 transition-all"
+            >
+              <X size={16} />
+            </button>
+          </div>
         </div>
 
-        {/* ── SPLIT VIEW CONTENT ── */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 min-h-[400px]">
+        {/* ── BENTO GRID CONTENT ── */}
+        <div className="flex-1 overflow-y-auto bg-[#0B0D13]">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-0 min-h-[400px]">
 
-            {/* LEFT: Mapa / Geolocalização (Indigo Theme) */}
-            <div className="bg-slate-950 p-5 border-r border-slate-800/80 flex flex-col">
-              <h3 className="text-[10px] font-black text-indigo-500/70 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
-                Localização do Sítio
-              </h3>
+            {/* LEFT: Mapa Interativo (Radar Theme) */}
+            <div className="lg:col-span-7 bg-[#0B0D13] p-4 sm:p-6 border-r border-slate-800/80 flex flex-col relative">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-[10px] font-black text-emerald-500/70 uppercase tracking-[0.2em] flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-none bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                  Visualização Espacial
+                </h3>
+                <span className="text-[9px] font-mono font-bold text-slate-600 tracking-widest">MAP_API_RDY</span>
+              </div>
               
-              {/* Map Container (Standardized MapCore) */}
-              <div className="flex-1 min-h-[220px] rounded border border-slate-800 bg-slate-900/50 relative overflow-hidden group/map z-0">
+              {/* Map Container */}
+              <div className="flex-1 min-h-[260px] border border-slate-800 bg-slate-950 relative overflow-hidden group/map z-0">
                 {context.lat !== 0 ? (
                   <MapCore
                     activeTool="SELECT"
@@ -225,61 +238,66 @@ export const SiteContextModal: React.FC<SiteContextModalProps> = ({
                     <Marker position={[context.lat, context.lng]} />
                   </MapCore>
                 ) : (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-700 bg-slate-900/50">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-700 bg-[radial-gradient(ellipse_at_center,rgba(2,6,23,1)_0%,rgba(2,6,23,0.5)_100%)]">
+                     {/* Radar Grid Pattern */}
+                     <div className="absolute inset-0 opacity-10 bg-[linear-gradient(rgba(16,185,129,0.3)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.3)_1px,transparent_1px)] bg-[size:20px_20px]" />
                     <MapPin size={32} className="mb-2 opacity-20" />
-                    <span className="text-[10px] uppercase font-bold tracking-widest">Coordenadas Ausentes</span>
+                    <span className="text-[10px] uppercase font-black tracking-widest text-slate-600">Sinal Geográfico Ausente</span>
                   </div>
                 )}
                 
-                {/* Radar/HUD Overlay (Design Only) */}
-                <div className="absolute inset-0 pointer-events-none z-10 border border-indigo-500/10 shadow-[inner_0_0_40px_rgba(0,0,0,0.5)]" />
+                {/* Radar/HUD Overlay */}
+                <div className="absolute inset-0 pointer-events-none z-10 border border-emerald-500/10 shadow-[inner_0_0_40px_rgba(0,0,0,0.6)] mix-blend-overlay" />
                 
-                <div className="absolute bottom-3 left-3 z-20 bg-slate-950/80 backdrop-blur-md px-2 py-1 rounded border border-slate-800 shadow-xl">
-                  <p className="text-[10px] text-indigo-400 font-mono tracking-wider tabular-nums font-bold leading-none">
+                <div className="absolute bottom-3 left-3 z-20 bg-slate-950/90 backdrop-blur-md px-2.5 py-1.5 border border-slate-800">
+                  <p className="text-[10px] text-emerald-400 font-mono tracking-wider tabular-nums font-bold leading-none">
                     {context.lat.toFixed(6)}°S, {Math.abs(context.lng).toFixed(6)}°W
                   </p>
                 </div>
               </div>
 
-              {/* Dados do Sítio */}
-              <div className="grid grid-cols-2 gap-px bg-slate-800 border border-slate-800 rounded mt-4 overflow-hidden shadow-lg">
-                <InfoChip label="Tipo Ligação" value={context.connectionType} theme="indigo" />
-                <InfoChip label="Tensão Operação" value={context.voltage} theme="indigo" />
+              {/* Dados Estruturais */}
+              <div className="grid grid-cols-2 gap-px bg-slate-800 border border-slate-800 mt-4 overflow-hidden">
+                <InfoChip label="Tipo de Conexão" value={context.connectionType} />
+                <InfoChip label="Tensão Operacional" value={context.voltage} />
               </div>
             </div>
 
-            {/* RIGHT: Histórico de Consumo (Sky Theme) */}
-            <div className="bg-slate-950 p-5 flex flex-col">
+            {/* RIGHT: Histórico de Consumo (SCADA Style) */}
+            <div className="lg:col-span-5 bg-[#0B0D13] p-4 sm:p-6 flex flex-col">
               <h3 className="text-[10px] font-black text-sky-500/70 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.5)]" />
-                Perfil de Carga (12 Meses)
+                <div className="w-1.5 h-1.5 rounded-none bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.5)]" />
+                Telemetria de Carga
               </h3>
 
-              {/* Bar Chart */}
-              <div className="flex-1 min-h-[220px] rounded border border-slate-800 bg-slate-900/30 p-4 flex flex-col justify-end relative overflow-hidden">
+              {/* SCADA Bar Chart */}
+              <div className="flex-1 min-h-[180px] border border-slate-800 bg-slate-950/50 p-4 flex flex-col justify-end relative overflow-hidden">
+                {/* Horizontal Scanlines */}
+                <div className="absolute inset-0 pointer-events-none opacity-[0.02] bg-[linear-gradient(rgba(255,255,255,0)_50%,rgba(0,0,0,0.5)_50%)] z-20 bg-[length:100%_4px]" />
+                
                 {/* Vertical Grids */}
-                <div className="absolute inset-0 z-0 flex flex-col justify-between p-4 opacity-5">
+                <div className="absolute inset-0 z-0 flex flex-col justify-between p-4 opacity-[0.03]">
                   {[1, 2, 3, 4].map(i => <div key={i} className="h-px bg-sky-400 w-full" />)}
                 </div>
 
-                <div className="flex items-end gap-1.5 h-full relative z-10">
+                <div className="flex items-end gap-1 sm:gap-2 h-full relative z-10 w-full">
                   {context.monthlyHistory.map((val, i) => {
                     const height = (val / maxConsumption) * 100;
                     const isMax = val === Math.max(...context.monthlyHistory);
                     return (
-                      <div key={i} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
-                        <span className="text-[7px] text-sky-500/70 font-mono tabular-nums leading-none">
-                          {val > 0 ? `${(val / 1000).toFixed(1)}k` : '0'}
+                      <div key={i} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group">
+                        <span className="text-[7px] text-sky-500/50 font-mono tabular-nums leading-none opacity-0 group-hover:opacity-100 transition-opacity">
+                          {val > 0 ? (val >= 1000 ? `${(val / 1000).toFixed(1)}k` : Math.round(val).toString()) : '0'}
                         </span>
                         <div
-                          className={`w-full transition-all duration-500 ${isMax
-                            ? 'bg-sky-400 shadow-[0_0_15px_rgba(14,165,233,0.4)]'
-                            : 'bg-sky-500/50 hover:bg-sky-400/80'
+                          className={`w-full max-w-[20px] transition-all duration-500 ${isMax
+                            ? 'bg-sky-400 shadow-[0_0_15px_rgba(14,165,233,0.3)]'
+                            : 'bg-slate-800 hover:bg-sky-500/50'
                             }`}
                           style={{ height: `${Math.max(height, 4)}%`, minWidth: '4px' }}
                           title={`${MONTHS[i]}: ${val.toLocaleString('pt-BR')} kWh`}
                         />
-                        <span className={`text-[8px] font-bold tracking-tighter ${isMax ? 'text-sky-400' : 'text-slate-600'}`}>{MONTHS[i]}</span>
+                        <span className={`text-[8px] font-bold tracking-widest uppercase ${isMax ? 'text-sky-400' : 'text-slate-600'}`}>{MONTHS[i]}</span>
                       </div>
                     );
                   })}
@@ -287,10 +305,11 @@ export const SiteContextModal: React.FC<SiteContextModalProps> = ({
               </div>
 
               {/* Stats Grid */}
-              <div className="grid grid-cols-3 gap-3 mt-4">
+              <div className="grid grid-cols-2 gap-3 mt-4">
                 <StatChip label="Média Mensal" value={avgConsumption.toLocaleString('pt-BR')} unit="kWh" theme="sky" />
-                <StatChip label="Pico Anual" value={peakMonth} unit="" theme="sky" />
-                <StatChip label="Tarifa Base" value={`R$ ${context.tariffRate.toFixed(2)}`} unit="" theme="sky" />
+                <StatChip label="Pico Anual" value={peakMonth} unit="" theme="amber" />
+                <StatChip label="Tarifa Base" value={`R$ ${context.tariffRate.toFixed(2)}`} unit="" theme="emerald" />
+                <StatChip label="Potência Alvo" value={context.targetPowerKwp.toFixed(2)} unit="kWp" theme="emerald" />
               </div>
             </div>
 
@@ -298,25 +317,18 @@ export const SiteContextModal: React.FC<SiteContextModalProps> = ({
         </div>
 
         {/* ── FOOTER / ACTION BAR ── */}
-        <div className="shrink-0 flex items-center justify-between px-6 py-4 border-t border-slate-700 bg-slate-900">
+        <div className="shrink-0 flex items-center justify-between px-6 py-4 border-t border-slate-800 bg-slate-950">
           <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
-              <span className="text-[10px] uppercase font-black tracking-widest text-slate-500">Pronto para Engenharia</span>
-            </div>
-            <div className="mt-1 flex items-center gap-3">
-               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-bold text-slate-600 uppercase">Potência Estimada:</span>
-                <span className="text-xs font-mono font-bold text-amber-500 tabular-nums">{context.targetPowerKwp.toFixed(2)} kWp</span>
-              </div>
-            </div>
+            <span className="text-[9px] font-mono font-black text-slate-600 tracking-widest uppercase tabular-nums">
+              ID: {context.projectId.slice(0, 8)}
+            </span>
           </div>
 
           <button
             onClick={() => onDimensionar(context.projectId)}
-            className="flex items-center gap-2 px-6 py-2.5 rounded bg-white text-slate-950 text-xs font-black uppercase tracking-tight hover:bg-emerald-400 transition-all active:scale-[0.98] shadow-[0_0_20px_rgba(255,255,255,0.1)] group"
+            className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-slate-950 text-[11px] font-black uppercase tracking-wider transition-all active:scale-[0.98] shadow-[0_0_15px_rgba(16,185,129,0.2)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)] border border-emerald-400/20 group"
           >
-            Abrir Área de Engenharia
+            Abrir Engenharia
             <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
           </button>
         </div>
@@ -329,21 +341,26 @@ export const SiteContextModal: React.FC<SiteContextModalProps> = ({
 // SUB-COMPONENTS
 // =============================================================================
 
-const InfoChip: React.FC<{ label: string; value: string; theme: 'indigo' | 'sky' }> = ({ label, value, theme }) => (
-  <div className="bg-slate-900 p-3 h-full flex flex-col justify-center">
-    <p className={`text-[8px] font-black uppercase tracking-widest mb-1 ${theme === 'indigo' ? 'text-indigo-500/70' : 'text-sky-500/70'}`}>{label}</p>
-    <p className="text-[11px] text-slate-200 font-bold truncate leading-none uppercase">{value}</p>
+const InfoChip: React.FC<{ label: string; value: string; }> = ({ label, value }) => (
+  <div className="bg-[#0B0D13] p-3 h-full flex flex-col justify-center">
+    <p className={`text-[8px] font-black uppercase tracking-widest mb-1 text-slate-500`}>{label}</p>
+    <p className="text-[11px] text-slate-300 font-bold truncate leading-none uppercase tracking-wider">{value}</p>
   </div>
 );
 
-const StatChip: React.FC<{ label: string; value: string; unit: string; theme: 'indigo' | 'sky' }> = ({ label, value, unit, theme }) => (
-  <div className="bg-slate-900/50 border border-slate-800 p-3 flex flex-col">
-    <p className="text-[8px] text-slate-600 font-black uppercase tracking-[0.15em] mb-1.5">{label}</p>
-    <div className="flex items-baseline gap-1">
-      <span className={`text-sm font-black font-mono tabular-nums leading-none ${theme === 'sky' ? 'text-sky-400' : 'text-indigo-400'}`}>
-        {value}
-      </span>
-      {unit && <span className="text-[8px] text-slate-700 font-bold uppercase">{unit}</span>}
+const StatChip: React.FC<{ label: string; value: string; unit: string; theme: 'emerald' | 'sky' | 'amber' }> = ({ label, value, unit, theme }) => {
+  const colorClass = theme === 'sky' ? 'text-sky-400' : theme === 'amber' ? 'text-amber-400' : 'text-emerald-400';
+  
+  return (
+    <div className="bg-slate-950 border border-slate-800 p-3 flex flex-col relative overflow-hidden">
+      <div className={`absolute top-0 left-0 w-1 h-full ${theme === 'sky' ? 'bg-sky-500/20' : theme === 'amber' ? 'bg-amber-500/20' : 'bg-emerald-500/20'}`} />
+      <p className="text-[8px] text-slate-500 font-black uppercase tracking-[0.15em] mb-1.5 ml-1">{label}</p>
+      <div className="flex items-baseline gap-1 ml-1">
+        <span className={`text-[14px] font-black font-mono tabular-nums leading-none ${colorClass}`}>
+          {value}
+        </span>
+        {unit && <span className="text-[8px] text-slate-600 font-bold uppercase">{unit}</span>}
+      </div>
     </div>
-  </div>
-);
+  );
+};

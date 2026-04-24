@@ -1,0 +1,30 @@
+{
+  "eval_id": 3,
+  "config": "with_skill",
+  "expectations": [
+    {
+      "text": "prioriza-impacto",
+      "passed": true,
+      "evidence": "PRIORIDADE 1-5 each with estimated impact percentages. Final table with Sprint 1/2, effort and impact per item."
+    },
+    {
+      "text": "aborda-tabela-precos",
+      "passed": true,
+      "evidence": "Full PRIORIDADE 3: pre-table anchoring section, premium left, ROI below price, persona CTAs. Cites N400 and anterior cingulate cortex."
+    },
+    {
+      "text": "menciona-cta-posicao",
+      "passed": true,
+      "evidence": "Z-pattern with text diagram. Single dominant blue CTA. CTAs differentiated by plan. No competing links in decision zone."
+    },
+    {
+      "text": "critica-lista-funcionalidades",
+      "passed": true,
+      "evidence": "PRIORIDADE 2: feature lists activate only Broca/Wernicke. Replaced by Conflict-Insight-Resolution blocks with rewriting examples."
+    }
+  ],
+  "summary": {
+    "pass_rate": 1.0
+  },
+  "notes": "100% pass rate. Highly differentiated with N400, Broca/Wernicke, vmPFC references."
+}

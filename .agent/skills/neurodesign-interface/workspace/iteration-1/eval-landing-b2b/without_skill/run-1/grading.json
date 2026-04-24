@@ -1,0 +1,30 @@
+{
+  "eval_id": 3,
+  "config": "without_skill",
+  "expectations": [
+    {
+      "text": "prioriza-impacto",
+      "passed": true,
+      "evidence": "7 numbered sections Impact Critical to Medium. Implementation Sequence table with weeks and effort."
+    },
+    {
+      "text": "aborda-tabela-precos",
+      "passed": true,
+      "evidence": "Section 4: name plans by profile, highlight recommended plan as anchor. Anchoring mentioned without neuroscientific depth."
+    },
+    {
+      "text": "menciona-cta-posicao",
+      "passed": true,
+      "evidence": "Section 5: schedule demo vs generic contact form, fewer fields, microcopy. No Z-pattern spatial reference."
+    },
+    {
+      "text": "critica-lista-funcionalidades",
+      "passed": true,
+      "evidence": "Section 2: B2B buyer approves investments based on ROI not features. Good CRO analysis without neuroscience."
+    }
+  ],
+  "summary": {
+    "pass_rate": 1.0
+  },
+  "notes": "100% CRO assertions pass. Strong baseline. Key gap: no N400, Broca/Wernicke, memory system references."
+}

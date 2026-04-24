@@ -1,0 +1,98 @@
+{
+  "skill_name": "neurodesign-interface",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Preciso revisar a proposta comercial de sistema fotovoltaico que estamos usando. A taxa de conversão está baixa. O documento mostra: capa, especificações técnicas dos painéis (marca, eficiência, potência), tabela de consumo do cliente, gráfico de geração mensal, valor total do sistema e parcelas. O que está errado do ponto de vista de quem vai ler isso?",
+      "expected_output": "Análise estruturada nas 4 camadas (Atenção, Cognição, Emoção, Decisão) identificando: ausência de arco narrativo, excesso de especificação técnica sem benefício, falta de ancoragem de preço (custo da inação), ausência de CTA claro, e recomendações concretas com justificativa neurocientífica.",
+      "assertions": [
+        {
+          "name": "cobre-4-camadas",
+          "description": "A resposta aborda as 4 camadas do framework: Atenção, Cognição, Emoção e Decisão",
+          "type": "llm_judge",
+          "criteria": "A resposta menciona explicitamente ou aborda os conceitos de atenção visual, carga cognitiva, engajamento emocional e facilitação de decisão/conversão?"
+        },
+        {
+          "name": "menciona-ancoragem",
+          "description": "Recomenda ancoragem de preço ou custo da inação",
+          "type": "llm_judge",
+          "criteria": "A resposta menciona alguma técnica de ancoragem de preço, custo da inação, enquadramento financeiro ou comparação com alternativas de investimento?"
+        },
+        {
+          "name": "menciona-narrativa",
+          "description": "Recomenda estrutura narrativa em vez de dump técnico",
+          "type": "llm_judge",
+          "criteria": "A resposta critica a abordagem de lista de especificações técnicas e recomenda uma estrutura narrativa com conflito/resolução ou arco de storytelling?"
+        },
+        {
+          "name": "tem-proximo-passo",
+          "description": "Termina com próximo passo acionável",
+          "type": "llm_judge",
+          "criteria": "A resposta termina com uma recomendação concreta e imediatamente acionável, rotulada como próximo passo ou equivalente?"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Estou montando um dashboard para apresentar ao CEO da empresa todo mês. Ele tem 12 KPIs espalhados pela tela, 3 gráficos de pizza, tabelas com dados dos últimos 24 meses e filtros na lateral. Quero que ele consiga tomar decisões rápido. Como faço isso funcionar melhor?",
+      "expected_output": "Diagnóstico de sobrecarga cognitiva e fadiga de decisão. Recomendações incluindo: reduzir para 3–5 KPIs primários, eliminar gráficos de pizza, progressive disclosure para dados históricos, posição dos filtros, hierarquia visual, modo executivo vs analista — tudo com justificativa neurocientífica.",
+      "assertions": [
+        {
+          "name": "critica-pizza",
+          "description": "Critica ou recomenda substituir os gráficos de pizza",
+          "type": "llm_judge",
+          "criteria": "A resposta recomenda substituir ou reduzir os gráficos de pizza, com justificativa sobre precisão perceptual ou hierarquia de Cleveland-McGill?"
+        },
+        {
+          "name": "reduz-kpis",
+          "description": "Recomenda reduzir o número de KPIs visíveis",
+          "type": "llm_judge",
+          "criteria": "A resposta recomenda reduzir os 12 KPIs a um número menor (idealmente 3–5) para o CEO, com justificativa de carga cognitiva ou fadiga de decisão?"
+        },
+        {
+          "name": "modo-executivo",
+          "description": "Sugere hierarquia executivo vs analista ou progressive disclosure",
+          "type": "llm_judge",
+          "criteria": "A resposta menciona separar visualizações simplificadas para tomadores de decisão de alto nível versus drill-down para analistas, ou menciona progressive disclosure?"
+        },
+        {
+          "name": "tem-proximo-passo",
+          "description": "Termina com próximo passo acionável",
+          "type": "llm_judge",
+          "criteria": "A resposta termina com uma recomendação concreta e imediatamente acionável, rotulada como próximo passo ou equivalente?"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Nossa landing page de software B2B (ticket médio R$ 8.000/mês) tem uma taxa de conversão de 0,8%. A página mostra: logo, lista de funcionalidades, depoimentos, tabela de preços com 3 planos e formulário de contato. Me diz o que consertar começando pelo que tem mais impacto.",
+      "expected_output": "Análise priorizada de impacto com recomendações sobre: ancoragem de preço (posicionamento premium, plano âncora), estrutura narrativa (substituir lista de funcionalidades por arco de benefícios), posicionamento do CTA (padrão Z), prova social qualificada, redução de atrito pré-formulário — com justificativa neurocientífica para cada item.",
+      "assertions": [
+        {
+          "name": "prioriza-impacto",
+          "description": "Organiza as recomendações por prioridade/impacto",
+          "type": "llm_judge",
+          "criteria": "A resposta organiza as recomendações em ordem de impacto, ou indica qual mudança terá maior efeito na conversão primeiro?"
+        },
+        {
+          "name": "aborda-tabela-precos",
+          "description": "Fornece recomendações específicas para a tabela de preços",
+          "type": "llm_judge",
+          "criteria": "A resposta aborda a tabela de preços com pelo menos uma técnica de ancoragem — posicionamento do plano premium, preço âncora, reenquadramento de valor, ou comparação com alternativas?"
+        },
+        {
+          "name": "menciona-cta-posicao",
+          "description": "Recomenda melhoria no posicionamento ou clareza do CTA",
+          "type": "llm_judge",
+          "criteria": "A resposta menciona a posição, clareza ou singularidade do Call to Action, referenciando padrão de leitura ou zona de decisão?"
+        },
+        {
+          "name": "critica-lista-funcionalidades",
+          "description": "Critica a lista de funcionalidades como abordagem de vendas",
+          "type": "llm_judge",
+          "criteria": "A resposta critica a lista de funcionalidades como ineficaz para vendas e recomenda substituí-la por benefícios, narrativa ou abordagem orientada ao problema do cliente?"
+        }
+      ]
+    }
+  ]
+}

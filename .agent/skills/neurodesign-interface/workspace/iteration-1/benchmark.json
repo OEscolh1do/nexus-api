@@ -1,0 +1,293 @@
+{
+  "metadata": {
+    "skill_name": "neurodesign-interface",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-04-24T19:28:36Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 0,
+        "failed": 0,
+        "total": 0,
+        "time_seconds": 106.6,
+        "tokens": 106621,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "critica-pizza",
+          "passed": true,
+          "evidence": "Full section on pizza charts with Cleveland-McGill table. Angle judgment is most imprecise visual process."
+        },
+        {
+          "text": "reduz-kpis",
+          "passed": true,
+          "evidence": "1 primary + 2-3 secondary KPIs with font-size hierarchy. Groups 12 into 3-4 semantic blocks."
+        },
+        {
+          "text": "modo-executivo",
+          "passed": true,
+          "evidence": "Progressive Disclosure in 3 explicit levels: CEO (3 months), click (12 months sparklines), analyst (24 months)."
+        },
+        {
+          "text": "tem-proximo-passo",
+          "passed": true,
+          "evidence": "Ends with: open dashboard now, apply Squint Test, note which KPIs survive. Immediate specific action."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 0,
+        "failed": 0,
+        "total": 0,
+        "time_seconds": 111.8,
+        "tokens": 111822,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "prioriza-impacto",
+          "passed": true,
+          "evidence": "PRIORIDADE 1-5 each with estimated impact percentages. Final table with Sprint 1/2, effort and impact per item."
+        },
+        {
+          "text": "aborda-tabela-precos",
+          "passed": true,
+          "evidence": "Full PRIORIDADE 3: pre-table anchoring section, premium left, ROI below price, persona CTAs. Cites N400 and anterior cingulate cortex."
+        },
+        {
+          "text": "menciona-cta-posicao",
+          "passed": true,
+          "evidence": "Z-pattern with text diagram. Single dominant blue CTA. CTAs differentiated by plan. No competing links in decision zone."
+        },
+        {
+          "text": "critica-lista-funcionalidades",
+          "passed": true,
+          "evidence": "PRIORIDADE 2: feature lists activate only Broca/Wernicke. Replaced by Conflict-Insight-Resolution blocks with rewriting examples."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 0,
+        "failed": 0,
+        "total": 0,
+        "time_seconds": 81.9,
+        "tokens": 81903,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "cobre-4-camadas",
+          "passed": true,
+          "evidence": "Explicitly structured as 4 layers with dense content in each."
+        },
+        {
+          "text": "menciona-ancoragem",
+          "passed": true,
+          "evidence": "Dedicated anchoring section with reverse anchoring, mental reframing vs CDI/SP500."
+        },
+        {
+          "text": "menciona-narrativa",
+          "passed": true,
+          "evidence": "5-act narrative arc table. Diagnosis: proposal has no character or story. Broca/Wernicke vs motor cortex."
+        },
+        {
+          "text": "tem-proximo-passo",
+          "passed": true,
+          "evidence": "Explicit Proximo passo recomendado section with actionable instruction."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.75,
+        "passed": 0,
+        "failed": 0,
+        "total": 0,
+        "time_seconds": 58.8,
+        "tokens": 16635,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "critica-pizza",
+          "passed": true,
+          "evidence": "Replace pizza with horizontal bars. Justification present without Cleveland-McGill reference."
+        },
+        {
+          "text": "reduz-kpis",
+          "passed": true,
+          "evidence": "Reduce to 3-5 visible KPIs with secondary layers. Clear recommendation within expected range."
+        },
+        {
+          "text": "modo-executivo",
+          "passed": true,
+          "evidence": "3 hierarchical zones and 5-second test. Progressive disclosure implicitly present, not named."
+        },
+        {
+          "text": "tem-proximo-passo",
+          "passed": false,
+          "evidence": "Ends with prioritization table - useful but not an immediately actionable next step."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 0,
+        "failed": 0,
+        "total": 0,
+        "time_seconds": 63.9,
+        "tokens": 63938,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "prioriza-impacto",
+          "passed": true,
+          "evidence": "7 numbered sections Impact Critical to Medium. Implementation Sequence table with weeks and effort."
+        },
+        {
+          "text": "aborda-tabela-precos",
+          "passed": true,
+          "evidence": "Section 4: name plans by profile, highlight recommended plan as anchor. Anchoring mentioned without neuroscientific depth."
+        },
+        {
+          "text": "menciona-cta-posicao",
+          "passed": true,
+          "evidence": "Section 5: schedule demo vs generic contact form, fewer fields, microcopy. No Z-pattern spatial reference."
+        },
+        {
+          "text": "critica-lista-funcionalidades",
+          "passed": true,
+          "evidence": "Section 2: B2B buyer approves investments based on ROI not features. Good CRO analysis without neuroscience."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.75,
+        "passed": 0,
+        "failed": 0,
+        "total": 0,
+        "time_seconds": 54.9,
+        "tokens": 15899,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "cobre-4-camadas",
+          "passed": true,
+          "evidence": "Covers all 4 conceptual areas without explicit layer labels."
+        },
+        {
+          "text": "menciona-ancoragem",
+          "passed": true,
+          "evidence": "Mentions price without context; recommends monthly savings before cost. Less specific than with_skill."
+        },
+        {
+          "text": "menciona-narrativa",
+          "passed": true,
+          "evidence": "States proposal protagonist is company not client; 5-act narrative structure described."
+        },
+        {
+          "text": "tem-proximo-passo",
+          "passed": false,
+          "evidence": "Ends with consolidated Diagnosis, no explicit actionable next step."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 100.1,
+        "stddev": 15.9747,
+        "min": 81.9,
+        "max": 111.8
+      },
+      "tokens": {
+        "mean": 100115.3333,
+        "stddev": 15985.2874,
+        "min": 81903,
+        "max": 111822
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.8333,
+        "stddev": 0.1443,
+        "min": 0.75,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 59.2,
+        "stddev": 4.5133,
+        "min": 54.9,
+        "max": 63.9
+      },
+      "tokens": {
+        "mean": 32157.3333,
+        "stddev": 27525.3248,
+        "min": 15899,
+        "max": 63938
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.17",
+      "time_seconds": "+40.9",
+      "tokens": "+67958"
+    }
+  },
+  "notes": []
+}

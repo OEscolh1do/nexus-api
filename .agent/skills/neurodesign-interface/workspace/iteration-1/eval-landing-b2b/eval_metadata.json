@@ -1,0 +1,11 @@
+{
+  "eval_id": 3,
+  "eval_name": "eval-landing-b2b",
+  "prompt": "Nossa landing page de software B2B (ticket médio R$ 8.000/mês) tem uma taxa de conversão de 0,8%. A página mostra: logo, lista de funcionalidades, depoimentos, tabela de preços com 3 planos e formulário de contato. Me diz o que consertar começando pelo que tem mais impacto.",
+  "assertions": [
+    {"name": "prioriza-impacto", "description": "Organiza recomendações por impacto/prioridade"},
+    {"name": "aborda-tabela-precos", "description": "Fornece técnica de ancoragem para a tabela de preços"},
+    {"name": "menciona-cta-posicao", "description": "Recomenda melhoria no posicionamento ou clareza do CTA"},
+    {"name": "critica-lista-funcionalidades", "description": "Critica a lista de funcionalidades e propõe abordagem de benefícios"}
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "eval_id": 1,
+  "eval_name": "eval-proposta-solar",
+  "prompt": "Preciso revisar a proposta comercial de sistema fotovoltaico que estamos usando. A taxa de conversão está baixa. O documento mostra: capa, especificações técnicas dos painéis (marca, eficiência, potência), tabela de consumo do cliente, gráfico de geração mensal, valor total do sistema e parcelas. O que está errado do ponto de vista de quem vai ler isso?",
+  "assertions": [
+    {"name": "cobre-4-camadas", "description": "Aborda as 4 camadas: Atenção, Cognição, Emoção, Decisão"},
+    {"name": "menciona-ancoragem", "description": "Recomenda ancoragem de preço ou custo da inação"},
+    {"name": "menciona-narrativa", "description": "Critica dump técnico e propõe arco narrativo"},
+    {"name": "tem-proximo-passo", "description": "Termina com próximo passo acionável"}
+  ]
+}

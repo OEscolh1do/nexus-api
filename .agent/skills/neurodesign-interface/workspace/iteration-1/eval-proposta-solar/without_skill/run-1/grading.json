@@ -1,0 +1,30 @@
+{
+  "eval_id": 1,
+  "config": "without_skill",
+  "expectations": [
+    {
+      "text": "cobre-4-camadas",
+      "passed": true,
+      "evidence": "Covers all 4 conceptual areas without explicit layer labels."
+    },
+    {
+      "text": "menciona-ancoragem",
+      "passed": true,
+      "evidence": "Mentions price without context; recommends monthly savings before cost. Less specific than with_skill."
+    },
+    {
+      "text": "menciona-narrativa",
+      "passed": true,
+      "evidence": "States proposal protagonist is company not client; 5-act narrative structure described."
+    },
+    {
+      "text": "tem-proximo-passo",
+      "passed": false,
+      "evidence": "Ends with consolidated Diagnosis, no explicit actionable next step."
+    }
+  ],
+  "summary": {
+    "pass_rate": 0.75
+  },
+  "notes": "Strong baseline missing neuroscientific justifications and next step."
+}
