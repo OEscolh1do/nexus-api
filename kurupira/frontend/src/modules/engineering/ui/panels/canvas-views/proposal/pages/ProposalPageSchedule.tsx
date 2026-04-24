@@ -48,6 +48,8 @@ export const ProposalPageSchedule: React.FC<Props> = ({ proposalData }) => {
   return (
     <div className="w-full min-h-[1123px] bg-white relative flex flex-col font-sans overflow-hidden">
       
+
+      
       {/* ── HEADER PADRONIZADO (BROKEN GRID) ────────────────────────────── */}
       <div
         className="relative flex"

@@ -1,7 +1,7 @@
 # Mapa de Interface — View `Proposta` (Kurupira)
 
 > **Fonte**: Leitura direta dos arquivos em `canvas-views/proposal/`. Verificado via CoVe.  
-> **Data**: 2026-04-23
+> **Data**: 2026-04-24 — Atualizado após redesign de `ProposalPageTechnical`
 
 ---
 
@@ -15,7 +15,7 @@ canvas-views/proposal/
 └── pages/
     ├── ProposalPageCover.tsx         ← Página 0 — Capa
     ├── ProposalPageInvestment.tsx    ← Página 1 — Investimento
-    ├── ProposalPageTechnical.tsx     ← Página 2 — Dimensionamento
+    ├── ProposalPageTechnical.tsx     ← Página 2 — Dimensionamento ⚠️ redesenhado
     ├── ProposalPageSchedule.tsx      ← Página 3 — Cronograma
     └── ProposalPageContact.tsx       ← Página 4 — Encerramento
 ```
@@ -33,10 +33,10 @@ solarStore (Zustand)
   └── excludedPages[]     → Lista de índices de páginas excluídas do PDF
 
 useTechStore (Zustand)
-  ├── inverters           → Capa (firstInverter)
+  ├── inverters           → Técnico (firstInverter)
   └── prCalculationMode   → Cálculo de geração estimada
 
-calculateProjectionStats() → stats.totalGen → monthlyGenAvg (Capa + Técnico)
+calculateProjectionStats() → stats (ProjectionStats) → monthlyGenAvg, barData, coverage
 ```
 
 ---
@@ -78,7 +78,7 @@ calculateProjectionStats() → stats.totalGen → monthlyGenAvg (Capa + Técnico
 | **1 — Investimento** | Itens de Investimento | description (text), value (number), valueText (text) + Adicionar/Remover |
 | **1 — Investimento** | Etapas de Pagamento | label, value (R$), percentage (%) + Adicionar/Remover + validação 100% |
 | **1 — Investimento** | Condições Comerciais | textarea (máx. 8 linhas) |
-| **2 — Dimensionamento** | Padrão Neonorte | textarea (máx. 600 chars, contador) |
+| **2 — Dimensionamento** | Padrão Neonorte | textarea (máx. 600 chars, contador). Se vazio → 5 bullets hardcoded |
 | **3 — Cronograma** | Etapas de Execução | label (read-only), sublabel, durationText, description (por etapa) |
 | **4 — Encerramento** | Responsável Técnico | engineerName, engineerTitle, engineerCrea |
 | **4 — Encerramento** | Contato | contactPhone, contactInstagram |
@@ -127,13 +127,14 @@ isExportingPdf = true
 │      ┌────────────────┬────────────────┐ │
 │      │ [Projeto]      │ Potência       │ │
 │      │ label lateral  │ XX.XX kWp      │ │
-│      │ verde          │ (32px/mono)    │ │
+│      │ verde (#10B981)│ (32px/mono)    │ │
 │      ├────────────────┼────────────────┤ │
 │      │                │ Geração Est.   │ │
 │      │                │ XXXX kWh/mês   │ │
 │      └────────────────┴────────────────┘ │
 └──────────────────────────────────────────┘
 Fonte de dados: clientData, totalPowerKwp, monthlyGenAvg
+⚠️ Triângulos decorativos ocultados durante isExportingPdf (html2canvas compat)
 ```
 
 ---
@@ -173,23 +174,10 @@ Fonte de dados: clientData, totalPowerKwp, monthlyGenAvg
 │  [HiddenOverlay: showComparativePlans]  │
 │  ┌── Grid 2 cols, gap-12 ─────────────┐ │
 │  │  BÁSICO Card           NEONORTE Card│ │
-│  │  ┌──────────────┐  ┌──────────────┐│ │
-│  │  │ Frame preto  │  │ Frame preto  ││ │
-│  │  │ 4x corner    │  │ + borda verde││ │
-│  │  │ ticks (CAD)  │  │ ticks (CAD)  ││ │
-│  │  │ BÁSICO 24px  │  │ NEONORTE 28px││ │
-│  │  ├──────────────┤  ├──────────────┤│ │
-│  │  │ ✓ KIT FV     │  │ ✓ KIT FV    ││ │
-│  │  │ ✓ ENGENHARIA │  │ ✓ ENGENHARIA ││ │
-│  │  │ ✗ PÓS-VENDA  │  │ ✓ PÓS-VENDA ││ │
-│  │  │   (6 MESES)  │  │   (6 MESES)  ││ │
-│  │  │ ✗ CONSULTORIA│  │ ✓ CONSULTORIA││ │
-│  │  │   (6 MESES)  │  │   (6 MESES)  ││ │
-│  │  ├──────────────┤  ├──────────────┤│ │
-│  │  │ R$ XXXXX     │  │ R$ XXXXX     ││ │
-│  │  │ tag verde    │  │ tag verde    ││ │
-│  │  │              │  │ (15% maior)  ││ │
-│  │  └──────────────┘  └──────────────┘│ │
+│  │  frame preto + 4x corner ticks CAD  │ │
+│  │  ✓ KIT FV / ✓ ENGENHARIA            │ │
+│  │  ✗ PÓS-VENDA / ✗ CONSULTORIA       │ │
+│  │  vs ✓ PÓS-VENDA / ✓ CONSULTORIA    │ │
 │  └─────────────────────────────────────┘ │
 └──────────────────────────────────────────┘
 Fonte de dados: proposalData.lineItems, paymentStages, plans
@@ -200,8 +188,104 @@ Fonte de dados: proposalData.lineItems, paymentStages, plans
 
 ### Página 2 — DIMENSIONAMENTO (`ProposalPageTechnical`)
 ```
-Fonte de dados: modules, firstModule, firstInverter, stats, proposalData.customText
-(Ver ProposalPageTechnical.tsx para estrutura interna completa)
+┌──────────────────────────────────────────────────────────┐
+│  HEADER — fundo BRANCO, borderTop: 6px solid #1a3d2b    │
+│  padding: 32px 48px 24px 48px                            │
+│  ┌── Col. Esq (flex-1): título + subtexto contrato      │
+│  │   "DIMENSIONAMENTO E"                                 │
+│  │   "VIABILIDADE DO PROJETO"                            │
+│  │   (36px, 900, #0F172A, -0.02em, uppercase)           │
+│  │   subtexto: contrato Neonorte (10.5px, #64748B)      │
+│  └── Col. Dir (shrink-0): data + logo circular verde    │
+│      data: DD DE MÊS DE AAAA (12px, uppercase, #64748B) │
+│      logo: círculo 56px, bg #4CAF50, img simbolo-branco │
+│                                                          │
+│  Divisória: 1px solid #E2E8F0                           │
+├──────────────────────────────────────────────────────────┤
+│  CORPO — flex row (55% esq | 45% dir)                   │
+│                                                          │
+│  ── COL. ESQUERDA (55%, padding 20/24/24/48) ──         │
+│                                                          │
+│  1. Badge de Identificação do Cliente                    │
+│     "DIEGO SHERMAN" (16px, 900, #2D6A4F, uppercase)      │
+│     Badge Engineering (maxWidth: 260px):                 │
+│     ┌──────┬────────────┬────────────┐                  │
+│     │PROJ  │ Potência   │  Geração   │                  │
+│     │(vert)│ XX.XX kWp  │ XXXX kWh   │                  │
+│     │verde │ (bg GREEN) │(bg GREEN_L)│                  │
+│     └──────┴────────────┴────────────┘                  │
+│     + 4x corner ticks (#4CAF50)                         │
+│                                                          │
+│  2. Padrão Neonorte                                      │
+│     Título: barra verde + "PADRÃO NEONORTE" (12px/900)  │
+│     Intro: "A elaboração do orçamento..." (10.5px)       │
+│     5 bullets (dots verdes, sem card background):        │
+│     • Inversores solares: 7 anos...                      │
+│     • Módulos FV: 25 anos... (80% eficiência)            │
+│     • String Box e Estrutura: 12 meses...                │
+│     • Engenharia: 6 meses.                               │
+│     • Assistência e Consultoria: 6 meses.                │
+│     Se proposalData.customText → usa split('\n')         │
+│                                                          │
+│  3. Histórico de Consumo                                 │
+│     Label: ● azul + "HISTÓRICO DE CONSUMO" (9px/900)    │
+│     Container: 110px, bg white, border #E2E8F0          │
+│     <ResponsiveContainer 100% × 110>                    │
+│       <LineChart> cons → stroke BLUE (#3B82F6)          │
+│       YAxis: tickFormatter (1200→1,2k), width 28        │
+│                                                          │
+│  4. Geração × Consumo (dual line)                        │
+│     Label: ● laranja Geração + ● azul Consumo           │
+│     <ResponsiveContainer 100% × 110>                    │
+│       <LineChart> gen ORANGE + cons BLUE                │
+│                                                          │
+│  ── COL. DIREITA (45%, padding 20/48/24/24) ──          │
+│                                                          │
+│  1. Foto Satélite (height: 170px, border 3px #E2E8F0)   │
+│     Google Maps Static API (zoom 19, satellite)         │
+│     Badge: "FV{year} — {firstName}" (bg #2D0A4E/85)     │
+│     Fallback: MapPin + "Vista Aérea Indisponível"        │
+│                                                          │
+│  2. KPI Grid (2 cols)                                    │
+│     ┌──────────────┬──────────────────────┐            │
+│     │ IRRADIAÇÃO   │ MÉDIA DE GERAÇÃO     │            │
+│     │ DO LOCAL     │                      │            │
+│     │ XX,XX        │ XXX%  (36px, verde)  │            │
+│     │ Wh/m²/dia    │ Geração × Consumo    │            │
+│     │ (bg #F8FAFC) │ (bg #F0FDF4)        │            │
+│     │ border-l     │ border-l GREEN       │            │
+│     │ GREEN_LIGHT  │                      │            │
+│     └──────────────┴──────────────────────┘            │
+│     avgHsp = totalGen / 365 / totalPowerKwp (pt-BR)    │
+│     coveragePct = stats.coverage (toFixed 0)           │
+│                                                          │
+│  3. Painel Equipamentos                                  │
+│     ┌─────────┬────────────────────────────────┐       │
+│     │EQUIPAM  │ MÓDULOS: {totalModules}         │       │
+│     │ENTOS    │ {manufacturer} · {power}Wp      │       │
+│     │(vert,   │ Instalação: {installationType}  │       │
+│     │ bg GREEN│ [ícone SVG painel solar]        │       │
+│     │ branco) ├────────────────────────────────┤       │
+│     │         │ INVERSOR(ES): {count}           │       │
+│     │         │ {manufacturer}                  │       │
+│     │         │ Potência: {nominalPower×1000} W │       │
+│     │         │ [ícone SVG inversor]            │       │
+│     └─────────┴────────────────────────────────┘       │
+│     Thumbnails: /assets/thumbnail-modulo.png            │
+│     Fallback: SVG inline verde (#2D6A4F)               │
+│     nominalPower em kW no store → ×1000 para exibir W  │
+│                                                          │
+│  4. Geração × Consumo — 2ª instância (BarChart)         │
+│     Label: ■ laranja Geração + ■ azul Consumo           │
+│     <ResponsiveContainer 100% × 110>                    │
+│       <BarChart> gen ORANGE + cons BLUE, barSize 6      │
+│                                                          │
+│  RODAPÉ: 6px solid #4CAF50                             │
+└──────────────────────────────────────────────────────────┘
+Fonte de dados: clientData, modules, firstModule, firstInverter,
+                inverterIds, stats (ProjectionStats), proposalData.customText
+Design tokens: GREEN=#2D6A4F, GREEN_LIGHT=#4CAF50, GREEN_DARK=#1a3d2b,
+               PURPLE=#2D0A4E, ORANGE=#F97316, BLUE=#3B82F6
 ```
 
 ---
@@ -239,7 +323,7 @@ Fonte de dados: modules, firstModule, firstInverter, stats, proposalData.customT
 │  │      description (9px, 70% white)    │ │
 │  │                                      │ │
 │  │  Footer: "TOTAL: 37 - 40 DIAS"       │ │
-│  │  (hardcoded — ⚠️ pendência)          │ │
+│  │  (hardcoded — ⚠️ pendência P1)       │ │
 │  └──────────────────────────────────────┘ │
 └──────────────────────────────────────────┘
 Fonte de dados: proposalData.executionSchedule
@@ -256,30 +340,20 @@ Fonte de dados: proposalData.executionSchedule
 │  Grid: Esquerda (flex-1) + Direita (340)│
 │                                          │
 │  ┌── Esq: Placeholders de Fotos ────────┐│
-│  │  ┌────────────────────────────────┐  ││
-│  │  │ "Foto Instalação" (gradient)   │  ││
-│  │  └────────────────────────────────┘  ││
-│  │  ┌────────────────────────────────┐  ││
-│  │  │ "Foto Equipamento" (gradient)  │  ││
-│  │  └────────────────────────────────┘  ││
+│  │  "Foto Instalação" (gradient CSS)    ││
+│  │  "Foto Equipamento" (gradient CSS)   ││
 │  └───────────────────────────────────────┘│
 │                                           │
 │  ┌── Dir: CTA + Contato ─────────────────┐│
 │  │  Logo /logos/logo-verde.png           ││
 │  │  "ENGENHARIA" (subtítulo)             ││
-│  │  ┌─────────────────────────────────┐  ││
-│  │  │ Box verde escuro (#2D6A4F)      │  ││
-│  │  │ FALE / COM A / GENTE            │  ││
-│  │  │ (52px, 900, white)              │  ││
-│  │  └─────────────────────────────────┘  ││
-│  │  ┌─────────────────────────────────┐  ││
-│  │  │ Box verde (#4CAF50)             │  ││
-│  │  │ texto de agradecimento          │  ││
-│  │  └─────────────────────────────────┘  ││
-│  │  Contato (mt-auto):                   ││
-│  │  │ engineerName + Title + CREA        ││
-│  │  📱 contactPhone                      ││
-│  │  📷 contactInstagram                  ││
+│  │  Box verde escuro (#2D6A4F):          ││
+│  │    FALE / COM A / GENTE (52px/900)   ││
+│  │  Box verde (#4CAF50): agradecimento  ││
+│  │  Contato (mt-auto):                  ││
+│  │    engineerName + Title + CREA        ││
+│  │    📱 contactPhone                    ││
+│  │    📷 contactInstagram               ││
 │  └───────────────────────────────────────┘│
 └──────────────────────────────────────────┘
 Fonte de dados: proposalData.{engineerName, engineerTitle, engineerCrea,
@@ -288,26 +362,28 @@ Fonte de dados: proposalData.{engineerName, engineerTitle, engineerCrea,
 
 ---
 
-## Pendências Identificadas (CoVe)
+## Pendências Identificadas (CoVe — atualizado 2026-04-24)
 
-| # | Componente | Gap | Prioridade |
-|---|-----------|-----|-----------|
-| 1 | `ProposalPageSchedule` | `TOTAL: 37 - 40 DIAS` hardcoded — não lê do estado | P1 |
-| 2 | `ProposalPageContact` | Fotos de instalação são placeholders CSS, não imagens reais | P2 |
-| 3 | `ProposalPageInvestment` | Items de planos 'plan-basico'/'plan-neonorte' ignoram o estado (guardrail de cache) | P2 |
-| 4 | `ProposalPageSchedule` | Não segue o mesmo padrão de header (Broken Grid) que Investimento | P1 |
-| 5 | `ProposalPageTechnical` | Estrutura interna não mapeada nesta sessão | P2 |
+| # | Componente | Gap | Prioridade | Status |
+|---|-----------|-----|------------|--------|
+| 1 | `ProposalPageSchedule` | `TOTAL: 37 - 40 DIAS` hardcoded — não lê do estado | P1 | 🔴 Aberto |
+| 2 | `ProposalPageContact` | Fotos de instalação são placeholders CSS, não imagens reais | P2 | 🔴 Aberto |
+| 3 | `ProposalPageInvestment` | Items de planos 'plan-basico'/'plan-neonorte' HARDCODED no render | P2 | 🔴 Aberto |
+| 4 | `ProposalPageSchedule` | Header não segue padrão Broken Grid das demais páginas | P1 | 🔴 Aberto |
+| 5 | `ProposalPageTechnical` | Estrutura interna não mapeada | P2 | ✅ Resolvido (mapa acima) |
+| 6 | `ProposalPageTechnical` | Thumbnails de equipamento dependem de `/assets/thumbnail-modulo.png` | P3 | ⚠️ Fallback SVG ativo |
 
 ---
 
 ## Referências de Arquivos
 
-| Arquivo | Linhas | Bytes |
-|---------|--------|-------|
-| [ProposalDocumentPreview.tsx](../kurupira/frontend/src/modules/engineering/ui/panels/canvas-views/proposal/ProposalDocumentPreview.tsx) | 227 | 8.9KB |
-| [ProposalEditPanel.tsx](../kurupira/frontend/src/modules/engineering/ui/panels/canvas-views/proposal/ProposalEditPanel.tsx) | 552 | 27.2KB |
-| [ProposalPageCover.tsx](../kurupira/frontend/src/modules/engineering/ui/panels/canvas-views/proposal/pages/ProposalPageCover.tsx) | 222 | 8.9KB |
-| [ProposalPageInvestment.tsx](../kurupira/frontend/src/modules/engineering/ui/panels/canvas-views/proposal/pages/ProposalPageInvestment.tsx) | ~420 | 21.5KB |
-| [ProposalPageTechnical.tsx](../kurupira/frontend/src/modules/engineering/ui/panels/canvas-views/proposal/pages/ProposalPageTechnical.tsx) | ~380 | 15.1KB |
-| [ProposalPageSchedule.tsx](../kurupira/frontend/src/modules/engineering/ui/panels/canvas-views/proposal/pages/ProposalPageSchedule.tsx) | 236 | 9.0KB |
-| [ProposalPageContact.tsx](../kurupira/frontend/src/modules/engineering/ui/panels/canvas-views/proposal/pages/ProposalPageContact.tsx) | 207 | 7.7KB |
+| Arquivo | Linhas | KB |
+|---------|--------|----|
+| [ProposalDocumentPreview.tsx](../kurupira/frontend/src/modules/engineering/ui/panels/canvas-views/proposal/ProposalDocumentPreview.tsx) | 226 | 8,8 |
+| [ProposalEditPanel.tsx](../kurupira/frontend/src/modules/engineering/ui/panels/canvas-views/proposal/ProposalEditPanel.tsx) | 551 | 26,6 |
+| [ProposalBlockedScreen.tsx](../kurupira/frontend/src/modules/engineering/ui/panels/canvas-views/proposal/ProposalBlockedScreen.tsx) | 105 | 4,7 |
+| [ProposalPageCover.tsx](../kurupira/frontend/src/modules/engineering/ui/panels/canvas-views/proposal/pages/ProposalPageCover.tsx) | 221 | 8,7 |
+| [ProposalPageInvestment.tsx](../kurupira/frontend/src/modules/engineering/ui/panels/canvas-views/proposal/pages/ProposalPageInvestment.tsx) | 441 | 21,0 |
+| [ProposalPageTechnical.tsx](../kurupira/frontend/src/modules/engineering/ui/panels/canvas-views/proposal/pages/ProposalPageTechnical.tsx) | 503 | 26,6 |
+| [ProposalPageSchedule.tsx](../kurupira/frontend/src/modules/engineering/ui/panels/canvas-views/proposal/pages/ProposalPageSchedule.tsx) | 253 | 9,9 |
+| [ProposalPageContact.tsx](../kurupira/frontend/src/modules/engineering/ui/panels/canvas-views/proposal/pages/ProposalPageContact.tsx) | 206 | 7,5 |

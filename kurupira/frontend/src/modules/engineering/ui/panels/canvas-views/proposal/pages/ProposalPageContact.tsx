@@ -18,6 +18,7 @@ export const ProposalPageContact: React.FC<Props> = ({ proposalData, isExporting
   return (
     <div className="w-full min-h-[1123px] relative flex flex-col font-sans overflow-hidden">
       {/* Background: gradiente simulando parede/ambiente */}
+
       <div
         className="absolute inset-0"
         style={{

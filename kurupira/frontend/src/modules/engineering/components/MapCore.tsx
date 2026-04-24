@@ -218,31 +218,44 @@ const MapPropSync: React.FC<{ center?: [number, number]; zoom?: number }> = ({ c
   return null;
 };
 
+/** 
+ * Pilha de instâncias do Leaflet. Garante que se um modal com mapa for fechado,
+ * a referência global volte para o mapa do workspace principal.
+ */
+const mapStack: LeafletMap[] = [];
+
+/** 
+ * Referência global mutável para a instância ATIVA do Leaflet.
+ * Permite que o R3F (useLeafletSync) e scripts de captura (captureViewport)
+ * acessem o mapa sem re-renders no React.
+ */
+export const globalLeafletMapRef: { current: LeafletMap | null } = { current: null };
+
 /**
  * MapRefExposer -- Extrai a instância real do Leaflet via contexto
- * e injeta na nossa ref global para que scripts fora do React possam usá-la.
+ * e injeta na nossa ref global usando um sistema de pilha para evitar colisões.
  */
 const MapRefExposer: React.FC = () => {
   const map = useMap();
   useEffect(() => {
+    // Adiciona esta instância ao topo da pilha
+    mapStack.push(map);
     globalLeafletMapRef.current = map;
+
     return () => {
-      globalLeafletMapRef.current = null;
+      // Remove esta instância da pilha
+      const index = mapStack.indexOf(map);
+      if (index !== -1) {
+        mapStack.splice(index, 1);
+      }
+      // Restaura a referência para o mapa anterior na pilha (se houver)
+      globalLeafletMapRef.current = mapStack.length > 0 
+        ? mapStack[mapStack.length - 1] 
+        : null;
     };
   }, [map]);
   return null;
 };
-
-// =============================================================================
-// MAIN COMPONENT & GLOBAL REF
-// =============================================================================
-
-/** 
- * Referência global mutável para a instância do Leaflet.
- * Permite que o R3F (useLeafletSync) leia o estado (zoom/pan) no ciclo de vida
- * do WebGL a 60fps sem causar re-renders no React ou encher o Redux/Zustand.
- */
-export const globalLeafletMapRef: { current: LeafletMap | null } = { current: null };
 
 interface MapCoreProps {
   /** Ferramenta ativa — dita o comportamento de interação */

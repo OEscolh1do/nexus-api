@@ -15,6 +15,7 @@ import { ProposalPageContact } from './pages/ProposalPageContact';
 
 export const ProposalDocumentPreview: React.FC = () => {
   const clientData = useSolarStore(s => s.clientData);
+  const getSimulatedTotal = useSolarStore(s => s.getSimulatedTotal);
   const proposalData = useSolarStore(s => s.proposalData);
   const modules = useSolarStore(selectModules);
   const activePage = useSolarStore(s => s.proposalActivePage);
@@ -37,16 +38,20 @@ export const ProposalDocumentPreview: React.FC = () => {
       ? techState.getAdditivePerformanceRatio()
       : techState.getPerformanceRatio();
 
+    const simulatedAddedLoad = getSimulatedTotal();
+    const additionalLoadsMonthly = Array(12).fill(simulatedAddedLoad);
+
     return calculateProjectionStats({
       totalPowerKw: totalPowerKwp,
       hsp: (clientData.monthlyIrradiation || Array(12).fill(0)) as number[],
       monthlyConsumption: (clientData.invoices?.[0]?.monthlyHistory || Array(12).fill(clientData.averageConsumption)) as number[],
+      additionalLoadsMonthly,
       prDecimal: prDecimal || 0.75,
       tariffRate: clientData.tariffRate || 0.92,
       connectionType: clientData.connectionType,
       cosip: techState.cosip,
     });
-  }, [modules, clientData, techState]);
+  }, [modules, clientData, techState, getSimulatedTotal]);
 
   const monthlyGenAvg = Math.round(stats.totalGen / 12);
 

@@ -28,6 +28,7 @@ export const ProposalPageCover: React.FC<Props> = ({ clientData, totalPowerKwp, 
       style={{ backgroundColor: '#2D0A4E' }}
     >
       {/* Triângulos decorativos — canto inferior direito */}
+
       {!isExportingPdf && (
         <>
           <div

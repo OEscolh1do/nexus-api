@@ -44,6 +44,7 @@ export const ProposalPageInvestment: React.FC<Props> = ({ proposalData }) => {
   return (
     <div className="w-full min-h-[1123px] bg-white relative flex flex-col font-sans overflow-hidden">
 
+
       {/* ── TOPO VERDE (GRADIENTE) ─────────────────────────────────────── */}
       <div
         className="relative flex"
