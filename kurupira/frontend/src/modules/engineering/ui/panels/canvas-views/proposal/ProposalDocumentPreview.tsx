@@ -3,7 +3,10 @@ import { createPortal } from 'react-dom';
 import { useSolarStore, selectModules } from '@/core/state/solarStore';
 import { useTechStore } from '@/modules/engineering/store/useTechStore';
 import { calculateProjectionStats } from '@/modules/engineering/utils/projectionMath';
-import { ChevronLeft, ChevronRight, EyeOff } from 'lucide-react';
+import { 
+  ChevronLeft, ChevronRight, EyeOff, 
+  Maximize2, MoveHorizontal, ZoomIn 
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // Pages
@@ -72,17 +75,41 @@ export const ProposalDocumentPreview: React.FC = () => {
 
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [scale, setScale] = React.useState(1);
+  const [zoomMode, setZoomMode] = React.useState<'fit' | 'width' | 'original'>('fit');
 
   React.useEffect(() => {
     if (!containerRef.current) return;
+    
     const observer = new ResizeObserver((entries) => {
-      const { width } = entries[0].contentRect;
-      const newScale = Math.min(1, (width - 2) / 794);
+      const { width, height } = entries[0].contentRect;
+      
+      // 1. Reservar espaço para elementos de UI fixos
+      const navControlsHeight = 80;
+      const bannerHeight = proposalData.excludedPages?.includes(activePage) ? 50 : 0;
+      const padding = 32; // Respiro visual lateral/vertical
+
+      const availableWidth = width - padding;
+      const availableHeight = height - navControlsHeight - bannerHeight - padding;
+
+      // 2. Calcular escala baseada no modo selecionado
+      let newScale = 1;
+
+      if (zoomMode === 'fit') {
+        const scaleW = availableWidth / 794;
+        const scaleH = availableHeight / 1123;
+        newScale = Math.min(scaleW, scaleH, 1);
+      } else if (zoomMode === 'width') {
+        newScale = Math.min(availableWidth / 794, 1.2); // Cap em 1.2x para não estourar demais
+      } else {
+        newScale = 1;
+      }
+      
       setScale(newScale);
     });
+
     observer.observe(containerRef.current);
     return () => observer.disconnect();
-  }, []);
+  }, [activePage, proposalData.excludedPages, zoomMode]);
 
   // ── MOTOR DE IMPRESSÃO NATIVO (Browser Print) ────────────────────
   React.useEffect(() => {
@@ -114,17 +141,25 @@ export const ProposalDocumentPreview: React.FC = () => {
   ];
 
   return (
-    <div className="flex flex-col items-center gap-6 w-full max-w-[794px]">
-      <div ref={containerRef} className="w-full flex flex-col items-center">
+    <div ref={containerRef} className="flex flex-col items-center w-full h-full overflow-hidden">
+      
+      {/* 1. Header Area (Status/Alerts) */}
+      <div className="w-full flex flex-col items-center pt-4 shrink-0">
         {proposalData.excludedPages?.includes(activePage) && (
-          <div className="w-[794px] max-w-full bg-amber-500/10 border border-amber-500/30 py-2 px-4 mb-4 rounded-sm flex items-center justify-center gap-2 animate-in fade-in slide-in-from-top-2">
+          <div className="w-[794px] max-w-full bg-amber-500/10 border border-amber-500/30 py-2 px-4 mb-2 rounded-sm flex items-center justify-center gap-2 animate-in fade-in slide-in-from-top-2">
             <EyeOff size={14} className="text-amber-500" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-amber-500/80">
+            <span className="text-[10px] font-black uppercase tracking-widest text-amber-500/80 text-center">
               Esta página não será incluída no PDF final
             </span>
           </div>
         )}
+      </div>
 
+      {/* 2. Main Content (The A4 Page) - Centered in remaining space */}
+      <div className={cn(
+        "flex-1 w-full flex justify-center min-h-0 relative",
+        zoomMode === 'fit' ? "items-center overflow-hidden" : "items-start overflow-y-auto pt-8 pb-8 scrollbar-hide sm:custom-scrollbar"
+      )}>
         <div
           style={{
             width: `${794 * scale}px`,
@@ -132,22 +167,58 @@ export const ProposalDocumentPreview: React.FC = () => {
             overflow: 'hidden',
             position: 'relative',
             flexShrink: 0,
+            transition: 'width 0.2s ease-out, height 0.2s ease-out',
           }}
         >
           <div
-            className="w-[794px] h-[1123px] bg-white shadow-2xl"
+            className="w-[794px] h-[1123px] bg-white shadow-[0_20px_50px_rgba(0,0,0,0.3)]"
             style={{
               transformOrigin: 'top left',
               transform: `scale(${scale})`,
+              transition: 'transform 0.2s ease-out',
             }}
           >
             {pages[activePage]}
           </div>
         </div>
+
+        {/* 2.1 Zoom HUD (Floating) */}
+        <div className="absolute left-6 top-1/2 -translate-y-1/2 flex flex-col gap-1 p-1 bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-md shadow-2xl z-10">
+          <button
+            onClick={() => setZoomMode('fit')}
+            title="Ajustar à Tela"
+            className={cn(
+              "p-2 rounded-sm transition-colors",
+              zoomMode === 'fit' ? "bg-indigo-500 text-white" : "text-slate-400 hover:text-white hover:bg-slate-800"
+            )}
+          >
+            <Maximize2 size={16} />
+          </button>
+          <button
+            onClick={() => setZoomMode('width')}
+            title="Ajustar à Largura"
+            className={cn(
+              "p-2 rounded-sm transition-colors",
+              zoomMode === 'width' ? "bg-indigo-500 text-white" : "text-slate-400 hover:text-white hover:bg-slate-800"
+            )}
+          >
+            <MoveHorizontal size={16} />
+          </button>
+          <button
+            onClick={() => setZoomMode('original')}
+            title="Tamanho Real (100%)"
+            className={cn(
+              "p-2 rounded-sm transition-colors",
+              zoomMode === 'original' ? "bg-indigo-500 text-white" : "text-slate-400 hover:text-white hover:bg-slate-800"
+            )}
+          >
+            <ZoomIn size={16} />
+          </button>
+        </div>
       </div>
 
-      {/* Navigation Controls */}
-      <div className="flex items-center gap-2 sm:gap-4 pb-12 sm:pb-8 pt-4">
+      {/* 3. Navigation Controls - Fixed at bottom */}
+      <div className="flex items-center gap-2 sm:gap-4 pb-6 pt-2 shrink-0">
         <button
           onClick={() => setActivePage(activePage - 1)}
           disabled={activePage === 0}

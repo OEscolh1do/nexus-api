@@ -38,7 +38,7 @@ export const ProposalCanvasView: React.FC = () => {
                 PAINEL ESQUERDO (35%) — Controles Editoriais
             ══════════════════════════════════════════════════════ */}
             <div className={cn(
-                "w-full lg:w-[400px] shrink-0 border-r border-slate-800 bg-[#0a0f1a] flex-col overflow-hidden",
+                "w-full lg:w-[40%] xl:w-[35%] 2xl:w-[30%] min-w-[380px] max-w-[700px] shrink-0 border-r border-slate-800 bg-[#0a0f1a] flex-col overflow-hidden transition-all duration-300 ease-in-out",
                 mobileMode === 'editor' ? "flex h-full" : "hidden lg:flex lg:h-full"
             )}>
                 <ProposalEditPanel />
@@ -48,10 +48,10 @@ export const ProposalCanvasView: React.FC = () => {
                 PAINEL DIREITO (65%) — Documento A4 Preview
             ══════════════════════════════════════════════════════ */}
             <div className={cn(
-                "flex-1 bg-slate-900/50 flex-col overflow-hidden relative",
+                "flex-1 bg-slate-900/50 flex flex-col overflow-hidden relative",
                 mobileMode === 'preview' ? "flex" : "hidden lg:flex"
             )}>
-                <div className="flex-1 overflow-auto p-4 md:p-8 flex justify-center bg-[#05080e] custom-scrollbar">
+                <div className="flex-1 flex justify-center bg-[#05080e] overflow-hidden">
                     {/* O Preview replica fielmente o template PDF Neonorte */}
                     <ProposalDocumentPreview />
                 </div>
