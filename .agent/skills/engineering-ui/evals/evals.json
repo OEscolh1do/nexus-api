@@ -1,0 +1,85 @@
+{
+  "evals": [
+    {
+      "eval_id": 1,
+      "eval_name": "eval-tabela-dados-industriais",
+      "prompt": "Estou projetando uma tabela para monitoramento de 5.000 sensores industriais em tempo real. Cada linha tem: ID do sensor, localização, valor atual, unidade, status (OK/Alerta/Falha) e ultima atualizacao. Como devo estruturar esta tabela para que operadores encontrem problemas rapidamente?",
+      "assertions": [
+        {
+          "name": "alinhamento-numerico",
+          "type": "llm_judge",
+          "description": "Menciona alinhamento correto: numeros quantitativos à direita, texto à esquerda"
+        },
+        {
+          "name": "virtualizacao-performance",
+          "type": "llm_judge",
+          "description": "Recomenda virtualizacao de linhas para suportar 5000 linhas sem travar o browser"
+        },
+        {
+          "name": "redundancia-visual-status",
+          "type": "llm_judge",
+          "description": "Recomenda redundancia visual para coluna de status (nao apenas cor, mas icone ou texto para daltonismo)"
+        },
+        {
+          "name": "tem-proximo-passo",
+          "type": "llm_judge",
+          "description": "Termina com 'Proximo passo recomendado:' e uma acao concreta"
+        }
+      ]
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "eval-hmi-sala-controle",
+      "prompt": "Preciso redesenhar o painel de controle de uma planta de tratamento de agua. Atualmente temos uma interface com fundo branco, animacoes de tubulacoes, gradientes coloridos e 30 indicadores na tela principal. Operadores reclamam de fadiga visual apos 4 horas. O que mudar?",
+      "assertions": [
+        {
+          "name": "menciona-isa101-hphmi",
+          "type": "llm_judge",
+          "description": "Menciona o padrao ISA-101 ou HPHMI como referencia para redesign"
+        },
+        {
+          "name": "critica-animacoes-e-gradientes",
+          "type": "llm_judge",
+          "description": "Critica explicitamente animacoes graficas sem funcao e gradientes coloridos que distraem"
+        },
+        {
+          "name": "recomenda-hierarquia-4-niveis",
+          "type": "llm_judge",
+          "description": "Recomenda reduzir KPIs na tela principal e organizar em hierarquia de niveis (Overview / Processo / Equipamento)"
+        },
+        {
+          "name": "tem-proximo-passo",
+          "type": "llm_judge",
+          "description": "Termina com 'Proximo passo recomendado:' e uma acao concreta"
+        }
+      ]
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "eval-acessibilidade-webapp",
+      "prompt": "Nosso SaaS B2B para gestao de ativos falhou numa auditoria de acessibilidade WCAG 2.2. Os problemas identificados foram: contraste de bordas de input insuficiente, tabelas sem cabecalhos semanticos, e o layout quebra quando o usuario usa zoom de 400%. Como corrigir cada um?",
+      "assertions": [
+        {
+          "name": "corrige-contraste-componente",
+          "type": "llm_judge",
+          "description": "Explica que bordas de componentes UI precisam de 3:1 de contraste (WCAG 1.4.11) e como medir/corrigir"
+        },
+        {
+          "name": "corrige-tabela-semantica",
+          "type": "llm_judge",
+          "description": "Recomenda th com scope='col'/'row' e caption para tabelas acessiveis a leitores de tela"
+        },
+        {
+          "name": "corrige-reflow-zoom",
+          "type": "llm_judge",
+          "description": "Menciona WCAG 1.4.10 Reflow e solucao com unidades relativas (rem/%) e Flexbox/Grid para 320px"
+        },
+        {
+          "name": "tem-proximo-passo",
+          "type": "llm_judge",
+          "description": "Termina com 'Proximo passo recomendado:' e uma acao concreta"
+        }
+      ]
+    }
+  ]
+}

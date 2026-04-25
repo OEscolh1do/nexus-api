@@ -12,41 +12,36 @@
 
 ---
 
-## Changelog v3.7
+## Changelog v4.0 (Pós-Construção Real)
 
 | Seção | Mudança |
 |-------|---------|
-| §1 | Diagnóstico v3.7: Inclusão do Bloco de Arranjo como crítico para coerência |
-| §2.2 | `onClick` mapeado para 4 blocos principais |
-| §3.2 | Cores de glow atualizadas (Indigo para Arranjo) |
-| §4 | `SystemCompositionState` expandido com `arrangementBlock` |
-| §5 | Lista de arquivos afetados sincronizada |
-| Geral | Alinhamento com o grid Master de 240px |
+| §1 | Diagnóstico atualizado: Sistema de Grid Resiliente, Summary Bar e 280px de largura. |
+| §2.2 | `onClick` mapeado para a pilha real (Consumo, Módulos, Inversor, Proposta). Bloco Site no topo (neutro). |
+| §3.2 | **Scientific Palette** consolidada. Fim do `opacity-40` para blocos inativos (agora 100% de opacidade com bordas sutis). |
+| §4 | O bloco de Arranjo não faz parte da pilha lateral no modelo construído. Adição dos blocos de Projeção e Proposta. |
+| Geral | Alinhamento com o grid Master de **280px** (não mais 240px). |
 
 ---
 
-## 1. Diagnóstico (v3.7)
+### 1.1 Situação atual (Construída)
 
-### 1.1 Situação atual
+O Compositor de Blocos no LeftOutliner está em produção com a seguinte pilha processual (Top to Bottom):
+- ✅ Site (Localização/Clima) → Consumo (Carga) → Módulos (Geração) → Inversor (Conversão) → Projeção (Performance) → Proposta (Business).
+- ✅ Cascata de ativação via `LockedBlock`.
+- ✅ Design "Scientific Palette" e "Engineering Grid" (Grid 2 colunas, tabular-nums).
+- ✅ **Summary Bar (Semi-Resumido)** para blocos não-focados, evitando quebra de títulos ou sobreposição.
 
-O MVP v3.6 entregou o Compositor de Blocos no LeftOutliner com:
-- ✅ Pilha Consumo → Módulos → Arranjo (novo) → Inversor
-- ✅ Cascata de ativação: `LockedBlock` → bloco ativo quando predecessor tem dados
-- ✅ Chips de validação no Bloco Inversor (FDI, Voc, Isc)
-- ✅ `ComposerBlockModule.tsx`, `ComposerBlockArrangement.tsx` e `ComposerBlockInverter.tsx` operacionais
-
-O que ainda falta para o Compositor ser o **guia ativo da jornada**:
-
-| Indicador | Estado atual | Estado desejado |
-|-----------|-------------|-----------------|
-| Clicar no bloco abre a view correspondente | ❌ Blocos sem onClick funcional | ✅ `setFocusedBlock()` no onClick |
-| Bloco focado tem glow visual | ❌ Sem estado de foco | ✅ `ring-2` + glow por cor de bloco |
-| Blocos não focados recuam | ❌ Todos sempre opacity-100 | ✅ `opacity-40` quando outro está em foco |
-| Conector mostra dado transitado | ⚠️ Parcial — LegoTab tem label | ✅ Conector mostra kWp alvo calculado |
+| Indicador | Estado |
+|-----------|-------------|
+| Clicar no bloco abre a view correspondente | ✅ `setFocusedBlock()` no onClick integrado |
+| Bloco focado tem glow visual | ✅ Borda intensa (`border-500/50`) e anel (`ring-1`) |
+| Blocos não focados recuam | ✅ Recuam apenas na intensidade da borda (`border-500/10`), mantendo opacidade 100% para não parecerem "apagados". |
+| Conector mostra fluxo | ✅ `FlowConnector` integrado conectando a pilha. |
 
 ### 1.2 O que NÃO muda
 
-O Compositor **fica no LeftOutliner**. O CenterCanvas é para as views de trabalho (mapa, elétrica, simulação, consumo). O LeftOutliner (fixo em 240px) é para a pilha de composição — é o lugar correto pela metáfora Lego/Scratch/Tinkercad.
+O Compositor **fica no LeftOutliner**. O CenterCanvas é para as views de trabalho (mapa, elétrica, simulação, consumo). O LeftOutliner (fixo em **280px** para acomodar o Engineering Grid) é para a pilha de composição — é o lugar correto pela metáfora Lego/Scratch/Tinkercad.
 
 ---
 
@@ -63,10 +58,10 @@ Cada bloco ganha um `onClick` que chama `setFocusedBlock(id)` no `uiStore`. Esse
 2. Qual view está ativa no CenterCanvas (via `spec-sincronia-bloco-canvas`)
 
 ```
-Bloco Consumo.onClick   → setFocusedBlock('consumption')
-Bloco Módulos.onClick   → setFocusedBlock('module')
-Bloco Arranjo.onClick   → setFocusedBlock('arrangement')
-Bloco Inversor.onClick  → setFocusedBlock('inverter')
+Bloco Consumo.onClick    → setFocusedBlock('consumption')
+Bloco Módulos.onClick    → setFocusedBlock('module')
+Bloco Inversor.onClick   → setFocusedBlock('inverter')
+Bloco Proposta.onClick   → setFocusedBlock('proposal')
 ```
 
 O `systemCompositionSlice` continua existindo como camada de view derivada — ele lê dos stores existentes e expõe o estado dos blocos (chips, status, sugestões).
@@ -80,30 +75,32 @@ O botão "Dimensionamento Inteligente" no TopRibbon:
 
 ---
 
-## 3. Anatomia dos Blocos (v3.7)
-
-### 3.1 Estrutura (mantida)
+### 3.1 Estrutura (Implementada)
 
 ```
-┌─ [ícone] [título]         [resumo] ─┐  ← header
-│  [chip] [chip] [chip]                │  ← body: chips de status
-└──────────────────────────────────────┘
+┌─ [ícone] [título]             ─┐  ← header técnico
+│  [Summary Bar Opcional]        │  ← barra semi-resumida (ativa se desfocado)
+│  [Engineering Grid (2 cols)]   │  ← body 100% de largura, divide-x
+└────────────────────────────────┘
 ```
 
-### 3.2 Estados visuais
+### 3.2 Estados visuais (Atualizados - "No Opacity Drop")
+
+Para não parecer "apagado", a opacidade 40% foi descartada.
 
 | Estado | Classe CSS | Condição |
 |--------|-----------|---------|
-| **Focado** | `ring-2 opacity-100 shadow-[glow]` | `activeFocusedBlock === blocoId` |
-| **Desfocado** | `opacity-40 grayscale-[0.15]` | `activeFocusedBlock !== null && !== blocoId` |
-| **Neutro** | `opacity-100` | `activeFocusedBlock === null` |
-| **Locked** | `opacity-25 pointer-events-none` | predecessor incompleto |
+| **Focado** | `bg-[cor]-950/80 border-[cor]-500 ring-1` | `activeFocusedBlock === blocoId` |
+| **Desfocado** | `bg-[cor]-950/70 border-[cor]-600/10 opacity-100` | `activeFocusedBlock !== null && !== blocoId` |
+| **Locked** | `opacity-80 border-dashed bg-slate-900/20` | predecessor incompleto |
 
-Cores de glow (spec-foco-tatil):
-- Consumo: `rgba(245, 158, 11, 0.4)` — Amber
-- Módulos: `rgba(14, 165, 233, 0.4)` — Sky
-- Arranjo: `rgba(99, 102, 241, 0.4)` — Indigo
-- Inversor: `rgba(16, 185, 129, 0.4)` — Emerald
+**Scientific Palette** (Cor de cada bloco):
+- Site: `Indigo-400`
+- Consumo: `Sky-400`
+- Módulos: `Amber-400`
+- Inversor: `Emerald-400`
+- Projeção: `Teal-400`
+- Proposta: `Violet-400`
 
 ---
 
@@ -128,31 +125,10 @@ interface SystemCompositionState {
 
 ---
 
-## 5. Arquivos Afetados (v3.7)
-
-| Arquivo | Mudança |
+| Arquivo | Mudança Construída |
 |---------|---------|
-| `ui/panels/LeftOutliner.tsx` | Fixo em 240px; Inclusão do Bloco Arranjo; onClick expandido |
-| `canvas-views/composer/ComposerBlockArrangement.tsx` | NOVO — componente do bloco indigo |
-| `hooks/useAutoSizing.ts` | Incluir step `arrangement` na animação |
-
----
-
-## 6. Plano de Migração (v3.7)
-
-Fase A: `systemCompositionSlice` (seletores de Arranjo)
-Fase B: `onClick` nos 4 blocos principais
-Fase C: Estados visuais (Glow Indigo para Arranjo)
-Fase D: Animação do Dimensionamento Inteligente completa
-
----
-
-## 7. Critérios de Aceitação (v3.7)
-
-- [ ] Clicar no Bloco Arranjo → canvas desliza para modo desenho no MapCore
-- [ ] Bloco Arranjo com glow Indigo (`rgba(99,102,241,0.4)`)
-- [ ] LeftOutliner mantém 240px de largura fixa em resoluções desktop
-- [ ] Conector Arranjo → Inversor mostra "em sinc" quando `physicalCount === logicalCount`
+| `ui/panels/LeftOutliner.tsx` | Fixo em **280px**; Pilha estrita de 6 blocos; Remoção de Flat Tree. |
+| `canvas-views/composer/ComposerBlock*.tsx` | Componentes individuais de cada bloco utilizando o `Engineering Grid`. |
 
 ---
 

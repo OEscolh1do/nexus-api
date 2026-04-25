@@ -1,6 +1,6 @@
 import React from 'react';
 import { usePanelStore } from '../../store/panelStore';
-import { FileText, Map, TrendingUp, Zap, ShieldCheck, LayoutDashboard, Layers, type LucideIcon } from 'lucide-react';
+import { FileText, Map, TrendingUp, Zap, ShieldCheck, LayoutDashboard, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 import { useUIStore, useFocusedBlock, type FocusedBlock } from '@/core/state/uiStore';
@@ -10,7 +10,6 @@ const SHEET_TABS: { id: FocusedBlock; icon: LucideIcon; label: string }[] = [
   { id: 'site',          icon: FileText,        label: 'Projeto' },
   { id: 'consumption',   icon: Zap,             label: 'Consumo' },
   { id: 'module',        icon: LayoutDashboard, label: 'Módulos' },
-  { id: 'arrangement',   icon: Layers,          label: 'Arranjo' },
   { id: 'inverter',      icon: ShieldCheck,     label: 'Elétrica' },
   { id: 'projection',    icon: TrendingUp,      label: 'Projeção' },
   { id: 'map',           icon: Map,             label: 'Mapa' },

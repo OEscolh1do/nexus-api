@@ -26,20 +26,20 @@ Clicar no Bloco Proposta abre a `ProposalCanvasView` no CenterCanvas. Isso é co
 O Bloco Proposta é o último bloco da pilha, abaixo do Bloco Simulação:
 
 ```
+SiteBlock
+  └── FlowConnector (indigo)
 ConsumptionBlock
-  └── LegoTab "kWh" (âmbar)
+  └── FlowConnector (sky)
 ComposerBlockModule
-  └── LegoTab "DC" (sky)
-ComposerBlockArrangement
-  └── LegoTab "físico" (indigo)
+  └── FlowConnector (amber)
 ComposerBlockInverter
-  └── LegoTab "AC" (emerald)
-ComposerBlockSimulation        ← bloco de resultado técnico
-  └── LegoTab "aprovado" (teal)
+  └── FlowConnector (emerald)
+ComposerBlockProjection        ← bloco de resultado técnico
+  └── FlowConnector (teal)
 ComposerBlockProposal          ← NOVO — bloco de saída comercial
 ```
 
-O conector acima do bloco tem label "aprovado" e cor teal, indicando que o Bloco Proposta só fica ativo quando o sistema foi aprovado.
+O conector acima do bloco tem cor teal, indicando que o Bloco Proposta flui da Projeção.
 
 ---
 
@@ -53,7 +53,7 @@ O Bloco Proposta tem quatro estados visuais distintos:
 
 O bloco aparece como `LockedBlock` padrão do Compositor, com ícone de cadeado e hint: *"Aprove o sistema para gerar a proposta."*
 
-Visual: fundo `bg-slate-900/50`, borda `border-slate-800`, texto `text-slate-600`. Opacidade reduzida se outro bloco está em foco (`isDeemphasized`).
+Visual: fundo `bg-slate-900/20`, borda tracejada, opacidade em 80%.
 
 Clicar no bloco bloqueado: sem ação (cursor `not-allowed`).
 
@@ -126,9 +126,8 @@ Visual: borda `border-emerald-500/40`, badge emerald "GERADO". Dois CTAs:
 O Bloco Proposta participa do sistema de `activeFocusedBlock` como todos os outros blocos:
 
 - `onClick` no bloco (nos estados `available`, `ready` ou `exported`) → `setFocusedBlock('proposal')`
-- Quando `activeFocusedBlock === 'proposal'`: bloco tem `ring-2 ring-indigo-500` + glow indigo suave
-- Quando outro bloco está focado: bloco recua para `opacity-40`
-- Quando nenhum bloco está focado: `opacity-100` sem glow
+- Quando `activeFocusedBlock === 'proposal'`: bloco tem borda intensa e fundo iluminado (Violet-400)
+- Quando outro bloco está focado: bloco recua para borda translúcida, mas **mantém 100% de opacidade** (Scientific Palette rule).
 
 O mapeamento no `CenterCanvas.tsx` já existente:
 

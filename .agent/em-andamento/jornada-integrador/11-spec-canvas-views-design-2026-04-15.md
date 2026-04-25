@@ -16,20 +16,19 @@
 ## 1. Visão Geral e Grid Master (v3.7)
 
 O CenterCanvas é um slot polimórfico. O workspace é regido por um grid master:
-- **LeftOutliner:** Fixo em **240px**. Não colapsa automaticamente para não quebrar a metáfora da pilha.
+- **LeftOutliner:** Fixo em **280px**. Não colapsa automaticamente para não quebrar a metáfora da pilha (Grid Resiliente).
 - **CenterCanvas:** Ocupa `flex-1`.
 
 ### 1.1 Mapeamento canônico expandido (9 estados)
 
-| `activeFocusedBlock` | Canvas View | Bloco Vinculado | Cor Tema |
+| `activeFocusedBlock` | Canvas View | Bloco Vinculado | Cor Tema (Scientific Palette) |
 |----------------------|-------------|-----------------|----------|
-| `'consumption'` | `ConsumptionCanvasView` | ⚡ Consumo | Amber |
-| `'module'` | `ModuleCanvasView` | ☀ Módulos FV | Sky |
-| `'arrangement'` | `MapCore` (modo desenho) | 🗺 Arranjo | Indigo |
-| `'inverter'` | `ElectricalCanvasView` | 🔲 Inversor | Emerald |
-| `'simulation'` | `SimulationCanvasView` | 📊 Simulação | Teal |
-| `'site'` | `SiteCanvasView` | — (Aba Site) | Violet |
-| `'proposal'` | `ProposalModule` | — (Aba Proposta) | Indigo |
+| `'site'` | `SiteCanvasView` | 📍 Site | Indigo-400 |
+| `'consumption'` | `ConsumptionCanvasView` | ⚡ Consumo | Sky-400 |
+| `'module'` | `ModuleCanvasView` | ☀ Módulos FV | Amber-400 |
+| `'inverter'` | `ElectricalCanvasView` | 🔲 Inversor | Emerald-400 |
+| `'projection'` | `ProjectionCanvasView` | 📊 Projeção | Teal-400 |
+| `'proposal'` | `ProposalCanvasView` | 📄 Proposta | Violet-400 |
 | `'map'` | `MapCore` (modo neutro) | — | Slate |
 | `null` | — (última ativa) | — | — |
 
@@ -100,9 +99,9 @@ View densa com 5 cards de dossiê técnica (Cliente, Localização, Clima, Equip
 
 ---
 
-## 11. Critérios de Aceitação (v3.7)
+## 11. Critérios de Aceitação (Revisados v4.0)
 
-- [ ] `LeftOutliner` forçado em `240px` (utilizar `min-w-[240px] max-w-[240px]`).
+- [x] `LeftOutliner` forçado em `280px` (utilizar `min-w-[280px] max-w-[280px]`).
 - [ ] `ConsumptionCanvasView` e `ElectricalCanvasView` implementadas com grid 75/25.
 - [ ] Transições entre views sem desmontagem do `MapCore`.
 - [ ] Sincronia de cores (glow) entre bloco lateral e tema da view central.

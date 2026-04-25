@@ -20,7 +20,6 @@ export const ComposerBlockArrangement: React.FC = () => {
     // Obtemos as métricas derivadas do hook global de composição
     const { arrangementBlock } = useSystemComposition();
     const isFocused = focusedBlock === 'arrangement';
-    const isDeemphasized = focusedBlock !== null && focusedBlock !== 'arrangement';
 
     // Handler de Foco
     const handleFocus = () => {
@@ -40,9 +39,7 @@ export const ComposerBlockArrangement: React.FC = () => {
                 "relative rounded-none border-x border-b flex flex-col overflow-visible transition-all duration-300 z-35 cursor-pointer -mt-px",
                 isFocused 
                     ? "border-indigo-500 bg-indigo-950/80 shadow-[0_0_15px_rgba(99,102,241,0.25)] ring-1 ring-indigo-500/50" 
-                    : isDeemphasized 
-                        ? "border-indigo-900/30 bg-indigo-950/40 opacity-40 select-none"
-                        : "border-indigo-600/40 bg-indigo-950/70 hover:border-indigo-500/50 shadow-[inset_0_-3px_0_rgba(0,0,0,0.25)] backdrop-blur-sm"
+                    : "border-indigo-600/40 bg-indigo-950/70 hover:border-indigo-500/50 shadow-[inset_0_-3px_0_rgba(0,0,0,0.25)] backdrop-blur-sm"
             )}
         >
             {/* Header */}

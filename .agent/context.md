@@ -45,7 +45,6 @@ Para garantir contraste (WCAG AA) em Dark Mode (`slate-950`), utilizamos o siste
 | `null` / `map` | Mapa livre | `neutral` |
 | `consumption` | `ConsumptionCanvasView` | — (overlay opaco) |
 | `module` | Mapa + HUD placement | `placement` |
-| `arrangement` | Mapa + HUD drawing | `drawing` |
 | `inverter` | `ElectricalCanvasView` | — (overlay opaco) |
 | `simulation` | `SimulationCanvasView` | — (overlay opaco) |
 
@@ -56,7 +55,7 @@ O `MapCanvasView` wrapper gerencia 3 modos contextuais derivados do `activeFocus
 - **`neutral`** (default): Ferramentas SELECT, MEASURE. Barra slate com coordenadas.
 
 ### Workspace Tabs (Ordem na UI)
-`Consumo → Módulos → Arranjo → Elétrica → Simulação → Mapa`
+`Consumo → Módulos → Elétrica → Simulação → Mapa`
 
 ---
 
@@ -91,6 +90,7 @@ O `MapCanvasView` wrapper gerencia 3 modos contextuais derivados do `activeFocus
 - ✅ **Premises Bar**: Centralização de todas as variáveis de estudo (Ligação, Tarifa, Média, Crescimento) em uma única barra horizontal.
 - ✅ **Ghost Scrollbars**: Implementação global de barras de rolagem minimalistas (6px, slate-800) para redução de ruído visual.
 - ✅ **Cleanup**: Remoção do componente redundante `ClimateCorrelationChart.tsx`.
+- ⏳ **Arranjo Físico Deferido**: Módulo de desenho de arranjo físico ocultado da UI e removido como gate de progressão; será reativado em fase posterior.
 
 ### v3.8.0 (2026-04-16) — Jornada do Integrador: MapCore Multi-Modo + Consumption Refactor
 

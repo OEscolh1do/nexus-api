@@ -123,7 +123,7 @@ export const WorkspaceLayout: React.FC = () => {
 
   // Em mobile, a sidebar some do grid (col 0px fixo) — o Bottom Sheet assume
   const gridCols = [
-    (!isMobile && leftOpen) ? '240px' : '0px',
+    (!isMobile && leftOpen) ? '280px' : '0px',
     '1fr',
   ].join(' ');
 
@@ -152,7 +152,7 @@ export const WorkspaceLayout: React.FC = () => {
       {!isMobile && (
         <div
           style={{ gridArea: 'outliner' }}
-          className={`overflow-hidden border-r border-slate-800/50 z-10 transition-all duration-300 ${leftOpen ? 'w-[240px]' : 'w-0'}`}
+          className={`overflow-hidden border-r border-slate-800/50 z-10 transition-all duration-300 ${leftOpen ? 'w-[280px]' : 'w-0'}`}
         >
           {leftOpen && <LeftOutliner onToggle={() => setLeftOpen(false)} />}
         </div>

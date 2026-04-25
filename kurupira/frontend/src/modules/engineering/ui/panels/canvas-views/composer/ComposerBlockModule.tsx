@@ -32,7 +32,6 @@ export const ComposerBlockModule: React.FC = () => {
         : 4.5;
 
     const isFocused = focusedBlock === 'module';
-    const isDeemphasized = focusedBlock !== null && focusedBlock !== 'module';
 
     const groupsMap: Record<string, { specs: any; quantity: number; ids: string[] }> = {};
     modules.forEach(mod => {
@@ -75,33 +74,33 @@ export const ComposerBlockModule: React.FC = () => {
             <div 
                 onClick={() => { setFocusedBlock('module'); restoreMap(); }}
                 className={cn(
-                    "relative rounded-none border-x border-b flex flex-col transition-all duration-300 z-20 cursor-pointer overflow-visible -mt-px",
-                    isFocused
-                        ? "border-amber-500 bg-amber-950/80 shadow-[0_0_15px_rgba(245,158,11,0.25)] ring-1 ring-amber-500/50"
-                        : isDeemphasized
-                            ? "border-amber-900/30 bg-amber-950/40 opacity-50 grayscale select-none"
-                            : "border-dashed border-amber-600/30 bg-amber-950/60 shadow-[inset_0_-3px_0_rgba(0,0,0,0.25)] shadow-lg"
-                )}
-            >
-                <div className="px-4 py-2.5 flex items-center gap-3 border-b border-amber-500/10 bg-gradient-to-r from-amber-900/15 to-transparent">
-                    <div className="w-5 h-5 rounded-sm flex items-center justify-center bg-amber-500/10 text-amber-500 border border-amber-500/20 shadow-inner">
-                        <Sun size={11} />
-                    </div>
-                    <div className="flex flex-col">
-                        <span className="text-[10px] font-black text-amber-500 uppercase tracking-wider leading-none">Módulos FV</span>
-                        {kwpAlvo > 0 && (
-                            <span className="text-[7px] text-amber-600 font-bold uppercase tracking-tight mt-0.5 opacity-60">Alvo Requerido: {kwpAlvo.toFixed(2)} kWp</span>
-                        )}
-                    </div>
+                "relative rounded-none border flex flex-col transition-all duration-300 z-20 cursor-pointer overflow-hidden shrink-0",
+                isFocused
+                    ? "border-amber-500 bg-amber-950/80 shadow-[0_0_15px_rgba(245,158,11,0.25)] ring-1 ring-amber-500/50"
+                    : "border-dashed border-amber-600/30 bg-amber-950/60 shadow-[inset_0_-3px_0_rgba(0,0,0,0.25)] shadow-lg"
+            )}
+        >
+            <div className="px-4 py-2.5 flex items-center gap-3 border-b border-amber-500/10 bg-gradient-to-r from-amber-900/15 to-transparent h-10">
+                <div className="w-5 h-5 rounded-sm flex items-center justify-center bg-amber-500/10 text-amber-500 border border-amber-500/20 shadow-inner shrink-0">
+                    <Sun size={11} />
                 </div>
+                <span className="text-[11px] font-black text-slate-100 uppercase tracking-widest leading-none truncate flex-1">
+                    Módulos FV
+                </span>
+            </div>
 
-                <div className="p-4 py-8 flex flex-col items-center justify-center text-center gap-3">
+            <div className={cn(
+                "flex flex-col transition-all duration-300",
+                isFocused ? "opacity-100 max-h-[500px]" : "opacity-0 max-h-0 pointer-events-none"
+            )}>
+                <div className="px-5 py-8 flex flex-col items-center justify-center text-center gap-3 bg-black/20">
                     <Sun size={24} className="text-amber-500/20 animate-pulse" />
-                    <p className="text-[9px] text-amber-800/60 font-black uppercase tracking-widest leading-relaxed max-w-[150px]">
+                    <p className="text-[11px] text-slate-500 font-black uppercase tracking-widest leading-relaxed max-w-[150px]">
                         Utilize o Catálogo no painel principal para adicionar módulos ao projeto
                     </p>
                 </div>
             </div>
+        </div>
         );
     }
 
@@ -109,60 +108,81 @@ export const ComposerBlockModule: React.FC = () => {
         <div 
             onClick={() => { setFocusedBlock('module'); restoreMap(); }}
             className={cn(
-                "relative rounded-none border-x border-b flex flex-col transition-all duration-300 z-20 cursor-pointer overflow-visible -mt-px",
+                "relative rounded-none border flex flex-col transition-all duration-300 z-20 cursor-pointer overflow-hidden shrink-0",
                 isFocused
                     ? "border-amber-500 bg-amber-950/80 shadow-[0_0_15px_rgba(245,158,11,0.25)] ring-1 ring-amber-500/50"
-                    : isDeemphasized
-                        ? "border-amber-900/30 bg-amber-950/40 opacity-40 select-none"
-                        : "border-amber-600/40 bg-amber-950/70 hover:border-amber-500/50 shadow-[inset_0_-3px_0_rgba(0,0,0,0.25)] backdrop-blur-sm"
+                    : "border-amber-600/40 bg-amber-950/70 hover:border-amber-500/50 shadow-[inset_0_-3px_0_rgba(0,0,0,0.25)] backdrop-blur-sm"
             )}
         >
             {/* Header Técnico */}
-            <div className="px-4 py-2.5 flex items-center border-b border-slate-800/50 bg-gradient-to-r from-amber-900/15 to-transparent gap-3">
-                <div className="w-5 h-5 rounded-sm flex items-center justify-center border border-amber-500/30 bg-amber-500/10 text-amber-500 shadow-inner">
+            <div className="px-4 py-2.5 flex items-center border-b border-slate-800/50 bg-gradient-to-r from-amber-900/15 to-transparent gap-3 h-10">
+                <div className="w-5 h-5 rounded-sm flex items-center justify-center border border-amber-500/30 bg-amber-500/10 text-amber-500 shadow-inner shrink-0">
                     <Sun size={11} />
                 </div>
-                <div className="flex flex-col">
-                    <span className="text-[10px] font-black text-slate-100 uppercase tracking-wider leading-none">Gerador FV</span>
-                    <span className="text-[8px] text-amber-400 font-bold uppercase tracking-tight mt-0.5">{totalModules} un. instaladas</span>
-                </div>
+                <span className="text-[11px] font-black text-slate-100 uppercase tracking-widest leading-none truncate flex-1">
+                    Gerador FV
+                </span>
             </div>
 
+            {/* Summary Bar (Semi-Resumido) */}
+            {!isFocused && totalModules > 0 && (
+                <div className="px-4 py-1.5 flex items-center gap-2 bg-amber-950/40 border-b border-amber-500/10 animate-in fade-in slide-in-from-top-1 duration-200">
+                    <div className="flex items-baseline gap-1 px-1.5 py-0.5 rounded-[4px] bg-slate-900/80 border border-slate-700/30">
+                        <span className="text-[11px] font-black text-amber-400 tracking-tighter">
+                            {totalDcKwp.toFixed(1)}
+                        </span>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">kWp</span>
+                    </div>
+                    <div className="flex items-baseline gap-1 px-1.5 py-0.5 rounded-[4px] bg-slate-900/80 border border-slate-700/30">
+                        <span className="text-[11px] font-black text-amber-500 tracking-tighter">
+                            {Math.round(totalDcKwp * hspAvgManual * 30 * (Number(prValueAdditive) / 100)).toLocaleString('pt-BR')}
+                        </span>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">kWh</span>
+                    </div>
+                    <div className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.6)]" />
+                </div>
+            )}
+
+            <div className={cn(
+                "flex flex-col transition-all duration-300",
+                isFocused ? "opacity-100 max-h-[800px]" : "opacity-0 max-h-0 pointer-events-none"
+            )}>
+
             {/* Inventário de Módulos (Movido para cima) */}
-            <div className="divide-y divide-slate-800/30 bg-slate-900/10 border-b border-amber-900/10">
+            <div className="divide-y divide-slate-800/40 bg-slate-950/20 border-b border-amber-900/10">
                 {moduleGroups.map((group, idx) => (
-                    <div key={idx} className="flex items-center justify-between px-4 py-2 group hover:bg-slate-900/40 transition-colors">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                            <span className="text-[11px] font-black text-amber-400 font-mono tabular-nums w-6 text-right shrink-0">{group.quantity}×</span>
-                            <div className="flex flex-col min-w-0">
-                                <span className="text-[9px] font-black text-slate-100 truncate max-w-[130px] leading-tight uppercase tracking-tight">
-                                    {group.specs.manufacturer} <span className="text-amber-500/70 opacity-80">{group.specs.power}Wp</span>
+                    <div key={idx} className="flex items-center justify-between px-4 py-3 group hover:bg-slate-900/50 transition-colors gap-2">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <span className="text-[12px] font-black text-amber-400 font-mono tabular-nums w-8 text-right shrink-0">{group.quantity}×</span>
+                            <div className="flex flex-col min-w-0 flex-1">
+                                <span className="text-[12px] font-black text-slate-100 truncate leading-tight uppercase tracking-tight">
+                                    {group.specs.manufacturer} <span className="text-amber-500/80">{group.specs.power}Wp</span>
                                 </span>
-                                <span className="text-[8px] font-bold text-slate-500 truncate uppercase tracking-tighter">{group.specs.model}</span>
+                                <span className="text-[11px] font-bold text-slate-500/80 truncate uppercase tracking-tight">{group.specs.model}</span>
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-1.5 translate-x-1 group-hover:translate-x-0 transition-transform duration-200">
-                            <div className="flex items-center bg-slate-950/80 rounded-[2px] border border-slate-800/80 overflow-hidden shadow-inner">
+                        <div className="flex items-center gap-2 shrink-0 transition-transform duration-200">
+                            <div className="flex items-center bg-slate-950 rounded-[4px] border border-slate-800 p-0.5 shadow-lg">
                                 <button 
                                     onClick={(e) => { e.stopPropagation(); handleDecrement(group); }} 
-                                    className="w-5 h-5 flex items-center justify-center text-slate-500 hover:text-amber-400 hover:bg-slate-800 text-[10px] transition-all"
+                                    className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-amber-400 hover:bg-slate-800 rounded-sm transition-all active:scale-90"
                                 >
                                     −
                                 </button>
-                                <div className="w-[1px] h-3 bg-slate-800/50" />
+                                <div className="w-[1px] h-4 bg-slate-800 mx-0.5" />
                                 <button 
                                     onClick={(e) => { e.stopPropagation(); handleIncrement(group); }} 
-                                    className="w-5 h-5 flex items-center justify-center text-slate-500 hover:text-amber-400 hover:bg-slate-800 text-[10px] transition-all"
+                                    className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-amber-400 hover:bg-slate-800 rounded-sm transition-all active:scale-90"
                                 >
                                     +
                                 </button>
                             </div>
                             <button
                                 onClick={(e) => { e.stopPropagation(); handleRemoveGroup(group); }}
-                                className="w-5 h-5 flex items-center justify-center text-slate-700 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                                className="w-6 h-6 flex items-center justify-center text-slate-600 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
                             >
-                                <Trash2 size={10} />
+                                <Trash2 size={12} />
                             </button>
                         </div>
                     </div>
@@ -170,34 +190,32 @@ export const ComposerBlockModule: React.FC = () => {
             </div>
 
             {/* Display de Instrumento (Potência vs Geração) */}
-            <div className="px-4 py-3 flex items-center justify-between bg-black/20 backdrop-blur-md">
+            <div className="grid grid-cols-[1fr_auto] divide-x divide-slate-800/60 bg-black/40 backdrop-blur-md">
                 {/* Potência DC */}
-                <div className="flex flex-col">
-                    <span className="text-[7px] text-amber-500/80 font-bold uppercase tracking-[0.15em] mb-1">Potência DC</span>
-                    <div className="flex items-baseline gap-1">
-                        <span className={cn("text-lg font-black font-mono tabular-nums tracking-tighter leading-none transition-colors", isKwpMet ? "text-emerald-400" : "text-amber-300")}>
+                <div className="p-4 flex flex-col gap-1 min-w-0">
+                    <span className="text-[10px] text-amber-500/80 font-black uppercase tracking-widest leading-none">Potência Gerador</span>
+                    <div className="flex items-baseline gap-1.5 min-w-0">
+                        <span className={cn("text-xl font-black font-mono tabular-nums tracking-tighter leading-none transition-colors", isKwpMet ? "text-emerald-400" : "text-amber-400")}>
                             {totalDcKwp.toFixed(2)}
                         </span>
-                        <span className="text-[9px] font-bold text-amber-600/80 uppercase tracking-normal">kWp</span>
+                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tight">kWp</span>
                     </div>
                 </div>
                 
-                {/* Divisor Visual */}
-                <div className="w-px h-8 bg-gradient-to-b from-transparent via-amber-900/40 to-transparent" />
-
                 {/* Geração Estimada */}
-                <div className="flex flex-col items-end">
-                    <span className="text-[7px] text-amber-500/80 font-bold uppercase tracking-[0.15em] mb-1">Geração Est.</span>
-                    <div className="flex items-baseline gap-1">
-                        <span className="text-lg font-black text-amber-400 font-mono tabular-nums tracking-tighter leading-none">
+                <div className="p-4 flex flex-col gap-1 items-end text-right min-w-[120px]">
+                    <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest leading-none">Prod. Mensal</span>
+                    <div className="flex items-baseline gap-1.5">
+                        <span className="text-xl font-black text-amber-400 font-mono tabular-nums tracking-tighter leading-none">
                             {Math.round(totalDcKwp * hspAvgManual * 30 * (Number(prValueAdditive) / 100)).toLocaleString('pt-BR')}
                         </span>
-                        <span className="text-[9px] font-bold text-amber-600/80 uppercase tracking-normal">kWh</span>
+                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tight">kWh</span>
                     </div>
                 </div>
             </div>
 
 
         </div>
-    );
+    </div>
+);
 };

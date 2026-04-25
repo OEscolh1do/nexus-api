@@ -12,43 +12,40 @@
 
 ---
 
-## 1. Visão Geral (v3.7)
+## 1. Visão Geral (v4.0 - Atualizado)
 
 O `LeftOutliner` é o hub de controle fixo do Kurupira. 
-- **Largura Master:** Fixo em **240px** (Engineering Tool Aesthetic).
-- **Estrutura:** Híbrida — Pilha de Blocos (topo) + Árvore de Topologia (corpo).
+- **Largura Master:** Fixo em **280px** (Ajustado para comportar o Engineering Grid numérico).
+- **Estrutura:** Puramente processual — Pilha de Blocos (Compositor). A "Flat Tree" de topologia elétrica foi despriorizada deste painel para evitar colapso visual e manter o foco na jornada.
 
 ---
 
 ## 2. A Nova Arquitetura: Flat Tree (v3.7)
 
 ### 2.1 Princípios de Layout
-O Outliner nunca colapsa automaticamente ao navegar na jornada. Ele mantém os 240px para garantir que a pilha de blocos (Lego) esteja sempre disponível para avaliação rápida de coerência.
+O Outliner nunca colapsa automaticamente ao navegar na jornada. Ele mantém os 280px para garantir que a pilha de blocos (Lego) esteja sempre disponível para avaliação rápida de coerência. A adoção da *Summary Bar (Semi-Resumido)* protege a leitura quando a view central exige espaço.
 
-### 2.2 Estrutura Visual
+### 2.2 Estrutura Visual Implementada
 ```
-📂 OUTLINER (240px)
+📂 OUTLINER (280px)
 │
-├─ [PILHA DE BLOCOS]
-│   ├─ ⚡ Consumo
-│   ├─ ☀ Módulos
-│   ├─ 🗺 Arranjo
-│   └─ 🔲 Inversor
-│
-└─ [TOPOLOGIA ELÉTRICA]
-    └─ ⚡ PHB 10kW
-        └─ ● MPPT 1
-            ├─ ─ String A
-            └─ ─ String B
+└─ [PILHA DE BLOCOS - COMPOSITOR]
+    ├─ 📍 Site (Local / Clima)
+    ├─ ⚡ Consumo (Carga Mensal)
+    ├─ ☀ Módulos (Geração DC)
+    ├─ 🔲 Inversor (Conversão AC)
+    ├─ 📊 Projeção (Performance)
+    └─ 📄 Proposta (Status Comercial)
 ```
+*(A Topologia Elétrica detalhada será tratada dentro da `ElectricalCanvasView`, mantendo o LeftOutliner focado na Orquestração de Alto Nível).*
 
 ---
 
-## 11. Critérios de Aceitação (v3.7)
+## 11. Critérios de Aceitação (Revisados v4.0)
 
-- [ ] Largura forçada em 240px via CSS `min-w-[240px] max-w-[240px]`.
-- [ ] Renderização correta da Flat Tree abaixo da pilha de blocos.
-- [ ] Sincronia de seleção: clicar num nó da árvore desativa o foco do bloco (`activeFocusedBlock = null`) para evitar conflito visual.
+- [x] Largura forçada em 280px via CSS.
+- [x] Sincronia de seleção: clicar num bloco (`ComposerBlock*.tsx`) define `activeFocusedBlock` e ilumina o bloco (Scientific Palette).
+- [x] Ausência de `opacity-40`: todos os blocos mantêm 100% de opacidade com variação apenas na intensidade da borda.
 
 ---
 

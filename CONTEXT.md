@@ -2,7 +2,7 @@
 
 > **Última Atualização:** 2026-04-14
 > **Arquiteto:** Antigravity AI
-> **Versão do Sistema:** 3.6.0 (Operação Lego-Scratch — Compositor de Engenharia de Alta Tactilidade)
+> **Versão do Sistema:** 3.8.0 (Operação Stack Dinâmica — Acordeão & Respiro)
 
 ---
 
@@ -17,7 +17,7 @@
 
 ---
 
-## 🏗️ ARQUITETURA DE UI (v3.7.0)
+## 🏗️ ARQUITETURA DE UI (v3.8.0)
 
 O Kurupira evoluiu para uma interface de **Composição Tátil**, focada em um fluxo de trabalho sequencial e utilitário, com uma base de design focada estritamente em **Engineering Tool Aesthetic**.
 
@@ -38,11 +38,13 @@ A interface transitou de um modelo arredondado / gamificado ("B2C") para uma den
     - **Slate-400 / 300**: Tipografia de dados secundários e rótulos de unidade (kW, V, A).
     - **Slate-100 / White**: Texto de leitura primária e valores de alta prioridade.
 
-### Paradigma de Composição: Pilha Lego
-O **LeftOutliner** não é mais uma árvore hierárquica, mas um **Compositor de Blocos Intertravados**:
-- **Tactilidade Visual**: Blocos com conectores SVG puzzle (Tab/Notch), sombras 3D de profundidade e cores saturadas (Lego-style).
-- **Cascata Progressiva**: Blocos subsequentes iniciam como `LockedBlock` (flutuantes e esmaecidos) e "encaixam" (`animate-lego-snap`) apenas quando o predecessor é validado.
-- **Fluxo Crítico**: Consumo (Âmbar) → Módulos (Cyan) → Inversor (Esmeralda).
+### Paradigma de Composição: Stack Dinâmica (Accordion)
+O **LeftOutliner** evoluiu de uma pilha estática para uma **Stack Dinâmica de Contexto**:
+- **Dynamic Accordion**: Apenas o bloco focado exibe detalhes completos; blocos inativos colapsam para barras de resumo minimalistas com KPIs essenciais.
+- **Lego Gap Architecture**: Substituição do encaixe flush por um espaçamento de `gap-1.5`, provendo o "respiro" visual necessário para clareza mental.
+- **FlowConnectors (Pontes)**: Conectores físicos que bridgeiam os gaps entre módulos, simbolizando a transmissão de energia e dados.
+- **Cascata Progressiva**: Blocos subsequentes iniciam como `LockedBlock` (flutuantes e esmaecidos) e "encaixam" apenas quando o predecessor é validado.
+- **Fluxo Crítico**: Consumo (Sky) → Módulos (Amber) → Inversor (Emerald) → Projeção (Teal/Amber) → Proposta (Indigo).
 
 ### Orquestração de Painéis
 - **MenuBar CAD Style**: Top Ribbon com menus clássicos (Arquivo, Editar, Exibir, Projeto) e widgets de saúde sistêmica (Health Check).
@@ -87,11 +89,19 @@ Regulamentada pela **ANEEL (Resolução Normativa n° 1000/2021)**, representa o
 
 ## 🔄 CHANGELOG
 
+### v3.8.0 (2026-04-25) — Operação Stack Dinâmica & Respiro
+
+- ✅ **Foco Contextual (Accordion)**: Implementação de expansão/colapso automático baseado no foco do usuário, reduzindo a carga cognitiva.
+- ✅ **Lego Gap Architecture**: Introdução de espaçamento controlado entre módulos com redesenho dos conectores para funcionarem como "pontes" físicas.
+- ✅ **Summary Mode**: Criação de visualizações minimalistas para blocos não focados, mantendo KPIs críticos sempre visíveis (kWp, kWh, Status).
+- ✅ **Refinamento de Densidade**: Aumento de paddings internos e unificação de layouts de instrumentos para máxima legibilidade.
+
 ### v3.7.0 (2026-04-15) — Pivot para "Engineering Tool Aesthetic"
 
 - ✅ **Pivô de Design**: Transbordo da estética gamificada/arredondada para uma vertente **Engineering Tool** séria, com arestas finas, grids densamente preenchidos e hierarquia B2B pro CAD.
 - ✅ **ConsumptionCanvasView Premium**: Refatoração da view de consumo para input rigoroso com pílulas tabulares e redução expressiva de margens de respiro c/ foco "Above the fold".
 - ✅ **Z-Index Master Control**: Centralização assertiva do `z-index` flutuante para blindar colisão com canvas nativos (Leaflet `400~1000`).
+- ⏳ **Arranjo Físico Deferido**: Módulo de desenho de arranjo físico ocultado da UI e removido como gate de progressão; será reativado em fase posterior.
 
 ### v3.6.0 (2026-04-14) — Operação Lego-Scratch (Interface Tátil)
 
