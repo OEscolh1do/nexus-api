@@ -13,6 +13,7 @@ export const InvoiceDataSchema = z.object({
   connectionType: z.enum(["monofasico", "bifasico", "trifasico"]),
   voltage: z.string(),
   breakerCurrent: z.number().positive(),
+  tariffRate: z.number().positive().optional(),
   monthlyHistory: z.array(z.number()).length(12),
   monthlyHistoryPeak: z.array(z.number()).length(12).optional(),
   monthlyHistoryOffPeak: z.array(z.number()).length(12).optional(),

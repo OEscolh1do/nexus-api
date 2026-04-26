@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   ComposedChart,
   Bar,
@@ -78,16 +78,50 @@ export const ConsumptionChart: React.FC = () => {
   const updateMonthlyConsumption = useSolarStore(s => s.updateMonthlyConsumption);
   const simulatedItems = useSolarStore(s => s.simulatedItems);
 
+
+
+
   // Climate Visibility States
   const [showHSP, setShowHSP] = useState(false);
   const [showTemp, setShowTemp] = useState(false);
 
-  // Fetch monthly history or use uniform history derived from averageConsumption
+  const activeInvoiceId = useSolarStore(s => s.activeInvoiceId);
+  
+  const activeInvoice = useMemo(() => {
+    const invs = clientData.invoices || [];
+    return invs.find(inv => inv.id === activeInvoiceId) || invs[0];
+  }, [clientData.invoices, activeInvoiceId]);
+
+  // Fetch monthly history of the active invoice
   const monthlyConsumption: number[] = useMemo(() => {
-    const inv = clientData.invoices?.[0];
-    if (inv?.monthlyHistory?.length === 12) return inv.monthlyHistory;
-    return Array(12).fill(averageConsumption);
-  }, [clientData.invoices, averageConsumption]);
+    if (activeInvoice?.monthlyHistory?.length === 12) return activeInvoice.monthlyHistory;
+    return Array(12).fill(0);
+  }, [activeInvoice]);
+
+  // Local state for History Grid inputs to allow empty fields during editing
+  const [localConsumption, setLocalConsumption] = useState<string[]>(
+    monthlyConsumption.map(v => Math.round(v).toString())
+  );
+
+  // Sync local state when store changes (e.g., project load or average adjustment)
+  useEffect(() => {
+    setLocalConsumption(monthlyConsumption.map(v => Math.round(v).toString()));
+  }, [monthlyConsumption]);
+
+  const handleInputChange = (index: number, value: string) => {
+    const newLocal = [...localConsumption];
+    newLocal[index] = value;
+    setLocalConsumption(newLocal);
+  };
+
+  const handleInputBlur = (index: number, value: string) => {
+    // If empty, commit as 0 to the store, but local state remains manageable
+    const numValue = value === '' ? 0 : Number(value);
+    updateMonthlyConsumption(index, numValue);
+  };
+
+
+
 
   // Derived chart data combining base consumption and simulated per-month profile
   const chartData = useMemo(() => {
@@ -211,6 +245,16 @@ export const ConsumptionChart: React.FC = () => {
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={chartData}>
+              <defs>
+                <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#0ea5e9" stopOpacity={1} />
+                  <stop offset="100%" stopColor="#0ea5e9" stopOpacity={0.6} />
+                </linearGradient>
+                <linearGradient id="barSimGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#0ea5e9" stopOpacity={0.4} />
+                  <stop offset="100%" stopColor="#0ea5e9" stopOpacity={0.1} />
+                </linearGradient>
+              </defs>
               <CartesianGrid strokeDasharray="2 2" stroke="#1e293b" vertical={false} />
               <XAxis 
                 dataKey="mes" 
@@ -255,7 +299,7 @@ export const ConsumptionChart: React.FC = () => {
                 yAxisId="energy"
                 dataKey="consumoBase" 
                 stackId="a" 
-                fill="#0ea5e9" 
+                fill="url(#barGradient)" 
                 radius={[0,0,0,0]} 
                 isAnimationActive={false}
               />
@@ -263,8 +307,7 @@ export const ConsumptionChart: React.FC = () => {
                 yAxisId="energy"
                 dataKey="cargasSimuladas" 
                 stackId="a" 
-                fill="#0ea5e9" 
-                opacity={0.3} 
+                fill="url(#barSimGradient)" 
                 radius={[0,0,0,0]} 
                 isAnimationActive={false} 
               />
@@ -293,6 +336,7 @@ export const ConsumptionChart: React.FC = () => {
                 />
               )}
             </ComposedChart>
+
           </ResponsiveContainer>
         )}
       </div>
@@ -300,7 +344,7 @@ export const ConsumptionChart: React.FC = () => {
       {/* ── GRADE DE EDIÇÃO DIRETA (12 MESES) ────────────────────────── */}
       {!isEmpty && (
         <div className="flex flex-col gap-1.5 shrink-0">
-           <span className="text-[9px] text-slate-600 uppercase font-black tracking-widest ml-1">Lançamento por Mês Elétrico (History Grid)</span>
+           <span className="text-[9px] text-slate-600 uppercase font-black tracking-widest ml-1">Lançamento por Mês Elétrico (Grade Histórica)</span>
            <div className="grid grid-cols-6 lg:grid-cols-12 gap-1 p-1.5 bg-slate-900 border border-slate-800/80 rounded-sm">
               {chartData.map((d, i) => (
                 <div key={d.mes} className="flex flex-col items-center gap-1 group">
@@ -309,19 +353,22 @@ export const ConsumptionChart: React.FC = () => {
                    </label>
                    <input
                      type="number"
-                     value={monthlyConsumption[i].toFixed(2) || ''}
-                     onChange={e => updateMonthlyConsumption(i, Number(e.target.value))}
+                     value={localConsumption[i]}
+                     onChange={e => handleInputChange(i, e.target.value)}
+                     onBlur={e => handleInputBlur(i, e.target.value)}
                      className="w-full bg-slate-950 border border-slate-800 rounded-sm py-1.5 text-xs text-sky-500/80 font-mono text-center tabular-nums focus:border-sky-500 focus:text-sky-400 focus:outline-none focus:bg-slate-900 transition-all placeholder:text-slate-800"
-                     placeholder="0.00"
+                     placeholder="0"
                    />
                    <div className="text-[11px] text-slate-700 font-mono">
-                      {d.cargasSimuladas > 0 ? `+${d.cargasSimuladas.toFixed(2)}` : ''}
+                      {d.cargasSimuladas > 0 ? `+${Math.round(d.cargasSimuladas)}` : ''}
                    </div>
                 </div>
               ))}
            </div>
         </div>
       )}
+
+
 
     </div>
   );

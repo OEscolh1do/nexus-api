@@ -46,6 +46,14 @@ export interface ClientSlice {
   legalData: LegalData | null;
   setLegalData: (data: LegalData) => void;
 
+  // --- MÚLTIPLAS UNIDADES CONSUMIDORAS (Invoices) ---
+  /** ID da unidade consumidora atualmente em foco na UI */
+  activeInvoiceId: string | null;
+  setActiveInvoice: (id: string | null) => void;
+  addInvoice: (invoice: Partial<InputData['invoices'][0]>) => void;
+  removeInvoice: (id: string) => void;
+  updateActiveInvoice: (updates: Partial<InputData['invoices'][0]>) => void;
+
   /**
    * Atualiza e persiste dados de irradiação solar (HSP Mensal)
    * @param data Array de 12 números com a irradiação mensal (kWh/m²)
@@ -54,6 +62,7 @@ export interface ClientSlice {
   setIrradiationData: (data: number[], city?: string) => void;
 
   // Simulation State & Actions (PRÉ-1: normalizado)
+
   simulatedItems: NormalizedCollection<LoadItem>;
   addLoadItem: (item: LoadItem) => void;
   updateLoadItem: (id: string, updates: Partial<LoadItem>) => void;
@@ -139,12 +148,12 @@ export const createClientSlice: StateCreator<
   isLoadingWeather: false,
   simulatedItems: createEmptyCollection<LoadItem>(),
   legalData: null,
+  activeInvoiceId: null,
 
   updateClientData: (data) => set((state) => {
-    // Se o usuário editar a média diretamente, reseta o array mensal inteiro uniformemente
-    let newInvoices = state.clientData.invoices;
+    // Se o usuário editar a média globalmente, aplica em todas as invoices para manter coerência legacy
+    let newInvoices = [...state.clientData.invoices];
     if (data.averageConsumption !== undefined) {
-       newInvoices = [...state.clientData.invoices];
        if (newInvoices.length === 0) {
          newInvoices.push({
            id: 'default', name: 'Instalação Principal', installationNumber: '', concessionaire: '',
@@ -152,12 +161,66 @@ export const createClientSlice: StateCreator<
            breakerCurrent: 50, monthlyHistory: Array(12).fill(data.averageConsumption)
          });
        } else {
-         newInvoices[0] = { ...newInvoices[0], monthlyHistory: Array(12).fill(data.averageConsumption) };
+         newInvoices = newInvoices.map(inv => ({ ...inv, monthlyHistory: Array(12).fill(data.averageConsumption!) }));
        }
     }
     
     return {
-      clientData: { ...state.clientData, ...data, invoices: newInvoices }
+      clientData: { ...state.clientData, ...data, invoices: newInvoices },
+      activeInvoiceId: state.activeInvoiceId || (newInvoices.length > 0 ? newInvoices[0].id : null)
+    };
+  }),
+
+  setActiveInvoice: (id) => set({ activeInvoiceId: id }),
+
+  addInvoice: (invoiceData) => set((state) => {
+    const newId = `uc-${Date.now()}`;
+    const newInvoice = {
+      id: newId,
+      name: invoiceData.name || `Nova Instalação`,
+      installationNumber: invoiceData.installationNumber || '',
+      concessionaire: invoiceData.concessionaire || '',
+      rateGroup: invoiceData.rateGroup || 'B',
+      connectionType: invoiceData.connectionType || 'monofasico',
+      voltage: invoiceData.voltage || '220',
+      breakerCurrent: invoiceData.breakerCurrent || 50,
+      tariffRate: invoiceData.tariffRate || 0.92,
+      monthlyHistory: invoiceData.monthlyHistory || Array(12).fill(0),
+      ...invoiceData
+    };
+    
+    return {
+      clientData: {
+        ...state.clientData,
+        invoices: [...state.clientData.invoices, newInvoice]
+      },
+      activeInvoiceId: newId
+    };
+  }),
+
+  removeInvoice: (id) => set((state) => {
+    const filtered = state.clientData.invoices.filter(inv => inv.id !== id);
+    if (filtered.length === 0) return state; // não permite deletar a última
+    
+    return {
+      clientData: { ...state.clientData, invoices: filtered },
+      activeInvoiceId: state.activeInvoiceId === id ? filtered[0].id : state.activeInvoiceId
+    };
+  }),
+
+  updateActiveInvoice: (updates) => set((state) => {
+    if (!state.activeInvoiceId) return state;
+    const newInvoices = state.clientData.invoices.map(inv => 
+      inv.id === state.activeInvoiceId ? { ...inv, ...updates } : inv
+    );
+    
+    // Recalcular a média agregada "global" por segurança
+    const totalAvg = newInvoices.reduce((sum, inv) => {
+      return sum + (inv.monthlyHistory.reduce((a, b) => a + b, 0) / 12);
+    }, 0);
+
+    return {
+      clientData: { ...state.clientData, invoices: newInvoices, averageConsumption: Number(totalAvg.toFixed(2)) }
     };
   }),
 
@@ -171,18 +234,25 @@ export const createClientSlice: StateCreator<
       });
     }
 
-    const newHistory = [...invoices[0].monthlyHistory];
-    newHistory[monthIndex] = value;
-    invoices[0] = { ...invoices[0], monthlyHistory: newHistory };
+    const activeId = state.activeInvoiceId || invoices[0].id;
+    const invIndex = invoices.findIndex(i => i.id === activeId);
+    if (invIndex === -1) return state;
 
-    const newAvg = Number((newHistory.reduce((a, b) => a + b, 0) / 12).toFixed(2));
+    const newHistory = [...invoices[invIndex].monthlyHistory];
+    newHistory[monthIndex] = value;
+    invoices[invIndex] = { ...invoices[invIndex], monthlyHistory: newHistory };
+
+    const totalAvg = invoices.reduce((sum, inv) => {
+      return sum + (inv.monthlyHistory.reduce((a, b) => a + b, 0) / 12);
+    }, 0);
 
     return {
       clientData: {
         ...state.clientData,
         invoices,
-        averageConsumption: newAvg
-      }
+        averageConsumption: Number(totalAvg.toFixed(2))
+      },
+      activeInvoiceId: activeId
     };
   }),
 
@@ -210,9 +280,9 @@ export const createClientSlice: StateCreator<
       ...state.clientData,
       monthlyIrradiation: data,
       irradiationCity: city || state.clientData.irradiationCity
-      // Note: hsp is derived from monthlyIrradiation when needed, or stored in weatherData buffer
     }
   })),
+
 
   addLoadItem: (item) => set((state) => ({
     simulatedItems: {

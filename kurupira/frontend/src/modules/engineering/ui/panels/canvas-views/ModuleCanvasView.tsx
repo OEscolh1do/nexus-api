@@ -9,6 +9,27 @@ import { Package, Search, Info, CheckCircle, AlertCircle, AlertTriangle, X } fro
 import { NeonorteLoader } from '@/components/ui/NeonorteLoader';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/simple-dialog';
+import { JogScrubber } from '@/components/ui/JogScrubber';
+
+const InstrumentMetric: React.FC<{ label: string; value: string | number; unit: string; color?: 'amber' | 'emerald' | 'rose' | 'sky' }> = ({ label, value, unit, color = "amber" }) => {
+  const colors = {
+    amber: 'text-amber-500 border-l-amber-500 bg-amber-500/5',
+    emerald: 'text-emerald-500 border-l-emerald-500 bg-emerald-500/5',
+    rose: 'text-rose-500 border-l-rose-500 bg-rose-500/5',
+    sky: 'text-sky-500 border-l-sky-500 bg-sky-500/5',
+  };
+  
+  return (
+    <div className="flex flex-col items-end group">
+      <span className="text-[9px] text-slate-500 font-black uppercase tracking-[0.2em] mb-1 group-hover:text-slate-400 transition-colors">{label}</span>
+      <div className={cn("px-3 py-1 border-l-2 shadow-inner min-w-[80px] flex items-baseline justify-end gap-1.5", colors[color])}>
+        <span className="text-lg font-mono font-black tabular-nums tracking-tighter leading-none">{value}</span>
+        <span className="text-[9px] font-bold opacity-60 uppercase">{unit}</span>
+      </div>
+    </div>
+  );
+};
+
 
 /**
  * MODULE CANVAS VIEW (Ato 2)
@@ -94,10 +115,50 @@ export const ModuleCanvasView: React.FC = () => {
   };
 
 
+  const totalInstaladoKWp = (projectModules.length * (activeModule?.power || 0)) / 1000;
+  const dimensionamentoPercent = (kWpAlvo && kWpAlvo > 0) ? (totalInstaladoKWp / kWpAlvo) * 100 : 0;
+
+
   return (
     <div className="w-full h-full flex flex-col bg-slate-950 p-4 gap-4 overflow-hidden">
       
+      {/* HEADER DE INSTRUMENTAÇÃO */}
+      <div className="flex items-center justify-between bg-slate-900/40 border border-slate-800/60 px-6 py-4 rounded-sm shrink-0 shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-1 h-full bg-amber-600" />
+        
+        <div className="flex flex-col">
+          <div className="flex items-center gap-2 mb-1">
+            <Package size={14} className="text-amber-500" />
+            <h2 className="text-xs font-black text-slate-100 uppercase tracking-widest">Dimensionamento de Módulos</h2>
+          </div>
+          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Equipamentos selecionados para atingir o alvo de geração</p>
+        </div>
+
+        <div className="flex items-center gap-8">
+           <InstrumentMetric 
+             label="Meta de Projeto" 
+             value={(kWpAlvo || 0).toFixed(2)} 
+             unit="kWp" 
+             color="sky" 
+           />
+
+           <InstrumentMetric 
+             label="Capacidade Atual" 
+             value={totalInstaladoKWp.toFixed(2)} 
+             unit="kWp" 
+             color={dimensionamentoPercent >= 95 ? "emerald" : "amber"} 
+           />
+           <InstrumentMetric 
+             label="Status Alvo" 
+             value={Math.round(dimensionamentoPercent)} 
+             unit="%" 
+             color={dimensionamentoPercent >= 110 ? "rose" : dimensionamentoPercent >= 95 ? "emerald" : "amber"} 
+           />
+        </div>
+      </div>
+
       {/* GRID PRINCIPAL 75/25 */}
+
       <div className="grid grid-cols-1 lg:grid-cols-[3fr_1fr] gap-4 flex-1 min-h-0 items-start">
         
         {/* Painel A — Esquerda (75%) : CATÁLOGO */}
@@ -197,7 +258,7 @@ ${(minQty * pmod / 1000).toFixed(2)} kWp x ${hspReal.toFixed(2)} HSP x 30 dias x
 
                        {isSelected && (
                           <div className="absolute top-[2px] right-2 flex items-center gap-1.5">
-                            <span className="text-[6px] text-amber-500 font-black uppercase tracking-[0.2em]">Active</span>
+                            <span className="text-[6px] text-amber-500 font-black uppercase tracking-[0.2em]">Ativo</span>
                             <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse shadow-[0_0_5px_rgba(251,191,36,0.8)]" />
                           </div>
                        )}
@@ -220,7 +281,7 @@ ${(minQty * pmod / 1000).toFixed(2)} kWp x ${hspReal.toFixed(2)} HSP x 30 dias x
               <div className="px-5 py-4 border-b border-slate-800 bg-slate-900/40">
                 <span className="text-[10px] text-slate-400 uppercase font-black tracking-[0.2em] flex items-center gap-2">
                   <Info size={12} className="text-amber-500" />
-                  Technical Spec Sheet
+                  Ficha Técnica de Engenharia
                 </span>
               </div>
               
@@ -242,9 +303,9 @@ ${(minQty * pmod / 1000).toFixed(2)} kWp x ${hspReal.toFixed(2)} HSP x 30 dias x
                     {/* EQUIPAMENTO SELECIONADO */}
                     <div className="p-5 bg-slate-950 border-b border-slate-800">
                       <div className="flex justify-between items-start mb-2">
-                        <span className="text-[8px] text-slate-600 uppercase font-black tracking-widest">Selected Hardware</span>
+                        <span className="text-[8px] text-slate-600 uppercase font-black tracking-widest">Hardware Selecionado</span>
                         <span className="text-[9px] bg-amber-600 text-slate-950 px-2 py-0.5 rounded-none font-mono font-black tabular-nums">
-                          {qty} UNITS
+                          {qty} UNIDADES
                         </span>
                       </div>
                       <span className="block text-[13px] font-black text-slate-100 truncate leading-tight uppercase tracking-widest font-mono">
@@ -257,14 +318,14 @@ ${(minQty * pmod / 1000).toFixed(2)} kWp x ${hspReal.toFixed(2)} HSP x 30 dias x
 
                     {/* BLOCO MECÂNICO */}
                     <div className="space-y-3">
-                       <span className="text-[9px] text-slate-600 uppercase font-black tracking-[0.2em] border-b border-slate-800 block pb-1">Mechanical Data</span>
+                       <span className="text-[9px] text-slate-600 uppercase font-black tracking-[0.2em] border-b border-slate-800 block pb-1">Dados Mecânicos</span>
                        <div className="grid grid-cols-2 gap-4">
                           <div className="flex flex-col">
-                            <span className="text-[8px] text-slate-500 uppercase font-bold mb-1">Total Weight</span>
+                            <span className="text-[8px] text-slate-500 uppercase font-bold mb-1">Peso Total</span>
                             <span className="text-xs font-mono font-bold text-slate-300 tabular-nums">{totalWeight.toFixed(1)} <span className="text-[7px] text-slate-600 uppercase">kg</span></span>
                           </div>
                           <div className="flex flex-col">
-                            <span className="text-[8px] text-slate-500 uppercase font-bold mb-1">Est. Area (Net)</span>
+                            <span className="text-[8px] text-slate-500 uppercase font-bold mb-1">Área Est. (Líquida)</span>
                             <span className="text-xs font-mono font-bold text-slate-300 tabular-nums">{totalArea.toFixed(1)} <span className="text-[7px] text-slate-600 uppercase">m²</span></span>
                           </div>
                        </div>
@@ -272,24 +333,24 @@ ${(minQty * pmod / 1000).toFixed(2)} kWp x ${hspReal.toFixed(2)} HSP x 30 dias x
 
                     {/* BLOCO ELÉTRICO */}
                     <div className="space-y-3">
-                       <span className="text-[9px] text-slate-600 uppercase font-black tracking-[0.2em] border-b border-slate-800 block pb-1">Electrical Summary (STC)</span>
+                       <span className="text-[9px] text-slate-600 uppercase font-black tracking-[0.2em] border-b border-slate-800 block pb-1">Resumo Elétrico (STC)</span>
                        <div className="grid grid-cols-2 gap-4">
                           <div className="flex flex-col cursor-help" title={formulas.dcPower}>
-                            <span className="text-[8px] text-amber-600 uppercase font-bold mb-1">DC Power</span>
+                            <span className="text-[8px] text-amber-600 uppercase font-bold mb-1">Potência DC</span>
                             <span className="text-xs font-mono font-bold text-amber-400 tabular-nums">{totalPmax.toFixed(2)} <span className="text-[7px] text-amber-700">kWP</span></span>
                           </div>
                           <div className="flex flex-col cursor-help" title={formulas.estimatedGeneration}>
-                            <span className="text-[8px] text-emerald-600 uppercase font-bold mb-1">Est. Generation</span>
+                            <span className="text-[8px] text-emerald-600 uppercase font-bold mb-1">Geração Est.</span>
                             <span className="text-xs font-mono font-bold text-emerald-400 tabular-nums">{Math.round(kpi.estimatedGeneration).toLocaleString('pt-BR')} <span className="text-[7px] text-emerald-700">kWH</span></span>
                           </div>
                           <div className="flex flex-col col-span-2 mt-1">
-                            <span className="text-[8px] text-slate-500 uppercase font-bold mb-1">Series Voltage (Total STC)</span>
+                            <span className="text-[8px] text-slate-500 uppercase font-bold mb-1">Tensão em Série (Total STC)</span>
                             <span className="text-xs font-mono font-bold text-slate-100 tabular-nums">{totalVoc.toFixed(1)} <span className="text-[7px] text-slate-600">V</span></span>
                           </div>
 
                           <div className="flex flex-col col-span-2 mt-4">
                              <div className="flex justify-between items-center mb-2 text-[8px] uppercase font-black tracking-[0.1em]">
-                                <span className="text-slate-500">Sizing Status vs Target</span>
+                                <span className="text-slate-500">Status de Dimensionamento vs Alvo</span>
                                 <span className="text-slate-300 font-mono">
                                    {(((totalPmax) / (kWpAlvo || 1)) * 100).toFixed(1)}%
                                 </span>
@@ -308,18 +369,18 @@ ${(minQty * pmod / 1000).toFixed(2)} kWp x ${hspReal.toFixed(2)} HSP x 30 dias x
                     </div>
                     {/* BLOCO TÉRMICO & OPERACIONAL */}
                     <div className="space-y-3">
-                       <span className="text-[9px] text-slate-600 uppercase font-black tracking-[0.2em] border-b border-slate-800 block pb-1">Operational Dynamics</span>
+                       <span className="text-[9px] text-slate-600 uppercase font-black tracking-[0.2em] border-b border-slate-800 block pb-1">Dinâmica Operacional</span>
                        <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                           <div className="flex flex-col" title="Tensão máxima de circuito aberto corrigida para 10°C (Pior caso frio)">
-                            <span className="text-[8px] text-slate-500 uppercase font-bold mb-1">Voc Max (10°C)</span>
+                            <span className="text-[8px] text-slate-500 uppercase font-bold mb-1">Voc Máx (10°C)</span>
                             <span className="text-xs font-mono font-bold text-slate-200 tabular-nums">{vocMaxUnit.toFixed(1)} <span className="text-[7px] text-slate-600">V</span></span>
                           </div>
                           <div className="flex flex-col" title="Tensão de máxima potência estimada para operação a 70°C (Pior caso quente)">
-                            <span className="text-[8px] text-slate-500 uppercase font-bold mb-1">Vmp Min (70°C)</span>
+                            <span className="text-[8px] text-slate-500 uppercase font-bold mb-1">Vmp Mín (70°C)</span>
                             <span className="text-xs font-mono font-bold text-slate-200 tabular-nums">{vmpMinUnit.toFixed(1)} <span className="text-[7px] text-slate-600">V</span></span>
                           </div>
                           <div className="flex flex-col col-span-2 border-t border-slate-800/20 pt-2" title="Corrente de curto-circuito em condições padrão (STC)">
-                            <span className="text-[8px] text-slate-500 uppercase font-bold mb-1">Current Isc (STC)</span>
+                            <span className="text-[8px] text-slate-500 uppercase font-bold mb-1">Corrente Isc (STC)</span>
                             <span className="text-xs font-mono font-bold text-slate-200 tabular-nums">{iscTotal.toFixed(2)} <span className="text-[7px] text-slate-600">A</span></span>
                           </div>
                        </div>
@@ -388,29 +449,19 @@ ${(minQty * pmod / 1000).toFixed(2)} kWp x ${hspReal.toFixed(2)} HSP x 30 dias x
 
               {/* Seletor de Quantidade e Impacto DC */}
               <div className="grid grid-cols-2 gap-3">
-                 <div className="flex flex-col gap-1.5">
-                    <span className="text-[8px] text-slate-500 uppercase font-black tracking-widest ml-1">Quantidade Final</span>
-                    <div className="flex items-center border border-slate-800 rounded-none overflow-hidden bg-slate-950 shadow-inner">
-                        <button 
-                          onClick={() => setReplaceQty(Math.max(1, replaceQty - 1))}
-                          className="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-slate-900 hover:text-amber-500 transition-all font-bold text-lg"
-                        >
-                          −
-                        </button>
-                        <input 
-                          type="number" 
-                          value={replaceQty}
-                          onChange={(e) => setReplaceQty(Math.max(1, parseInt(e.target.value) || 1))}
-                          className="flex-1 h-10 bg-transparent text-center text-sm font-black text-slate-100 font-mono outline-none border-x border-slate-800/50"
-                        />
-                        <button 
-                          onClick={() => setReplaceQty(replaceQty + 1)}
-                          className="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-slate-900 hover:text-amber-500 transition-all font-bold text-lg"
-                        >
-                          +
-                        </button>
-                    </div>
+                 <div className="flex flex-col gap-1.5 flex-1">
+                    <span className="text-[8px] text-slate-500 uppercase font-black tracking-widest ml-1">Quantidade Final (Arraste p/ Ajustar)</span>
+                    <JogScrubber 
+                      value={replaceQty}
+                      onChange={setReplaceQty}
+                      min={1}
+                      max={5000}
+                      step={1}
+                      sensitivity={0.5}
+                      className="h-10"
+                    />
                  </div>
+
 
                  <div className="flex flex-col gap-1.5 justify-end">
                     <div className="p-2.5 bg-slate-950 border border-slate-800/50 rounded-none flex flex-col items-end">
@@ -437,13 +488,13 @@ ${(minQty * pmod / 1000).toFixed(2)} kWp x ${hspReal.toFixed(2)} HSP x 30 dias x
           <DialogFooter className="mt-8 flex gap-3 sm:gap-3">
             <button 
               onClick={() => setPendingModule(null)}
-              className="flex-1 px-4 py-3 text-slate-300 hover:text-slate-100 bg-slate-900/50 hover:bg-slate-900 border border-slate-800 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 group"
+              className="flex-1 px-4 py-3 text-slate-300 hover:text-slate-100 bg-slate-900/50 hover:bg-slate-900 border border-slate-800 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 group uppercase tracking-widest"
             >
               <X size={14} className="group-hover:rotate-90 transition-transform" /> CANCELAR
             </button>
             <button 
               onClick={() => applySelection(pendingModule, replaceQty)}
-              className="flex-1 px-4 py-3 bg-amber-600 hover:bg-amber-500 text-slate-950 rounded-none text-xs font-black transition-all flex items-center justify-center gap-2 shadow-xl shadow-amber-900/40 active:scale-[0.98]"
+              className="flex-1 px-4 py-3 bg-amber-600 hover:bg-amber-500 text-slate-950 rounded-none text-xs font-black transition-all flex items-center justify-center gap-2 shadow-xl shadow-amber-900/40 active:scale-[0.98] uppercase tracking-widest"
             >
               <CheckCircle size={16} /> CONFIRMAR SUBSTITUIÇÃO
             </button>

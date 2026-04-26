@@ -53,7 +53,7 @@ export const createJourneySlice: StateCreator<
   loadGrowthFactor: 0,
   kWpAlvo: null,
 
-  setLoadGrowthFactor: (v) => set({ loadGrowthFactor: Math.max(0, Math.min(50, v)) }),
+  setLoadGrowthFactor: (v) => set({ loadGrowthFactor: Math.max(-100, Math.min(10000, v)) }),
   setKWpAlvo: (v) => set({ kWpAlvo: v }),
 });
 
