@@ -114,13 +114,13 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelectProjec
   const [projects, setProjects] = useState<TechnicalDesignSummary[]>([]);
   
   // Zustand State
-  const { setAppLoading, clearAppLoading } = useUIStore(s => ({
-    setAppLoading: s.setAppLoading,
-    clearAppLoading: s.clearAppLoading
-  }));
+  const setAppLoading = useUIStore(s => s.setAppLoading);
+  const clearAppLoading = useUIStore(s => s.clearAppLoading);
+  const isAppLoading = useUIStore(s => s.isAppLoading);
+  const loadingContext = useUIStore(s => s.loadingContext);
   
   // Local derived state for UI feedback (labels)
-  const isHubLoading = useUIStore(s => s.isAppLoading && s.loadingContext === 'project-hub');
+  const isHubLoading = isAppLoading && loadingContext === 'project-hub';
 
   // Modal States
   const [formProjectId, setFormProjectId] = useState<string | null>(null);

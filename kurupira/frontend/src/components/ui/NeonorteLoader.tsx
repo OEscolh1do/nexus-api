@@ -46,11 +46,9 @@ export const NeonorteLoader: React.FC<NeonorteLoaderProps> = ({
   forceShow = false
 }) => {
   // ── Zustand State ────────────────────────────────────────────────────────
-  const { isAppLoading, loadingContext, loadingMessage } = useUIStore(state => ({
-    isAppLoading: state.isAppLoading,
-    loadingContext: state.loadingContext,
-    loadingMessage: state.loadingMessage
-  }));
+  const isAppLoading = useUIStore(state => state.isAppLoading);
+  const loadingContext = useUIStore(state => state.loadingContext);
+  const loadingMessage = useUIStore(state => state.loadingMessage);
 
   // Um loader com context definido só aparece se o loadingContext bater
   const isContextMatch = !context || context === loadingContext;

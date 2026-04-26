@@ -32,7 +32,8 @@ import {
 
 export const ProfileOrchestrator: React.FC = () => {
   const { activeModule, setActiveModule, userRole } = useSolarStore();
-  const { setAppLoading, clearAppLoading } = useUIStore();
+  const setAppLoading = useUIStore(s => s.setAppLoading);
+  const clearAppLoading = useUIStore(s => s.clearAppLoading);
   const clientData = useSolarStore(state => state.clientData);
   const { signOut } = useAuth();
 
