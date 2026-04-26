@@ -59,6 +59,19 @@ O `MapCanvasView` wrapper gerencia 3 modos contextuais derivados do `activeFocus
 
 ---
 
+## 📍 MARCADOR PADRONIZADO (Neonorte Standard Marker)
+
+O Pin de localização é o elemento central de ancoragem visual e interatividade espacial do ecossistema.
+
+- **Componente Visual**: `NeonorteMarkerUI.tsx` (CSS Puro + Anéis de Radar).
+- **Wrapper Leaflet**: `ProjectSiteMarker.tsx` (Integração com `solarStore` e `uiStore`).
+- **Comportamento**:
+  - **Hub/Explorer**: Renderizado como overlay estático (`size="sm"`, pulse desativado).
+  - **Workspace/Maps**: Atua como gatilho de foco. Ao clicar, executa `selectEntity('site', ...)` e `setFocusedBlock('site')`.
+  - **Tooltip**: Estética Industrial (Slate 950, 95% opacidade, font-mono, border semântica Emerald).
+
+---
+
 ## 🏗️ INFRAESTRUTURA & STACK
 [Mantido v3.5.0]
 

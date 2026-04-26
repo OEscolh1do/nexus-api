@@ -1,40 +1,34 @@
-# Dívidas Técnicas / Backlog de Espera (`aguardando`)
+# 🕒 AGUARDANDO (Tech Debt & Roadmap)
 
-Este documento serve como a **Fila Oficial de Dívidas Técnicas (Tech Debts)**. Ele agrupa os `@deprecated`, `TODO`, `HACK` e `FIXME` encontrados em todo o repositório Kurupira.
-
-Sempre que executar a rotina de limpeza técnica, puxe os itens daqui.
+Este documento rastreia dívidas técnicas e features pendentes de alta prioridade.
 
 ---
 
-## 1. Alta Prioridade (Impacto em UX / Cálculo)
+## 🟢 1. INTEGRAÇÕES DE DADOS (Alta Prioridade)
+- [x] **1.A. Integração Completa de Radiação com Coordenadas**
+    - [x] Recuperar HSP real via `clientData.weatherData` ou API de lat/lng em tempo real.
+    - [x] Sincronizar com `calcKWpAlvo` para precisão no dimensionamento preliminar.
+- [x] **1.B. Integração de Store em Relatórios**
+    - [x] Componentes em `src/modules/documentation/components` (TechnicalMemorandum, Checklist) devem puxar dados reais da `useSolarStore`.
 
-### A. Integração Completa de Radiação com Coordenadas
-- **Arquivo:** `kurupira/frontend/src/modules/engineering/utils/generationSimulation.ts`
-- **Débito:** `TODO: Retrieve real HSP from clientData.weatherData or lat/lng API`
-- **Descrição:** Atualizar o simulador de geração 2D/3D no Canvas para não usar dados mockados e, em vez disso, forçar o consumo dos dados climáticos reais (CRESESB/INPE) baseados no recém adicionado `clientData.lat` e `clientData.lng`.
+## 🟡 2. DOCUMENTAÇÃO E COMPLIANCE
+- [x] **2.A. Exportação PDF da Documentação**
+    - [x] Implementar trigger de download para o Memorial Descritivo em PDF.
+- [x] **2.B. Check de Comissionamento em Campo**
+    - [x] Permitir que o usuário interaja com o checklist no navegador antes de exportar.
 
-### B. Integração de Store nos Relatórios Oficiais
-- **Arquivo:** `kurupira/frontend/src/modules/documentation/components/TechnicalMemorandum.tsx`
-- **Arquivo:** `kurupira/frontend/src/modules/documentation/components/CommissioningChecklist.tsx`
-- **Débito:** `TODO: Integrar com useSolarStore() para puxar dados reais`
-- **Descrição:** O check-list de comissionamento e o memorial técnico usam dados estáticos (mocks temporários) em tela. Precisam plugar nos reativos `useSolarStore` via os seletores já existentes (`selectModules`, `selectInverters`).
-
----
-
-## 2. Média Prioridade (Features Faltantes)
-
-### A. Exportação PDF da Documentação
-- **Arquivo:** `kurupira/frontend/src/modules/documentation/components/TechnicalMemorandum.tsx`
-- **Débito:** `TODO: Adicionar exportação para PDF`
-- **Descrição:** Implementar React-to-PDF ou ferramenta de Print de UI nativa para que o engenheiro possa gerar a RT (Responsabilidade Técnica) com sumário para download após gerar o projeto.
-
-### B. Check de Comissionamento em Campo
-- **Arquivo:** `kurupira/frontend/src/modules/documentation/components/CommissioningChecklist.tsx`
-- **Débito:** `TODO: Adicionar campos de input para valores medidos`
-- **Descrição:** O formulário de checklist comissionado deve permitir edição dos campos pela UI para os instaladores no local tirarem fotos, colocarem multímetro, etc.
+## 🔴 3. ARQUITETURA E CLEANUP
+- [x] **3.A. Refatoração PhysicalCanvasView**
+    - [x] Arquivo com 900+ linhas. Separar lógica de engine Leaflet de UI Components (Anatomy, Overlays).
+- [x] **3.B. Remoção de Dead Code (Cleanup v3.8)**
+    - [x] Deletar `ComposerPlaceholder.tsx`.
+    - [x] Limpar comentários obsoletos em `ConsumptionCanvasView`.
+- [x] **3.C. Padronização de Termos (Legal/Marketing)**
+    - [x] Remover referências a "CRESESB" e "NASA POWER" da interface final, substituindo por "Base de Dados Local" ou "Série Histórica".
 
 ---
 
-## 3. Baixa Prioridade (Dívida de Estrutura / Cleanup)
-
-Todos os itens listados nesta categoria foram resolvidos (Limpeza de solarEngine.ts, remoção do campo orientation legado, e deleção dos slices zumbis e hooks deprecados).
+## 🚀 ROADMAP FUTURO (Backlog)
+- [ ] **Integração com CRM (Webhooks)**: Sincronizar status do projeto de volta para o Neonorte ERP.
+- [ ] **Multiplayer Presence**: Mostrar cursores de outros engenheiros no mapa (Ably/Pusher).
+- [ ] **3D Roof Analysis**: Extrusão de telhados simples via metadados de inclinação.

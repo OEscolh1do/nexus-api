@@ -185,10 +185,10 @@ export const SimulationGroup: React.FC = () => {
         <MonthlyConsumptionGrid />
       </section>
 
-      {/* ── IRRADIAÇÃO CRESESB (HSP) ── */}
+      {/* ÍNDICE SOLAR LOCAL (HSP) ── */}
       <section className="mt-4">
         <div className="flex items-center justify-between mb-2">
-          <SectionHeader icon={<Sun size={10} />} label="Irradiação CRESESB (HSP)" />
+          <SectionHeader icon={<Sun size={10} />} label="Índice Solar Local (HSP)" />
         </div>
         <MonthlyIrradiationGrid />
       </section>
@@ -235,7 +235,7 @@ const MonthlyConsumptionGrid: React.FC = () => {
 };
 
 // =============================================================================
-// GRID: IRRADIAÇÃO MENSAL (CRESESB / HSP)
+// GRID: ÍNDICE SOLAR LOCAL (HSP)
 // =============================================================================
 
 const MonthlyIrradiationGrid: React.FC = () => {
@@ -300,7 +300,7 @@ const MonthlyIrradiationGrid: React.FC = () => {
           }}
         >
           <option value="" disabled>
-            Selecione uma cidade do CRESESB
+            Selecione uma base local
           </option>
           {cityOptions.map((cityKey) => (
             <option key={cityKey} value={cityKey}>

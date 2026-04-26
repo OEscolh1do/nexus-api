@@ -166,7 +166,6 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
                 <TrendingUp size={12} className="text-sky-500" /> Perfil de Consumo vs Projeção Mensal
              </span>
              <div className="flex items-center gap-3">
-                {/* Removida label Variação Climática TMY Inclusa */}
              </div>
            </div>
            

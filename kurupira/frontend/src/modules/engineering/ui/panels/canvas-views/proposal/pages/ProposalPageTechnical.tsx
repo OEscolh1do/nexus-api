@@ -347,8 +347,8 @@ export const ProposalPageTechnical: React.FC<Props> = ({
             >
             {clientData.lat && clientData.lng ? (
               <img
-                src={`https://maps.googleapis.com/maps/api/staticmap?center=${clientData.lat},${clientData.lng}&zoom=20&size=600x400&maptype=satellite&key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''}`}
-                alt="Localização"
+                src={`https://maps.googleapis.com/maps/api/staticmap?center=${clientData.lat},${clientData.lng}&zoom=20&size=600x400&maptype=hybrid&key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''}`}
+                alt="Localização do Projeto"
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -406,7 +406,7 @@ export const ProposalPageTechnical: React.FC<Props> = ({
               }}
             >
               <span style={{ fontSize: '7.5px', fontWeight: 900, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                Irradiação Local (CRESESB)
+                Índice Solar Local
               </span>
               <span style={{ fontSize: '26px', fontWeight: 900, color: PURPLE, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
                 {avgHsp}

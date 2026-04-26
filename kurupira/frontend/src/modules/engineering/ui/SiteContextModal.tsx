@@ -17,15 +17,16 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  X, MapPin, ArrowRight
+  X, MapPin, ArrowRight, Sun, Thermometer
 } from 'lucide-react';
-import { Marker } from 'react-leaflet';
+import { ProjectSiteMarker } from '../components/ProjectSiteMarker';
 import 'leaflet/dist/leaflet.css';
 import { MapCore } from '@/modules/engineering/components/MapCore';
 import { KurupiraClient } from '@/services/NexusClient';
 import { calcKWpAlvo } from '@/core/state/slices/journeySlice';
 import { useUIStore } from '@/core/state/uiStore';
 import { NeonorteLoader } from '@/components/ui/NeonorteLoader';
+import { fetchWeatherAnalysis } from '@/services/weatherService';
 
 
 // =============================================================================
@@ -47,6 +48,9 @@ export interface SiteContext {
   tariffRate: number;
   targetPowerKwp: number;
   technicalStatus: string;
+  hspAvg: number;
+  ambientTempAvg: number;
+  irradiationSource: string;
 }
 
 interface SiteContextModalProps {
@@ -114,14 +118,34 @@ export const SiteContextModal: React.FC<SiteContextModalProps> = ({
           const rawHistory = Array.isArray(history) ? history.map(v => Number(v) || 0) : Array(12).fill(0);
           const estimatedPower = data.targetPowerKwp || dd?.solar?.project?.targetPowerKwp || calcKWpAlvo(rawHistory, monthlyIrradiation, 0) || 0;
 
+          const lat = clientData.lat || data.lat || 0;
+          const lng = clientData.lng || data.lng || 0;
+          const city = clientData.city || data.city || '—';
+          const state = clientData.state || data.state || '—';
+
+          // Busca dados meteorológicos reais (CRESESB / NASA)
+          let weatherInfo = { hsp_avg: 5.0, ambient_temp_avg: 27.5, irradiation_source: 'Dados Padrão' };
+          if (lat !== 0 && lng !== 0) {
+            try {
+              const res = await fetchWeatherAnalysis(lat, lng, city, state);
+              weatherInfo = {
+                hsp_avg: res.hsp_avg ?? 5.0,
+                ambient_temp_avg: res.ambient_temp_avg ?? 27.5,
+                irradiation_source: res.irradiation_source || 'Série Histórica'
+              };
+            } catch (e) {
+              console.warn('Weather fetch failed in context modal', e);
+            }
+          }
+
           setContext({
             projectId: data.id,
             clientName: clientData.clientName || data.clientName || data.name || 'Projeto sem título',
-            city: clientData.city || data.city || '—',
-            state: clientData.state || data.state || '—',
+            city,
+            state,
             street: clientData.street || data.leadContext?.city || 'Endereço não informado',
-            lat: clientData.lat || data.lat || 0,
-            lng: clientData.lng || data.lng || 0,
+            lat,
+            lng,
             voltage: voltage,
             connectionType: clientData.connectionType || mainInvoice.connectionType || '—',
             averageConsumptionKwh: clientData.averageConsumption || data.averageConsumptionKwh || (rawHistory.reduce((a: number, b: number) => a + b, 0) / 12) || 0,
@@ -129,6 +153,9 @@ export const SiteContextModal: React.FC<SiteContextModalProps> = ({
             tariffRate: clientData.tariffRate || 0.92,
             targetPowerKwp: estimatedPower,
             technicalStatus: data.status || 'DRAFT',
+            hspAvg: weatherInfo.hsp_avg,
+            ambientTempAvg: weatherInfo.ambient_temp_avg,
+            irradiationSource: weatherInfo.irradiation_source
           });
         }
       } catch (error) {
@@ -150,10 +177,6 @@ export const SiteContextModal: React.FC<SiteContextModalProps> = ({
     [context?.monthlyHistory]
   );
 
-  const avgConsumption = useMemo(() =>
-    Math.round((context?.monthlyHistory || []).reduce((a, b) => a + b, 0) / 12) || 0,
-    [context?.monthlyHistory]
-  );
 
   const peakMonth = useMemo(() => {
     if (!context) return '—';
@@ -242,7 +265,13 @@ export const SiteContextModal: React.FC<SiteContextModalProps> = ({
                     showLayers={false}
                     forceViewMode="CONTEXT"
                   >
-                    <Marker position={[context.lat, context.lng]} />
+                    <ProjectSiteMarker 
+                      lat={context.lat} 
+                      lng={context.lng} 
+                      label={context.clientName}
+                      city={context.city}
+                      state={context.state}
+                    />
                   </MapCore>
                 ) : (
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-700 bg-[radial-gradient(ellipse_at_center,rgba(2,6,23,1)_0%,rgba(2,6,23,0.5)_100%)]">
@@ -313,10 +342,20 @@ export const SiteContextModal: React.FC<SiteContextModalProps> = ({
 
               {/* Stats Grid */}
               <div className="grid grid-cols-2 gap-3 mt-4">
-                <StatChip label="Média Mensal" value={avgConsumption.toLocaleString('pt-BR')} unit="kWh" theme="sky" />
-                <StatChip label="Pico Anual" value={peakMonth} unit="" theme="amber" />
+                <StatChip label="Média Mensal" value={context.averageConsumptionKwh.toLocaleString('pt-BR')} unit="kWh" theme="sky" />
+                <StatChip label="HSP Médio" value={context.hspAvg.toFixed(2)} unit="h/dia" theme="amber" icon={<Sun size={10} />} />
+                <StatChip label="Temp. Média" value={context.ambientTempAvg.toFixed(1)} unit="°C" theme="sky" icon={<Thermometer size={10} />} />
                 <StatChip label="Tarifa Base" value={`R$ ${context.tariffRate.toFixed(2)}`} unit="" theme="emerald" />
                 <StatChip label="Potência Alvo" value={context.targetPowerKwp.toFixed(2)} unit="kWp" theme="emerald" />
+                <StatChip label="Pico Anual" value={peakMonth} unit="" theme="amber" />
+              </div>
+
+              {/* Data Source Badge */}
+              <div className="mt-3 flex items-center gap-2 opacity-40 hover:opacity-100 transition-opacity">
+                <span className="text-[7px] font-black uppercase tracking-[0.2em] text-slate-500">Fonte de Dados:</span>
+                <span className="text-[7px] font-bold uppercase tracking-widest text-slate-400 bg-slate-900 px-1.5 py-0.5 rounded-none border border-slate-800">
+                  {context.irradiationSource}
+                </span>
               </div>
             </div>
 
@@ -355,13 +394,16 @@ const InfoChip: React.FC<{ label: string; value: string; }> = ({ label, value })
   </div>
 );
 
-const StatChip: React.FC<{ label: string; value: string; unit: string; theme: 'emerald' | 'sky' | 'amber' }> = ({ label, value, unit, theme }) => {
+const StatChip: React.FC<{ label: string; value: string; unit: string; theme: 'emerald' | 'sky' | 'amber'; icon?: React.ReactNode }> = ({ label, value, unit, theme, icon }) => {
   const colorClass = theme === 'sky' ? 'text-sky-400' : theme === 'amber' ? 'text-amber-400' : 'text-emerald-400';
   
   return (
     <div className="bg-slate-950 border border-slate-800 p-3 flex flex-col relative overflow-hidden">
       <div className={`absolute top-0 left-0 w-1 h-full ${theme === 'sky' ? 'bg-sky-500/20' : theme === 'amber' ? 'bg-amber-500/20' : 'bg-emerald-500/20'}`} />
-      <p className="text-[8px] text-slate-500 font-black uppercase tracking-[0.15em] mb-1.5 ml-1">{label}</p>
+      <div className="flex items-center justify-between mb-1.5 ml-1">
+        <p className="text-[8px] text-slate-500 font-black uppercase tracking-[0.15em]">{label}</p>
+        {icon && <div className="text-slate-600 opacity-50">{icon}</div>}
+      </div>
       <div className="flex items-baseline gap-1 ml-1">
         <span className={`text-[14px] font-black font-mono tabular-nums leading-none ${colorClass}`}>
           {value}

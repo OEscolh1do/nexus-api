@@ -201,6 +201,12 @@ input[type=number] {
   }
 }
 
-
-
-
+/* ── MAP CLEANING PROTOCOL (Global) ── */
+.gm-style-cc, 
+.gmnoprint a, 
+.gmnoprint span, 
+.gm-style-cc button,
+div[style*="z-index: 1000000"],
+.leaflet-control-attribution { 
+  display: none !important; 
+}

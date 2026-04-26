@@ -15,11 +15,17 @@ import { NeonorteMarkerUI } from '@/components/ui/NeonorteMarkerUI';
 interface ProjectSiteMarkerProps {
   lat?: number;
   lng?: number;
+  label?: string;
+  city?: string;
+  state?: string;
 }
 
 export const ProjectSiteMarker: React.FC<ProjectSiteMarkerProps> = ({ 
   lat: propsLat, 
-  lng: propsLng 
+  lng: propsLng,
+  label: propsLabel,
+  city: propsCity,
+  state: propsState
 }) => {
   const clientData = useSolarStore(s => s.clientData);
   const installationAreas = useSolarStore(s => s.project.installationAreas);
@@ -28,6 +34,10 @@ export const ProjectSiteMarker: React.FC<ProjectSiteMarkerProps> = ({
 
   const lat = propsLat ?? clientData.lat;
   const lng = propsLng ?? clientData.lng;
+  const label = propsLabel ?? clientData.clientName;
+  const city = propsCity ?? clientData.city;
+  const state = propsState ?? clientData.state;
+
   if (!lat || !lng || isNaN(lat) || isNaN(lng)) return null;
 
   const position: [number, number] = [lat, lng];
@@ -56,8 +66,8 @@ export const ProjectSiteMarker: React.FC<ProjectSiteMarkerProps> = ({
       <Tooltip direction="top" offset={[0, -45]} className="bg-slate-950/95 border border-slate-800 text-slate-200 font-mono text-[10px] p-2 rounded-sm shadow-2xl backdrop-blur-md">
         <div className="flex flex-col gap-0.5">
           <span className="font-black uppercase tracking-[0.2em] text-[8px] text-emerald-400 border-b border-emerald-500/20 pb-0.5 mb-1">Ponto de Referência</span>
-          <span className="font-bold text-[11px] text-white truncate max-w-[160px]">{clientData.clientName || 'Projeto Solar'}</span>
-          <span className="text-[9px] text-slate-500 uppercase tracking-widest">{clientData.city}, {clientData.state}</span>
+          <span className="font-bold text-[11px] text-white truncate max-w-[160px]">{label || 'Projeto Solar'}</span>
+          <span className="text-[9px] text-slate-500 uppercase tracking-widest">{city}, {state}</span>
         </div>
       </Tooltip>
     </Marker>

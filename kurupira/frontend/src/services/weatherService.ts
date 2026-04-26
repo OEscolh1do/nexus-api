@@ -74,7 +74,7 @@ export const fetchWeatherAnalysis = async (
             temp_monthly: tempMonthly,
             ambient_temp_avg: avgTempAnual,
             hsp_avg: hspAvg,
-            irradiation_source: localData ? "CRESESB + NASA (Temp)" : "NASA POWER API",
+            irradiation_source: localData ? "Série Histórica Climatológica" : "Série Histórica Satelital",
             location_name: localData?.location_name || `${city}, ${state}`
         };
 
@@ -89,7 +89,7 @@ export const fetchWeatherAnalysis = async (
             hsp_monthly: hspFallback,
             temp_monthly: [26.5, 26.3, 26.5, 26.7, 27.2, 27.5, 27.6, 27.8, 27.9, 27.8, 27.6, 27.1],
             hsp_avg: hspAvgFallback,
-            irradiation_source: localData ? `${localData.irradiation_source} (Offline)` : "Dados Médios (Offline)",
+            irradiation_source: localData ? `${localData.irradiation_source} (Offline)` : "Base de Dados (Offline)",
             ambient_temp_avg: localData?.ambient_temp_avg || 27.5,
             location_name: localData?.location_name || `${city} - ${state} (Offline)`
         };

@@ -22,6 +22,7 @@ import { KurupiraClient, TechnicalDesignSummary } from '@/services/NexusClient';
 import { useUIStore } from '@/core/state/uiStore';
 import { ProjectFormModal } from './components/ProjectFormModal';
 import { SiteContextModal } from './SiteContextModal';
+import { NeonorteMarkerUI } from '@/components/ui/NeonorteMarkerUI';
 
 // =============================================================================
 // TIPOS (Payload Anorético — apenas o necessário para decisão de clique)
@@ -61,7 +62,7 @@ const buildStaticMapUrl = (lat?: number | null, lng?: number | null) => {
   // Usaremos um marcador DOM/HTML customizado sobre a imagem renderizada, 
   // permitindo visuais complexos (logo da Neonorte + crosshair) sem as 
   // limitações de URL pública da API do Google Static Maps.
-  return `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=19&size=400x200&maptype=satellite&key=${apiKey}`;
+  return `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=19&size=400x200&maptype=hybrid&key=${apiKey}`;
 };
 
 // Extrator do Swagger/API local para ProjectCard
@@ -415,38 +416,9 @@ const ProjectCardComponent: React.FC<{
               className="w-full h-full object-cover grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-80 transition-all duration-700" 
             />
             {/* ── Marcador Neonorte Personalizado (DOM Overlay) ── */}
-            <div
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[60%] flex flex-col items-center pointer-events-none drop-shadow-md z-10 opacity-70 group-hover:opacity-100 transition-opacity duration-500"
-            >
-              {/* Badge com logo Neonorte */}
-              <div
-                className="w-6 h-6 flex items-center justify-center overflow-hidden mb-[-1px] relative z-20"
-                style={{
-                  background: 'radial-gradient(circle at 30% 30%, #2D6A4F, #1B4332)',
-                  border: '1.5px solid #fff',
-                  borderRadius: '50% 50% 50% 0',
-                  transform: 'rotate(-45deg)',
-                  boxShadow: '0 0 0 1px #4CAF50, 0 4px 8px rgba(0,0,0,0.4), inset 0 0 4px rgba(0,0,0,0.2)',
-                }}
-              >
-                <img
-                  src="/logos/simbolo-branco.png"
-                  alt="Neonorte"
-                  className="w-3.5 h-3.5 object-contain"
-                  style={{
-                    transform: 'rotate(45deg)',
-                    filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
-                  }}
-                />
-              </div>
-              
-              {/* Alvo de Precisão (Ancoragem/Crosshair) */}
-              <div className="flex items-center justify-center relative w-3 h-3">
-                <div className="absolute inset-0 rounded-full border border-white/50 bg-green-500/20" />
-                <div className="absolute w-[1px] h-full bg-white/60" />
-                <div className="absolute w-full h-[1px] bg-white/60" />
-                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full border border-white shadow-[0_0_6px_#10B981] z-10" />
-              </div>
+            {/* ── Marcador Neonorte Padronizado (DOM Overlay) ── */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none drop-shadow-2xl z-10 opacity-70 group-hover:opacity-100 transition-opacity duration-500 scale-[0.65]">
+              <NeonorteMarkerUI size="md" showPulse={false} />
             </div>
           </>
         ) : (

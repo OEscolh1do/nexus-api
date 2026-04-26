@@ -145,7 +145,7 @@ export const WorkspaceLayout: React.FC = () => {
       }}
     >
       {/* ── TOP RIBBON (row 1, spans all columns) ── */}
-      <div style={{ gridArea: 'ribbon' }} className="z-20">
+      <div style={{ gridArea: 'ribbon' }} className="z-[100]">
         <TopRibbon />
       </div>
 

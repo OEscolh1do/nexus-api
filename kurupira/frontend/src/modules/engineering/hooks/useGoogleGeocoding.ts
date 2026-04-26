@@ -123,10 +123,10 @@ export const useGoogleGeocoding = () => {
    * Geocoding: Address -> Lat/Lng
    */
   const geocodeAddress = useCallback(async (addressOverride?: string) => {
-    const { street, number, neighborhood, city, state } = clientData;
+    const { street, number, neighborhood, city, state, zipCode } = clientData;
     
-    // Prioritize override, then full address, then zip, then city
-    const query = addressOverride || [street, number, neighborhood, city, state, 'Brasil'].filter(Boolean).join(', ');
+    // Prioritize override, then full address with zip, then components
+    const query = addressOverride || [street, number, neighborhood, zipCode, city, state, 'Brasil'].filter(Boolean).join(', ');
     
     if (!query || query.length < 5) return;
 
@@ -139,6 +139,37 @@ export const useGoogleGeocoding = () => {
     setIsGeocoding(true);
     setGeocodeStatus('searching');
 
+    // 1. Tentar usar o SDK do Google (Evita CORS e Referer Issues)
+    const google = (window as any).google;
+    if (google && google.maps && google.maps.Geocoder) {
+      const geocoder = new google.maps.Geocoder();
+      try {
+        const response = await geocoder.geocode({ address: query });
+        
+        if (response.results && response.results.length > 0) {
+          const result = response.results[0];
+          const coords = result.geometry.location;
+          const resultType = result.geometry.location_type === 'ROOFTOP' ? 'success' : 'partial';
+
+          updateClientData({ 
+            lat: parseFloat(coords.lat().toFixed(6)), 
+            lng: parseFloat(coords.lng().toFixed(6)) 
+          });
+          setGeocodeStatus(resultType);
+        } else {
+          setGeocodeStatus('error');
+        }
+        return;
+      } catch (e) {
+        console.error('Google SDK Geocode Error:', e);
+        // Fallback para fetch se o SDK falhar por algum motivo
+      } finally {
+        setIsGeocoding(false);
+        setTimeout(() => setGeocodeStatus('idle'), 4000);
+      }
+    }
+
+    // 2. Fallback: Fetch direto (Pode falhar por CORS no browser)
     try {
       const resp = await fetch(
         `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${apiKey}`
@@ -154,17 +185,11 @@ export const useGoogleGeocoding = () => {
           lng: parseFloat(coords.lng.toFixed(6)) 
         });
         setGeocodeStatus(resultType);
-        
-        // If searching by text, also update address fields if they were empty
-        if (addressOverride) {
-           // Optional: Update city/state if they change drastically? 
-           // For now just success status is enough.
-        }
       } else { 
         setGeocodeStatus('error'); 
       }
     } catch (err) { 
-      console.error('Geocoding Error:', err); 
+      console.error('Geocoding Fallback Error:', err); 
       setGeocodeStatus('error'); 
     } finally { 
       setIsGeocoding(false); 

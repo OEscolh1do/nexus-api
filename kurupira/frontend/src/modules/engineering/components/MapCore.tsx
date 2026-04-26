@@ -375,7 +375,7 @@ const MapCoreInner: React.FC<MapCoreProps> = ({
         {canvasViewMode !== 'BLUEPRINT' && (
           <ReactLeafletGoogleLayer 
             apiKey={GOOGLE_MAPS_TOKEN || ''} 
-            type="satellite"
+            type="hybrid"
           />
         )}
 
