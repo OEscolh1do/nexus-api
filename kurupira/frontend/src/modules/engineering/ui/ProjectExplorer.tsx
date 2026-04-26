@@ -13,11 +13,13 @@
  */
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { NeonorteLoader } from '@/components/ui/NeonorteLoader';
 import {
   Search, Plus, MapPin,
   FolderOpen, Archive, Trash2
 } from 'lucide-react';
 import { KurupiraClient, TechnicalDesignSummary } from '@/services/NexusClient';
+import { useUIStore } from '@/core/state/uiStore';
 import { ProjectFormModal } from './components/ProjectFormModal';
 import { SiteContextModal } from './SiteContextModal';
 
@@ -110,21 +112,29 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelectProjec
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [projects, setProjects] = useState<TechnicalDesignSummary[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  // Zustand State
+  const { setAppLoading, clearAppLoading } = useUIStore(s => ({
+    setAppLoading: s.setAppLoading,
+    clearAppLoading: s.clearAppLoading
+  }));
+  
+  // Local derived state for UI feedback (labels)
+  const isHubLoading = useUIStore(s => s.isAppLoading && s.loadingContext === 'project-hub');
 
   // Modal States
   const [formProjectId, setFormProjectId] = useState<string | null>(null);
   const [contextProjectId, setContextProjectId] = useState<string | null>(null);
 
   const fetchProjects = async () => {
-    setLoading(true);
+    setAppLoading('project-hub', 'Sincronizando projetos...');
     try {
       const data = await KurupiraClient.designs.list();
       setProjects(data);
     } catch (e) {
       console.error('Failed to fetch projects', e);
     } finally {
-      setLoading(false);
+      clearAppLoading();
     }
   };
 
@@ -196,12 +206,12 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelectProjec
       <div className="shrink-0 border-b border-slate-800 bg-slate-900 px-4 sm:px-6 py-3 flex flex-col md:flex-row md:items-center justify-between gap-4 z-10">
         <div className="flex items-center gap-4">
           <div className="flex flex-col">
-            <h1 className="text-[13px] font-black text-white uppercase tracking-[0.15em] flex items-center gap-2">
-              <FolderOpen size={14} className="text-emerald-500" />
+            <h1 className="text-sm font-black text-slate-100 uppercase tracking-widest flex items-center gap-2">
+              <div className="w-1 h-3 bg-emerald-500" />
               Explorador de Projetos
             </h1>
             <p className="text-[10px] font-bold text-slate-500 mt-0.5 uppercase tracking-wider">
-              {loading ? 'Sincronizando...' : `${filteredProjects.length} Indexados`}
+              {isHubLoading ? 'Sincronizando...' : `${filteredProjects.length} Indexados`}
             </p>
           </div>
           <div className="w-px h-8 bg-slate-800 hidden md:block mx-2" />
@@ -251,11 +261,14 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelectProjec
       </div>
 
       {/* ── GRID DE PROJETOS (Industrial) ── */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-950 bg-[radial-gradient(square_40px_at_50%_0%,rgba(16,185,129,0.02),transparent)]">
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
-             {Array(10).fill(0).map((_, i) => <ProjectSkeletonCard key={i} />)}
-          </div>
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-950 bg-[radial-gradient(square_40px_at_50%_0%,rgba(16,185,129,0.02),transparent)] relative">
+        {isHubLoading ? (
+          <>
+            <NeonorteLoader size="panel" context="project-hub" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 opacity-50">
+               {Array(10).fill(0).map((_, i) => <ProjectSkeletonCard key={i} />)}
+            </div>
+          </>
         ) : filteredProjects.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center min-h-[400px] text-center border border-dashed border-slate-800 rounded-sm p-8 sm:p-12">
             <div className="w-16 h-16 mb-4 relative opacity-40">

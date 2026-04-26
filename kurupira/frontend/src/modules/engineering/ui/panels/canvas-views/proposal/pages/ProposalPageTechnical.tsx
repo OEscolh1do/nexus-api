@@ -6,6 +6,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { MapPin, Shield, Zap, Wrench, ClipboardCheck, Sparkles, TrendingUp } from 'lucide-react';
+import { NeonorteMarkerUI } from '@/components/ui/NeonorteMarkerUI';
 import type { ProposalData } from '@/core/state/slices/proposalSlice';
 import type { ProjectionStats } from '@/modules/engineering/utils/projectionMath';
 
@@ -357,70 +358,17 @@ export const ProposalPageTechnical: React.FC<Props> = ({
               </div>
             )}
 
-            {/* ── Marcador Neonorte Personalizado (Refined) ── */}
+            {/* ── Marcador Neonorte Personalizado (Sincronizado) ── */}
             <div
               style={{
                 position: 'absolute',
                 top: '50%',
                 left: '50%',
                 transform: 'translate(-50%, -100%)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
                 pointerEvents: 'none',
               }}
             >
-              {/* Badge com logo */}
-              <div
-                style={{
-                  width: '38px',
-                  height: '38px',
-                  background: 'radial-gradient(circle at 30% 30%, #2D6A4F, #1B4332)',
-                  border: '2px solid #fff',
-                  borderRadius: '50% 50% 50% 0',
-                  transform: 'rotate(-45deg)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 0 0 1.5px #4CAF50, 0 8px 16px rgba(0,0,0,0.4), inset 0 0 8px rgba(0,0,0,0.2)',
-                  overflow: 'hidden',
-                  marginBottom: '-1px'
-                }}
-              >
-                <img
-                  src="/logos/simbolo-branco.png"
-                  alt="Neonorte"
-                  style={{
-                    width: '22px',
-                    height: '22px',
-                    objectFit: 'contain',
-                    transform: 'rotate(45deg)',
-                    filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
-                  }}
-                />
-              </div>
-              
-              {/* Alvo de Precisão (Ancoragem) */}
-              <div className="flex items-center justify-center relative" style={{ height: '14px', width: '14px' }}>
-                {/* Anel Externo (Transparente) */}
-                <div style={{ position: 'absolute', width: '14px', height: '14px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.5)', backgroundColor: 'rgba(76,175,80,0.2)' }} />
-                {/* Haste Vertical (Crosshair) */}
-                <div style={{ position: 'absolute', width: '1px', height: '100%', backgroundColor: 'rgba(255,255,255,0.4)' }} />
-                {/* Haste Horizontal (Crosshair) */}
-                <div style={{ position: 'absolute', width: '100%', height: '1px', backgroundColor: 'rgba(255,255,255,0.4)' }} />
-                {/* Ponto Central */}
-                <div
-                  style={{
-                    width: '5px',
-                    height: '5px',
-                    backgroundColor: '#4CAF50',
-                    borderRadius: '50%',
-                    border: '1.5px solid #fff',
-                    boxShadow: '0 0 8px rgba(76,175,80,1)',
-                    zIndex: 2
-                  }}
-                />
-              </div>
+              <NeonorteMarkerUI size="md" showPulse={false} />
             </div>
 
             <div

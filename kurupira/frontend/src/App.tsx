@@ -15,7 +15,7 @@ import React from 'react';
 import { ProfileOrchestrator } from './layout/ProfileOrchestrator';
 import { AuthProvider } from './core/auth/AuthProvider';
 import { useAuth } from './core/auth/useAuth';
-import { Loader2 } from 'lucide-react';
+import { NeonorteLoader } from './components/ui/NeonorteLoader';
 
 // Captura token + leadId injetados via deep link do Iaçã (?token=<jwt>&leadId=<id>&name=<nome>)
 // Executado antes do AuthProvider para que sessionStorage já esteja preenchido
@@ -47,12 +47,11 @@ const AuthGuard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 size={32} className="animate-spin text-emerald-400" />
-          <span className="text-xs text-slate-500 font-medium">Carregando Kurupira...</span>
-        </div>
-      </div>
+      <NeonorteLoader
+        size="fullscreen"
+        message="Autenticando..."
+        overlay={false}
+      />
     );
   }
 

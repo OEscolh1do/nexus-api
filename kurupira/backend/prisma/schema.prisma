@@ -89,6 +89,16 @@ model ModuleCatalog {
   imageUrl          String?
   unifilarSymbolRef String?
   isActive          Boolean @default(true)
+  
+  // -- Engineering PV Specs (v3.7) --
+  bifacial          Boolean @default(false)
+  bifacialityFactor Float?
+  noct              Float?
+  tempCoeffVoc      Float?
+  tempCoeffPmax     Float?
+  cellSizeClass     String?
+  degradacaoAnual   Decimal @default(0.005) @db.Decimal(5,4)
+  
   electricalData    Json?
 
   @@index([manufacturer])
@@ -106,6 +116,15 @@ model InverterCatalog {
   imageUrl          String?
   unifilarSymbolRef String?
   isActive          Boolean @default(true)
+  
+  // -- Engineering PV Specs (v3.7) --
+  Voc_max_hardware  Float?
+  Isc_max_hardware  Float?
+  coolingType       String? @default("passive")
+  afci              Boolean @default(true)
+  rsd               Boolean @default(false)
+  portaria515Compliant Boolean @default(false)
+
   electricalData    Json?
 
   @@index([manufacturer])

@@ -216,7 +216,7 @@ Click no canvas vazio: `setFocusedBlock(null)` → todos voltam ao neutro.
 | Consumo → Módulos | `kWp alvo: X,XX kWp` | Amber |
 | Módulos → Arranjo | `N módulos lógicos` | Sky |
 | Arranjo → Inversor | `N físicos · delta ±N` | Indigo |
-| Inversor → saída | `N strings · Voc XXX V` | Emerald |
+| Inversor → saída | `N strings · Voc(frio) XXX V · Vmp(calor) XXX V` | Emerald |
 
 Quando o dado não pode ser calculado: `—` em `text-slate-600`.
 
@@ -258,7 +258,7 @@ Placeholder quando sem áreas:
 **ComposerBlockInverter**
 ```
 🔲 Inversor  Huawei SUN2000-5KTL    5,0 kW
-[FDI 1,18 ✅]  [Voc 299V ✅]  [Isc ✅]
+[FDI 1,18 ✅]  [Voc(frio) 299V ✅]  [Vmp(calor) 250V ✅]  [Isc ✅ op / ✅ hw]
 ```
 Chips com semáforo. Botão "Trocar inversor" → `InverterCatalogDialog`.
 Campos inline: módulos/string e strings por MPPT.
@@ -267,7 +267,7 @@ Campos inline: módulos/string e strings por MPPT.
 ```
 📊 Simulação
 8.340 kWh/ano  ·  Cobertura 98%
-Economia: R$ 570/mês  ·  Payback: 4,2 anos
+PR: 0,826  ·  Economia: R$ 570/mês  ·  Payback: 4,2 anos
 ```
 
 ---
@@ -399,8 +399,8 @@ Sala de máquinas elétrica. Quatro painéis + faixa CTA.
 │                              │  [Trocar inversor]           │
 ├──────────────────────────────┴──────────────────────────────┤
 │  Topologia de Strings                                        │
-│  Inversor → MPPT 1 → [●●●●●●●●● 9m  Voc 299V ✅]           │
-│              MPPT 2 → [●●●●●● 6m  Voc 199V ⚠]             │
+│  Inversor → MPPT 1 → [●●●●●●●●● 9m  Voc(frio) 299V ✅]       │
+│              MPPT 2 → [●●●●●● 6m  Voc(frio) 199V ⚠]         │
 ├─────────────────────────────────────────────────────────────┤
 │  Configuração MPPT (editável por MPPT)                      │
 │  MPPT 1:  Módulos/String [9]  Strings [2]  Az[180] Inc[14] │
@@ -416,10 +416,12 @@ Sala de máquinas elétrica. Quatro painéis + faixa CTA.
 - Faixas: zona verde (Vmp operacional), linha âmbar (Voc nominal), linha vermelha
   pontilhada (Voc corrigido), limite vermelho sólido (V_max inversor)
 
-**Chips de validação:**
-- FDI: verde 0,80–1,35 · âmbar fora · vermelho > 1,50
-- Voc: verde < 95% do limite · âmbar 95–100% · vermelho > 100%
-- Isc: verde ≤ Imax_MPPT · vermelho > Imax_MPPT
+**Chips de validação e normativos:**
+- FDI: vermelho < 1,00 · verde-escuro 1,00–1,10 · verde 1,10–1,35 · verde-âmbar 1,35–1,50 · vermelho > 1,50
+- Voc(frio): verde < 95% do limite · âmbar 95–100% · vermelho > 100%
+- Vmp(calor): valida tensão mínima de operação > Vmin_MPPT
+- Isc: dois sub-chips [✅ op / ✅ hw]. `op` verde se ≤ Imax_MPPT (âmbar se >); `hw` verde se ≤ Isc_max_hardware (vermelho bloqueante se >)
+- Alertas: [⚠ Sem AFCI], [⚠ Sem RSD], [⚠ Derating Térmico], [⚠ Mismatch MPPT N]
 
 Erros clicáveis rolam até o campo relevante na configuração MPPT e aplicam `ring-2`.
 
@@ -456,6 +458,7 @@ O resultado do dimensionamento. Quatro painéis + faixa de aprovação.
 **Motor de geração:**
 ```typescript
 const DAYS_IN_MONTH = [31,28,31,30,31,30,31,31,30,31,30,31];
+// PR dinâmico em vez de fixo 0.80, calculado com calcPerformanceRatio considerando TcellMediaAnual, sujeira, cabos, mismatch e eficiência do inversor
 geracaoMensal[i] = P_DC_kWp * hsp[i] * DAYS_IN_MONTH[i] * pr;
 // P_DC_kWp: derivado do inventário de módulos — nunca hardcoded
 ```
@@ -798,6 +801,23 @@ canvas-views/
 ├── simulation/
 │   ├── DailyGenerationChart.tsx
 │   ├── CreditBankChart.tsx
+│   └── FinancialPremisesPanel.tsx
+├── site/
+│   ├── ClientDataCard.tsx
+│   └── InfrastructureCard.tsx
+└── shared/
+    └── GlowEffect.tsx
+```
+
+---
+
+## 11. Atualizações via Patches (V3.7+)
+
+O escopo básico foi estendido por patches de engenharia avançada e modelagem financeira, que agora são parte canônica da Jornada do Integrador:
+
+1. **Patch Engenharia PV (2026-04-25):** Ver `spec-revisao-jornada-integrador-engenharia-pv-2026-04-25.md` e `patch-spec-view-electrical-pv-2026-04-25.md` para regras de Mismatch, FDI dinâmico, Tensão Corrigida a Frio/Calor, AFCI e RSD.
+2. **Patch Motor Financeiro e Lei 14.300 (2026-04-25):** Ver `patch-motor-financeiro-lei-14300-roi-2026-04-25.md` para o cronograma do Fio B, substituição de inversor (OPEX) e métricas VPL/TIR/LCOE.
+3. **Patch Sensibilidade e Grupo A (2026-04-26):** Ver `patch-sensibilidade-grupoA-regulatorio-2026-04-26.md` para a modelagem de Tarifa Binômia (TUSD-c / TUSD-G), Tarifa Branca, stress test regulatório (ICMS Convênio 16/15) e análise de cenários P50/P75/P90/P95.
 │   └── SimulationKPICards.tsx
 └── site/
     ├── IrradiationSparkline.tsx

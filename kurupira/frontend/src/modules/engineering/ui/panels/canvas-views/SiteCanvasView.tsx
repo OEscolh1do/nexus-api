@@ -1,30 +1,32 @@
 import { 
   FileText, Navigation, ThermometerSun, MapPin, Loader2, Search, 
-  Plus, Minus, Calendar, Sun, Lightbulb, Zap, Home 
+  Plus, Minus, Calendar, Sun, Lightbulb, Zap, Home, Edit2, Check
 } from 'lucide-react';
-import { Marker, useMapEvents } from 'react-leaflet';
+import { useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useSolarStore } from '@/core/state/solarStore';
 import { useCallback, useEffect, useState } from 'react';
 import { MapCore } from '../../../components/MapCore';
 import { fetchWeatherAnalysis } from '@/services/weatherService';
 import { cn } from '@/lib/utils';
+import { useGoogleGeocoding } from '../../../hooks/useGoogleGeocoding';
+import { ProjectSiteMarker } from '../../../components/ProjectSiteMarker';
 
 const MapClickHandler: React.FC<{ onLocationSelect: (lat: number, lng: number) => void }> = ({ onLocationSelect }) => {
   useMapEvents({ click: (e) => onLocationSelect(e.latlng.lat, e.latlng.lng) });
   return null;
 };
 
-// ── Field primitives ───────────────────────────────────────────────────────
-const fieldBase = 'w-full bg-slate-950 border border-slate-800 rounded-sm px-2.5 py-1 text-[11px] font-mono outline-none transition-all';
+// ── Field primitives (Engineering UI High-Density) ─────────────────────────
+const fieldBase = 'w-full bg-slate-950 border border-slate-800 rounded-sm px-2.5 py-1.5 text-[13px] font-mono outline-none transition-all placeholder:text-slate-600';
 const fieldDefault = `${fieldBase} text-slate-200 focus:border-slate-700`;
-const fieldAccent = `${fieldBase} text-indigo-400 font-bold focus:border-indigo-500`;
+const fieldAccent = `${fieldBase} text-indigo-300 font-bold focus:border-indigo-500/50`;
 
 const FieldCell: React.FC<{ label: string; children: React.ReactNode; accent?: boolean; className?: string }> = ({
   label, children, accent = false, className
 }) => (
-  <div className={cn('flex flex-col gap-0.5', className)}>
-    <label className={cn('text-[11px] font-black uppercase tracking-widest font-mono', accent ? 'text-indigo-400/60' : 'text-slate-600')}>
+  <div className={cn('flex flex-col gap-1', className)}>
+    <label className={cn('text-[12px] font-black uppercase tracking-widest font-mono', accent ? 'text-indigo-400' : 'text-slate-400')}>
       {label}
     </label>
     {children}
@@ -51,13 +53,23 @@ const PanelHeader: React.FC<{
   </div>
 );
 
-// ── Roof type options ──────────────────────────────────────────────────────
 const ROOF_TYPES = [
   { value: 'ceramica',     label: 'Cerâmico' },
   { value: 'metalico',     label: 'Metálico' },
   { value: 'fibrocimento', label: 'Fibrocimento' },
   { value: 'laje',         label: 'Laje' },
   { value: 'outro',        label: 'Outro / Solo' },
+] as const;
+
+const AZIMUTH_OPTIONS = [
+  { value: 0, label: 'Norte (0°)' },
+  { value: 45, label: 'Nordeste (45°)' },
+  { value: 90, label: 'Leste (90°)' },
+  { value: 135, label: 'Sudeste (135°)' },
+  { value: 180, label: 'Sul (180°)' },
+  { value: 225, label: 'Sudoeste (225°)' },
+  { value: 270, label: 'Oeste (270°)' },
+  { value: 315, label: 'Noroeste (315°)' }
 ] as const;
 
 const RATE_GROUPS = [
@@ -82,63 +94,10 @@ export const SiteCanvasView: React.FC = () => {
   const setWeatherData   = useSolarStore(s => s.setWeatherData);
   const setIrradiationData = useSolarStore(s => s.setIrradiationData);
 
-  // ── Geocoding ──────────────────────────────────────────────────────────
-  const [isGeocoding, setIsGeocoding] = useState(false);
-  const [geocodeStatus, setGeocodeStatus] = useState<'idle' | 'searching' | 'success' | 'partial' | 'error'>('idle');
+  // ── Geocoding & Reverse Geocoding (Hookified) ──────────────────────────
+  const { isGeocoding, geocodeStatus, geocodeAddress, reverseGeocode, detectedAddress, setDetectedAddress } = useGoogleGeocoding();
+  const [isEditingGeo, setIsEditingGeo] = useState(false);
 
-  const handleGeocodeAddress = async () => {
-    const { street, number, neighborhood, city, state, zipCode } = clientData;
-    const hasMinAddress = (street && city) || (zipCode && zipCode.length >= 8);
-    if (!hasMinAddress) return;
-    setIsGeocoding(true);
-    setGeocodeStatus('searching');
-    try {
-      const variants = [
-        { type: 'success', query: [street, number, neighborhood, city, state, 'Brasil'].filter(Boolean).join(', ') },
-        { type: 'partial', query: [street, city, state, 'Brasil'].filter(Boolean).join(', ') },
-        { type: 'partial', query: [zipCode, 'Brasil'].filter(Boolean).join(', ') },
-        { type: 'partial', query: [city, state, 'Brasil'].filter(Boolean).join(', ') },
-      ].filter(v => v.query.length > 8);
-
-      let finalCoords: { lat: number; lng: number } | null = null;
-      let finalType: typeof geocodeStatus = 'error';
-
-      for (const variant of variants) {
-        const query = variant.query.replace(/\s+/g, ' ').trim();
-        let coords: { lat: number; lng: number } | null = null;
-        
-        // Nominatim (OpenStreetMap) geocoding - Free and reliable fallback
-        try {
-          const resp = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`, { 
-            headers: { 'Accept-Language': 'pt-BR' } 
-          });
-          const data = await resp.json();
-          if (data?.length > 0) coords = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-        } catch (e) {
-          console.error('Nominatim Error:', e);
-        }
-
-        if (coords) { 
-          finalCoords = coords; 
-          finalType = variant.type as any; 
-          break; 
-        }
-      }
-      
-      if (finalCoords) {
-        updateClientData({ lat: parseFloat(finalCoords.lat.toFixed(6)), lng: parseFloat(finalCoords.lng.toFixed(6)) });
-        setGeocodeStatus(finalType);
-      } else { 
-        setGeocodeStatus('error'); 
-      }
-    } catch (err) { 
-      console.error('SITE_GEOC_ERROR:', err); 
-      setGeocodeStatus('error'); 
-    } finally { 
-      setIsGeocoding(false); 
-      setTimeout(() => setGeocodeStatus('idle'), 4000); 
-    }
-  };
 
   // ── Climate Sync ───────────────────────────────────────────────────────
   const [isSyncing, setIsSyncing] = useState(false);
@@ -158,6 +117,16 @@ export const SiteCanvasView: React.FC = () => {
     return () => clearTimeout(t);
   }, [clientData.lat, clientData.lng, clientData.city, clientData.state, syncClimateData]);
 
+  useEffect(() => {
+    if (clientData.lat && clientData.lng) {
+      setDetectedAddress(null);
+      const t = setTimeout(() => {
+        reverseGeocode(clientData.lat!, clientData.lng!, true);
+      }, 1000);
+      return () => clearTimeout(t);
+    }
+  }, [clientData.lat, clientData.lng, reverseGeocode, setDetectedAddress]);
+
   // ── ViaCEP ─────────────────────────────────────────────────────────────
   const handleZipCodeChange = async (cep: string) => {
     const cleanCep = cep.replace(/\D/g, '');
@@ -173,27 +142,47 @@ export const SiteCanvasView: React.FC = () => {
 
   const handleMapClick = useCallback((newLat: number, newLng: number) => {
     updateClientData({ lat: parseFloat(newLat.toFixed(6)), lng: parseFloat(newLng.toFixed(6)) });
+    // Removido reverseGeocode automático a pedido do usuário
   }, [updateClientData]);
 
   // ── Derived values ─────────────────────────────────────────────────────
-  const activeLat = clientData.lat ?? -3.1316;
-  const activeLng = clientData.lng ?? -60.0233;
+  const activeLat = (clientData.lat !== undefined && !isNaN(clientData.lat)) ? clientData.lat : -3.1316;
+  const activeLng = (clientData.lng !== undefined && !isNaN(clientData.lng)) ? clientData.lng : -60.0233;
   const mapCenter: [number, number] = [activeLat, activeLng];
 
   const hspMonthly = clientData.monthlyIrradiation ?? Array(12).fill(0);
 
-  const geocodeStatusColor = { searching: 'text-slate-400 animate-pulse', success: 'text-emerald-400', partial: 'text-amber-400', error: 'text-rose-400', idle: 'text-transparent' }[geocodeStatus];
-  const geocodeStatusLabel = { searching: 'Buscando...', success: 'Localização exata', partial: 'Aproximação', error: 'Não encontrado', idle: '' }[geocodeStatus];
+  const geocodeStatusColor = { searching: 'text-slate-400 animate-pulse', success: 'text-emerald-400', partial: 'text-amber-400', error: 'text-rose-400', idle: 'text-transparent' }[geocodeStatus as string] || 'text-transparent';
+  const geocodeStatusLabel = { searching: 'Buscando...', success: 'Localização exata', partial: 'Aproximação', error: 'Não encontrado', idle: '' }[geocodeStatus as string] || '';
 
-  // ── Solar Tech Insight ─────────────────────────────────────────────────
+  // ── Solar Tech Insight & PR Sugerido ───────────────────────────────────
   const hspAnual = hspMonthly.reduce((a, b) => a + b, 0);
   const hspMed   = hspAnual / 12;
   const isSulSudeste = ['RS', 'SC', 'PR', 'SP', 'RJ', 'MG', 'ES'].includes(clientData.state || '');
-  const prSugerido = isSulSudeste ? 0.82 : 0.80;
+  
+  // Base PR based on region
+  let prSugerido = isSulSudeste ? 0.82 : 0.80;
+  
+  // Apply Azimuth Penalty (South facing roofs lose PR)
+  const azimuth = clientData.azimuth ?? 0;
+  let azimuthText = "Boa orientação solar";
+  if (azimuth >= 135 && azimuth <= 225) {
+     prSugerido -= 0.15; // Sul
+     azimuthText = "Penalidade Severa (Face Sul)";
+  } else if ((azimuth > 90 && azimuth < 135) || (azimuth > 225 && azimuth < 270)) {
+     prSugerido -= 0.05; // Sudeste / Sudoeste
+     azimuthText = "Penalidade Moderada (Leste/Oeste com viés Sul)";
+  } else if (azimuth > 45 && azimuth <= 90) {
+     prSugerido -= 0.02; // Leste
+     azimuthText = "Orientação Leste (Viável)";
+  } else if (azimuth >= 270 && azimuth <= 315) {
+     prSugerido -= 0.02; // Oeste
+     azimuthText = "Orientação Oeste (Viável)";
+  }
   
   const notaTecnica = hspMed > 5.0 
-    ? "Irradiância alta (>5.0). Priorizar inversores de alta eficiência."
-    : "Fluxo solar moderado. Dimensionamento padrão recomendado.";
+    ? `Irradiância alta (>5.0). ${azimuthText}. Priorizar inversores de alta eficiência.`
+    : `Fluxo solar moderado. ${azimuthText}.`;
 
   const showInsights = weatherData !== null && hspAnual > 0;
 
@@ -218,44 +207,57 @@ export const SiteCanvasView: React.FC = () => {
                 <input type="text" value={clientData.clientName || ''} onChange={e => updateClientData({ clientName: e.target.value })} className={fieldDefault} placeholder="Nome do titular" />
               </FieldCell>
               <FieldCell label="Título do Projeto" className="col-span-6">
-                <input type="text" value={clientData.projectName || ''} onChange={e => updateClientData({ projectName: e.target.value })} className={`${fieldBase} text-slate-400 focus:border-slate-700`} placeholder="Fase 1" />
+                <input type="text" value={clientData.projectName || ''} onChange={e => updateClientData({ projectName: e.target.value })} className={fieldDefault} placeholder="Fase 1" />
               </FieldCell>
             </div>
           </div>
 
           {/* ── Seção B: Endereço ───────────────────────────── */}
           <div className="flex flex-col gap-3">
-            <SectionHeader icon={null} label="Endereço de Instalação" />
+            <div className="flex items-center justify-between border-b border-slate-800/80 pb-1">
+              <SectionHeader icon={<MapPin size={9} />} label="Endereço de Instalação" />
+              <button
+                onClick={() => geocodeAddress()}
+                disabled={isGeocoding || (!clientData.street && (!clientData.zipCode || clientData.zipCode.length < 8))}
+                className="flex items-center gap-2 px-3 py-1 bg-indigo-500 hover:bg-indigo-400 text-slate-950 rounded-sm transition-all disabled:opacity-30 text-[10px] font-black uppercase tracking-[0.1em] shadow-lg shadow-indigo-500/20"
+              >
+                {isGeocoding ? <Loader2 size={10} className="animate-spin" /> : <Search size={10} />}
+                Buscar no Mapa
+              </button>
+            </div>
             <div className="grid grid-cols-12 gap-2.5">
               <FieldCell label="CEP *" className="col-span-5" accent>
                 <input type="text" value={clientData.zipCode || ''} onChange={e => handleZipCodeChange(e.target.value)} className={fieldAccent} placeholder="00000-000" maxLength={9} />
               </FieldCell>
               <FieldCell label="UF" className="col-span-2">
-                <input type="text" value={clientData.state || ''} onChange={e => updateClientData({ state: e.target.value.toUpperCase() })} maxLength={2} className={`${fieldBase} text-indigo-300 font-black text-center focus:border-indigo-500/50`} />
+                <input type="text" value={clientData.state || ''} onChange={e => updateClientData({ state: e.target.value.toUpperCase() })} maxLength={2} className={`${fieldBase} text-indigo-200 font-black text-center focus:border-indigo-500/50`} />
               </FieldCell>
               <FieldCell label="Cidade *" className="col-span-5">
-                <input type="text" value={clientData.city || ''} onChange={e => updateClientData({ city: e.target.value })} className={`${fieldBase} text-slate-300 focus:border-slate-700`} />
+                <input type="text" value={clientData.city || ''} onChange={e => updateClientData({ city: e.target.value })} className={fieldDefault} />
               </FieldCell>
               <FieldCell label="Logradouro" className="col-span-9">
                 <input type="text" value={clientData.street || ''} onChange={e => updateClientData({ street: e.target.value })} className={fieldDefault} />
               </FieldCell>
               <FieldCell label="Nº" className="col-span-3">
-                <input type="text" value={clientData.number || ''} onChange={e => updateClientData({ number: e.target.value })} className={`${fieldBase} text-slate-200 text-center focus:border-slate-700`} />
+                <input type="text" value={clientData.number || ''} onChange={e => updateClientData({ number: e.target.value })} className={`${fieldBase} text-slate-100 text-center focus:border-slate-700`} />
               </FieldCell>
               <FieldCell label="Bairro" className="col-span-12">
-                <input type="text" value={clientData.neighborhood || ''} onChange={e => updateClientData({ neighborhood: e.target.value })} className={`${fieldBase} text-slate-500 focus:border-slate-800`} />
+                <input type="text" value={clientData.neighborhood || ''} onChange={e => updateClientData({ neighborhood: e.target.value })} className={fieldDefault} />
               </FieldCell>
+
             </div>
           </div>
 
           {/* ── Seção C: Rede Elétrica ─────────────────────── */}
           <div className="flex flex-col gap-3">
-            <SectionHeader icon={<Zap size={9} />} label="Rede Elétrica" color="text-amber-500/50" />
+            <div className="flex items-center justify-between border-b border-slate-800/80 pb-1">
+              <SectionHeader icon={<Zap size={9} />} label="Rede Elétrica" color="text-amber-500/50" />
+            </div>
             <div className="grid grid-cols-12 gap-2.5">
               <FieldCell label="Concessionária" className="col-span-7">
                 <input type="text" value={clientData.concessionaire || ''} onChange={e => updateClientData({ concessionaire: e.target.value })} className={`${fieldBase} text-slate-300 focus:border-amber-500/40`} placeholder="Ex: CEMIG..." />
               </FieldCell>
-              <FieldCell label="Tarifa (R$/kWh)" accent className="col-span-5">
+              <FieldCell label="Tarifa Global (R$/kWh)" accent className="col-span-5">
                 <div className="relative">
                   <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-700 font-mono font-black text-[10px]">R$</span>
                   <input type="number" step="0.01" value={clientData.tariffRate || 0} onChange={e => updateClientData({ tariffRate: Number(e.target.value) })} className={`${fieldAccent} pl-8 text-right`} />
@@ -275,23 +277,47 @@ export const SiteCanvasView: React.FC = () => {
                 </select>
               </FieldCell>
             </div>
+            
+            {/* Detalhamento Tarifário (Lei 14.300) - Progressive Disclosure style, but always visible inside an outlined box to preserve space while maintaining density */}
+            <div className="mt-1 p-2.5 bg-slate-900/50 border border-slate-800/80 rounded-sm">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Zap size={10} className="text-amber-500/70" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Detalhamento Regulatório (14.300)</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <FieldCell label="TE" className="col-span-1">
+                  <input type="number" step="0.001" value={clientData.tariffTE || ''} onChange={e => updateClientData({ tariffTE: Number(e.target.value) })} className={`${fieldBase} text-right text-slate-300 focus:border-amber-500/40`} placeholder="0.000" />
+                </FieldCell>
+                <FieldCell label="TUSD" className="col-span-1">
+                  <input type="number" step="0.001" value={clientData.tariffTUSD || ''} onChange={e => updateClientData({ tariffTUSD: Number(e.target.value) })} className={`${fieldBase} text-right text-slate-300 focus:border-amber-500/40`} placeholder="0.000" />
+                </FieldCell>
+                <FieldCell label="Fio B" className="col-span-1">
+                  <input type="number" step="0.001" value={clientData.tariffFioB || ''} onChange={e => updateClientData({ tariffFioB: Number(e.target.value) })} className={`${fieldBase} text-right text-amber-400 font-bold focus:border-amber-500`} placeholder="0.000" />
+                </FieldCell>
+              </div>
+            </div>
           </div>
 
           {/* ── Seção D: Premissas Estruturais ─────────────── */}
           <div className="flex flex-col gap-3">
             <SectionHeader icon={<Home size={9} />} label="Premissas Estruturais" color="text-slate-500/50" />
             <div className="grid grid-cols-12 gap-2.5">
-              <FieldCell label="Tipo de Telhado" className="col-span-7">
+              <FieldCell label="Tipo de Telhado" className="col-span-12">
                 <select value={clientData.roofType || ''} onChange={e => updateClientData({ roofType: (e.target.value || undefined) as any })} className={`${fieldBase} text-slate-300 focus:border-slate-700`}>
                   <option value="">— Selecionar —</option>
                   {ROOF_TYPES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                 </select>
               </FieldCell>
-              <FieldCell label="Inclinação" className="col-span-5">
+              <FieldCell label="Inclinação" className="col-span-4">
                 <div className="relative">
                   <input type="number" min={0} max={60} step={1} value={clientData.roofInclination ?? 15} onChange={e => updateClientData({ roofInclination: Number(e.target.value) })} className={`${fieldBase} text-slate-300 pr-8 focus:border-slate-700`} />
                   <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-600 font-mono font-black text-[10px]">°</span>
                 </div>
+              </FieldCell>
+              <FieldCell label="Azimute (Orientação)" className="col-span-8">
+                <select value={clientData.azimuth ?? 0} onChange={e => updateClientData({ azimuth: Number(e.target.value) })} className={`${fieldBase} text-indigo-300 font-bold focus:border-indigo-500`}>
+                  {AZIMUTH_OPTIONS.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
+                </select>
               </FieldCell>
             </div>
           </div>
@@ -315,14 +341,6 @@ export const SiteCanvasView: React.FC = () => {
                   · {geocodeStatusLabel}
                 </span>
               )}
-              <button
-                onClick={handleGeocodeAddress}
-                disabled={isGeocoding || (!clientData.street && (!clientData.zipCode || clientData.zipCode.length < 8))}
-                className="flex items-center gap-1.5 px-2 py-0.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 rounded-sm transition-all disabled:opacity-30 text-[10px] font-black uppercase tracking-widest font-mono"
-              >
-                {isGeocoding ? <Loader2 size={9} className="animate-spin" /> : <Search size={9} />}
-                Localizar
-              </button>
             </div>
           }
         />
@@ -337,23 +355,95 @@ export const SiteCanvasView: React.FC = () => {
             variant="EXPLORATION"
           >
             <MapClickHandler onLocationSelect={handleMapClick} />
-            {clientData.lat !== undefined && clientData.lat !== 0 && (
-              <Marker position={[activeLat, activeLng]} />
-            )}
+            <ProjectSiteMarker />
           </MapCore>
 
-          {/* HUD de Telemetria (Geolocalização) */}
-          <div className="absolute bottom-3 left-3 z-[1000] flex flex-col gap-1 pointer-events-none">
-            <div className="bg-slate-950/80 backdrop-blur-md border border-slate-800 px-2 py-1 rounded-sm flex items-center gap-3">
-              <div className="flex flex-col">
-                <span className="text-[7px] text-slate-500 font-black uppercase tracking-tighter">Latitude</span>
-                <span className="text-[10px] font-black text-slate-300 font-mono tabular-nums">{clientData.lat ? clientData.lat.toFixed(6) : '—'}</span>
+          {/* HUD de Telemetria (Geolocalização Interativa) */}
+          <div className="absolute top-3 left-3 z-[1000] flex flex-col gap-1 pointer-events-auto">
+            <div className="flex flex-col gap-1">
+              <div className="bg-slate-950/90 backdrop-blur-md border border-slate-800 px-2 py-1.5 rounded-sm flex items-center gap-3 shadow-2xl">
+                <div className="flex flex-col">
+                  <span className="text-[7px] text-slate-500 font-black uppercase tracking-tighter">Latitude</span>
+                  {!isEditingGeo ? (
+                    <span className="w-20 bg-transparent text-[10px] font-black text-slate-300 font-mono tabular-nums px-1 py-0.5">
+                      {clientData.lat !== undefined && !isNaN(clientData.lat) ? clientData.lat.toFixed(6) : '—'}
+                    </span>
+                  ) : (
+                    <input 
+                      type="number" 
+                      step="0.000001"
+                      autoFocus
+                      value={typeof clientData.lat === 'number' && !isNaN(clientData.lat) ? clientData.lat : ''} 
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (val === '') updateClientData({ lat: undefined });
+                        else {
+                          const num = parseFloat(val);
+                          updateClientData({ lat: isNaN(num) ? undefined : num });
+                        }
+                      }}
+                      className="w-20 bg-slate-900 border border-indigo-500/30 text-[10px] font-black text-indigo-400 font-mono tabular-nums outline-none focus:border-indigo-500 transition-all px-1 py-0.5"
+                    />
+                  )}
+                </div>
+                <div className="w-px h-4 bg-slate-800" />
+                <div className="flex flex-col">
+                  <span className="text-[7px] text-slate-500 font-black uppercase tracking-tighter">Longitude</span>
+                  {!isEditingGeo ? (
+                    <span className="w-20 bg-transparent text-[10px] font-black text-slate-300 font-mono tabular-nums px-1 py-0.5">
+                      {clientData.lng !== undefined && !isNaN(clientData.lng) ? clientData.lng.toFixed(6) : '—'}
+                    </span>
+                  ) : (
+                    <input 
+                      type="number" 
+                      step="0.000001"
+                      value={typeof clientData.lng === 'number' && !isNaN(clientData.lng) ? clientData.lng : ''} 
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (val === '') updateClientData({ lng: undefined });
+                        else {
+                          const num = parseFloat(val);
+                          updateClientData({ lng: isNaN(num) ? undefined : num });
+                        }
+                      }}
+                      className="w-20 bg-slate-900 border border-indigo-500/30 text-[10px] font-black text-indigo-400 font-mono tabular-nums outline-none focus:border-indigo-500 transition-all px-1 py-0.5"
+                    />
+                  )}
+                </div>
+                
+                <div className="w-px h-4 bg-slate-800" />
+                
+                <button 
+                  onClick={() => setIsEditingGeo(!isEditingGeo)}
+                  className={cn(
+                    "p-1 rounded-sm transition-all border",
+                    isEditingGeo 
+                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20" 
+                      : "bg-indigo-500/10 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20"
+                  )}
+                  title={isEditingGeo ? "Salvar" : "Editar"}
+                >
+                  {isEditingGeo ? <Check size={12} /> : <Edit2 size={12} />}
+                </button>
               </div>
-              <div className="w-px h-4 bg-slate-800" />
-              <div className="flex flex-col">
-                <span className="text-[7px] text-slate-500 font-black uppercase tracking-tighter">Longitude</span>
-                <span className="text-[10px] font-black text-slate-300 font-mono tabular-nums">{clientData.lng ? clientData.lng.toFixed(6) : '—'}</span>
-              </div>
+
+              {detectedAddress && (
+                <div className="bg-slate-950/90 backdrop-blur-md border border-slate-800 p-2 rounded-sm flex flex-col gap-1.5 shadow-2xl max-w-[280px] animate-in fade-in slide-in-from-top-1 duration-300">
+                  <div className="flex items-center gap-2">
+                    <MapPin size={10} className="text-indigo-400" />
+                    <span className="text-[7px] text-slate-500 font-black uppercase tracking-widest">Endereço Detectado</span>
+                  </div>
+                  <p className="text-[9px] text-slate-300 font-medium leading-relaxed px-0.5">
+                    {detectedAddress}
+                  </p>
+                  <button 
+                    onClick={() => reverseGeocode(clientData.lat!, clientData.lng!, false)}
+                    className="mt-1 flex items-center justify-center gap-1.5 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 text-indigo-400 text-[8px] font-black uppercase tracking-widest rounded-sm transition-all"
+                  >
+                    <Zap size={9} /> Aplicar ao Projeto
+                  </button>
+                </div>
+              )}
             </div>
             {!clientData.lat && (
               <div className="bg-indigo-500/10 border border-indigo-500/20 px-2 py-1 rounded-sm flex items-center gap-1.5 animate-pulse">

@@ -34,6 +34,15 @@ export const InverterCatalogItemSchema = z.object({
   outputVoltage: z.number().optional(),         // V (CA)
   outputFrequency: z.number().optional(),       // Hz
   maxOutputCurrent: z.number().optional(),      // A (CA)
+  
+  // -- Engineering PV Specs (v3.7) --
+  Voc_max_hardware: z.number().optional(),
+  Isc_max_hardware: z.number().optional(),
+  coolingType: z.enum(['passive', 'active']).optional(),
+  afci: z.boolean().default(true),
+  rsd: z.boolean().default(false),
+  portaria515Compliant: z.boolean().default(false),
+  isActive: z.boolean().default(true),
 });
 
 export type InverterCatalogItem = z.infer<typeof InverterCatalogItemSchema>;

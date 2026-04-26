@@ -1,17 +1,5 @@
-/**
- * =============================================================================
- * MODAL DE PROJETO — Início Rápido (CRIAÇÃO APENAS)
- * =============================================================================
- *
- * Modal minimalista para criar um novo projeto a partir do Hub.
- * Coleta apenas Cliente e Título. O resto (Endereço, Mapa, Consumo)
- * deve ser inserido diretamente nas telas de Engenharia (Local / Consumo)
- * adotando o fluxo "Visual-First".
- * =============================================================================
- */
-
-import React, { useState, useEffect } from 'react';
-import { X, Play, Loader2, User, LayoutGrid, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, User, LayoutGrid, AlertCircle, TerminalSquare } from 'lucide-react';
 import { ProjectService } from '@/services/ProjectService';
 import { useSolarStore } from '@/core/state/solarStore';
 
@@ -36,13 +24,35 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
   const [clientName, setClientName] = useState('');
   const [projectName, setProjectName] = useState('');
 
+  // Refs for focus management
+  const clientInputRef = useRef<HTMLInputElement>(null);
+  const projectInputRef = useRef<HTMLInputElement>(null);
+  const submitBtnRef = useRef<HTMLButtonElement>(null);
+
   // Reset on open
   useEffect(() => {
     if (!isOpen) return;
     setError(null);
     setClientName('');
     setProjectName('');
+    
+    // Auto-focus first field
+    setTimeout(() => {
+      clientInputRef.current?.focus();
+    }, 50);
   }, [isOpen]);
+
+  // Handle global keyboard shortcuts
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (!saving) onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, saving, onClose]);
 
   // Validation
   const validate = () => {
@@ -79,101 +89,143 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
     }
   };
 
+  const handleClientKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      projectInputRef.current?.focus();
+    }
+  };
+
+  const handleProjectKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      submitBtnRef.current?.focus();
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+        className="absolute inset-0 bg-slate-950/80 backdrop-blur-[2px]"
         onClick={() => !saving && onClose()}
       />
 
-      {/* Modal */}
-      <div className="relative bg-slate-900 border border-slate-700 w-full max-w-sm rounded-sm shadow-[0_0_50px_rgba(0,0,0,0.6)] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        {/* Decorative Industrial Corners */}
-        <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-emerald-500/20 pointer-events-none" />
-        <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-emerald-500/20 pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-emerald-500/20 pointer-events-none" />
-        <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-emerald-500/20 pointer-events-none" />
-
-        {/* ── HEADER ── */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-800/30 shrink-0 relative overflow-hidden">
-          {/* HUD scanline effect */}
-          <div className="absolute inset-0 pointer-events-none opacity-[0.03] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-10 bg-[length:100%_2px,3px_100%]" />
-          
-          <div className="flex items-center gap-3 relative z-20">
-            <div className="p-2.5 rounded-sm bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
-              <Play size={16} className="fill-current" />
-            </div>
-            <div>
-              <h2 className="text-[12px] font-black text-white uppercase tracking-[0.2em]">Novo Projeto</h2>
-              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">Inicialização de Workspace</p>
-            </div>
+      {/* Modal / Command Dialog */}
+      <div 
+        className="relative bg-[#0B0D13] border border-slate-800 w-full max-w-[420px] rounded-none shadow-[0_0_40px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden animate-in fade-in zoom-in-[0.98] duration-150"
+        role="dialog"
+        aria-modal="true"
+      >
+        {/* Loading Progress Bar */}
+        {saving && (
+          <div className="absolute top-0 left-0 right-0 h-[2px] bg-slate-800 z-50 overflow-hidden">
+             <div className="h-full bg-indigo-500 animate-[progress_1.5s_ease-in-out_infinite]" style={{ width: '30%', animationName: 'pulse-slide' }} />
           </div>
-          <button onClick={onClose} disabled={saving} className="p-2 rounded-sm hover:bg-slate-800 text-slate-500 hover:text-white transition-colors relative z-20">
-            <X size={16} />
+        )}
+        <style>{`
+          @keyframes pulse-slide {
+            0% { transform: translateX(-100%); width: 30%; }
+            50% { width: 50%; }
+            100% { transform: translateX(400%); width: 30%; }
+          }
+        `}</style>
+
+        {/* ── HEADER (Terminal Style) ── */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800/80 bg-slate-900/50">
+          <div className="flex items-center gap-2.5 text-slate-300">
+            <TerminalSquare size={14} className="text-indigo-400" />
+            <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-100">Inicializar Workspace</h2>
+          </div>
+          <button 
+            onClick={onClose} 
+            disabled={saving} 
+            className="text-slate-500 hover:text-white hover:bg-slate-800 rounded-none p-1 transition-colors"
+            aria-label="Close"
+          >
+            <X size={14} />
           </button>
         </div>
 
         {/* ── BODY ── */}
-        <div className="p-6 flex-1 space-y-5">
+        <div className="p-5 flex-1 space-y-5 bg-[#0B0D13]">
           {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-sm flex items-start gap-3 text-red-400">
+            <div className="px-3 py-2 bg-red-500/10 border border-red-500/20 flex items-start gap-2.5 text-red-400">
               <AlertCircle size={14} className="mt-0.5 shrink-0" />
-              <p className="text-[10px] font-black uppercase tracking-wider">{error}</p>
+              <p className="text-[11px] font-bold uppercase tracking-widest leading-relaxed">{error}</p>
             </div>
           )}
 
           <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                <User size={12} className="text-emerald-500/50" /> Cliente Associado <span className="text-emerald-500">*</span>
+            {/* Field: Client Name */}
+            <div className="group space-y-1.5">
+              <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <User size={10} className="text-indigo-400/70" /> Cliente Associado <span className="text-indigo-400">*</span>
+                </span>
               </label>
-              <input 
-                type="text" 
-                value={clientName} 
-                onChange={e => setClientName(e.target.value)} 
-                placeholder="Ex: Supermercado Central"
-                autoFocus
-                className="w-full bg-slate-950 border border-slate-800 rounded-sm px-4 py-2.5 text-sm text-white placeholder:text-slate-700 focus:outline-none focus:border-emerald-500/50 focus:bg-slate-900/50 transition-all font-medium"
-                onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-              />
+              <div className="relative">
+                <input 
+                  ref={clientInputRef}
+                  type="text" 
+                  value={clientName} 
+                  onChange={e => setClientName(e.target.value)} 
+                  onKeyDown={handleClientKeyDown}
+                  disabled={saving}
+                  placeholder="EX: SUPERMERCADO CENTRAL"
+                  className="w-full bg-slate-950/50 border border-slate-700 px-3 py-2 h-9 text-[11px] font-mono font-medium text-white placeholder:text-slate-600 outline-none focus:border-indigo-500/50 focus:bg-slate-900 transition-all uppercase tracking-wider rounded-none"
+                  autoComplete="off"
+                  spellCheck="false"
+                />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-focus-within:opacity-100 transition-opacity pointer-events-none flex items-center gap-1">
+                  <kbd className="h-4 px-1 rounded-sm bg-slate-800/80 border border-slate-700 text-[8px] font-mono text-slate-200 font-bold flex items-center">↵</kbd>
+                </div>
+              </div>
             </div>
             
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                <LayoutGrid size={12} className="text-slate-600" /> Título do Projeto (Opcional)
+            {/* Field: Project Name */}
+            <div className="group space-y-1.5">
+              <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <LayoutGrid size={10} className="text-slate-500" /> Título do Projeto (Opcional)
+                </span>
               </label>
-              <input 
-                type="text" 
-                value={projectName} 
-                onChange={e => setProjectName(e.target.value)} 
-                placeholder="Ex: Matriz - Fase 1"
-                className="w-full bg-slate-950 border border-slate-800 rounded-sm px-4 py-2.5 text-sm text-white placeholder:text-slate-700 focus:outline-none focus:border-emerald-500/50 focus:bg-slate-900/50 transition-all font-medium"
-                onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-              />
+              <div className="relative">
+                <input 
+                  ref={projectInputRef}
+                  type="text" 
+                  value={projectName} 
+                  onChange={e => setProjectName(e.target.value)} 
+                  onKeyDown={handleProjectKeyDown}
+                  disabled={saving}
+                  placeholder="EX: MATRIZ - FASE 1"
+                  className="w-full bg-slate-950/50 border border-slate-700 px-3 py-2 h-9 text-[11px] font-mono font-medium text-white placeholder:text-slate-600 outline-none focus:border-indigo-500/50 focus:bg-slate-900 transition-all uppercase tracking-wider rounded-none"
+                  autoComplete="off"
+                  spellCheck="false"
+                />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-focus-within:opacity-100 transition-opacity pointer-events-none flex items-center gap-1">
+                  <kbd className="h-4 px-1 rounded-sm bg-slate-800/80 border border-slate-700 text-[8px] font-mono text-slate-200 font-bold flex items-center">↵</kbd>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         {/* ── FOOTER ── */}
-        <div className="px-6 py-5 border-t border-slate-800 bg-slate-900 flex flex-col gap-3 shrink-0">
+        <div className="px-5 py-4 border-t border-slate-800/80 bg-slate-900/30 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2 text-[11px] font-mono font-bold text-slate-400 uppercase tracking-widest">
+            <span className="flex items-center gap-1"><kbd className="h-4 px-1 rounded-sm border border-slate-800 bg-slate-950 text-slate-200">ESC</kbd> Cancelar</span>
+          </div>
+
           <button 
+            ref={submitBtnRef}
             onClick={handleSave} 
             disabled={saving}
-            className="w-full flex items-center justify-center gap-2.5 px-6 py-3.5 text-white rounded-sm text-xs font-black uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed transition-all bg-emerald-600 hover:bg-emerald-500 shadow-[0_0_20px_rgba(5,150,105,0.2)] active:scale-[0.98]"
+            className="flex items-center justify-center gap-2 px-5 py-2 h-8 text-white text-[11px] font-black uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed transition-all bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] outline-none focus:ring-2 focus:ring-indigo-500/30 rounded-none"
           >
-            {saving ? <Loader2 size={16} className="animate-spin" /> : <Play size={14} className="fill-current" />}
-            {saving ? 'Inicializando...' : 'Iniciar Workspace'}
-          </button>
-          
-          <button 
-            onClick={onClose} 
-            disabled={saving} 
-            className="w-full px-4 py-2 text-xs font-bold text-slate-400 hover:text-white transition-colors"
-          >
-            Cancelar
+            {saving ? 'Aprovisionando...' : 'Criar Workspace'}
           </button>
         </div>
       </div>

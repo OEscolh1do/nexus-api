@@ -17,13 +17,15 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  X, MapPin, ArrowRight, Loader2
+  X, MapPin, ArrowRight
 } from 'lucide-react';
 import { Marker } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapCore } from '@/modules/engineering/components/MapCore';
 import { KurupiraClient } from '@/services/NexusClient';
 import { calcKWpAlvo } from '@/core/state/slices/journeySlice';
+import { useUIStore } from '@/core/state/uiStore';
+import { NeonorteLoader } from '@/components/ui/NeonorteLoader';
 
 
 // =============================================================================
@@ -70,7 +72,11 @@ export const SiteContextModal: React.FC<SiteContextModalProps> = ({
   onClose,
   onDimensionar,
 }) => {
-  const [loading, setLoading] = useState(false);
+  const setAppLoading = useUIStore(s => s.setAppLoading);
+  const clearAppLoading = useUIStore(s => s.clearAppLoading);
+  const isSiteLoading = useUIStore(
+    s => s.isAppLoading && s.loadingContext === 'site-context'
+  );
   const [context, setContext] = useState<SiteContext | null>(null);
 
   useEffect(() => {
@@ -81,7 +87,7 @@ export const SiteContextModal: React.FC<SiteContextModalProps> = ({
 
     let isMounted = true;
     const fetchContext = async () => {
-      setLoading(true);
+      setAppLoading('site-context', 'Buscando contexto...');
       try {
         const data = await KurupiraClient.designs.get(projectId);
         
@@ -128,7 +134,7 @@ export const SiteContextModal: React.FC<SiteContextModalProps> = ({
       } catch (error) {
         console.error('Failed to load project context', error);
       } finally {
-        if (isMounted) setLoading(false);
+        if (isMounted) clearAppLoading();
       }
     };
 
@@ -158,14 +164,15 @@ export const SiteContextModal: React.FC<SiteContextModalProps> = ({
 
   if (!isOpen) return null;
 
-  if (loading || !context) {
+  if (isSiteLoading || !context) {
     return (
       <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={onClose} />
-        <div className="relative flex flex-col items-center justify-center text-slate-400 gap-3">
-          <Loader2 size={32} className="animate-spin text-emerald-500/50" />
-          <span className="text-xs font-semibold">Buscando contexto...</span>
-        </div>
+        <NeonorteLoader
+          size="panel"
+          message="Buscando contexto..."
+          overlay={false}
+        />
       </div>
     );
   }

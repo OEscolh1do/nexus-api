@@ -111,11 +111,15 @@ export const initialClientData: InputData = {
   // Diagnóstico Preliminar (V3.3)
   roofType: undefined,
   roofInclination: 15,
+  azimuth: 0, // 0 = Norte
   leadPersona: undefined,
 
   // Rede Elétrica & Concessionária (V3.4)
   concessionaire: '',
   rateGroup: undefined,
+  tariffTE: undefined,
+  tariffTUSD: undefined,
+  tariffFioB: undefined,
 };
 
 /**

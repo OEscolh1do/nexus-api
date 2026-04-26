@@ -26,6 +26,7 @@ import { NavigationIsland } from './toolbars/NavigationIsland';
 import { VisionIsland } from './toolbars/VisionIsland';
 import { DraftingIsland } from './toolbars/DraftingIsland';
 import { SearchIsland } from './toolbars/SearchIsland';
+import { NeonorteLoader } from '@/components/ui/NeonorteLoader';
 
 // =============================================================================
 // TYPES & CONSTANTS
@@ -527,6 +528,12 @@ export const PhysicalCanvasView: React.FC = () => {
   const [drawingPoints, setDrawingPoints] = React.useState<[number, number][]>([]);
   const [selectedModuleIds, setSelectedModuleIds] = React.useState<string[]>([]);
 
+  // Loader do canvas: controlado pelo MapReadyObserver via uiStore (sem timer local)
+  const isMapLoading = useUIStore(
+    s => s.isAppLoading && s.loadingContext === 'map-tiles'
+  );
+
+
   const placedModules = useSolarStore(s => s.project.placedModules);
   const installationAreas = useSolarStore(s => s.project.installationAreas) || [];
   
@@ -680,6 +687,14 @@ export const PhysicalCanvasView: React.FC = () => {
         </div>
 
         <div className="flex-1 relative min-w-0 bg-slate-950 overflow-hidden">
+          {/* Loader do canvas — controlado pelo MapReadyObserver via uiStore */}
+          {isMapLoading && (
+            <NeonorteLoader
+              size="panel"
+              message="Carregando mapa..."
+            />
+          )}
+
           <div className={cn(
             "absolute inset-0 transition-all duration-700 ease-in-out", 
             (canvasViewMode === 'BLUEPRINT') ? "brightness-[0.4] saturate-0 opacity-60" : 

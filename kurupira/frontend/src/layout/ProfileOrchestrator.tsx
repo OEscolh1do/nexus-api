@@ -17,6 +17,8 @@ import { useSolarStore } from '@/core/state/solarStore';
 import { TechModule } from '@/modules/engineering/TechModule';
 import { ProjectExplorer } from '@/modules/engineering/ui/ProjectExplorer';
 import { ProjectService } from '@/services/ProjectService';
+import { NeonorteLoader } from '@/components/ui/NeonorteLoader';
+import { useUIStore } from '@/core/state/uiStore';
 import {
   Lock, ShieldCheck, ShieldAlert,
   Maximize2, Minimize2, Zap
@@ -30,6 +32,7 @@ import {
 
 export const ProfileOrchestrator: React.FC = () => {
   const { activeModule, setActiveModule, userRole } = useSolarStore();
+  const { setAppLoading, clearAppLoading } = useUIStore();
   const clientData = useSolarStore(state => state.clientData);
   const { signOut } = useAuth();
 
@@ -61,9 +64,6 @@ export const ProfileOrchestrator: React.FC = () => {
     'engineering': ['ENGINEER', 'ADMIN'],
   };
 
-  // Loading state for project hydration
-  const [isLoadingProject, setIsLoadingProject] = useState(false);
-
   const hasAccess = (moduleId: string) => MODULE_ROLES[moduleId]?.includes(userRole);
 
   // Handle fullscreen toggle
@@ -78,7 +78,7 @@ export const ProfileOrchestrator: React.FC = () => {
 
   // Handle project selection — hydrate from DB then enter workspace
   const handleSelectProject = async (projectId: string) => {
-    setIsLoadingProject(true);
+    setAppLoading('catalog', 'Preparando ambiente de engenharia...');
     try {
       const success = await ProjectService.loadProjectAndHydrate(projectId);
       if (success) {
@@ -89,7 +89,7 @@ export const ProfileOrchestrator: React.FC = () => {
     } catch (e) {
       console.error('[Orchestrator] Error loading project', e);
     } finally {
-      setIsLoadingProject(false);
+      clearAppLoading();
     }
   };
 
@@ -177,15 +177,8 @@ export const ProfileOrchestrator: React.FC = () => {
         </main>
       </div>
 
-      {/* Loading overlay for project hydration */}
-      {isLoadingProject && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-xs font-bold text-slate-400">Carregando projeto do banco de dados...</p>
-          </div>
-        </div>
-      )}
+      {/* Global Loader — Acionado via useUIStore para hidratação de catálogo */}
+      <NeonorteLoader size="fullscreen" context="catalog" overlay />
     </div>
   );
 };

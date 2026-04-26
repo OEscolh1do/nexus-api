@@ -46,6 +46,40 @@ const UI_MAX_ZOOM = 24;
 // =============================================================================
 
 /**
+ * MapReadyObserver — Monitora o evento nativo `load` do Leaflet para saber
+ * exatamente quando os tiles visíveis terminaram de renderizar.
+ *
+ * Conectado ao uiStore via setAppLoading / clearAppLoading para garantir
+ * que apenas UM loader por vez seja exibido (sem race conditions).
+ *
+ * Fallback de 3s cobre: modo Blueprint (sem tiles), API key ausente, modo offline.
+ */
+const MapReadyObserver: React.FC = () => {
+  const map = useMap();
+  const setAppLoading = useUIStore(s => s.setAppLoading);
+  const clearAppLoading = useUIStore(s => s.clearAppLoading);
+
+  useEffect(() => {
+    setAppLoading('map-tiles', 'Carregando mapa...');
+
+    const handleLoad = () => clearAppLoading();
+    map.once('load', handleLoad);
+
+    // Fallback: tiles podem não disparar 'load' em modo Blueprint ou sem API key
+    const fallback = setTimeout(() => clearAppLoading(), 3000);
+
+    return () => {
+      map.off('load', handleLoad);
+      clearTimeout(fallback);
+      // Garante limpeza se o componente desmontar antes do evento
+      clearAppLoading();
+    };
+  }, [map, setAppLoading, clearAppLoading]);
+
+  return null;
+};
+
+/**
  * MapInvalidator — Escuta mudanças de tamanho do CanvasContainer
  * e chama invalidateSize() para evitar tiles desalinhados.
  */
@@ -330,6 +364,9 @@ const MapCoreInner: React.FC<MapCoreProps> = ({
       >
         {/* Exposes the map instance gobally */}
         <MapRefExposer />
+
+        {/* Monitora quando os tiles terminam de renderizar → clearAppLoading() */}
+        <MapReadyObserver />
 
         {/* Sincronização de props externas (centro/zoom via props) */}
         <MapPropSync center={propsCenter} zoom={propsZoom} />

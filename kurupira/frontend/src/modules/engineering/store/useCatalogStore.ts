@@ -46,6 +46,8 @@ export const useCatalogStore = create<CatalogState>((set) => ({
             isc: ed.isc || 0,
             efficiency: ed.efficiency ?? m.efficiency ?? 0,
             tempCoeffVoc: ed.tempCoeffVoc || 0,
+            bifacial: ed.bifacial ?? false,
+            degradacaoAnual: ed.degradacaoAnual ?? 0.5,
           },
           physical: {
             widthMm: ed.widthMm || 0,
@@ -91,7 +93,11 @@ export const useCatalogStore = create<CatalogState>((set) => ({
           outputFrequency: ed.outputFrequency || 60,
           maxOutputCurrent: ed.maxOutputCurrent || 0,
           efficiency: { euro: i.efficiency || 97 },
-          mppts: mppts
+          mppts: mppts,
+          afci: ed.afci ?? false,
+          rsd: ed.rsd ?? false,
+          portaria515Compliant: ed.portaria515Compliant ?? false,
+          isActive: i.active ?? true,
         };
       });
 

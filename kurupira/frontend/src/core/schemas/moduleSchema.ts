@@ -10,6 +10,12 @@ export const ModuleElectricalSchema = z.object({
   tempCoeffPmax: z.number().optional(),
   maxFuseRating: z.number().optional(), // A
   efficiency: z.number().min(0.1).max(0.3).optional(),
+  // Novas propriedades térmicas (v3.7)
+  bifacial: z.boolean().default(false),
+  bifacialityFactor: z.number().optional(),
+  noct: z.number().optional(),
+  cellSizeClass: z.string().optional(),
+  degradacaoAnual: z.number().default(0.005),
 });
 
 export const ModulePhysicalSchema = z.object({

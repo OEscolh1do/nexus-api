@@ -7,7 +7,6 @@ import { SimulatedLoadsPanel } from './consumption/SimulatedLoadsPanel';
 import { TrendingUp, Zap, MapPin, ArrowUpRight } from 'lucide-react';
 
 
-
 export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ className }) => {
   // Store Reads
   const clientData = useSolarStore(s => s.clientData);

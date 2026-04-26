@@ -34,6 +34,7 @@ import { useTechStore } from '../../store/useTechStore';
 import { useCatalogStore } from '../../store/useCatalogStore';
 import { useUIStore } from '@/core/state/uiStore';
 import { SettingsModule } from '@/modules/settings/SettingsModule';
+import { NeonorteLoader } from '@/components/ui/NeonorteLoader';
 
 // =============================================================================
 // COMPONENT
@@ -179,6 +180,13 @@ export const WorkspaceLayout: React.FC = () => {
             <CanvasContainer>
               <CenterCanvas />
             </CanvasContainer>
+            {/* Loader do catálogo — cobre o canvas enquanto módulos/inversores carregam do DB */}
+            {isLoading && (
+              <NeonorteLoader
+                size="panel"
+                message="Sincronizando catálogo..."
+              />
+            )}
         </div>
         <WorkspaceTabs />
       </div>

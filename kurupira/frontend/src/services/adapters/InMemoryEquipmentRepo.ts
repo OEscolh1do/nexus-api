@@ -32,6 +32,8 @@ function mapApiModuleToItem(apiModule: any): ModuleCatalogItem | null {
       isc: ed.isc,
       efficiency: ed.efficiency ?? apiModule.efficiency ?? 0,
       tempCoeffVoc: ed.tempCoeffVoc,
+      bifacial: ed.bifacial ?? false,
+      degradacaoAnual: ed.degradacaoAnual ?? 0.5,
     },
     physical: {
       widthMm: ed.widthMm,

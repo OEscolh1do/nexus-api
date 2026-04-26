@@ -36,6 +36,17 @@ export type AutoSizingStep = 'idle' | 'consumption' | 'module' | 'inverter' | 'd
 
 export type EntityType = 'none' | 'module' | 'inverter' | 'string' | 'vertex' | 'polygon' | 'area' | 'placed-module' | 'site';
 
+/**
+ * Contexto semântico do estado de carregamento global.
+ * Apenas um contexto ativo por vez — loaders não se empilham.
+ */
+export type LoadingContext =
+  | 'catalog'       // WorkspaceLayout — catálogo de módulos/inversores do DB
+  | 'project-hub'   // ProjectExplorer — lista de projetos
+  | 'map-tiles'     // PhysicalCanvasView — tiles Leaflet/Google Maps
+  | 'site-context'  // SiteContextModal — dados do projeto no modal
+  | null;           // sem carregamento ativo
+
 export interface SelectedEntity {
   type: EntityType;
   id: string | null;
@@ -108,6 +119,24 @@ export interface UIState {
   /** Busca de Endereço (Explorer) */
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+
+  // ---------------------------------------------------------------------------
+  // LOADING CONTEXT — Fonte de verdade única para carregamentos assíncronos
+  // ---------------------------------------------------------------------------
+
+  /** Se há alguma operação assíncrona em andamento */
+  isAppLoading: boolean;
+  /** Qual operação está carregando — permite exibir mensagem e ícone corretos */
+  loadingContext: LoadingContext;
+  /** Mensagem exibida abaixo do símbolo Neonorte */
+  loadingMessage: string;
+  /**
+   * Inicia o estado de carregamento com contexto semântico.
+   * Se um contexto já estiver ativo, o novo sobrescreve (LIFO intencional).
+   */
+  setAppLoading: (context: LoadingContext, message?: string) => void;
+  /** Finaliza o estado de carregamento — reseta todos os campos */
+  clearAppLoading: () => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -199,6 +228,21 @@ export const useUIStore = create<UIState>((set) => ({
 
   mapType: 'GOOGLE_SATELLITE',
   setMapType: (type) => set({ mapType: type }),
+
+  // Loading context
+  isAppLoading: false,
+  loadingContext: null,
+  loadingMessage: '',
+  setAppLoading: (context, message = '') => set({
+    isAppLoading: true,
+    loadingContext: context,
+    loadingMessage: message,
+  }),
+  clearAppLoading: () => set({
+    isAppLoading: false,
+    loadingContext: null,
+    loadingMessage: '',
+  }),
 }));
 
 // =============================================================================

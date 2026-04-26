@@ -5,7 +5,8 @@ import { useCatalogStore } from '../../../store/useCatalogStore';
 import { useTechKPIs } from '../../../hooks/useTechKPIs';
 import { mapCatalogToSpecs } from '../../../utils/catalogMappers';
 import { calculateCorrectedVoltage } from '../../../utils/electricalMath';
-import { Package, Search, Info, CheckCircle, Loader2, AlertCircle, AlertTriangle, X } from 'lucide-react';
+import { Package, Search, Info, CheckCircle, AlertCircle, AlertTriangle, X } from 'lucide-react';
+import { NeonorteLoader } from '@/components/ui/NeonorteLoader';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/simple-dialog';
 
@@ -118,10 +119,7 @@ export const ModuleCanvasView: React.FC = () => {
 
            {/* LISTA DE MÓDULOS */}
            {isLoading ? (
-              <div className="flex-1 flex flex-col items-center justify-center p-12 text-slate-500 gap-3">
-                <Loader2 size={32} className="animate-spin text-amber-500" />
-                <span className="text-sm font-medium">Sincronizando com o Catálogo Neonorte...</span>
-              </div>
+              <NeonorteLoader size="panel" message="Sincronizando catálogo..." />
            ) : error ? (
               <div className="flex-1 flex flex-col items-center justify-center p-12 text-red-500 gap-3">
                 <AlertCircle size={32} />
