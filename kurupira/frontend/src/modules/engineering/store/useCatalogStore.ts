@@ -9,6 +9,7 @@ interface CatalogState {
   isLoading: boolean;
   error: string | null;
   fetchCatalog: () => Promise<void>;
+  addCustomModule: (module: ModuleCatalogItem) => void;
 }
 
 /**
@@ -101,10 +102,27 @@ export const useCatalogStore = create<CatalogState>((set) => ({
         };
       });
 
-      set({ modules, inverters, isLoading: false });
+      set(state => {
+        const customModules = state.modules.filter(m => m.id.startsWith('PAN_'));
+        return {
+          modules: [...customModules, ...modules],
+          inverters,
+          isLoading: false
+        };
+      });
     } catch (err: any) {
       console.error("API Catalog Fetch Error:", err);
       set({ error: err.message || 'Falha ao buscar catálogo', isLoading: false });
     }
+  },
+  
+  addCustomModule: (module) => {
+    set((state) => {
+      // Evita duplicatas pelo ID
+      if (state.modules.some(m => m.id === module.id)) {
+        return state;
+      }
+      return { modules: [module, ...state.modules] };
+    });
   }
 }));

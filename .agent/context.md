@@ -151,6 +151,11 @@ O Pin de localização é o elemento central de ancoragem visual e interatividad
     - **Temperatura**: Span mínimo de **15°C**.
     - **HSP**: Span mínimo de **3.0**.
     - Se a variação real for menor que o span mínimo, os dados devem ser centralizados no eixo, garantindo que pequenas flutuações não pareçam mudanças drásticas.
+11. **Caixas de Diálogo e Intertravamentos (Engineering Modals)**: Abandono de pop-ups centrais B2C flutuantes (Portals).
+    - **Contexto**: Alertas críticos devem ser `In-Canvas Overlays` (`absolute inset-0` dentro do painel que sofre a alteração), mantendo o foco do usuário no módulo afetado.
+    - **Visual Sóbrio e Glassmorphism**: Caixa de aviso centralizada com fundo escuro (`bg-slate-900`), `backdrop-blur-md`, e borda de precisão (`ring-1 ring-white/10`). Abolição de efeitos "gamer" ou cores super-saturadas globais.
+    - **Mini-Diff (Visual Impact Indicator)**: Substituir parágrafos longos por comparativos visuais rápidos (ex: Mini-Histogramas/Sparklines mostrando "Antes vs Depois") para acelerar a decisão do engenheiro.
+    - **Comandos**: Botões com estética utilitária. O botão de ação primária (override) deve ter fundo/borda sutis indicando a intenção técnica (ex: `bg-sky-500/5 border-sky-500/30`).
 
 ## 9. PADRÕES DE IDIOMA E LOCALIZAÇÃO
 
