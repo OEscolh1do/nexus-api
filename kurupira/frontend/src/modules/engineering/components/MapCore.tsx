@@ -239,14 +239,27 @@ const MapViewSync: React.FC = () => {
 const MapPropSync: React.FC<{ center?: [number, number]; zoom?: number }> = ({ center, zoom }) => {
   const map = useMap();
   useEffect(() => {
-    if (!center || center[0] === 0 || center[1] === 0) return;
-
-    const currentCenter = map.getCenter();
-    const target = L.latLng(center[0], center[1]);
+    if (!center) return;
     
-    // Distância considerável (> 1m) para evitar loops e jitters
-    if (currentCenter.distanceTo(target) > 1) {
-      map.flyTo(target, zoom ?? map.getZoom(), { duration: 1.2 });
+    const lat = Number(center[0]);
+    const lng = Number(center[1]);
+    
+    // Blindagem rigorosa contra coordenadas inválidas
+    if (isNaN(lat) || isNaN(lng) || (lat === 0 && lng === 0)) return;
+
+    try {
+      const currentCenter = map.getCenter();
+      const target = L.latLng(lat, lng);
+      
+      const currentZoom = map.getZoom();
+      const targetZoom = (zoom !== undefined && zoom !== null && !isNaN(zoom)) ? Number(zoom) : currentZoom;
+
+      // Só executa se houver deslocamento real ou mudança de zoom significativa
+      if (currentCenter.distanceTo(target) > 0.5 || Math.abs(currentZoom - targetZoom) > 0.1) {
+        map.flyTo(target, targetZoom, { duration: 1.2 });
+      }
+    } catch (err) {
+      console.warn('MapPropSync: Abortando flyTo por segurança', { lat, lng, zoom }, err);
     }
   }, [center, zoom, map]);
   return null;

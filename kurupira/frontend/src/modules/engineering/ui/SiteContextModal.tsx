@@ -241,7 +241,7 @@ export const SiteContextModal: React.FC<SiteContextModalProps> = ({
         </div>
 
         {/* ── BENTO GRID CONTENT ── */}
-        <div className="flex-1 overflow-y-auto bg-[#0B0D13]">
+        <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#0B0D13]">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-0 min-h-[400px]">
 
             {/* LEFT: Mapa Interativo (Radar Theme) */}

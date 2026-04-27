@@ -72,7 +72,7 @@ const PromotedPanelView: React.FC<{ groupId: PanelGroupId }> = ({ groupId }) => 
   return (
     <div className="absolute inset-0 flex flex-col bg-slate-950 animate-in fade-in duration-200">
       {/* Group content — full viewport with container query */}
-      <div className="flex-1 overflow-y-auto" style={{ containerType: 'inline-size', containerName: 'panel' }}>
+      <div className="flex-1 overflow-y-auto custom-scrollbar" style={{ containerType: 'inline-size', containerName: 'panel' }}>
         <GroupComponent />
       </div>
     </div>

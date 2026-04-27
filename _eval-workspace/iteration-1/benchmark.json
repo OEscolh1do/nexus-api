@@ -1,0 +1,115 @@
+{
+  "skill_name": "arranjo-layer-dev",
+  "iteration": 1,
+  "generated_at": "2026-04-27",
+  "configurations": [
+    {
+      "name": "with_skill",
+      "label": "Com skill (arranjo-layer-dev + arranjo-motor-tecnico)",
+      "evals": [
+        {
+          "eval_id": 1,
+          "eval_name": "layer0context-leaflet-single-mount",
+          "pass_rate": 1.0,
+          "passed": 9,
+          "total": 9,
+          "duration_ms": 163646,
+          "total_tokens": 35030
+        },
+        {
+          "eval_id": 2,
+          "eval_name": "string-wire-tool-state-machine",
+          "pass_rate": 1.0,
+          "passed": 9,
+          "total": 9,
+          "duration_ms": 179926,
+          "total_tokens": 57056
+        },
+        {
+          "eval_id": 3,
+          "eval_name": "layer2-block-diagram-mismatch-detection",
+          "pass_rate": 1.0,
+          "passed": 10,
+          "total": 10,
+          "duration_ms": 351876,
+          "total_tokens": 1994
+        },
+        {
+          "eval_id": 4,
+          "eval_name": "validate-arrangement-graph-four-rules",
+          "pass_rate": 1.0,
+          "passed": 10,
+          "total": 10,
+          "duration_ms": 107042,
+          "total_tokens": 33684
+        }
+      ],
+      "aggregate": {
+        "mean_pass_rate": 1.0,
+        "mean_duration_ms": 200622,
+        "mean_tokens": 31941,
+        "total_assertions": 38,
+        "total_passed": 38
+      }
+    },
+    {
+      "name": "without_skill",
+      "label": "Sem skill (baseline genérico)",
+      "evals": [
+        {
+          "eval_id": 1,
+          "eval_name": "layer0context-leaflet-single-mount",
+          "pass_rate": 0.444,
+          "passed": 4,
+          "total": 9,
+          "duration_ms": 121541,
+          "total_tokens": 42377
+        },
+        {
+          "eval_id": 2,
+          "eval_name": "string-wire-tool-state-machine",
+          "pass_rate": 0.889,
+          "passed": 8,
+          "total": 9,
+          "duration_ms": 121232,
+          "total_tokens": 52105
+        },
+        {
+          "eval_id": 3,
+          "eval_name": "layer2-block-diagram-mismatch-detection",
+          "pass_rate": 0.9,
+          "passed": 9,
+          "total": 10,
+          "duration_ms": 315827,
+          "total_tokens": 52485
+        },
+        {
+          "eval_id": 4,
+          "eval_name": "validate-arrangement-graph-four-rules",
+          "pass_rate": 1.0,
+          "passed": 10,
+          "total": 10,
+          "duration_ms": 107404,
+          "total_tokens": 22545
+        }
+      ],
+      "aggregate": {
+        "mean_pass_rate": 0.808,
+        "mean_duration_ms": 166501,
+        "mean_tokens": 42378,
+        "total_assertions": 38,
+        "total_passed": 31
+      }
+    }
+  ],
+  "delta": {
+    "mean_pass_rate": "+19.2pp",
+    "mean_tokens": "-10437 (with_skill usa menos tokens)",
+    "analyst_notes": [
+      "Eval 1 (Layer0Context) é o maior discriminador: +56pp. Sem a skill, o agente usa nomes genéricos (MapContext, MapProvider) e não implementa as classes CSS específicas (.layer-0--blueprint/recon) nem o hook useLayer0().",
+      "Eval 4 (validateArrangementGraph) não discrimina: 10/10 nos dois casos. As regras de validação elétrica são suficientemente descritivas no prompt e o agente as implementa corretamente sem guia.",
+      "Eval 2 sem skill perde apenas na fórmula exata do Voc (não usa tempCoeffVoc × (Tmin-25)) e nos tokens específicos de cor (indigo/sky/emerald/amber).",
+      "Eval 3 sem skill perde apenas na navegação 'Ver no mapa (Layer 1)' — usa texto em inglês 'Ver MPPT no painel elétrico' em vez do padrão da spec."
+    ]
+  }
+}

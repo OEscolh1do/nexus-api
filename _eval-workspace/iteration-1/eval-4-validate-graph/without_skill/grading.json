@@ -1,0 +1,16 @@
+{
+  "eval_id": 4,
+  "variant": "without_skill",
+  "expectations": [
+    {"text": "file exists",                       "passed": true, "evidence": "file found"},
+    {"text": "disconnected module rule",          "passed": true, "evidence": "rule found"},
+    {"text": "VOC formula (tempCoeffVoc)",        "passed": true, "evidence": "formula found"},
+    {"text": "orientation mismatch rule",         "passed": true, "evidence": "rule found"},
+    {"text": "polarity conflict rule",            "passed": true, "evidence": "rule found"},
+    {"text": "calculateVocCold exported",         "passed": true, "evidence": "export found"},
+    {"text": "haversine with radius constant",    "passed": true, "evidence": "radius found"},
+    {"text": "calculateVmpHot exported",          "passed": true, "evidence": "export found"},
+    {"text": "ValidationResult with valid/errors","passed": true, "evidence": "interface found"},
+    {"text": "no TypeScript any",                 "passed": true, "evidence": "no any found"}
+  ]
+}

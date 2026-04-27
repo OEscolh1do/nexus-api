@@ -102,7 +102,7 @@ export const ProposalModule: React.FC = () => {
             <ProposalStatusBar />
 
             {/* 3. MAIN CONTENT (Scrollable Tabs Content) */}
-            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-muted/10 p-4 w-full relative">
+            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar bg-muted/10 p-4 w-full relative">
                  <div className="w-full max-w-7xl mx-auto flex flex-col animate-in fade-in slide-in-from-bottom-2 duration-300">
                     {activeTab === 'diagnostico' && <DiagnosticoTab />}
                     {activeTab === 'presentation' && <PresentationTab />}

@@ -138,7 +138,7 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
                           }
                           if (e.key === 'Escape') setEditingUcId(null);
                         }}
-                        className="h-full bg-slate-950 text-sky-400 text-[10px] font-mono font-black uppercase tracking-wider px-6 focus:outline-none border-r border-sky-500/50 min-w-[120px]"
+                        className="h-full bg-slate-950 text-indigo-400 text-[10px] font-mono font-bold uppercase tracking-wider px-6 focus:outline-none border-r border-indigo-500/30 min-w-[120px]"
                      />
                    ) : (
                      <button
@@ -169,7 +169,7 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
             })}
             <button
               onClick={() => addInvoice({ name: `UC ${invoices.length + 1}` })}
-              className="h-full px-4 flex items-center gap-2 text-slate-500 hover:text-sky-400 transition-all text-[9px] font-black uppercase tracking-widest border-r border-slate-800"
+              className="h-full px-4 flex items-center gap-2 text-slate-500 hover:text-indigo-400 transition-all text-[9px] font-bold uppercase tracking-widest border-r border-slate-800"
             >
               <Plus size={12} /> Nova Unidade
             </button>
@@ -178,15 +178,15 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
          {/* ALVO CC - Integrated into Hub Bar */}
          <div className="flex items-center gap-4 px-5 h-full bg-slate-950/80 border-l border-slate-800 shadow-inner shrink-0 group">
             <div className="flex flex-col justify-center">
-              <span className="text-[7px] text-slate-600 font-black uppercase tracking-[0.2em] leading-none mb-0.5">
+              <span className="text-[7px] text-slate-500 font-bold uppercase tracking-[0.2em] leading-none mb-0.5">
                 Alvo CC
               </span>
               <div className="flex items-baseline gap-1">
-                <div className="w-1 h-1 rounded-full bg-sky-500 shadow-[0_0_8px_rgba(56,189,248,0.4)] mr-1.5 mb-0.5 animate-pulse" />
-                <span className="text-[12px] font-mono font-black text-sky-400 tabular-nums tracking-tighter">
+                <div className="w-1 h-1 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.4)] mr-1.5 mb-0.5 animate-pulse" />
+                <span className="text-[12px] font-mono font-black text-slate-100 tabular-nums tracking-tighter">
                   {kWpAlvo && kWpAlvo > 0 ? formatNumber(kWpAlvo) : "0.00"}
                 </span>
-                <span className="text-[8px] font-bold text-sky-900 uppercase ml-0.5">kWp</span>
+                <span className="text-[8px] font-bold text-slate-500 uppercase ml-0.5">kWp</span>
               </div>
             </div>
          </div>
@@ -197,16 +197,16 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
           
           {/* NÚMERO DA INSTALAÇÃO */}
           <div className="flex items-center gap-2">
-             <span className="text-[9px] text-slate-600 uppercase font-black tracking-widest flex items-center gap-1.5">
-                <Hash size={10} className="text-slate-700" /> Instalação
+             <span className="text-[9px] text-slate-500 uppercase font-bold tracking-widest flex items-center gap-1.5">
+                <Hash size={10} className="text-slate-600" /> Instalação
              </span>
-             <div className="flex items-center bg-slate-900 border border-slate-800 rounded-sm px-2 py-0.5">
+             <div className="flex items-center bg-slate-900 border border-slate-800/80 rounded-sm px-2 py-0.5">
                <input 
                  type="text"
                  placeholder="Número da fatura..."
                  value={activeInvoice.installationNumber || ''}
                  onChange={e => updateActiveInvoice({ installationNumber: e.target.value })}
-                 className="bg-transparent text-slate-300 font-mono font-bold text-[10px] focus:outline-none w-24 uppercase placeholder:text-slate-700"
+                 className="bg-transparent text-slate-300 font-mono font-bold text-[10px] focus:outline-none w-24 uppercase placeholder:text-slate-700/60"
                />
              </div>
           </div>
@@ -236,8 +236,8 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
                       className={cn(
                         "h-6 px-2.5 text-[9px] font-mono font-bold uppercase transition-all duration-200 border-r border-slate-800/50 last:border-0",
                         isActive 
-                          ? "bg-sky-500 text-slate-950 z-10" 
-                          : "text-slate-600 bg-slate-900 hover:text-slate-300 hover:bg-slate-800 animate-in slide-in-from-left-1"
+                          ? "bg-slate-800 text-indigo-400 border-indigo-500/30 z-10" 
+                          : "text-slate-500 bg-slate-950/40 hover:text-slate-300 hover:bg-slate-800 animate-in slide-in-from-left-1"
                       )}
                     >
                       {type === 'monofasico' ? 'Mono' : type === 'bifasico' ? 'Bi' : 'Tri'}
@@ -276,8 +276,8 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
                       className={cn(
                         "h-6 px-2 text-[9px] font-mono font-bold uppercase transition-all duration-200 border-r border-slate-800/50 last:border-0",
                         isActive 
-                          ? "bg-sky-500 text-slate-950 z-10" 
-                          : "text-slate-600 bg-slate-900 hover:text-slate-300 hover:bg-slate-800 animate-in slide-in-from-left-1"
+                          ? "bg-slate-800 text-indigo-400 border-indigo-500/30 z-10" 
+                          : "text-slate-500 bg-slate-950/40 hover:text-slate-300 hover:bg-slate-800 animate-in slide-in-from-left-1"
                       )}
                     >
                       {v}V
@@ -293,7 +293,7 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
              <select 
                 value={activeInvoice.breakerCurrent || 50}
                 onChange={e => updateActiveInvoice({ breakerCurrent: Number(e.target.value) })}
-                className="bg-slate-900 border border-slate-800 rounded-sm px-1.5 py-0.5 text-sky-400 font-mono font-bold text-[10px] outline-none focus:border-sky-500/50"
+                className="bg-slate-900 border border-slate-800/80 rounded-sm px-1.5 py-0.5 text-slate-200 font-mono font-bold text-[10px] outline-none focus:border-slate-600"
              >
                 {BREAKER_OPTIONS.map(val => (
                   <option key={val} value={val}>{val}A</option>
@@ -303,34 +303,34 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
 
           {/* TARIFA (Individual) */}
           <div className="flex items-center gap-2 border-l border-slate-800/80 pl-6">
-              <span className="text-[9px] text-slate-600 uppercase font-black tracking-widest flex items-center gap-1.5">
-                <Activity size={10} className="text-sky-500/50" /> Tarifa
+              <span className="text-[9px] text-slate-500 uppercase font-bold tracking-widest flex items-center gap-1.5">
+                <Activity size={10} className="text-slate-600" /> Tarifa
               </span>
               <div className="flex items-center bg-slate-900 border border-slate-800 rounded-sm px-2 py-0.5">
-                <span className="text-[9px] text-slate-600 font-mono font-bold mr-1">R$</span>
+                <span className="text-[9px] text-slate-500 font-mono font-bold mr-1">R$</span>
                 <input 
                   type="number"
                   step={0.01}
                   value={activeInvoice.tariffRate || 0.92}
                   onChange={e => updateActiveInvoice({ tariffRate: Number(e.target.value) })}
-                  className="w-12 bg-transparent text-sky-400 font-mono font-bold text-[10px] focus:outline-none tabular-nums text-center"
+                  className="w-12 bg-transparent text-slate-200 font-mono font-bold text-[10px] focus:outline-none tabular-nums text-center"
                 />
               </div>
           </div>
           
           {/* MÉDIA BASE */}
           <div className="flex items-center gap-3 border-l border-slate-800/80 pl-6">
-             <span className="text-[9px] text-slate-600 uppercase font-black tracking-widest flex items-center gap-1.5">
-                <TrendingUp size={10} className="text-sky-500/50" /> Média Base
+             <span className="text-[9px] text-slate-500 uppercase font-bold tracking-widest flex items-center gap-1.5">
+                <TrendingUp size={10} className="text-slate-600" /> Média Base
              </span>
              <div className="flex items-center bg-slate-900 border border-slate-800 rounded-sm px-2 py-0.5">
                <input 
                  type="number"
                  value={activeInvoiceAvg ? Number(activeInvoiceAvg.toFixed(2)) : 0}
                  onChange={e => handleAverageChange(Number(e.target.value))}
-                 className="bg-transparent text-sky-400 font-mono font-black text-[12px] focus:outline-none w-16 text-center tabular-nums"
+                 className="bg-transparent text-slate-100 font-mono font-bold text-[12px] focus:outline-none w-16 text-center tabular-nums"
                />
-               <span className="text-[9px] text-slate-600 font-bold ml-1">kWh</span>
+               <span className="text-[9px] text-slate-500 font-bold ml-1">kWh</span>
              </div>
           </div>
       </div>

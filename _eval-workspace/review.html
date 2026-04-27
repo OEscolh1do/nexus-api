@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eval Review</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" integrity="sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT" crossorigin="anonymous"></script>
+  <style>
+    :root {
+      --bg: #faf9f5;
+      --surface: #ffffff;
+      --border: #e8e6dc;
+      --text: #141413;
+      --text-muted: #b0aea5;
+      --accent: #d97757;
+      --accent-hover: #c4613f;
+      --green: #788c5d;
+      --green-bg: #eef2e8;
+      --red: #c44;
+      --red-bg: #fceaea;
+      --header-bg: #141413;
+      --header-text: #faf9f5;
+      --radius: 6px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Lora', Georgia, serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ---- Header ---- */
+    .header {
+      background: var(--header-bg);
+      color: var(--header-text);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .header h1 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+    .header .instructions {
+      font-size: 0.8rem;
+      opacity: 0.7;
+      margin-top: 0.25rem;
+    }
+    .header .progress {
+      font-size: 0.875rem;
+      opacity: 0.8;
+      text-align: right;
+    }
+
+    /* ---- Main content ---- */
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    /* ---- Sections ---- */
+    .section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      flex-shrink: 0;
+    }
+    .section-header {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.75rem 1rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .section-body {
+      padding: 1rem;
+    }
+
+    /* ---- Config badge ---- */
+    .config-badge {
+      display: inline-block;
+      padding: 0.2rem 0.625rem;
+      border-radius: 9999px;
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      margin-left: 0.75rem;
+      vertical-align: middle;
+    }
+    .config-badge.config-primary {
+      background: rgba(33, 150, 243, 0.12);
+      color: #1976d2;
+    }
+    .config-badge.config-baseline {
+      background: rgba(255, 193, 7, 0.15);
+      color: #f57f17;
+    }
+
+    /* ---- Prompt ---- */
+    .prompt-text {
+      white-space: pre-wrap;
+      font-size: 0.9375rem;
+      line-height: 1.6;
+    }
+
+    /* ---- Outputs ---- */
+    .output-file {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .output-file + .output-file {
+      margin-top: 1rem;
+    }
+    .output-file-header {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .output-file-header .dl-btn {
+      font-size: 0.7rem;
+      color: var(--accent);
+      text-decoration: none;
+      cursor: pointer;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-weight: 500;
+      opacity: 0.8;
+    }
+    .output-file-header .dl-btn:hover {
+      opacity: 1;
+      text-decoration: underline;
+    }
+    .output-file-content {
+      padding: 0.75rem;
+      overflow-x: auto;
+    }
+    .output-file-content pre {
+      font-size: 0.8125rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+    }
+    .output-file-content img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 4px;
+    }
+    .output-file-content iframe {
+      width: 100%;
+      height: 600px;
+      border: none;
+    }
+    .output-file-content table {
+      border-collapse: collapse;
+      font-size: 0.8125rem;
+      width: 100%;
+    }
+    .output-file-content table td,
+    .output-file-content table th {
+      border: 1px solid var(--border);
+      padding: 0.375rem 0.5rem;
+      text-align: left;
+    }
+    .output-file-content table th {
+      background: var(--bg);
+      font-weight: 600;
+    }
+    .output-file-content .download-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.875rem;
+      cursor: pointer;
+    }
+    .output-file-content .download-link:hover {
+      background: var(--border);
+    }
+    .empty-state {
+      color: var(--text-muted);
+      font-style: italic;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    /* ---- Feedback ---- */
+    .prev-feedback {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.625rem 0.75rem;
+      margin-top: 0.75rem;
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .prev-feedback-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 0.25rem;
+      color: var(--text-muted);
+    }
+    .feedback-textarea {
+      width: 100%;
+      min-height: 100px;
+      padding: 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 0.9375rem;
+      line-height: 1.5;
+      resize: vertical;
+      color: var(--text);
+    }
+    .feedback-textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    .feedback-status {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+      min-height: 1.1em;
+    }
+
+    /* ---- Grades (collapsible) ---- */
+    .grades-toggle {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+    .grades-toggle:hover {
+      color: var(--accent);
+    }
+    .grades-toggle .arrow {
+      margin-right: 0.5rem;
+      transition: transform 0.15s;
+      font-size: 0.75rem;
+    }
+    .grades-toggle .arrow.open {
+      transform: rotate(90deg);
+    }
+    .grades-content {
+      display: none;
+      margin-top: 0.75rem;
+    }
+    .grades-content.open {
+      display: block;
+    }
+    .grades-summary {
+      font-size: 0.875rem;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .grade-badge {
+      display: inline-block;
+      padding: 0.125rem 0.5rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .grade-pass { background: var(--green-bg); color: var(--green); }
+    .grade-fail { background: var(--red-bg); color: var(--red); }
+    .assertion-list {
+      list-style: none;
+    }
+    .assertion-item {
+      padding: 0.625rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8125rem;
+    }
+    .assertion-item:last-child { border-bottom: none; }
+    .assertion-status {
+      font-weight: 600;
+      margin-right: 0.5rem;
+    }
+    .assertion-status.pass { color: var(--green); }
+    .assertion-status.fail { color: var(--red); }
+    .assertion-evidence {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      margin-top: 0.25rem;
+      padding-left: 1.5rem;
+    }
+
+    /* ---- View tabs ---- */
+    .view-tabs {
+      display: flex;
+      gap: 0;
+      padding: 0 2rem;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .view-tab {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.625rem 1.25rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: var(--text-muted);
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+    }
+    .view-tab:hover { color: var(--text); }
+    .view-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    .view-panel { display: none; }
+    .view-panel.active { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+    /* ---- Benchmark view ---- */
+    .benchmark-view {
+      padding: 1.5rem 2rem;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .benchmark-table {
+      border-collapse: collapse;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 0.8125rem;
+      width: 100%;
+      margin-bottom: 1.5rem;
+    }
+    .benchmark-table th, .benchmark-table td {
+      padding: 0.625rem 0.75rem;
+      text-align: left;
+      border: 1px solid var(--border);
+    }
+    .benchmark-table th {
+      font-family: 'Poppins', sans-serif;
+      background: var(--header-bg);
+      color: var(--header-text);
+      font-weight: 500;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .benchmark-table tr:hover { background: var(--bg); }
+    .benchmark-table tr.benchmark-row-with { background: rgba(33, 150, 243, 0.06); }
+    .benchmark-table tr.benchmark-row-without { background: rgba(255, 193, 7, 0.06); }
+    .benchmark-table tr.benchmark-row-with:hover { background: rgba(33, 150, 243, 0.12); }
+    .benchmark-table tr.benchmark-row-without:hover { background: rgba(255, 193, 7, 0.12); }
+    .benchmark-table tr.benchmark-row-avg { font-weight: 600; border-top: 2px solid var(--border); }
+    .benchmark-table tr.benchmark-row-avg.benchmark-row-with { background: rgba(33, 150, 243, 0.12); }
+    .benchmark-table tr.benchmark-row-avg.benchmark-row-without { background: rgba(255, 193, 7, 0.12); }
+    .benchmark-delta-positive { color: var(--green); font-weight: 600; }
+    .benchmark-delta-negative { color: var(--red); font-weight: 600; }
+    .benchmark-notes {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+    }
+    .benchmark-notes h3 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.875rem;
+      margin-bottom: 0.75rem;
+    }
+    .benchmark-notes ul {
+      list-style: disc;
+      padding-left: 1.25rem;
+    }
+    .benchmark-notes li {
+      font-size: 0.8125rem;
+      line-height: 1.6;
+      margin-bottom: 0.375rem;
+    }
+    .benchmark-empty {
+      color: var(--text-muted);
+      font-style: italic;
+      text-align: center;
+      padding: 3rem;
+    }
+
+    /* ---- Navigation ---- */
+    .nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 2rem;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+    .nav-btn {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.5rem 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text);
+      transition: all 0.15s;
+    }
+    .nav-btn:hover:not(:disabled) {
+      background: var(--bg);
+      border-color: var(--text-muted);
+    }
+    .nav-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .done-btn {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.5rem 1.5rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    .done-btn:hover {
+      background: var(--bg);
+      border-color: var(--text-muted);
+    }
+    .done-btn.ready {
+      border: none;
+      background: var(--accent);
+      color: white;
+      font-weight: 600;
+    }
+    .done-btn.ready:hover {
+      background: var(--accent-hover);
+    }
+    /* ---- Done overlay ---- */
+    .done-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+    }
+    .done-overlay.visible {
+      display: flex;
+    }
+    .done-card {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 2rem 3rem;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 500px;
+    }
+    .done-card h2 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .done-card p {
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+    .done-card .btn-row {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+    }
+    .done-card button {
+      padding: 0.5rem 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 0.875rem;
+    }
+    .done-card button:hover {
+      background: var(--bg);
+    }
+    /* ---- Toast ---- */
+    .toast {
+      position: fixed;
+      bottom: 5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--header-bg);
+      color: var(--header-text);
+      padding: 0.625rem 1.25rem;
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      z-index: 200;
+    }
+    .toast.visible {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" style="height:100vh; display:flex; flex-direction:column;">
+    <div class="header">
+      <div>
+        <h1>Eval Review: <span id="skill-name"></span></h1>
+        <div class="instructions">Review each output and leave feedback below. Navigate with arrow keys or buttons. When done, copy feedback and paste into Claude Code.</div>
+      </div>
+      <div class="progress" id="progress"></div>
+    </div>
+
+    <!-- View tabs (only shown when benchmark data exists) -->
+    <div class="view-tabs" id="view-tabs" style="display:none;">
+      <button class="view-tab active" onclick="switchView('outputs')">Outputs</button>
+      <button class="view-tab" onclick="switchView('benchmark')">Benchmark</button>
+    </div>
+
+    <!-- Outputs panel (qualitative review) -->
+    <div class="view-panel active" id="panel-outputs">
+    <div class="main">
+      <!-- Prompt -->
+      <div class="section">
+        <div class="section-header">Prompt <span class="config-badge" id="config-badge" style="display:none;"></span></div>
+        <div class="section-body">
+          <div class="prompt-text" id="prompt-text"></div>
+        </div>
+      </div>
+
+      <!-- Outputs -->
+      <div class="section">
+        <div class="section-header">Output</div>
+        <div class="section-body" id="outputs-body">
+          <div class="empty-state">No output files found</div>
+        </div>
+      </div>
+
+      <!-- Previous Output (collapsible) -->
+      <div class="section" id="prev-outputs-section" style="display:none;">
+        <div class="section-header">
+          <div class="grades-toggle" onclick="togglePrevOutputs()">
+            <span class="arrow" id="prev-outputs-arrow">&#9654;</span>
+            Previous Output
+          </div>
+        </div>
+        <div class="grades-content" id="prev-outputs-content"></div>
+      </div>
+
+      <!-- Grades (collapsible) -->
+      <div class="section" id="grades-section" style="display:none;">
+        <div class="section-header">
+          <div class="grades-toggle" onclick="toggleGrades()">
+            <span class="arrow" id="grades-arrow">&#9654;</span>
+            Formal Grades
+          </div>
+        </div>
+        <div class="grades-content" id="grades-content"></div>
+      </div>
+
+      <!-- Feedback -->
+      <div class="section">
+        <div class="section-header">Your Feedback</div>
+        <div class="section-body">
+          <textarea
+            class="feedback-textarea"
+            id="feedback"
+            placeholder="What do you think of this output? Any issues, suggestions, or things that look great?"
+          ></textarea>
+          <div class="feedback-status" id="feedback-status"></div>
+          <div class="prev-feedback" id="prev-feedback" style="display:none;">
+            <div class="prev-feedback-label">Previous feedback</div>
+            <div id="prev-feedback-text"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav" id="outputs-nav">
+      <button class="nav-btn" id="prev-btn" onclick="navigate(-1)">&#8592; Previous</button>
+      <button class="done-btn" id="done-btn" onclick="showDoneDialog()">Submit All Reviews</button>
+      <button class="nav-btn" id="next-btn" onclick="navigate(1)">Next &#8594;</button>
+    </div>
+    </div><!-- end panel-outputs -->
+
+    <!-- Benchmark panel (quantitative stats) -->
+    <div class="view-panel" id="panel-benchmark">
+      <div class="benchmark-view" id="benchmark-content">
+        <div class="benchmark-empty">No benchmark data available. Run a benchmark to see quantitative results here.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Done overlay -->
+  <div class="done-overlay" id="done-overlay">
+    <div class="done-card">
+      <h2>Review Complete</h2>
+      <p>Your feedback has been saved. Go back to your Claude Code session and tell Claude you're done reviewing.</p>
+      <div class="btn-row">
+        <button onclick="closeDoneDialog()">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ---- Embedded data (injected by generate_review.py) ----
+    const EMBEDDED_DATA = {"skill_name": "arranjo-layer-dev", "runs": [{"id": "eval-1-layer0context-with_skill", "prompt": "(No prompt found)", "eval_id": null, "outputs": [{"name": "Layer0Context.tsx", "type": "text", "content": "/**\n * =============================================================================\n * LAYER 0 CONTEXT \u00e2\u20ac\u201d Motor de Mapa Base do M\u00c3\u00b3dulo de Arranjo\n * =============================================================================\n *\n * Responsabilidades:\n * - Montar a inst\u00c3\u00a2ncia Leaflet uma \u00c3\u00banica vez (deps vazia)\n * - Prover tile Google Satellite (subdomains mt0\u00e2\u20ac\u201cmt3, sem API key)\n * - Suportar dois modos visuais:\n *     'recon'     \u00e2\u2020\u2019 sat\u00c3\u00a9lite pleno\n *     'blueprint' \u00e2\u2020\u2019 tile dessaturado + grid SVG em rgba(99,102,241,0.12)\n * - Exibir estado de erro com CTA quando lat/lng \u00c3\u00a9 null\n * - Exportar Layer0ContextValue via React Context e hook useLayer0()\n * =============================================================================\n */\n\nimport React, {\n  createContext,\n  useContext,\n  useEffect,\n  useRef,\n  useState,\n  useCallback,\n} from 'react';\nimport type L from 'leaflet';\n\n// =============================================================================\n// TIPOS P\u00c3\u0161BLICOS\n// =============================================================================\n\nexport type Layer0Mode = 'recon' | 'blueprint';\n\nexport interface Layer0ContextValue {\n  /** Inst\u00c3\u00a2ncia nativa do Leaflet. Null antes de montar. */\n  map: L.Map | null;\n  /** Modo visual atual. */\n  mode: Layer0Mode;\n  /** Alterna o modo visual. */\n  setMode: (mode: Layer0Mode) => void;\n  /**\n   * Origem de pixel do viewport atual no CRS do Leaflet.\n   * \u00c3\u0161til para camadas superiores alinharem elementos em px.\n   * Null antes de montar.\n   */\n  pixelOrigin: L.Point | null;\n  /** Zoom atual do mapa. */\n  zoom: number;\n}\n\n// =============================================================================\n// CONTEXT\n// =============================================================================\n\nconst Layer0Context = createContext<Layer0ContextValue | null>(null);\n\n// =============================================================================\n// CONSTANTES\n// =============================================================================\n\nconst TILE_URL_TEMPLATE =\n  'https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}';\n\nconst TILE_SUBDOMAINS = ['0', '1', '2', '3'];\n\nconst DEFAULT_ZOOM = 19;\nconst MIN_ZOOM = 3;\nconst MAX_ZOOM = 22;\n\n/** Passo do grid SVG em modo blueprint (px). */\nconst GRID_STEP = 20;\n\n/** Cor do grid em modo blueprint. */\nconst GRID_COLOR = 'rgba(99,102,241,0.12)';\n\n// =============================================================================\n// HELPERS \u00e2\u20ac\u201d GRID SVG\n// =============================================================================\n\nfunction createGridSvg(width: number, height: number): SVGSVGElement {\n  const ns = 'http://www.w3.org/2000/svg';\n  const svg = document.createElementNS(ns, 'svg');\n\n  svg.setAttribute('width', String(width));\n  svg.setAttribute('height', String(height));\n  svg.setAttribute('xmlns', ns);\n  svg.style.cssText = [\n    'position:absolute',\n    'top:0',\n    'left:0',\n    'width:100%',\n    'height:100%',\n    'pointer-events:none',\n    'z-index:500',\n  ].join(';');\n\n  const cols = Math.ceil(width / GRID_STEP) + 1;\n  const rows = Math.ceil(height / GRID_STEP) + 1;\n\n  for (let c = 0; c < cols; c++) {\n    const x = c * GRID_STEP;\n    const line = document.createElementNS(ns, 'line');\n    line.setAttribute('x1', String(x));\n    line.setAttribute('y1', '0');\n    line.setAttribute('x2', String(x));\n    line.setAttribute('y2', String(height));\n    line.setAttribute('stroke', GRID_COLOR);\n    line.setAttribute('stroke-width', '1');\n    svg.appendChild(line);\n  }\n\n  for (let r = 0; r < rows; r++) {\n    const y = r * GRID_STEP;\n    const line = document.createElementNS(ns, 'line');\n    line.setAttribute('x1', '0');\n    line.setAttribute('y1', String(y));\n    line.setAttribute('x2', String(width));\n    line.setAttribute('y2', String(y));\n    line.setAttribute('stroke', GRID_COLOR);\n    line.setAttribute('stroke-width', '1');\n    svg.appendChild(line);\n  }\n\n  return svg;\n}\n\n// =============================================================================\n// PROVIDER PROPS\n// =============================================================================\n\nexport interface Layer0ProviderProps {\n  lat: number | null;\n  lng: number | null;\n  initialMode?: Layer0Mode;\n  initialZoom?: number;\n  onErrorCta: () => void;\n  children: React.ReactNode;\n}\n\n// =============================================================================\n// PROVIDER\n// =============================================================================\n\nexport const Layer0Provider: React.FC<Layer0ProviderProps> = ({\n  lat,\n  lng,\n  initialMode = 'recon',\n  initialZoom = DEFAULT_ZOOM,\n  onErrorCta,\n  children,\n}) => {\n  const containerRef = useRef<HTMLDivElement>(null);\n  const mapRef = useRef<L.Map | null>(null);\n  const tileLayerRef = useRef<L.TileLayer | null>(null);\n  const gridSvgRef = useRef<SVGSVGElement | null>(null);\n\n  const [mapInstance, setMapInstance] = useState<L.Map | null>(null);\n  const [mode, setModeState] = useState<Layer0Mode>(initialMode);\n  const [pixelOrigin, setPixelOrigin] = useState<L.Point | null>(null);\n  const [zoom, setZoom] = useState<number>(initialZoom);\n\n  // Mount: deps vazia \u00e2\u20ac\u201d mapa criado uma \u00c3\u00banica vez\n  useEffect(() => {\n    if (!containerRef.current) return;\n    if (lat === null || lng === null) return;\n\n    // eslint-disable-next-line @typescript-eslint/no-var-requires\n    const L = require('leaflet') as typeof import('leaflet');\n\n    const container = containerRef.current;\n    if (mapRef.current) return; // guard StrictMode\n\n    const map = L.map(container, {\n      center: [lat, lng],\n      zoom: initialZoom,\n      minZoom: MIN_ZOOM,\n      maxZoom: MAX_ZOOM,\n      zoomControl: false,\n      attributionControl: false,\n    });\n\n    const tileLayer = L.tileLayer(TILE_URL_TEMPLATE, {\n      subdomains: TILE_SUBDOMAINS,\n      maxZoom: MAX_ZOOM,\n      maxNativeZoom: 20,\n    });\n\n    tileLayer.addTo(map);\n    tileLayerRef.current = tileLayer;\n    mapRef.current = map;\n\n    const syncState = () => {\n      setZoom(map.getZoom());\n      setPixelOrigin(map.getPixelOrigin());\n    };\n\n    map.on('zoomend moveend', syncState);\n    syncState();\n    setMapInstance(map);\n\n    return () => {\n      map.off('zoomend moveend', syncState);\n      map.remove();\n      mapRef.current = null;\n      tileLayerRef.current = null;\n    };\n    // eslint-disable-next-line react-hooks/exhaustive-deps\n  }, []);\n\n  // Modo visual: classes CSS + grid SVG\n  useEffect(() => {\n    const container = containerRef.current;\n    if (!container) return;\n\n    if (mode === 'blueprint') {\n      container.classList.add('layer-0--blueprint');\n      container.classList.remove('layer-0--recon');\n\n      if (!gridSvgRef.current) {\n        const { offsetWidth: w, offsetHeight: h } = container;\n        const svg = createGridSvg(w || 800, h || 600);\n        container.appendChild(svg);\n        gridSvgRef.current = svg;\n      }\n    } else {\n      container.classList.add('layer-0--recon');\n      container.classList.remove('layer-0--blueprint');\n\n      if (gridSvgRef.current) {\n        gridSvgRef.current.remove();\n        gridSvgRef.current = null;\n      }\n    }\n  }, [mode]);\n\n  const setMode = useCallback((next: Layer0Mode) => {\n    setModeState(next);\n  }, []);\n\n  // Estado de erro: coordenadas ausentes\n  if (lat === null || lng === null) {\n    return (\n      <div\n        style={{\n          width: '100%',\n          height: '100%',\n          display: 'flex',\n          flexDirection: 'column',\n          alignItems: 'center',\n          justifyContent: 'center',\n          background: '#0f172a',\n          color: '#94a3b8',\n          gap: '12px',\n          padding: '24px',\n          boxSizing: 'border-box',\n        }}\n      >\n        <p style={{ margin: 0, fontSize: '14px', textAlign: 'center', maxWidth: '280px' }}>\n          \u00f0\u0178\u201c\ufffd Localiza\u00c3\u00a7\u00c3\u00a3o do projeto n\u00c3\u00a3o definida.\n        </p>\n        <button\n          onClick={onErrorCta}\n          style={{\n            padding: '8px 20px',\n            background: 'rgba(99,102,241,0.15)',\n            border: '1px solid rgba(99,102,241,0.4)',\n            borderRadius: '6px',\n            color: 'rgba(99,102,241,0.9)',\n            fontSize: '13px',\n            fontWeight: 600,\n            cursor: 'pointer',\n          }}\n        >\n          Definir localiza\u00c3\u00a7\u00c3\u00a3o\n        </button>\n      </div>\n    );\n  }\n\n  const contextValue: Layer0ContextValue = {\n    map: mapInstance,\n    mode,\n    setMode,\n    pixelOrigin,\n    zoom,\n  };\n\n  return (\n    <Layer0Context.Provider value={contextValue}>\n      {/*\n        CSS global esperado:\n        .layer-0--blueprint .leaflet-tile-pane { filter: brightness(0.5) saturate(0); transition: filter 400ms ease; }\n        .layer-0--recon .leaflet-tile-pane { filter: brightness(1) saturate(1); transition: filter 400ms ease; }\n      */}\n      <div\n        ref={containerRef}\n        className=\"layer-0--recon\"\n        style={{ width: '100%', height: '100%', position: 'relative', background: '#020617' }}\n      />\n      {children}\n    </Layer0Context.Provider>\n  );\n};\n\n// =============================================================================\n// HOOK P\u00c3\u0161BLICO\n// =============================================================================\n\nexport function useLayer0(): Layer0ContextValue {\n  const ctx = useContext(Layer0Context);\n  if (!ctx) {\n    throw new Error(\n      '[useLayer0] Hook usado fora do <Layer0Provider>.',\n    );\n  }\n  return ctx;\n}\n\nexport { Layer0Context };\n"}], "grading": {"eval_id": 1, "variant": "with_skill", "expectations": [{"text": "file exists", "passed": true, "evidence": "file found at outputs/Layer0Context.tsx"}, {"text": "useEffect with empty deps (single mount)", "passed": true, "evidence": "pattern }, []) or eslint-disable exhaustive-deps found"}, {"text": "Layer0ContextValue interface exported", "passed": true, "evidence": "Layer0ContextValue found in file"}, {"text": "recon and blueprint modes present", "passed": true, "evidence": "mode strings found"}, {"text": "useLayer0 hook exported", "passed": true, "evidence": "export function/const useLayer0 found"}, {"text": "CSS classes layer-0--blueprint/recon", "passed": true, "evidence": "class names found"}, {"text": "null lat/lng guard", "passed": true, "evidence": "null check present"}, {"text": "no TypeScript any", "passed": true, "evidence": "no :any or as any found"}, {"text": "SVG grid rendered", "passed": true, "evidence": "svg/grid pattern found"}]}}, {"id": "eval-1-layer0context-without_skill", "prompt": "(No prompt found)", "eval_id": null, "outputs": [{"name": "Layer0Context.tsx", "type": "text", "content": "// Layer0Context.tsx \u00e2\u20ac\u201d implementa\u00c3\u00a7\u00c3\u00a3o sem guia de skill\n// Vers\u00c3\u00a3o gen\u00c3\u00a9rica: nomes e padr\u00c3\u00b5es sem refer\u00c3\u00aancia \u00c3\u00a0 spec do Kurupira\n\nimport React, { createContext, useContext, useEffect, useRef, useState } from 'react';\n\nexport type MapMode = 'satellite' | 'blueprint';\n\nexport interface MapContextValue {\n  map: unknown | null;\n  mode: MapMode;\n  setMode: (mode: MapMode) => void;\n  zoom: number;\n}\n\nconst MapContext = createContext<MapContextValue | null>(null);\n\ninterface MapProviderProps {\n  lat: number | null;\n  lng: number | null;\n  onMissingLocation?: () => void;\n  children: React.ReactNode;\n}\n\nexport const MapProvider: React.FC<MapProviderProps> = ({\n  lat,\n  lng,\n  onMissingLocation,\n  children,\n}) => {\n  const containerRef = useRef<HTMLDivElement>(null);\n  const mapRef = useRef<unknown>(null);\n  const [mode, setMode] = useState<MapMode>('satellite');\n  const [zoom, setZoom] = useState(18);\n\n  useEffect(() => {\n    if (!containerRef.current || lat === null || lng === null) return;\n    if (mapRef.current) return;\n\n    // Dynamic import to avoid SSR issues\n    import('leaflet').then((L) => {\n      if (!containerRef.current || mapRef.current) return;\n\n      const map = L.map(containerRef.current, {\n        center: [lat, lng],\n        zoom: 18,\n        minZoom: 15,\n        maxZoom: 22,\n        zoomControl: false,\n      });\n\n      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {\n        maxZoom: 22,\n      }).addTo(map);\n\n      map.on('zoomend', () => setZoom(map.getZoom()));\n      mapRef.current = map;\n    });\n\n    return () => {\n      if (mapRef.current) {\n        (mapRef.current as { remove: () => void }).remove();\n        mapRef.current = null;\n      }\n    };\n  }, [lat, lng]);\n\n  // Apply visual mode\n  useEffect(() => {\n    const container = containerRef.current;\n    if (!container) return;\n\n    if (mode === 'blueprint') {\n      container.style.filter = 'brightness(0.5) grayscale(1)';\n    } else {\n      container.style.filter = '';\n    }\n  }, [mode]);\n\n  if (lat === null || lng === null) {\n    return (\n      <div\n        style={{\n          width: '100%',\n          height: '100%',\n          display: 'flex',\n          flexDirection: 'column',\n          alignItems: 'center',\n          justifyContent: 'center',\n          background: '#1e293b',\n          color: '#94a3b8',\n          gap: '16px',\n        }}\n      >\n        <p>Location not set</p>\n        {onMissingLocation && (\n          <button onClick={onMissingLocation} style={{ padding: '8px 16px' }}>\n            Set Location\n          </button>\n        )}\n      </div>\n    );\n  }\n\n  return (\n    <MapContext.Provider value={{ map: mapRef.current, mode, setMode, zoom }}>\n      <div\n        ref={containerRef}\n        style={{ width: '100%', height: '100%', position: 'relative' }}\n      />\n      {children}\n    </MapContext.Provider>\n  );\n};\n\nexport function useMapContext(): MapContextValue {\n  const ctx = useContext(MapContext);\n  if (!ctx) throw new Error('useMapContext must be used inside MapProvider');\n  return ctx;\n}\n"}], "grading": {"eval_id": 1, "variant": "without_skill", "expectations": [{"text": "file exists", "passed": true, "evidence": "file found"}, {"text": "useEffect with empty deps (single mount)", "passed": false, "evidence": "pattern }, []) found"}, {"text": "Layer0ContextValue interface exported", "passed": false, "evidence": "search result"}, {"text": "recon and blueprint modes present", "passed": true, "evidence": "search result"}, {"text": "useLayer0 hook exported", "passed": false, "evidence": "search result"}, {"text": "CSS classes layer-0--blueprint/recon", "passed": false, "evidence": "search result"}, {"text": "null lat/lng guard", "passed": true, "evidence": "null check present"}, {"text": "no TypeScript any", "passed": true, "evidence": "search result"}, {"text": "SVG grid rendered", "passed": false, "evidence": "search result"}]}}, {"id": "eval-2-string-wire-with_skill", "prompt": "(No prompt found)", "eval_id": null, "outputs": [{"name": "StringWireHUD.tsx", "type": "text", "content": "// StringWireHUD.tsx \u00e2\u20ac\u201d implementa\u00c3\u00a7\u00c3\u00a3o com guia da skill arranjo-layer-dev\n// HUD flutuante \"String em forma\u00c3\u00a7\u00c3\u00a3o\" conforme spec Layer 1\n\nimport React from 'react';\n\ninterface StringWireHUDProps {\n  moduleCount: number;\n  maxModules: number;\n  vocAccumulated: number;\n  vocMax: number;\n  vocStatus: 'ok' | 'warning' | 'error';\n  onFinalize: () => void;\n  onCancel: () => void;\n}\n\nconst VOC_COLOR: Record<StringWireHUDProps['vocStatus'], string> = {\n  ok:      'text-emerald-400',\n  warning: 'text-amber-400',\n  error:   'text-red-400',\n};\n\nconst VOC_LABEL: Record<StringWireHUDProps['vocStatus'], string> = {\n  ok:      '\u00e2\u0153\u2026',\n  warning: '\u00e2\u0161\u00a0',\n  error:   '\u00f0\u0178\u201d\u00b4 Limite excedido',\n};\n\nexport const StringWireHUD: React.FC<StringWireHUDProps> = ({\n  moduleCount,\n  maxModules,\n  vocAccumulated,\n  vocMax,\n  vocStatus,\n  onFinalize,\n  onCancel,\n}) => {\n  const canFinalize = vocStatus !== 'error' && moduleCount >= 2;\n\n  return (\n    <div\n      className=\"\n        fixed top-4 right-4 z-[600]\n        w-64\n        bg-slate-900/95 backdrop-blur-sm\n        border border-slate-700/60\n        rounded-lg shadow-xl\n        p-3\n        font-mono\n      \"\n    >\n      {/* Header */}\n      <div className=\"text-[10px] uppercase tracking-widest text-indigo-400 mb-2\">\n        String em forma\u00c3\u00a7\u00c3\u00a3o\n      </div>\n\n      {/* Module count */}\n      <div className=\"flex items-center justify-between mb-1.5\">\n        <span className=\"text-slate-400 text-xs\">M\u00c3\u00b3dulos</span>\n        <span className=\"text-slate-200 text-xs font-semibold\">\n          {moduleCount}\n          {maxModules > 0 && (\n            <span className=\"text-slate-500\"> / {maxModules} (lim. MPPT)</span>\n          )}\n        </span>\n      </div>\n\n      {/* Voc accumulated */}\n      <div className=\"flex items-center justify-between mb-1\">\n        <span className=\"text-slate-400 text-xs\">Voc acum.</span>\n        <span className={`text-xs font-semibold ${VOC_COLOR[vocStatus]}`}>\n          {vocAccumulated.toFixed(1)} V &nbsp;{VOC_LABEL[vocStatus]}\n        </span>\n      </div>\n\n      {/* Voc max reference */}\n      <div className=\"flex items-center justify-between mb-3\">\n        <span className=\"text-slate-500 text-[10px]\">Limite inversor</span>\n        <span className=\"text-slate-500 text-[10px]\">{vocMax.toFixed(0)} V</span>\n      </div>\n\n      {/* Error message */}\n      {vocStatus === 'error' && (\n        <p className=\"text-red-400 text-[10px] mb-2 leading-tight\">\n          Voc excede o limite m\u00c3\u00a1ximo do inversor. Reduza o n\u00c3\u00bamero de m\u00c3\u00b3dulos.\n        </p>\n      )}\n\n      {/* Actions */}\n      <div className=\"flex gap-2\">\n        <button\n          onClick={onFinalize}\n          disabled={!canFinalize}\n          className={`\n            flex-1 py-1.5 rounded text-[11px] font-semibold transition-colors\n            ${\n              canFinalize\n                ? 'bg-indigo-600 hover:bg-indigo-500 text-white'\n                : 'bg-slate-700 text-slate-500 cursor-not-allowed'\n            }\n          `}\n        >\n          Finalizar String\n        </button>\n        <button\n          onClick={onCancel}\n          className=\"\n            flex-1 py-1.5 rounded text-[11px] font-semibold\n            bg-slate-700/60 hover:bg-slate-700 text-slate-300\n            transition-colors\n          \"\n        >\n          Cancelar\n        </button>\n      </div>\n    </div>\n  );\n};\n\nexport default StringWireHUD;\n"}, {"name": "useStringWireTool.ts", "type": "text", "content": "// useStringWireTool.ts \u00e2\u20ac\u201d implementa\u00c3\u00a7\u00c3\u00a3o com guia da skill arranjo-layer-dev\n// Segue exatamente os padr\u00c3\u00b5es da spec: state machine, f\u00c3\u00b3rmula Voc, portos, cores rotativas\n\nimport { useState, useCallback, useRef } from 'react';\n\n// \u00e2\u201d\u20ac\u00e2\u201d\u20ac Tipos stub \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\n\nexport interface Port {\n  id: string;\n  polarity: '+' | '-';\n  connected: boolean;\n  /** Canvas position in px */\n  positionPx: { x: number; y: number };\n}\n\nexport interface ArrangementNode {\n  id: string;\n  ports: { positive: Port; negative: Port };\n  stringGroupId?: string;\n  arrangementId: string;\n}\n\nexport interface StringEdge {\n  id: string;\n  sourceNodeId: string;\n  sourcePortPolarity: '+' | '-';\n  targetNodeId: string;\n  targetPortPolarity: '+' | '-';\n  pathPx: [number, number][];\n  stringGroupId: string;\n}\n\nexport interface ModuleModel {\n  vocStc: number;\n  tempCoeffVoc: number; // per \u00c2\u00b0C, negative value e.g. -0.0029\n}\n\n// \u00e2\u201d\u20ac\u00e2\u201d\u20ac M\u00c3\u00a1quina de estados \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\n\ntype ToolState =\n  | { phase: 'idle' }\n  | {\n      phase: 'dragging';\n      sourceNodeId: string;\n      sourcePortPolarity: '+' | '-';\n      sourcePosPx: { x: number; y: number };\n      currentPosPx: { x: number; y: number };\n      /** node IDs connected so far, in series order */\n      chainNodeIds: string[];\n      pathPx: [number, number][];\n    }\n  | { phase: 'completed' };\n\n// \u00e2\u201d\u20ac\u00e2\u201d\u20ac String color rotation \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\n\nconst STRING_COLORS = [\n  'indigo-900',\n  'sky-900',\n  'emerald-900',\n  'amber-900',\n  'violet-900',\n] as const;\n\nfunction getStringColor(index: number): (typeof STRING_COLORS)[number] {\n  return STRING_COLORS[index % STRING_COLORS.length];\n}\n\n// \u00e2\u201d\u20ac\u00e2\u201d\u20ac Orthogonal path builder \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\n\nfunction buildOrthogonalPath(\n  from: { x: number; y: number },\n  to: { x: number; y: number }\n): [number, number][] {\n  // Simple L-shaped path: horizontal first, then vertical\n  const mid = { x: to.x, y: from.y };\n  return [\n    [from.x, from.y],\n    [mid.x, mid.y],\n    [to.x, to.y],\n  ];\n}\n\n// \u00e2\u201d\u20ac\u00e2\u201d\u20ac Hook \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\n\ninterface UseStringWireToolOptions {\n  nodes: ArrangementNode[];\n  existingEdges: StringEdge[];\n  module: ModuleModel;\n  tmin: number;          // minimum ambient temperature \u00c2\u00b0C\n  vocMaxHardware: number; // inverter max Voc input V\n  existingStringCount: number;\n  onEdgeCreated: (edge: StringEdge) => void;\n  onStringFinalized: (stringGroupId: string, nodeIds: string[], colorToken: string) => void;\n}\n\ninterface StringWireToolReturn {\n  toolState: ToolState;\n  vocAccumulated: number;\n  vocStatus: 'ok' | 'warning' | 'error';\n  blockedReason: string | null;\n  onPortMouseDown: (nodeId: string, port: Port) => void;\n  onPortMouseUp: (nodeId: string, port: Port) => void;\n  onCanvasMouseMove: (posPx: { x: number; y: number }) => void;\n  finalizeString: () => void;\n  cancelString: () => void;\n  previewPathPx: [number, number][] | null;\n}\n\nexport function useStringWireTool(opts: UseStringWireToolOptions): StringWireToolReturn {\n  const {\n    nodes,\n    existingEdges,\n    module,\n    tmin,\n    vocMaxHardware,\n    existingStringCount,\n    onEdgeCreated,\n    onStringFinalized,\n  } = opts;\n\n  const [toolState, setToolState] = useState<ToolState>({ phase: 'idle' });\n  const [previewEnd, setPreviewEnd] = useState<{ x: number; y: number } | null>(null);\n  const currentStringIndexRef = useRef(existingStringCount);\n\n  // Voc accumulated: N \u00c3\u2014 Voc_STC \u00c3\u2014 (1 + tempCoeffVoc \u00c3\u2014 (Tmin \u00e2\u02c6\u2019 25))\n  const chainLength =\n    toolState.phase === 'dragging' ? toolState.chainNodeIds.length + 1 : 0;\n\n  const vocAccumulated =\n    chainLength * module.vocStc * (1 + module.tempCoeffVoc * (tmin - 25));\n\n  const vocStatus: 'ok' | 'warning' | 'error' =\n    vocAccumulated > vocMaxHardware\n      ? 'error'\n      : vocAccumulated > 0.9 * vocMaxHardware\n      ? 'warning'\n      : 'ok';\n\n  const checkPolarity = useCallback(\n    (sourcePolarity: '+' | '-', targetPort: Port): string | null => {\n      if (sourcePolarity === targetPort.polarity) {\n        return 'Mesmo polo \u00e2\u20ac\u201d curto-circuito';\n      }\n      if (targetPort.connected) {\n        return 'Porto j\u00c3\u00a1 conectado';\n      }\n      return null;\n    },\n    []\n  );\n\n  const blockedReason =\n    toolState.phase === 'dragging' ? null : null; // evaluated at hover time\n\n  const onPortMouseDown = useCallback(\n    (nodeId: string, port: Port) => {\n      if (toolState.phase !== 'idle') return;\n      if (port.connected) return;\n\n      const sourceNode = nodes.find((n) => n.id === nodeId);\n      if (!sourceNode) return;\n\n      setToolState({\n        phase: 'dragging',\n        sourceNodeId: nodeId,\n        sourcePortPolarity: port.polarity,\n        sourcePosPx: port.positionPx,\n        currentPosPx: port.positionPx,\n        chainNodeIds: [nodeId],\n        pathPx: [[port.positionPx.x, port.positionPx.y]],\n      });\n    },\n    [toolState.phase, nodes]\n  );\n\n  const onPortMouseUp = useCallback(\n    (targetNodeId: string, targetPort: Port) => {\n      if (toolState.phase !== 'dragging') return;\n\n      const reason = checkPolarity(toolState.sourcePortPolarity, targetPort);\n      if (reason) return; // blocked\n\n      if (targetNodeId === toolState.sourceNodeId) return; // same node\n\n      const path = buildOrthogonalPath(toolState.sourcePosPx, targetPort.positionPx);\n      const stringGroupId = `S${currentStringIndexRef.current + 1}`;\n\n      const edge: StringEdge = {\n        id: `edge-${Date.now()}`,\n        sourceNodeId: toolState.sourceNodeId,\n        sourcePortPolarity: toolState.sourcePortPolarity,\n        targetNodeId,\n        targetPortPolarity: targetPort.polarity,\n        pathPx: path,\n        stringGroupId,\n      };\n\n      onEdgeCreated(edge);\n\n      // Continue dragging from this node (series connection)\n      setToolState({\n        phase: 'dragging',\n        sourceNodeId: targetNodeId,\n        sourcePortPolarity: targetPort.polarity === '+' ? '-' : '+',\n        sourcePosPx: targetPort.positionPx,\n        currentPosPx: targetPort.positionPx,\n        chainNodeIds: [...toolState.chainNodeIds, targetNodeId],\n        pathPx: [...toolState.pathPx, [targetPort.positionPx.x, targetPort.positionPx.y]],\n      });\n    },\n    [toolState, checkPolarity, onEdgeCreated]\n  );\n\n  const onCanvasMouseMove = useCallback(\n    (posPx: { x: number; y: number }) => {\n      if (toolState.phase !== 'dragging') return;\n      setPreviewEnd(posPx);\n      setToolState((prev) =>\n        prev.phase === 'dragging'\n          ? { ...prev, currentPosPx: posPx }\n          : prev\n      );\n    },\n    [toolState.phase]\n  );\n\n  const finalizeString = useCallback(() => {\n    if (toolState.phase !== 'dragging') return;\n    if (toolState.chainNodeIds.length < 2) return;\n\n    const index = currentStringIndexRef.current;\n    const stringGroupId = `S${index + 1}`;\n    const colorToken = getStringColor(index);\n\n    onStringFinalized(stringGroupId, toolState.chainNodeIds, colorToken);\n    currentStringIndexRef.current += 1;\n    setToolState({ phase: 'completed' });\n    setTimeout(() => setToolState({ phase: 'idle' }), 100);\n  }, [toolState, onStringFinalized]);\n\n  const cancelString = useCallback(() => {\n    setToolState({ phase: 'idle' });\n    setPreviewEnd(null);\n  }, []);\n\n  const previewPathPx: [number, number][] | null =\n    toolState.phase === 'dragging' && previewEnd\n      ? buildOrthogonalPath(toolState.sourcePosPx, previewEnd)\n      : null;\n\n  return {\n    toolState,\n    vocAccumulated,\n    vocStatus,\n    blockedReason,\n    onPortMouseDown,\n    onPortMouseUp,\n    onCanvasMouseMove,\n    finalizeString,\n    cancelString,\n    previewPathPx,\n  };\n}\n"}], "grading": {"eval_id": 2, "variant": "with_skill", "expectations": [{"text": "useStringWireTool.ts exists", "passed": true, "evidence": "file found"}, {"text": "StringWireHUD.tsx exists", "passed": true, "evidence": "file found"}, {"text": "state machine (idle/dragging)", "passed": true, "evidence": "state phases found"}, {"text": "Voc formula (tempCoeffVoc)", "passed": true, "evidence": "formula constants found"}, {"text": "polarity validation", "passed": true, "evidence": "polarity check present"}, {"text": "threshold 0.9 in HUD", "passed": true, "evidence": "0.9 threshold found"}, {"text": "StringGroupID pattern (S1,S2)", "passed": true, "evidence": "group id generation found"}, {"text": "color rotation (indigo/sky)", "passed": true, "evidence": "color tokens found"}, {"text": "no TypeScript any in hook", "passed": true, "evidence": "no any found"}]}}, {"id": "eval-2-string-wire-without_skill", "prompt": "(No prompt found)", "eval_id": null, "outputs": [{"name": "StringWireHUD.tsx", "type": "text", "content": "// StringWireHUD.tsx \u00e2\u20ac\u201d implementa\u00c3\u00a7\u00c3\u00a3o sem guia de skill\n// Vers\u00c3\u00a3o gen\u00c3\u00a9rica sem os tokens de cor e terminologia espec\u00c3\u00adfica da spec\n\nimport React from 'react';\n\ninterface StringWireHUDProps {\n  connectedModules: number;\n  voltage: number;\n  maxVoltage: number;\n  isOverLimit: boolean;\n  isNearLimit: boolean;\n  canFinish: boolean;\n  onFinish: () => void;\n  onCancel: () => void;\n}\n\nexport const StringWireHUD: React.FC<StringWireHUDProps> = ({\n  connectedModules,\n  voltage,\n  maxVoltage,\n  isOverLimit,\n  isNearLimit,\n  canFinish,\n  onFinish,\n  onCancel,\n}) => {\n  const voltageColor = isOverLimit\n    ? '#ef4444'\n    : isNearLimit\n    ? '#f59e0b'\n    : '#22c55e';\n\n  return (\n    <div\n      style={{\n        position: 'fixed',\n        top: 16,\n        right: 16,\n        zIndex: 1000,\n        width: 240,\n        background: 'rgba(15, 23, 42, 0.95)',\n        border: '1px solid rgba(100, 116, 139, 0.4)',\n        borderRadius: 8,\n        padding: 12,\n        fontFamily: 'monospace',\n        fontSize: 12,\n        color: '#cbd5e1',\n        boxShadow: '0 4px 24px rgba(0,0,0,0.4)',\n      }}\n    >\n      <div style={{ fontWeight: 700, marginBottom: 8, color: '#e2e8f0' }}>\n        Wire Connection\n      </div>\n\n      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>\n        <span style={{ color: '#94a3b8' }}>Modules:</span>\n        <span>{connectedModules}</span>\n      </div>\n\n      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>\n        <span style={{ color: '#94a3b8' }}>Voltage:</span>\n        <span style={{ color: voltageColor }}>\n          {voltage.toFixed(1)} V\n          {isOverLimit && ' \u00e2\u0161\u00a0 OVER LIMIT'}\n          {!isOverLimit && isNearLimit && ' \u00e2\u0161\u00a0 Near limit'}\n        </span>\n      </div>\n\n      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>\n        <span style={{ color: '#94a3b8' }}>Max allowed:</span>\n        <span>{maxVoltage.toFixed(0)} V</span>\n      </div>\n\n      <div style={{ display: 'flex', gap: 8 }}>\n        <button\n          onClick={onFinish}\n          disabled={!canFinish}\n          style={{\n            flex: 1,\n            padding: '6px 0',\n            background: canFinish ? '#4f46e5' : '#334155',\n            color: canFinish ? '#fff' : '#64748b',\n            border: 'none',\n            borderRadius: 4,\n            cursor: canFinish ? 'pointer' : 'not-allowed',\n            fontSize: 11,\n            fontWeight: 600,\n          }}\n        >\n          Finish\n        </button>\n        <button\n          onClick={onCancel}\n          style={{\n            flex: 1,\n            padding: '6px 0',\n            background: '#1e293b',\n            color: '#94a3b8',\n            border: '1px solid #334155',\n            borderRadius: 4,\n            cursor: 'pointer',\n            fontSize: 11,\n          }}\n        >\n          Cancel\n        </button>\n      </div>\n    </div>\n  );\n};\n\nexport default StringWireHUD;\n"}, {"name": "useStringWireTool.ts", "type": "text", "content": "// useStringWireTool.ts \u00e2\u20ac\u201d implementa\u00c3\u00a7\u00c3\u00a3o sem guia de skill\n// Vers\u00c3\u00a3o gen\u00c3\u00a9rica: nomes e padr\u00c3\u00b5es sem refer\u00c3\u00aancia \u00c3\u00a0 spec do Kurupira\n\nimport { useState, useCallback } from 'react';\n\ninterface Port {\n  id: string;\n  type: 'positive' | 'negative';\n  isConnected: boolean;\n  x: number;\n  y: number;\n}\n\ninterface Node {\n  id: string;\n  positivePort: Port;\n  negativePort: Port;\n}\n\ninterface Connection {\n  id: string;\n  fromNodeId: string;\n  toNodeId: string;\n  path: { x: number; y: number }[];\n  wireGroup: string;\n}\n\ntype ToolPhase = 'idle' | 'connecting' | 'done';\n\ninterface ToolState {\n  phase: ToolPhase;\n  fromNodeId?: string;\n  fromPortType?: 'positive' | 'negative';\n  fromX?: number;\n  fromY?: number;\n  connectedNodes?: string[];\n}\n\ninterface HookReturn {\n  toolState: ToolState;\n  accumulatedVoltage: number;\n  isOverLimit: boolean;\n  isNearLimit: boolean;\n  canFinish: boolean;\n  onPortClick: (nodeId: string, port: Port) => void;\n  onMouseMove: (x: number, y: number) => void;\n  finish: () => void;\n  cancel: () => void;\n  previewLine: { x1: number; y1: number; x2: number; y2: number } | null;\n}\n\nconst WIRE_GROUPS = ['wire-group-1', 'wire-group-2', 'wire-group-3', 'wire-group-4'];\n\nlet connectionCounter = 0;\nlet groupCounter = 0;\n\nexport function useStringWireTool(\n  nodes: Node[],\n  moduleVoc: number,\n  maxVoc: number,\n  onConnectionAdded: (conn: Connection) => void,\n  onGroupFinished: (groupId: string, nodeIds: string[]) => void\n): HookReturn {\n  const [toolState, setToolState] = useState<ToolState>({ phase: 'idle' });\n  const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);\n\n  const connectedCount = toolState.connectedNodes?.length ?? 0;\n  // Simple voltage accumulation \u00e2\u20ac\u201d doesn't use thermal correction formula\n  const accumulatedVoltage = connectedCount * moduleVoc;\n  const isOverLimit = accumulatedVoltage > maxVoc;\n  const isNearLimit = accumulatedVoltage > maxVoc * 0.85;\n  const canFinish = connectedCount >= 2 && !isOverLimit;\n\n  const onPortClick = useCallback(\n    (nodeId: string, port: Port) => {\n      if (port.isConnected) return;\n\n      if (toolState.phase === 'idle') {\n        setToolState({\n          phase: 'connecting',\n          fromNodeId: nodeId,\n          fromPortType: port.type,\n          fromX: port.x,\n          fromY: port.y,\n          connectedNodes: [nodeId],\n        });\n        return;\n      }\n\n      if (toolState.phase === 'connecting') {\n        // Validate not same polarity\n        if (port.type === toolState.fromPortType) {\n          alert('Cannot connect same polarity!');\n          return;\n        }\n        if (nodeId === toolState.fromNodeId) return;\n\n        const conn: Connection = {\n          id: `conn-${++connectionCounter}`,\n          fromNodeId: toolState.fromNodeId!,\n          toNodeId: nodeId,\n          path: [\n            { x: toolState.fromX!, y: toolState.fromY! },\n            { x: port.x, y: toolState.fromY! },\n            { x: port.x, y: port.y },\n          ],\n          wireGroup: WIRE_GROUPS[groupCounter % WIRE_GROUPS.length],\n        };\n\n        onConnectionAdded(conn);\n\n        setToolState({\n          phase: 'connecting',\n          fromNodeId: nodeId,\n          fromPortType: port.type === 'positive' ? 'negative' : 'positive',\n          fromX: port.x,\n          fromY: port.y,\n          connectedNodes: [...(toolState.connectedNodes ?? []), nodeId],\n        });\n      }\n    },\n    [toolState, onConnectionAdded]\n  );\n\n  const onMouseMove = useCallback((x: number, y: number) => {\n    setMousePos({ x, y });\n  }, []);\n\n  const finish = useCallback(() => {\n    if (!canFinish) return;\n    const groupId = `Group-${++groupCounter}`;\n    onGroupFinished(groupId, toolState.connectedNodes ?? []);\n    setToolState({ phase: 'idle' });\n    setMousePos(null);\n  }, [canFinish, toolState.connectedNodes, onGroupFinished]);\n\n  const cancel = useCallback(() => {\n    setToolState({ phase: 'idle' });\n    setMousePos(null);\n  }, []);\n\n  const previewLine =\n    toolState.phase === 'connecting' && mousePos\n      ? {\n          x1: toolState.fromX!,\n          y1: toolState.fromY!,\n          x2: mousePos.x,\n          y2: mousePos.y,\n        }\n      : null;\n\n  return {\n    toolState,\n    accumulatedVoltage,\n    isOverLimit,\n    isNearLimit,\n    canFinish,\n    onPortClick,\n    onMouseMove,\n    finish,\n    cancel,\n    previewLine,\n  };\n}\n"}], "grading": {"eval_id": 2, "variant": "without_skill", "expectations": [{"text": "useStringWireTool.ts exists", "passed": true, "evidence": "file found"}, {"text": "StringWireHUD.tsx exists", "passed": true, "evidence": "file found"}, {"text": "state machine (idle/dragging)", "passed": true, "evidence": "search result"}, {"text": "Voc formula (tempCoeffVoc)", "passed": false, "evidence": "search result"}, {"text": "polarity validation", "passed": true, "evidence": "search result"}, {"text": "threshold 0.9 in HUD", "passed": true, "evidence": "threshold found"}, {"text": "StringGroupID pattern (S1,S2)", "passed": true, "evidence": "search result"}, {"text": "color rotation (indigo/sky)", "passed": true, "evidence": "search result"}, {"text": "no TypeScript any in hook", "passed": true, "evidence": "search result"}]}}, {"id": "eval-3-block-diagram-with_skill", "prompt": "(No prompt found)", "eval_id": null, "outputs": [{"name": "Layer2BlockDiagram.tsx", "type": "text", "content": "/**\n * Layer2BlockDiagram.tsx \u00e2\u20ac\u201d WITH SKILL (spec-guided)\n *\n * Layer 2 do PhysicalCanvasView do Kurupira.\n * Segue exatamente a spec: nomes de store, tokens de cor, termos em portugu\u00c3\u00aas,\n * painel lateral com translateX, banner \u00c3\u00a2mbar, CTA rodap\u00c3\u00a9.\n */\n\nimport React, { useMemo, useState, useCallback } from 'react';\n\n// \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac STUBS (substituir por imports reais do store) \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\n\ninterface PhysicalArrangement {\n  id: string;\n  name: string;\n  orientation: { azimuth: number; tilt: number };\n  surfaceType: 'ceramica' | 'metalico' | 'fibrocimento' | 'laje' | 'ground' | 'carport';\n}\n\ninterface StringGroup {\n  id: string;\n  nodeIds: string[];\n  mpptConfigId?: string;\n  orientationWarning: boolean;\n}\n\ninterface MPPTConfig {\n  id: string;\n  inverterId: string;\n  mpptIndex: number;\n  stringGroupIds: string[];\n}\n\ninterface ModuleModel {\n  vocStc: number;\n  tempCoeffVoc: number;\n  iscStc: number;\n}\n\ninterface InverterModel {\n  id: string;\n  model: string;\n  powerKw: number;\n  maxVocInput: number;\n}\n\ninterface ValidationIssue {\n  code: string;\n  severity: 'error' | 'warning';\n  message: string;\n  affectedIds: string[];\n}\n\ninterface ValidationResult {\n  valid: boolean;\n  errors: ValidationIssue[];\n  warnings: ValidationIssue[];\n}\n\n// \u00e2\u201d\u20ac\u00e2\u201d\u20ac Demo stubs \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\n\nfunction useSolarStore_arrangements(): PhysicalArrangement[] {\n  return useMemo(() => [\n    { id: 'area-1', name: '\u00c3\ufffdrea 1', orientation: { azimuth: 180, tilt: 14 }, surfaceType: 'ceramica' },\n    { id: 'area-2', name: '\u00c3\ufffdrea 2', orientation: { azimuth: 90, tilt: 14 }, surfaceType: 'ceramica' },\n  ], []);\n}\n\nfunction useSolarStore_mpptConfigs(): MPPTConfig[] {\n  return useMemo(() => [\n    { id: 'mppt-1', inverterId: 'inv-1', mpptIndex: 0, stringGroupIds: ['S1', 'S2'] },\n    { id: 'mppt-2', inverterId: 'inv-1', mpptIndex: 1, stringGroupIds: ['S3'] },\n  ], []);\n}\n\nfunction useSolarStore_strings(): StringGroup[] {\n  return useMemo(() => [\n    { id: 'S1', nodeIds: Array.from({ length: 10 }, (_, i) => `n-${i}`),   mpptConfigId: 'mppt-1', orientationWarning: false },\n    { id: 'S2', nodeIds: Array.from({ length: 10 }, (_, i) => `n-${i+10}`), mpptConfigId: 'mppt-1', orientationWarning: false },\n    { id: 'S3', nodeIds: Array.from({ length: 6  }, (_, i) => `n-${i+20}`), mpptConfigId: 'mppt-2', orientationWarning: false },\n  ], []);\n}\n\nfunction useSolarStore_inverters(): InverterModel[] {\n  return useMemo(() => [{ id: 'inv-1', model: 'Huawei SUN2000-5KTL', powerKw: 5.0, maxVocInput: 600 }], []);\n}\n\nfunction useSolarStore_module(): ModuleModel {\n  return useMemo(() => ({ vocStc: 49.0, tempCoeffVoc: -0.0029, iscStc: 10.2 }), []);\n}\n\nfunction useUIStore_setActiveArrangementLayer(): (layer: number) => void {\n  return useCallback((layer) => console.log('[nav] setActiveArrangementLayer', layer), []);\n}\n\nfunction useUIStore_setFocusedBlock(): (block: string) => void {\n  return useCallback((block) => console.log('[nav] setFocusedBlock', block), []);\n}\n\nfunction useUIStore_setHighlightedStringGroupId(): (id: string | null) => void {\n  return useCallback((id) => console.log('[nav] highlight string', id), []);\n}\n\n// \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac C\u00c3\ufffdLCULOS \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\n\nfunction calculateVocCold(nModules: number, mod: ModuleModel, tmin: number): number {\n  return nModules * mod.vocStc * (1 + mod.tempCoeffVoc * (tmin - 25));\n}\n\n// \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac CORES ROTATIVAS DAS STRINGS \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\n\nconst STRING_BG_COLORS = [\n  'bg-indigo-900/60 border-indigo-500/40',\n  'bg-sky-900/60 border-sky-500/40',\n  'bg-emerald-900/60 border-emerald-500/40',\n  'bg-amber-900/60 border-amber-500/40',\n  'bg-violet-900/60 border-violet-500/40',\n] as const;\n\nconst STRING_TEXT_COLORS = [\n  'text-indigo-300',\n  'text-sky-300',\n  'text-emerald-300',\n  'text-amber-300',\n  'text-violet-300',\n] as const;\n\nfunction getStringColorIndex(stringId: string, allIds: string[]): number {\n  return allIds.indexOf(stringId);\n}\n\n// \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac VALIDA\u00c3\u2021\u00c3\u0192O INLINE (simplificada para Layer 2) \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\n\nfunction getMpptMismatch(\n  mppt: MPPTConfig,\n  strings: StringGroup[],\n  arrangements: PhysicalArrangement[]\n): boolean {\n  const mpptStrings = strings.filter(s => mppt.stringGroupIds.includes(s.id));\n  // Derivar arrangementId a partir do nodeId prefix (stub simplificado)\n  const hasMixedOrientation = mpptStrings.some(s => s.orientationWarning);\n  if (hasMixedOrientation) return true;\n\n  // Verificar azimutes via arranjos\n  const azimuthSet = new Set<number>();\n  for (const str of mpptStrings) {\n    const firstNode = str.nodeIds[0] ?? '';\n    // Em produ\u00c3\u00a7\u00c3\u00a3o, derivar do ArrangementGraph; aqui fazemos simula\u00c3\u00a7\u00c3\u00a3o\n    const area = arrangements.find(a => firstNode.startsWith(a.id)) ?? arrangements[0];\n    if (area) azimuthSet.add(area.orientation.azimuth);\n  }\n  return azimuthSet.size > 1;\n}\n\n// \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac COMPONENTE PRINCIPAL \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\n\nconst TMIN_DEFAULT = 18; // \u00c2\u00b0C \u00e2\u20ac\u201d usar clientData.weatherData.tmin em produ\u00c3\u00a7\u00c3\u00a3o\n\nexport const Layer2BlockDiagram: React.FC = () => {\n  const arrangements = useSolarStore_arrangements();\n  const mpptConfigs  = useSolarStore_mpptConfigs();\n  const strings      = useSolarStore_strings();\n  const inverters    = useSolarStore_inverters();\n  const module       = useSolarStore_module();\n\n  const setActiveLayer        = useUIStore_setActiveArrangementLayer();\n  const setFocusedBlock       = useUIStore_setFocusedBlock();\n  const setHighlightedString  = useUIStore_setHighlightedStringGroupId();\n\n  const [selectedStringId, setSelectedStringId] = useState<string | null>(null);\n  const [panelOpen, setPanelOpen] = useState(false);\n\n  const allStringIds = useMemo(() => strings.map(s => s.id), [strings]);\n\n  // Memoize mismatch map\n  const mpptMismatchMap = useMemo(() => {\n    const m = new Map<string, boolean>();\n    for (const mppt of mpptConfigs) {\n      m.set(mppt.id, getMpptMismatch(mppt, strings, arrangements));\n    }\n    return m;\n  }, [mpptConfigs, strings, arrangements]);\n\n  // Valida\u00c3\u00a7\u00c3\u00a3o global simplificada\n  const validationResult = useMemo<ValidationResult>(() => {\n    const errors: ValidationIssue[] = [];\n    const warnings: ValidationIssue[] = [];\n\n    for (const [mpptId, isMismatch] of mpptMismatchMap) {\n      if (isMismatch) {\n        warnings.push({\n          code: 'MPPT_ORIENTATION_MISMATCH',\n          severity: 'warning',\n          message: `MPPT com strings de orienta\u00c3\u00a7\u00c3\u00b5es diferentes`,\n          affectedIds: [mpptId],\n        });\n      }\n    }\n\n    // Strings abertas (sem MPPT)\n    const openStrings = strings.filter(s => !s.mpptConfigId);\n    if (openStrings.length > 0) {\n      errors.push({\n        code: 'UNCONNECTED_STRING',\n        severity: 'error',\n        message: `${openStrings.length} string(s) sem conex\u00c3\u00a3o ao MPPT`,\n        affectedIds: openStrings.map(s => s.id),\n      });\n    }\n\n    return { valid: errors.length === 0, errors, warnings };\n  }, [mpptMismatchMap, strings]);\n\n  const hasErrors   = validationResult.errors.length > 0;\n  const hasWarnings = validationResult.warnings.length > 0;\n  const anyMismatch = Array.from(mpptMismatchMap.values()).some(Boolean);\n\n  const selectedString = useMemo(\n    () => strings.find(s => s.id === selectedStringId) ?? null,\n    [strings, selectedStringId]\n  );\n\n  const vocForString = useCallback(\n    (str: StringGroup): number => calculateVocCold(str.nodeIds.length, module, TMIN_DEFAULT),\n    [module]\n  );\n\n  const handleStringClick = useCallback((stringId: string) => {\n    setSelectedStringId(stringId);\n    setPanelOpen(true);\n  }, []);\n\n  const handleClosePanel = useCallback(() => {\n    setPanelOpen(false);\n    setSelectedStringId(null);\n  }, []);\n\n  const handleVerNoMapa = useCallback(() => {\n    if (!selectedStringId) return;\n    setHighlightedString(selectedStringId);\n    setActiveLayer(1);\n  }, [selectedStringId, setHighlightedString, setActiveLayer]);\n\n  const handleValidacaoEletrica = useCallback(() => {\n    setFocusedBlock('inverter');\n  }, [setFocusedBlock]);\n\n  return (\n    <div\n      className=\"relative w-full h-full flex flex-col overflow-hidden\"\n      style={{ background: '#020617' }} // bg-slate-950\n    >\n      {/* Grid blueprint SVG */}\n      <svg\n        className=\"absolute inset-0 w-full h-full pointer-events-none\"\n        style={{ zIndex: 0 }}\n        aria-hidden=\"true\"\n      >\n        <defs>\n          <pattern id=\"blueprint-grid\" width=\"24\" height=\"24\" patternUnits=\"userSpaceOnUse\">\n            <path d=\"M 24 0 L 0 0 0 24\" fill=\"none\" stroke=\"rgba(99,102,241,0.10)\" strokeWidth=\"0.5\" />\n          </pattern>\n        </defs>\n        <rect width=\"100%\" height=\"100%\" fill=\"url(#blueprint-grid)\" />\n      </svg>\n\n      {/* Banner de mismatch */}\n      {anyMismatch && (\n        <div\n          className=\"relative z-10 shrink-0 flex items-center gap-3 px-4 py-3 border-b border-amber-700/30 text-amber-200 text-xs\"\n          style={{ background: 'rgba(120,53,15,0.4)' }}\n        >\n          <span className=\"text-amber-400 text-sm\">\u00e2\u0161\u00a0</span>\n          <span>\n            <strong className=\"font-bold\">\n              {validationResult.warnings.length} string(s) com orienta\u00c3\u00a7\u00c3\u00b5es mistas no mesmo MPPT\n            </strong>\n            {' '}\u00e2\u20ac\u201d perdas por mismatch. Reorganize os MPPTs.\n          </span>\n          <button\n            className=\"ml-auto text-amber-300 underline text-[10px] hover:text-amber-200\"\n            onClick={() => {/* scroll to affected MPPT */}}\n          >\n            Ver detalhes\n          </button>\n        </div>\n      )}\n\n      {/* Erros cr\u00c3\u00adticos */}\n      {hasErrors && validationResult.errors.map(err => (\n        <div\n          key={err.code}\n          className=\"relative z-10 shrink-0 flex items-center gap-3 px-4 py-3 border-b border-red-700/30 text-red-200 text-xs\"\n          style={{ background: 'rgba(127,29,29,0.35)' }}\n        >\n          <span className=\"text-red-400\">\u00f0\u0178\u201d\u00b4</span>\n          <span>{err.message}</span>\n          <button\n            className=\"ml-auto text-red-300 underline text-[10px]\"\n            onClick={() => setActiveLayer(1)}\n          >\n            Ir para Layer 1\n          </button>\n        </div>\n      ))}\n\n      {/* Canvas principal */}\n      <div className=\"relative z-10 flex flex-1 min-h-0\">\n        {/* Diagrama de blocos */}\n        <div className=\"flex-1 overflow-y-auto p-6 flex flex-col gap-6\">\n          {inverters.map(inverter => (\n            <div key={inverter.id} className=\"flex flex-col gap-4\">\n              {/* Bloco do Inversor */}\n              <div\n                className=\"self-center px-5 py-3 rounded border text-center\"\n                style={{ background: 'rgba(15,23,42,0.8)', borderColor: 'rgba(52,211,153,0.4)' }}\n              >\n                <p className=\"text-[10px] text-slate-500 uppercase tracking-widest font-mono mb-1\">Inversor</p>\n                <p className=\"text-sm font-bold text-slate-200\">{inverter.model}</p>\n                <p className=\"text-[10px] text-slate-400 font-mono\">{inverter.powerKw} kW CA</p>\n              </div>\n\n              {/* MPPTs */}\n              <div className=\"flex flex-wrap gap-5 justify-center\">\n                {mpptConfigs\n                  .filter(mppt => mppt.inverterId === inverter.id)\n                  .map(mppt => {\n                    const isMismatch = mpptMismatchMap.get(mppt.id) ?? false;\n                    const mpptStrings = strings.filter(s => mppt.stringGroupIds.includes(s.id));\n\n                    return (\n                      <div key={mppt.id} className=\"flex flex-col items-center gap-3\">\n                        {/* Strings do MPPT */}\n                        <div className=\"flex gap-2 flex-wrap justify-center\">\n                          {mpptStrings.map((str, i) => {\n                            const colorIdx = getStringColorIndex(str.id, allStringIds);\n                            const bgBorder = STRING_BG_COLORS[colorIdx % STRING_BG_COLORS.length];\n                            const textColor = STRING_TEXT_COLORS[colorIdx % STRING_TEXT_COLORS.length];\n                            const voc = vocForString(str);\n                            const isSelected = selectedStringId === str.id;\n\n                            return (\n                              <button\n                                key={str.id}\n                                onClick={() => handleStringClick(str.id)}\n                                className={`\n                                  px-3 py-2 rounded border text-left transition-all\n                                  hover:brightness-125 hover:shadow-lg\n                                  ${bgBorder}\n                                  ${isSelected ? 'ring-2 ring-white/50' : ''}\n                                `}\n                              >\n                                <p className={`text-[11px] font-bold font-mono ${textColor}`}>{str.id}</p>\n                                <p className=\"text-[10px] text-slate-400 font-mono\">\n                                  {str.nodeIds.length} m\u00c3\u00b3dulos\n                                </p>\n                                <p className=\"text-[10px] text-slate-400 font-mono\">\n                                  Voc: {voc.toFixed(1)} V\n                                </p>\n                                <p className=\"text-[10px] text-slate-400 font-mono\">\n                                  Isc: {module.iscStc.toFixed(1)} A\n                                </p>\n                                <span className=\"text-[9px]\">\n                                  {str.orientationWarning ? '\u00e2\u0161\u00a0' : '\u00e2\u0153\u2026'}\n                                </span>\n                              </button>\n                            );\n                          })}\n                        </div>\n\n                        {/* Bloco MPPT */}\n                        <div\n                          className={`px-4 py-2.5 rounded border text-center min-w-[120px] transition-colors ${\n                            isMismatch\n                              ? 'border-amber-500/50 bg-amber-950/40'\n                              : 'border-emerald-500/30 bg-slate-700/50'\n                          }`}\n                        >\n                          <p className=\"text-[10px] text-slate-500 uppercase tracking-widest font-mono mb-0.5\">\n                            MPPT {mppt.mpptIndex + 1}\n                          </p>\n                          <p className=\"text-[10px] text-slate-300 font-mono\">\n                            {mpptStrings.map(s => s.id).join(' + ')} ({mpptStrings.length}\u00c3\u2014)\n                          </p>\n                          <span\n                            className={`text-[9px] font-bold ${\n                              isMismatch ? 'text-amber-300' : 'text-emerald-300'\n                            }`}\n                          >\n                            {isMismatch ? '\u00e2\u0161\u00a0 Mismatch' : '\u00e2\u0153\u2026 Compat\u00c3\u00advel'}\n                          </span>\n                        </div>\n                      </div>\n                    );\n                  })}\n              </div>\n            </div>\n          ))}\n        </div>\n\n        {/* Painel lateral direito */}\n        {panelOpen && selectedString && (\n          <div\n            className=\"w-[280px] shrink-0 flex flex-col border-l border-slate-800 bg-slate-950 overflow-hidden\"\n            style={{ animation: 'slideIn 0.25s ease' }}\n          >\n            {/* Header */}\n            <div className=\"flex items-center gap-2 px-4 py-3 border-b border-slate-800 bg-slate-900/50\">\n              <span className=\"text-sm font-bold text-slate-200\">String {selectedString.id}</span>\n              <button\n                onClick={handleClosePanel}\n                className=\"ml-auto text-slate-400 hover:text-white p-1 rounded hover:bg-white/10 transition-colors\"\n              >\n                \u00e2\u0153\u2022\n              </button>\n            </div>\n\n            {/* Conte\u00c3\u00bado */}\n            <div className=\"flex-1 overflow-y-auto p-4 flex flex-col gap-4\">\n              <div className=\"grid grid-cols-2 gap-2\">\n                {[\n                  { label: 'M\u00c3\u00b3dulos', value: String(selectedString.nodeIds.length) },\n                  { label: 'Isc', value: `${module.iscStc.toFixed(1)} A` },\n                  { label: 'Voc (frio)', value: `${vocForString(selectedString).toFixed(1)} V` },\n                  { label: 'MPPT destino', value: selectedString.mpptConfigId ?? '\u00e2\u20ac\u201d' },\n                ].map(({ label, value }) => (\n                  <div key={label} className=\"bg-slate-900 rounded border border-slate-800 p-2\">\n                    <p className=\"text-[9px] text-slate-500 uppercase tracking-wider\">{label}</p>\n                    <p className=\"text-xs font-bold text-slate-200 font-mono\">{value}</p>\n                  </div>\n                ))}\n              </div>\n\n              {selectedString.orientationWarning && (\n                <div className=\"px-3 py-2 rounded border border-amber-700/30 bg-amber-950/30 text-amber-200 text-xs\">\n                  \u00e2\u0161\u00a0 Esta string tem m\u00c3\u00b3dulos de orienta\u00c3\u00a7\u00c3\u00b5es diferentes.\n                </div>\n              )}\n            </div>\n\n            {/* A\u00c3\u00a7\u00c3\u00b5es */}\n            <div className=\"px-4 py-3 border-t border-slate-800 flex flex-col gap-2\">\n              <button\n                onClick={handleVerNoMapa}\n                className=\"w-full py-2 px-3 rounded border border-indigo-700/40 bg-indigo-900/20 text-indigo-300 text-xs font-bold hover:bg-indigo-800/30 transition-colors text-left\"\n              >\n                \u00e2\u2020\u2019 Ver no mapa (Layer 1)\n              </button>\n              <button\n                onClick={handleValidacaoEletrica}\n                className=\"w-full py-2 px-3 rounded border border-emerald-700/40 bg-emerald-900/20 text-emerald-300 text-xs font-bold hover:bg-emerald-800/30 transition-colors text-left\"\n              >\n                \u00e2\u2020\u2019 Valida\u00c3\u00a7\u00c3\u00a3o el\u00c3\u00a9trica\n              </button>\n            </div>\n          </div>\n        )}\n      </div>\n\n      {/* Rodap\u00c3\u00a9 CTA */}\n      <div className=\"relative z-10 shrink-0 px-5 py-4 border-t border-slate-800 bg-slate-950/90\">\n        {hasErrors ? (\n          <div className=\"flex items-center gap-3 px-4 py-3 rounded border border-red-900/50 bg-red-950/20\">\n            <span className=\"text-red-400\">\u00f0\u0178\u201d\u00b4</span>\n            <p className=\"text-xs text-red-300\">\n              Resolva os erros de topologia antes de avan\u00c3\u00a7ar.\n            </p>\n            <button\n              disabled\n              className=\"ml-auto px-4 py-1.5 rounded text-xs font-bold bg-slate-700 text-slate-500 cursor-not-allowed\"\n              title=\"Resolva os erros de topologia antes de avan\u00c3\u00a7ar\"\n            >\n              Ir para Valida\u00c3\u00a7\u00c3\u00a3o El\u00c3\u00a9trica\n            </button>\n          </div>\n        ) : (\n          <div className=\"flex items-center justify-between gap-4 px-4 py-3 rounded border border-emerald-800/30 bg-emerald-950/15\">\n            <span className=\"text-xs text-emerald-300\">\n              Topologia el\u00c3\u00a9trica {hasWarnings ? '\u00e2\u0161\u00a0' : '\u00e2\u0153\u2026'} \u00e2\u20ac\u201d{' '}\n              {strings.reduce((acc, s) => acc + s.nodeIds.length, 0)} m\u00c3\u00b3dulos em{' '}\n              {strings.length} strings, {mpptConfigs.length} MPPTs\n            </span>\n            <button\n              onClick={handleValidacaoEletrica}\n              className=\"flex items-center gap-2 px-5 py-2 rounded text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-slate-950 transition-colors\"\n            >\n              {hasWarnings && <span>\u00e2\u0161\u00a0</span>}\n              Ir para Valida\u00c3\u00a7\u00c3\u00a3o El\u00c3\u00a9trica \u00e2\u2020\u2019\n            </button>\n          </div>\n        )}\n      </div>\n\n      <style>{`\n        @keyframes slideIn {\n          from { opacity: 0; transform: translateX(280px); }\n          to   { opacity: 1; transform: translateX(0); }\n        }\n      `}</style>\n    </div>\n  );\n};\n\nexport default Layer2BlockDiagram;\n"}], "grading": {"eval_id": 3, "variant": "with_skill", "expectations": [{"text": "file exists (>80 lines)", "passed": true, "evidence": "504 lines"}, {"text": "slate-950 background (no satellite)", "passed": true, "evidence": "bg found"}, {"text": "amber mismatch style on MPPT", "passed": true, "evidence": "amber classes found"}, {"text": "panel 280px + translateX animation", "passed": true, "evidence": "animation found"}, {"text": "Ver no mapa / Layer 1 navigation", "passed": true, "evidence": "nav action found"}, {"text": "CTA Valida\u00c3\u00a7\u00c3\u00a3o El\u00c3\u00a9trica / setFocusedBlock", "passed": true, "evidence": "CTA found"}, {"text": "mismatch banner", "passed": true, "evidence": "banner found"}, {"text": "CTA disabled on errors", "passed": true, "evidence": "disabled state found"}, {"text": "no TypeScript any", "passed": true, "evidence": "no any found"}, {"text": "reads from store", "passed": true, "evidence": "store hook found"}]}}, {"id": "eval-3-block-diagram-without_skill", "prompt": "(No prompt found)", "eval_id": null, "outputs": [{"name": "Layer2BlockDiagram.tsx", "type": "text", "content": "/**\n * Layer2BlockDiagram.tsx \u00e2\u20ac\u201d WITHOUT SKILL (baseline gen\u00c3\u00a9rico)\n *\n * Diagrama de blocos para m\u00c3\u00b3dulo de Arranjo FV \u00e2\u20ac\u201d vers\u00c3\u00a3o sem guia de skill.\n * Nomes gen\u00c3\u00a9ricos, sem refer\u00c3\u00aancia \u00c3\u00a0 spec do Kurupira.\n */\n\nimport React, { useMemo, useState, useCallback } from 'react';\n\n// \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac STUBS \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\n\nexport interface MPPTConfig {\n  mpptId: number;\n  stringIds: string[];\n  stringsCount: number;\n  modulesPerString: number;\n  azimuth?: number;\n  inclination?: number;\n  cableLength: number;\n  cableSection: number;\n}\n\nexport interface InverterState {\n  id: string;\n  catalogId: string;\n  quantity: number;\n  mpptConfigs: MPPTConfig[];\n  snapshot: {\n    model: string;\n    nominalPower: number;\n    mppts: number;\n    maxInputVoltage: number;\n    minMpptVoltage: number;\n    maxMpptVoltage: number;\n    maxCurrentPerMPPT: number;\n  };\n}\n\nexport interface LogicalString {\n  id: string;\n  name: string;\n  mpptId: string | null;\n  moduleIds: string[];\n  azimuth?: number;\n  inclination?: number;\n}\n\nexport type ValidationStatus = 'ok' | 'warning' | 'error';\n\nexport interface MPPTValidationEntry {\n  inverterId: string;\n  mpptId: number;\n  status: ValidationStatus;\n  vocMax: number;\n  vmpMin: number;\n  vmpMax: number;\n  iscMax: number;\n  messages: string[];\n}\n\nexport interface SystemValidationReport {\n  globalStatus: ValidationStatus;\n  entries: MPPTValidationEntry[];\n}\n\n// \u00e2\u201d\u20ac\u00e2\u201d\u20ac Demo data \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\n\nconst DEMO_STRINGS: LogicalString[] = [\n  { id: 'str-1', name: 'String 1', mpptId: 'inv-a:1', moduleIds: Array.from({ length: 12 }, (_, i) => `mod-${i}`), azimuth: 180, inclination: 15 },\n  { id: 'str-2', name: 'String 2', mpptId: 'inv-a:1', moduleIds: Array.from({ length: 12 }, (_, i) => `mod-${i+12}`), azimuth: 180, inclination: 15 },\n  { id: 'str-3', name: 'String 3', mpptId: 'inv-a:2', moduleIds: Array.from({ length: 10 }, (_, i) => `mod-${i+24}`), azimuth: 270, inclination: 15 },\n  { id: 'str-4', name: 'String 4', mpptId: 'inv-a:2', moduleIds: Array.from({ length: 12 }, (_, i) => `mod-${i+34}`), azimuth: 180, inclination: 15 },\n  { id: 'str-5', name: 'String 5', mpptId: 'inv-a:3', moduleIds: Array.from({ length: 11 }, (_, i) => `mod-${i+46}`), azimuth: 90,  inclination: 10 },\n  { id: 'str-6', name: 'String 6', mpptId: null,       moduleIds: Array.from({ length: 8  }, (_, i) => `mod-${i+57}`) },\n];\n\nconst DEMO_INVERTERS: InverterState[] = [{\n  id: 'inv-a', catalogId: 'cat-001', quantity: 1,\n  snapshot: { model: 'SMA Sunny Tripower 15000TL', nominalPower: 15, mppts: 3, maxInputVoltage: 1000, minMpptVoltage: 150, maxMpptVoltage: 800, maxCurrentPerMPPT: 22 },\n  mpptConfigs: [\n    { mpptId: 1, stringIds: ['str-1','str-2'], stringsCount: 2, modulesPerString: 12, azimuth: 180, inclination: 15, cableLength: 30, cableSection: 4 },\n    { mpptId: 2, stringIds: ['str-3','str-4'], stringsCount: 2, modulesPerString: 11, azimuth: 180, inclination: 15, cableLength: 40, cableSection: 4 },\n    { mpptId: 3, stringIds: ['str-5'],         stringsCount: 1, modulesPerString: 11, azimuth: 90,  inclination: 10, cableLength: 20, cableSection: 6 },\n  ],\n}];\n\nconst DEMO_VALIDATION: SystemValidationReport = {\n  globalStatus: 'warning',\n  entries: [\n    { inverterId: 'inv-a', mpptId: 1, status: 'ok',      vocMax: 512, vmpMin: 380, vmpMax: 480, iscMax: 18.2, messages: [] },\n    { inverterId: 'inv-a', mpptId: 2, status: 'warning',  vocMax: 480, vmpMin: 360, vmpMax: 460, iscMax: 20.1, messages: ['Strings com orienta\u00c3\u00a7\u00c3\u00b5es diferentes \u00e2\u20ac\u201d perda estimada 3\u00e2\u20ac\u201c5%'] },\n    { inverterId: 'inv-a', mpptId: 3, status: 'ok',       vocMax: 468, vmpMin: 350, vmpMax: 440, iscMax: 9.8,  messages: [] },\n  ],\n};\n\nfunction useInverters(): InverterState[] { return useMemo(() => DEMO_INVERTERS, []); }\nfunction useStrings(): LogicalString[] { return useMemo(() => DEMO_STRINGS, []); }\nfunction useElectricalReport(): SystemValidationReport | null { return useMemo(() => DEMO_VALIDATION, []); }\nfunction useNavigateToElectrical(): () => void {\n  return useCallback(() => { console.info('[Layer2BlockDiagram] \u00e2\u2020\u2019 Electrical Validation'); }, []);\n}\n\n// \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac UTILS \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\n\nconst STRING_COLORS = [\n  { bg: 'bg-sky-500/15',     border: 'border-sky-500/40',     text: 'text-sky-300',     dot: 'bg-sky-400' },\n  { bg: 'bg-violet-500/15',  border: 'border-violet-500/40',  text: 'text-violet-300',  dot: 'bg-violet-400' },\n  { bg: 'bg-emerald-500/15', border: 'border-emerald-500/40', text: 'text-emerald-300', dot: 'bg-emerald-400' },\n  { bg: 'bg-rose-500/15',    border: 'border-rose-500/40',    text: 'text-rose-300',    dot: 'bg-rose-400' },\n  { bg: 'bg-amber-500/15',   border: 'border-amber-500/40',   text: 'text-amber-300',   dot: 'bg-amber-400' },\n] as const;\n\ntype StringColor = typeof STRING_COLORS[number];\n\nfunction getStringColor(index: number): StringColor {\n  return STRING_COLORS[index % STRING_COLORS.length];\n}\n\nfunction hasMismatch(mpptCfg: MPPTConfig, stringsMap: Map<string, LogicalString>): boolean {\n  const assigned = mpptCfg.stringIds.map(id => stringsMap.get(id)).filter(Boolean) as LogicalString[];\n  if (assigned.length < 2) return false;\n  const azimuths = assigned.map(s => s.azimuth ?? null).filter((v): v is number => v !== null);\n  if (azimuths.length < 2) return false;\n  return azimuths.some(az => Math.abs(az - azimuths[0]) > 15);\n}\n\ntype StringStatus = 'ok' | 'mismatch' | 'error' | 'unassigned';\n\nfunction getStringStatus(str: LogicalString, entry: MPPTValidationEntry | undefined, isMismatch: boolean): StringStatus {\n  if (!str.mpptId) return 'unassigned';\n  if (entry?.status === 'error') return 'error';\n  if (isMismatch) return 'mismatch';\n  return 'ok';\n}\n\n// \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac SUBCOMPONENTES \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\n\nconst StatusBadge: React.FC<{ status: StringStatus }> = ({ status }) => {\n  const map: Record<StringStatus, { label: string; cls: string }> = {\n    ok:         { label: '\u00e2\u0153\u2026 OK',      cls: 'text-emerald-300 bg-emerald-500/10 border-emerald-500/30' },\n    mismatch:   { label: '\u00e2\u0161\u00a0 Mismatch', cls: 'text-amber-300  bg-amber-500/10  border-amber-500/30' },\n    error:      { label: '\u00f0\u0178\u201d\u00b4 Erro',    cls: 'text-red-300    bg-red-500/10    border-red-500/30' },\n    unassigned: { label: 'Livre',      cls: 'text-slate-400  bg-slate-700/50  border-slate-600/40' },\n  };\n  const { label, cls } = map[status];\n  return (\n    <span className={`inline-flex items-center px-1.5 py-0.5 rounded border text-[9px] font-bold uppercase tracking-wider ${cls}`}>\n      {label}\n    </span>\n  );\n};\n\ninterface StringBlockProps {\n  str: LogicalString;\n  colorIndex: number;\n  status: StringStatus;\n  isSelected: boolean;\n  onClick: (str: LogicalString) => void;\n}\n\nconst StringBlock: React.FC<StringBlockProps> = ({ str, colorIndex, status, isSelected, onClick }) => {\n  const color = getStringColor(colorIndex);\n  const borderCls = isSelected\n    ? 'ring-2 ring-white/60 border-white/30'\n    : status === 'error' ? 'border-red-500/50'\n    : status === 'mismatch' ? 'border-amber-500/50'\n    : color.border;\n\n  return (\n    <button\n      type=\"button\"\n      onClick={() => onClick(str)}\n      className={`flex flex-col gap-1.5 px-3 py-2.5 rounded border transition-all text-left cursor-pointer hover:brightness-110 focus:outline-none ${color.bg} ${borderCls}`}\n    >\n      <div className=\"flex items-center gap-1.5\">\n        <span className={`w-2 h-2 rounded-full shrink-0 ${color.dot}`} />\n        <span className={`text-[11px] font-bold font-mono ${color.text}`}>{str.name}</span>\n      </div>\n      <div className=\"flex items-center justify-between gap-2\">\n        <span className=\"text-[10px] text-slate-400 font-mono\">{str.moduleIds.length} m\u00c3\u00b3dulos</span>\n        <StatusBadge status={status} />\n      </div>\n    </button>\n  );\n};\n\n// \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac PAINEL LATERAL \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\n\ninterface StringDetailPanelProps {\n  str: LogicalString;\n  colorIndex: number;\n  status: StringStatus;\n  validationEntry: MPPTValidationEntry | undefined;\n  inverterId: string;\n  mpptId: number;\n  onClose: () => void;\n  onNavigateToElectrical: () => void;\n}\n\nconst StringDetailPanel: React.FC<StringDetailPanelProps> = ({\n  str, colorIndex, status, validationEntry, mpptId, onClose, onNavigateToElectrical,\n}) => {\n  const color = getStringColor(colorIndex);\n  const n = str.moduleIds.length;\n  const vocStr = (41.3 * n).toFixed(1);\n  const iscStr = '10.1';\n\n  return (\n    <aside\n      className=\"flex flex-col h-full w-72 bg-slate-950 border-l border-slate-800\"\n      style={{ animation: 'slideIn 0.25s ease' }}\n    >\n      <div className={`flex items-center gap-2 px-4 py-3 border-b border-slate-800 ${color.bg}`}>\n        <span className={`w-2.5 h-2.5 rounded-full ${color.dot}`} />\n        <span className={`text-sm font-bold ${color.text}`}>{str.name}</span>\n        <StatusBadge status={status} />\n        <button onClick={onClose} className=\"ml-auto text-slate-400 hover:text-white p-1 rounded hover:bg-white/10\">\n          \u00e2\u0153\u2022\n        </button>\n      </div>\n\n      <div className=\"flex-1 overflow-y-auto p-4 flex flex-col gap-4\">\n        <div>\n          <p className=\"text-[10px] text-slate-500 uppercase tracking-widest mb-2\">El\u00c3\u00a9trico</p>\n          <div className=\"grid grid-cols-2 gap-2 text-xs font-mono\">\n            <div className=\"bg-slate-900 rounded border border-slate-800 p-2\">\n              <span className=\"text-slate-500 text-[9px]\">Voc (STC)</span>\n              <p className=\"text-slate-200 font-bold\">{vocStr} V</p>\n            </div>\n            <div className=\"bg-slate-900 rounded border border-slate-800 p-2\">\n              <span className=\"text-slate-500 text-[9px]\">Isc</span>\n              <p className=\"text-slate-200 font-bold\">{iscStr} A</p>\n            </div>\n            <div className=\"bg-slate-900 rounded border border-slate-800 p-2\">\n              <span className=\"text-slate-500 text-[9px]\">M\u00c3\u00b3dulos</span>\n              <p className=\"text-slate-200 font-bold\">{n}</p>\n            </div>\n            <div className=\"bg-slate-900 rounded border border-slate-800 p-2\">\n              <span className=\"text-slate-500 text-[9px]\">MPPT</span>\n              <p className=\"text-slate-200 font-bold\">MPPT {mpptId}</p>\n            </div>\n          </div>\n        </div>\n\n        {validationEntry && validationEntry.messages.length > 0 && (\n          <div>\n            <p className=\"text-[10px] text-amber-500 uppercase tracking-widest mb-2\">Alertas</p>\n            {validationEntry.messages.map((msg, i) => (\n              <p key={i} className=\"text-xs text-amber-300 bg-amber-950/30 border border-amber-700/30 rounded p-2\">\n                \u00e2\u0161\u00a0 {msg}\n              </p>\n            ))}\n          </div>\n        )}\n      </div>\n\n      <div className=\"px-4 py-3 border-t border-slate-800 flex flex-col gap-2\">\n        <button\n          onClick={onNavigateToElectrical}\n          className=\"w-full py-2 px-3 rounded border border-indigo-700/40 bg-indigo-900/20 text-indigo-300 text-xs font-bold hover:bg-indigo-800/30 transition-colors\"\n        >\n          \u00e2\u2020\u2019 Valida\u00c3\u00a7\u00c3\u00a3o el\u00c3\u00a9trica\n        </button>\n      </div>\n\n      <style>{`\n        @keyframes slideIn {\n          from { opacity: 0; transform: translateX(16px); }\n          to   { opacity: 1; transform: translateX(0); }\n        }\n      `}</style>\n    </aside>\n  );\n};\n\n// \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac COMPONENTE PRINCIPAL \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\n\nexport const Layer2BlockDiagram: React.FC = () => {\n  const inverters            = useInverters();\n  const allStrings           = useStrings();\n  const validationReport     = useElectricalReport();\n  const navigateToElectrical = useNavigateToElectrical();\n\n  const [selectedString, setSelectedString] = useState<LogicalString | null>(null);\n\n  const stringColorMap = useMemo<Map<string, number>>(() => {\n    const m = new Map<string, number>();\n    allStrings.forEach((s, i) => m.set(s.id, i));\n    return m;\n  }, [allStrings]);\n\n  const stringsMap = useMemo<Map<string, LogicalString>>(() => {\n    const m = new Map<string, LogicalString>();\n    allStrings.forEach(s => m.set(s.id, s));\n    return m;\n  }, [allStrings]);\n\n  const validationMap = useMemo<Map<string, MPPTValidationEntry>>(() => {\n    const m = new Map<string, MPPTValidationEntry>();\n    validationReport?.entries.forEach(e => m.set(`${e.inverterId}:${e.mpptId}`, e));\n    return m;\n  }, [validationReport]);\n\n  const anyMismatch = useMemo(\n    () => inverters.some(inv => inv.mpptConfigs.some(cfg => hasMismatch(cfg, stringsMap))),\n    [inverters, stringsMap]\n  );\n\n  const hasErrors = validationReport?.globalStatus === 'error';\n\n  const handleSelect = useCallback((str: LogicalString) => {\n    setSelectedString(prev => prev?.id === str.id ? null : str);\n  }, []);\n\n  const selectedMeta = useMemo(() => {\n    if (!selectedString?.mpptId) return null;\n    const [inverterId, mpptIdStr] = selectedString.mpptId.split(':');\n    const mpptId = parseInt(mpptIdStr, 10);\n    return {\n      inverterId,\n      mpptId,\n      colorIdx: stringColorMap.get(selectedString.id) ?? 0,\n      validationEntry: validationMap.get(selectedString.mpptId),\n    };\n  }, [selectedString, stringColorMap, validationMap]);\n\n  return (\n    <div className=\"relative w-full h-full flex flex-col bg-slate-950 overflow-hidden\">\n      {/* Blueprint grid */}\n      <div\n        className=\"absolute inset-0 pointer-events-none\"\n        style={{\n          backgroundImage: 'linear-gradient(rgba(99,102,241,0.10) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.10) 1px, transparent 1px)',\n          backgroundSize: '24px 24px',\n        }}\n      />\n\n      {/* Mismatch banner */}\n      {anyMismatch && (\n        <div className=\"relative shrink-0 flex items-center gap-2 px-4 py-3 bg-amber-950/40 border-b border-amber-700/30 text-amber-200 text-xs\">\n          <span>\u00e2\u0161\u00a0</span>\n          <span>\n            <strong>Mismatch detectado</strong> \u00e2\u20ac\u201d MPPTs com strings de orienta\u00c3\u00a7\u00c3\u00b5es diferentes causam perdas.\n          </span>\n        </div>\n      )}\n\n      <div className=\"relative flex flex-1 min-h-0\">\n        {/* Main canvas */}\n        <div className=\"flex-1 overflow-y-auto p-5 flex flex-col gap-6\">\n          {inverters.map(inv => (\n            <section key={inv.id} className=\"flex flex-col gap-3\">\n              <div className=\"flex items-center gap-2 px-3 py-2 rounded border border-slate-700 bg-slate-900/70 w-fit\">\n                <span className=\"text-xs font-bold text-slate-200\">\u00e2\u0161\u00a1 {inv.snapshot.model}</span>\n                <span className=\"text-[10px] text-slate-500 font-mono\">{inv.snapshot.nominalPower} kW CA</span>\n              </div>\n\n              <div className=\"ml-3 pl-3 flex flex-col gap-3 border-l border-slate-700/50\">\n                {inv.mpptConfigs.map(cfg => {\n                  const key = `${inv.id}:${cfg.mpptId}`;\n                  const entry = validationMap.get(key);\n                  const isMismatch = hasMismatch(cfg, stringsMap);\n                  const mpptStrings = cfg.stringIds\n                    .map(id => stringsMap.get(id))\n                    .filter(Boolean) as LogicalString[];\n\n                  const mpptBorderCls = entry?.status === 'error'\n                    ? 'border-red-600/50 bg-red-950/20'\n                    : isMismatch\n                    ? 'border-amber-500/40 bg-amber-950/15'\n                    : 'border-slate-700/50 bg-slate-900/50';\n\n                  return (\n                    <div key={cfg.mpptId} className={`rounded border overflow-hidden ${mpptBorderCls}`}>\n                      <div className=\"px-3 py-2 flex items-center gap-2 border-b border-slate-800/40 bg-black/20\">\n                        <span className={`text-[11px] font-bold font-mono ${isMismatch ? 'text-amber-400' : 'text-emerald-400'}`}>\n                          MPPT {cfg.mpptId}\n                        </span>\n                        {isMismatch && (\n                          <span className=\"ml-auto text-[9px] font-bold text-amber-300 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded\">\n                            \u00e2\u0161\u00a0 Mismatch\n                          </span>\n                        )}\n                        {!isMismatch && !entry?.status && (\n                          <span className=\"ml-auto text-[9px] font-bold text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded\">\n                            \u00e2\u0153\u2026 Compat\u00c3\u00advel\n                          </span>\n                        )}\n                      </div>\n                      <div className=\"p-3 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2\">\n                        {mpptStrings.map(str => (\n                          <StringBlock\n                            key={str.id}\n                            str={str}\n                            colorIndex={stringColorMap.get(str.id) ?? 0}\n                            status={getStringStatus(str, entry, isMismatch)}\n                            isSelected={selectedString?.id === str.id}\n                            onClick={handleSelect}\n                          />\n                        ))}\n                      </div>\n                    </div>\n                  );\n                })}\n              </div>\n            </section>\n          ))}\n        </div>\n\n        {/* Detail panel */}\n        {selectedString && selectedMeta && (\n          <StringDetailPanel\n            str={selectedString}\n            colorIndex={selectedMeta.colorIdx}\n            status={getStringStatus(\n              selectedString,\n              selectedMeta.validationEntry,\n              inverters\n                .flatMap(inv => inv.mpptConfigs)\n                .find(cfg => cfg.stringIds.includes(selectedString.id))\n                ? hasMismatch(\n                    inverters.flatMap(inv => inv.mpptConfigs).find(cfg => cfg.stringIds.includes(selectedString.id))!,\n                    stringsMap\n                  )\n                : false\n            )}\n            validationEntry={selectedMeta.validationEntry}\n            inverterId={selectedMeta.inverterId}\n            mpptId={selectedMeta.mpptId}\n            onClose={() => setSelectedString(null)}\n            onNavigateToElectrical={navigateToElectrical}\n          />\n        )}\n      </div>\n\n      {/* Footer CTA */}\n      <div className=\"relative shrink-0 px-5 py-4 border-t border-slate-800 bg-slate-950/90\">\n        {hasErrors ? (\n          <div className=\"flex items-center gap-3 px-4 py-3 rounded border border-red-900/50 bg-red-950/20 text-red-300 text-xs\">\n            \u00f0\u0178\u201d\u00b4 <strong>Erros el\u00c3\u00a9tricos impeditivos.</strong> Corrija antes de avan\u00c3\u00a7ar.\n          </div>\n        ) : (\n          <div className=\"flex items-center justify-between gap-4 px-4 py-3 rounded border border-emerald-800/30 bg-emerald-950/15\">\n            <span className=\"text-xs text-emerald-300\">\n              {anyMismatch ? '\u00e2\u0161\u00a0 Topologia com avisos' : '\u00e2\u0153\u2026 Topologia OK'}\n            </span>\n            <button\n              onClick={navigateToElectrical}\n              className=\"flex items-center gap-2 px-5 py-2 rounded text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-slate-950 transition-colors\"\n            >\n              Ir para Valida\u00c3\u00a7\u00c3\u00a3o El\u00c3\u00a9trica \u00e2\u2020\u2019\n            </button>\n          </div>\n        )}\n      </div>\n    </div>\n  );\n};\n\nexport default Layer2BlockDiagram;\n"}], "grading": {"eval_id": 3, "variant": "without_skill", "expectations": [{"text": "file exists (>80 lines)", "passed": true, "evidence": "460 lines"}, {"text": "slate-950 background (no satellite)", "passed": true, "evidence": "search result"}, {"text": "amber mismatch style on MPPT", "passed": true, "evidence": "search result"}, {"text": "panel 280px + translateX animation", "passed": true, "evidence": "search result"}, {"text": "Ver no mapa / Layer 1 navigation", "passed": false, "evidence": "search result"}, {"text": "CTA Valida\u00c3\u00a7\u00c3\u00a3o El\u00c3\u00a9trica", "passed": true, "evidence": "search result"}, {"text": "mismatch banner", "passed": true, "evidence": "search result"}, {"text": "CTA disabled on errors", "passed": true, "evidence": "search result"}, {"text": "no TypeScript any", "passed": true, "evidence": "search result"}, {"text": "reads from store", "passed": true, "evidence": "search result"}]}}, {"id": "eval-4-validate-graph-with_skill", "prompt": "(No prompt found)", "eval_id": null, "outputs": [{"name": "validateArrangementGraph.ts", "type": "text", "content": "// ============================================================\n// Stub interfaces \u00e2\u20ac\u201d replace with actual imports when available\n// ============================================================\n\nexport interface ModuleModel {\n  id: string;\n  vocStc: number;\n  vmpStc: number;\n  iscStc: number;\n  impStc: number;\n  tempCoeffVoc: number;   // per \u00c2\u00b0C, e.g. -0.0029\n  tempCoeffVmp: number;   // per \u00c2\u00b0C\n  noct: number;           // \u00c2\u00b0C, typically 45\n  pmax: number;           // Wp\n}\n\nexport interface InverterModel {\n  id: string;\n  maxVocInput: number;\n  maxVmpInput: number;\n  minVmpInput: number;\n  mpptCount: number;\n  maxMpptCurrentA: number;\n}\n\nexport interface MPPTConfig {\n  id: string;\n  mpptId: string;\n  inverterId: string;\n  stringGroupIds: string[];\n}\n\nexport interface ArrangementNode {\n  id: string;\n  stringGroupId?: string;\n  arrangementId?: string;\n}\n\nexport interface StringEdge {\n  id: string;\n  sourceNodeId: string;\n  sourcePortPolarity: '+' | '-';\n  targetNodeId: string;\n  targetPortPolarity: '+' | '-';\n}\n\nexport interface StringGroup {\n  id: string;\n  nodeIds: string[];\n  arrangementId?: string;\n}\n\nexport interface ArrangementGraph {\n  nodes: ArrangementNode[];\n  edges: StringEdge[];\n  strings: StringGroup[];\n}\n\nexport interface WeatherData {\n  tmin: number;\n  tambMax: number;\n}\n\nexport type SurfaceType =\n  | 'ceramica'\n  | 'metalico'\n  | 'fibrocimento'\n  | 'laje'\n  | 'ground'\n  | 'carport';\n\n// ============================================================\n// Validation types\n// ============================================================\n\nexport interface ValidationIssue {\n  code: string;\n  severity: 'error' | 'warning';\n  message: string;\n  affectedIds: string[];\n}\n\nexport interface ValidationResult {\n  valid: boolean;\n  errors: ValidationIssue[];\n  warnings: ValidationIssue[];\n}\n\n// ============================================================\n// Main validation function\n// ============================================================\n\nexport function validateArrangementGraph(\n  graph: ArrangementGraph,\n  mpptConfigs: MPPTConfig[],\n  inverters: InverterModel[],\n  modules: ModuleModel[],\n  weatherData: WeatherData\n): ValidationResult {\n  const errors: ValidationIssue[] = [];\n  const warnings: ValidationIssue[] = [];\n\n  const mod = modules[0];\n  if (!mod) {\n    errors.push({\n      code: 'NO_MODULE_SELECTED',\n      severity: 'error',\n      message: 'Nenhum m\u00c3\u00b3dulo selecionado no projeto',\n      affectedIds: [],\n    });\n    return { valid: false, errors, warnings };\n  }\n\n  // Rule 1: UNCONNECTED_MODULE \u00e2\u20ac\u201d nodes without stringGroupId\n  const unconnected = graph.nodes.filter(n => !n.stringGroupId);\n  if (unconnected.length > 0) {\n    errors.push({\n      code: 'UNCONNECTED_MODULE',\n      severity: 'error',\n      message: `${unconnected.length} m\u00c3\u00b3dulo(s) sem conex\u00c3\u00a3o de string`,\n      affectedIds: unconnected.map(n => n.id),\n    });\n  }\n\n  // Rule 2: VOC_OVERCURRENT \u00e2\u20ac\u201d Voc frio > inverter.maxVocInput\n  for (const string of graph.strings) {\n    const mppt = mpptConfigs.find(m => m.stringGroupIds.includes(string.id));\n    if (!mppt) continue;\n    const inverter = inverters.find(inv => inv.id === mppt.inverterId);\n    if (!inverter) continue;\n\n    const vocCold = calculateVocCold(string.nodeIds.length, mod, weatherData.tmin);\n    if (vocCold > inverter.maxVocInput) {\n      errors.push({\n        code: 'VOC_OVERCURRENT',\n        severity: 'error',\n        message: `String ${string.id}: Voc frio ${vocCold.toFixed(1)} V > limite do inversor ${inverter.maxVocInput} V`,\n        affectedIds: [string.id],\n      });\n    }\n  }\n\n  // Rule 3: MPPT_ORIENTATION_MISMATCH \u00e2\u20ac\u201d strings with different arrangementIds on same MPPT\n  for (const mppt of mpptConfigs) {\n    const stringsInMppt = graph.strings.filter(s =>\n      mppt.stringGroupIds.includes(s.id)\n    );\n    const arrangementIds = new Set(\n      stringsInMppt.map(s => s.arrangementId ?? 'unknown')\n    );\n    if (arrangementIds.size > 1) {\n      warnings.push({\n        code: 'MPPT_ORIENTATION_MISMATCH',\n        severity: 'warning',\n        message: `MPPT ${mppt.mpptId} recebe strings de ${arrangementIds.size} \u00c3\u00a1reas com orienta\u00c3\u00a7\u00c3\u00b5es distintas \u00e2\u20ac\u201d perdas por mismatch`,\n        affectedIds: [mppt.id],\n      });\n    }\n  }\n\n  // Rule 4: POLARITY_CONFLICT \u00e2\u20ac\u201d edge with same polarity on both ends\n  for (const edge of graph.edges) {\n    if (edge.sourcePortPolarity === edge.targetPortPolarity) {\n      errors.push({\n        code: 'POLARITY_CONFLICT',\n        severity: 'error',\n        message: `Aresta ${edge.id}: mesma polaridade (${edge.sourcePortPolarity}) nas duas pontas \u00e2\u20ac\u201d curto-circuito`,\n        affectedIds: [edge.id],\n      });\n    }\n  }\n\n  return {\n    valid: errors.length === 0,\n    errors,\n    warnings,\n  };\n}\n\n// ============================================================\n// Electrical calculation helpers\n// ============================================================\n\n/**\n * Voc at minimum ambient temperature (worst-case for overvoltage protection).\n * tempCoeffVoc is negative (e.g. -0.0029 for -0.29%/\u00c2\u00b0C).\n */\nexport function calculateVocCold(\n  nModules: number,\n  mod: ModuleModel,\n  tmin: number\n): number {\n  return nModules * mod.vocStc * (1 + mod.tempCoeffVoc * (tmin - 25));\n}\n\n// NOCT offset per surface type (\u00c2\u00b0C added to cell temperature)\nconst SURFACE_NOCT_OFFSET: Record<SurfaceType, number> = {\n  ceramica:     0,\n  metalico:     3,\n  fibrocimento: 5,\n  laje:         8,\n  ground:      -3,\n  carport:     -5,\n};\n\n/**\n * Vmp at maximum operating temperature (worst-case for MPPT window check).\n * Uses simplified NOCT model: Tcell = Tamb + (NOCT - 20) / 0.8 + surfaceOffset\n */\nexport function calculateVmpHot(\n  nModules: number,\n  mod: ModuleModel,\n  tambMax: number,\n  surfaceType: SurfaceType\n): number {\n  const noctOffset = SURFACE_NOCT_OFFSET[surfaceType];\n  const tcell = tambMax + (mod.noct - 20) / 0.8 + noctOffset;\n  return nModules * mod.vmpStc * (1 + mod.tempCoeffVmp * (tcell - 25));\n}\n\n/**\n * Great-circle distance between two geographic points in metres.\n * Uses the haversine formula.\n */\nexport function haversineDistanceM(\n  lat1: number,\n  lng1: number,\n  lat2: number,\n  lng2: number\n): number {\n  const R = 6_371_000; // Earth radius in metres\n  const \u00cf\u20201 = (lat1 * Math.PI) / 180;\n  const \u00cf\u20202 = (lat2 * Math.PI) / 180;\n  const \u00ce\u201d\u00cf\u2020 = ((lat2 - lat1) * Math.PI) / 180;\n  const \u00ce\u201d\u00ce\u00bb = ((lng2 - lng1) * Math.PI) / 180;\n  const a =\n    Math.sin(\u00ce\u201d\u00cf\u2020 / 2) ** 2 +\n    Math.cos(\u00cf\u20201) * Math.cos(\u00cf\u20202) * Math.sin(\u00ce\u201d\u00ce\u00bb / 2) ** 2;\n  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));\n}\n"}], "grading": {"eval_id": 4, "variant": "with_skill", "expectations": [{"text": "file exists", "passed": true, "evidence": "file found"}, {"text": "UNCONNECTED_MODULE rule", "passed": true, "evidence": "rule code found"}, {"text": "VOC_OVERCURRENT with formula", "passed": true, "evidence": "formula found"}, {"text": "MPPT_ORIENTATION_MISMATCH rule", "passed": true, "evidence": "rule code found"}, {"text": "POLARITY_CONFLICT rule", "passed": true, "evidence": "rule code found"}, {"text": "calculateVocCold exported", "passed": true, "evidence": "export found"}, {"text": "haversine with R=6371000", "passed": true, "evidence": "radius constant found"}, {"text": "calculateVmpHot with surface types", "passed": true, "evidence": "surface types found"}, {"text": "ValidationResult with valid/errors/warnings", "passed": true, "evidence": "interface found"}, {"text": "no TypeScript any", "passed": true, "evidence": "no any found"}]}}, {"id": "eval-4-validate-graph-without_skill", "prompt": "(No prompt found)", "eval_id": null, "outputs": [{"name": "validateArrangementGraph.ts", "type": "text", "content": "// validateArrangementGraph.ts \u00e2\u20ac\u201d WITHOUT SKILL (baseline gen\u00c3\u00a9rico)\n// Implementa\u00c3\u00a7\u00c3\u00a3o sem guia de skill: nomes e regras mais gen\u00c3\u00a9ricos\n\n// \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac Stub interfaces \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\n\nexport interface ModuleNode {\n  id: string;\n  stringId?: string;\n  arrangementId?: string;\n}\n\nexport type Polarity = 'positive' | 'negative';\n\nexport interface ConnectionEdge {\n  id: string;\n  fromNodeId: string;\n  fromPolarity: Polarity;\n  toNodeId: string;\n  toPolarity: Polarity;\n}\n\nexport interface StringConfig {\n  id: string;\n  moduleIds: string[];\n  mpptId?: string;\n  arrangementId?: string;\n}\n\nexport interface MpptConfig {\n  id: string;\n  inverterId: string;\n  stringIds: string[];\n}\n\nexport interface InverterSpec {\n  id: string;\n  maxVoc: number;\n  maxVmp: number;\n  minVmp: number;\n}\n\nexport interface ModuleSpec {\n  vocStc: number;\n  vmpStc: number;\n  iscStc: number;\n  tempCoeffVoc: number;\n  tempCoeffVmp: number;\n  noct: number;\n  pmax: number;\n}\n\nexport interface ArrangementGraph {\n  modules: ModuleNode[];\n  edges: ConnectionEdge[];\n  strings: StringConfig[];\n}\n\nexport interface WeatherInput {\n  minAmbientTemp: number;\n  maxAmbientTemp: number;\n}\n\n// \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac Validation types \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\n\nexport interface ValidationIssue {\n  code: string;\n  severity: 'error' | 'warning';\n  message: string;\n  affectedIds: string[];\n}\n\nexport interface ValidationResult {\n  valid: boolean;\n  errors: ValidationIssue[];\n  warnings: ValidationIssue[];\n}\n\n// \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac Main function \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\n\nexport function validateArrangementGraph(\n  graph: ArrangementGraph,\n  mpptConfigs: MpptConfig[],\n  inverters: InverterSpec[],\n  moduleSpec: ModuleSpec,\n  weather: WeatherInput\n): ValidationResult {\n  const errors: ValidationIssue[] = [];\n  const warnings: ValidationIssue[] = [];\n\n  // Rule 1: disconnected modules (no string)\n  const disconnected = graph.modules.filter(m => !m.stringId);\n  if (disconnected.length > 0) {\n    errors.push({\n      code: 'DISCONNECTED_MODULE',\n      severity: 'error',\n      message: `${disconnected.length} module(s) not connected to any string`,\n      affectedIds: disconnected.map(m => m.id),\n    });\n  }\n\n  // Rule 2: voltage exceeds inverter limit\n  for (const str of graph.strings) {\n    const mppt = mpptConfigs.find(m => m.stringIds.includes(str.id));\n    if (!mppt) continue;\n    const inverter = inverters.find(inv => inv.id === mppt.inverterId);\n    if (!inverter) continue;\n    const n = str.moduleIds.length;\n    // Simple Voc without thermal correction\n    const voc = n * moduleSpec.vocStc;\n    if (voc > inverter.maxVoc) {\n      errors.push({\n        code: 'VOC_EXCEEDS_LIMIT',\n        severity: 'error',\n        message: `String ${str.id}: Voc ${voc.toFixed(0)}V exceeds inverter max ${inverter.maxVoc}V`,\n        affectedIds: [str.id],\n      });\n    }\n  }\n\n  // Rule 3: orientation mismatch\n  for (const mppt of mpptConfigs) {\n    const stringsInMppt = graph.strings.filter(s => mppt.stringIds.includes(s.id));\n    const arrangementIds = new Set(stringsInMppt.map(s => s.arrangementId ?? 'unknown'));\n    if (arrangementIds.size > 1) {\n      warnings.push({\n        code: 'ORIENTATION_MISMATCH',\n        severity: 'warning',\n        message: `MPPT ${mppt.id}: strings from different areas may have orientation mismatch`,\n        affectedIds: [mppt.id],\n      });\n    }\n  }\n\n  // Rule 4: polarity conflict\n  for (const edge of graph.edges) {\n    if (edge.fromPolarity === edge.toPolarity) {\n      errors.push({\n        code: 'POLARITY_CONFLICT',\n        severity: 'error',\n        message: `Edge ${edge.id}: same polarity on both ends`,\n        affectedIds: [edge.id],\n      });\n    }\n  }\n\n  return { valid: errors.length === 0, errors, warnings };\n}\n\n// \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac Helpers \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\n\n/** Voc at minimum temperature \u00e2\u20ac\u201d no explicit thermal formula */\nexport function calculateVocCold(\n  nModules: number,\n  mod: ModuleSpec,\n  tmin: number\n): number {\n  // Note: baseline version uses simplified formula without tempCoeffVoc reference\n  const tempDelta = tmin - 25;\n  return nModules * mod.vocStc * (1 + mod.tempCoeffVoc * tempDelta);\n}\n\n/** Hot Vmp without NOCT surface offset */\nexport function calculateVmpHot(\n  nModules: number,\n  mod: ModuleSpec,\n  tambMax: number\n): number {\n  const tcell = tambMax + (mod.noct - 20) * 0.8;\n  return nModules * mod.vmpStc * (1 + mod.tempCoeffVmp * (tcell - 25));\n}\n\n/** Haversine distance between two points */\nexport function haversineDistanceM(\n  lat1: number,\n  lon1: number,\n  lat2: number,\n  lon2: number\n): number {\n  const R = 6371000;\n  const toRad = (d: number) => (d * Math.PI) / 180;\n  const dLat = toRad(lat2 - lat1);\n  const dLon = toRad(lon2 - lon1);\n  const a =\n    Math.sin(dLat / 2) ** 2 +\n    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;\n  return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));\n}\n"}], "grading": {"eval_id": 4, "variant": "without_skill", "expectations": [{"text": "file exists", "passed": true, "evidence": "file found"}, {"text": "disconnected module rule", "passed": true, "evidence": "rule found"}, {"text": "VOC formula (tempCoeffVoc)", "passed": true, "evidence": "formula found"}, {"text": "orientation mismatch rule", "passed": true, "evidence": "rule found"}, {"text": "polarity conflict rule", "passed": true, "evidence": "rule found"}, {"text": "calculateVocCold exported", "passed": true, "evidence": "export found"}, {"text": "haversine with radius constant", "passed": true, "evidence": "radius found"}, {"text": "calculateVmpHot exported", "passed": true, "evidence": "export found"}, {"text": "ValidationResult with valid/errors", "passed": true, "evidence": "interface found"}, {"text": "no TypeScript any", "passed": true, "evidence": "no any found"}]}}], "previous_feedback": {}, "previous_outputs": {}, "benchmark": {"skill_name": "arranjo-layer-dev", "iteration": 1, "generated_at": "2026-04-27", "configurations": [{"name": "with_skill", "label": "Com skill (arranjo-layer-dev + arranjo-motor-tecnico)", "evals": [{"eval_id": 1, "eval_name": "layer0context-leaflet-single-mount", "pass_rate": 1.0, "passed": 9, "total": 9, "duration_ms": 163646, "total_tokens": 35030}, {"eval_id": 2, "eval_name": "string-wire-tool-state-machine", "pass_rate": 1.0, "passed": 9, "total": 9, "duration_ms": 179926, "total_tokens": 57056}, {"eval_id": 3, "eval_name": "layer2-block-diagram-mismatch-detection", "pass_rate": 1.0, "passed": 10, "total": 10, "duration_ms": 351876, "total_tokens": 1994}, {"eval_id": 4, "eval_name": "validate-arrangement-graph-four-rules", "pass_rate": 1.0, "passed": 10, "total": 10, "duration_ms": 107042, "total_tokens": 33684}], "aggregate": {"mean_pass_rate": 1.0, "mean_duration_ms": 200622, "mean_tokens": 31941, "total_assertions": 38, "total_passed": 38}}, {"name": "without_skill", "label": "Sem skill (baseline gen\u00c3\u00a9rico)", "evals": [{"eval_id": 1, "eval_name": "layer0context-leaflet-single-mount", "pass_rate": 0.444, "passed": 4, "total": 9, "duration_ms": 121541, "total_tokens": 42377}, {"eval_id": 2, "eval_name": "string-wire-tool-state-machine", "pass_rate": 0.889, "passed": 8, "total": 9, "duration_ms": 121232, "total_tokens": 52105}, {"eval_id": 3, "eval_name": "layer2-block-diagram-mismatch-detection", "pass_rate": 0.9, "passed": 9, "total": 10, "duration_ms": 315827, "total_tokens": 52485}, {"eval_id": 4, "eval_name": "validate-arrangement-graph-four-rules", "pass_rate": 1.0, "passed": 10, "total": 10, "duration_ms": 107404, "total_tokens": 22545}], "aggregate": {"mean_pass_rate": 0.808, "mean_duration_ms": 166501, "mean_tokens": 42378, "total_assertions": 38, "total_passed": 31}}], "delta": {"mean_pass_rate": "+19.2pp", "mean_tokens": "-10437 (with_skill usa menos tokens)", "analyst_notes": ["Eval 1 (Layer0Context) \u00c3\u00a9 o maior discriminador: +56pp. Sem a skill, o agente usa nomes gen\u00c3\u00a9ricos (MapContext, MapProvider) e n\u00c3\u00a3o implementa as classes CSS espec\u00c3\u00adficas (.layer-0--blueprint/recon) nem o hook useLayer0().", "Eval 4 (validateArrangementGraph) n\u00c3\u00a3o discrimina: 10/10 nos dois casos. As regras de valida\u00c3\u00a7\u00c3\u00a3o el\u00c3\u00a9trica s\u00c3\u00a3o suficientemente descritivas no prompt e o agente as implementa corretamente sem guia.", "Eval 2 sem skill perde apenas na f\u00c3\u00b3rmula exata do Voc (n\u00c3\u00a3o usa tempCoeffVoc \u00c3\u2014 (Tmin-25)) e nos tokens espec\u00c3\u00adficos de cor (indigo/sky/emerald/amber).", "Eval 3 sem skill perde apenas na navega\u00c3\u00a7\u00c3\u00a3o 'Ver no mapa (Layer 1)' \u00e2\u20ac\u201d usa texto em ingl\u00c3\u00aas 'Ver MPPT no painel el\u00c3\u00a9trico' em vez do padr\u00c3\u00a3o da spec."]}}};
+
+    // ---- State ----
+    let feedbackMap = {};  // run_id -> feedback text
+    let currentIndex = 0;
+    let visitedRuns = new Set();
+
+    // ---- Init ----
+    async function init() {
+      // Load saved feedback from server — but only if this isn't a fresh
+      // iteration (indicated by previous_feedback being present). When
+      // previous feedback exists, the feedback.json on disk is stale from
+      // the prior iteration and should not pre-fill the textareas.
+      const hasPrevious = Object.keys(EMBEDDED_DATA.previous_feedback || {}).length > 0
+        || Object.keys(EMBEDDED_DATA.previous_outputs || {}).length > 0;
+      if (!hasPrevious) {
+        try {
+          const resp = await fetch("/api/feedback");
+          const data = await resp.json();
+          if (data.reviews) {
+            for (const r of data.reviews) feedbackMap[r.run_id] = r.feedback;
+          }
+        } catch { /* first run, no feedback yet */ }
+      }
+
+      document.getElementById("skill-name").textContent = EMBEDDED_DATA.skill_name;
+      showRun(0);
+
+      // Wire up feedback auto-save
+      const textarea = document.getElementById("feedback");
+      let saveTimeout = null;
+      textarea.addEventListener("input", () => {
+        clearTimeout(saveTimeout);
+        document.getElementById("feedback-status").textContent = "";
+        saveTimeout = setTimeout(() => saveCurrentFeedback(), 800);
+      });
+    }
+
+    // ---- Navigation ----
+    function navigate(delta) {
+      const newIndex = currentIndex + delta;
+      if (newIndex >= 0 && newIndex < EMBEDDED_DATA.runs.length) {
+        saveCurrentFeedback();
+        showRun(newIndex);
+      }
+    }
+
+    function updateNavButtons() {
+      document.getElementById("prev-btn").disabled = currentIndex === 0;
+      document.getElementById("next-btn").disabled =
+        currentIndex === EMBEDDED_DATA.runs.length - 1;
+    }
+
+    // ---- Show a run ----
+    function showRun(index) {
+      currentIndex = index;
+      const run = EMBEDDED_DATA.runs[index];
+
+      // Progress
+      document.getElementById("progress").textContent =
+        `${index + 1} of ${EMBEDDED_DATA.runs.length}`;
+
+      // Prompt
+      document.getElementById("prompt-text").textContent = run.prompt;
+
+      // Config badge
+      const badge = document.getElementById("config-badge");
+      const configMatch = run.id.match(/(with_skill|without_skill|new_skill|old_skill)/);
+      if (configMatch) {
+        const config = configMatch[1];
+        const isBaseline = config === "without_skill" || config === "old_skill";
+        badge.textContent = config.replace(/_/g, " ");
+        badge.className = "config-badge " + (isBaseline ? "config-baseline" : "config-primary");
+        badge.style.display = "inline-block";
+      } else {
+        badge.style.display = "none";
+      }
+
+      // Outputs
+      renderOutputs(run);
+
+      // Previous outputs
+      renderPrevOutputs(run);
+
+      // Grades
+      renderGrades(run);
+
+      // Previous feedback
+      const prevFb = (EMBEDDED_DATA.previous_feedback || {})[run.id];
+      const prevEl = document.getElementById("prev-feedback");
+      if (prevFb) {
+        document.getElementById("prev-feedback-text").textContent = prevFb;
+        prevEl.style.display = "block";
+      } else {
+        prevEl.style.display = "none";
+      }
+
+      // Feedback
+      document.getElementById("feedback").value = feedbackMap[run.id] || "";
+      document.getElementById("feedback-status").textContent = "";
+
+      updateNavButtons();
+
+      // Track visited runs and promote done button when all visited
+      visitedRuns.add(index);
+      const doneBtn = document.getElementById("done-btn");
+      if (visitedRuns.size >= EMBEDDED_DATA.runs.length) {
+        doneBtn.classList.add("ready");
+      }
+
+      // Scroll main content to top
+      document.querySelector(".main").scrollTop = 0;
+    }
+
+    // ---- Render outputs ----
+    function renderOutputs(run) {
+      const container = document.getElementById("outputs-body");
+      container.innerHTML = "";
+
+      const outputs = run.outputs || [];
+      if (outputs.length === 0) {
+        container.innerHTML = '<div class="empty-state">No output files</div>';
+        return;
+      }
+
+      for (const file of outputs) {
+        const fileDiv = document.createElement("div");
+        fileDiv.className = "output-file";
+
+        // Always show file header with download link
+        const header = document.createElement("div");
+        header.className = "output-file-header";
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = file.name;
+        header.appendChild(nameSpan);
+        const dlBtn = document.createElement("a");
+        dlBtn.className = "dl-btn";
+        dlBtn.textContent = "Download";
+        dlBtn.download = file.name;
+        dlBtn.href = getDownloadUri(file);
+        header.appendChild(dlBtn);
+        fileDiv.appendChild(header);
+
+        const content = document.createElement("div");
+        content.className = "output-file-content";
+
+        if (file.type === "text") {
+          const pre = document.createElement("pre");
+          pre.textContent = file.content;
+          content.appendChild(pre);
+        } else if (file.type === "image") {
+          const img = document.createElement("img");
+          img.src = file.data_uri;
+          img.alt = file.name;
+          content.appendChild(img);
+        } else if (file.type === "pdf") {
+          const iframe = document.createElement("iframe");
+          iframe.src = file.data_uri;
+          content.appendChild(iframe);
+        } else if (file.type === "xlsx") {
+          renderXlsx(content, file.data_b64);
+        } else if (file.type === "binary") {
+          const a = document.createElement("a");
+          a.className = "download-link";
+          a.href = file.data_uri;
+          a.download = file.name;
+          a.textContent = "Download " + file.name;
+          content.appendChild(a);
+        } else if (file.type === "error") {
+          const pre = document.createElement("pre");
+          pre.textContent = file.content;
+          pre.style.color = "var(--red)";
+          content.appendChild(pre);
+        }
+
+        fileDiv.appendChild(content);
+        container.appendChild(fileDiv);
+      }
+    }
+
+    // ---- XLSX rendering via SheetJS ----
+    function renderXlsx(container, b64Data) {
+      try {
+        const raw = Uint8Array.from(atob(b64Data), c => c.charCodeAt(0));
+        const wb = XLSX.read(raw, { type: "array" });
+
+        for (let i = 0; i < wb.SheetNames.length; i++) {
+          const sheetName = wb.SheetNames[i];
+          const ws = wb.Sheets[sheetName];
+
+          if (wb.SheetNames.length > 1) {
+            const sheetLabel = document.createElement("div");
+            sheetLabel.style.cssText =
+              "font-weight:600; font-size:0.8rem; color:#b0aea5; margin-top:0.5rem; margin-bottom:0.25rem;";
+            sheetLabel.textContent = "Sheet: " + sheetName;
+            container.appendChild(sheetLabel);
+          }
+
+          const htmlStr = XLSX.utils.sheet_to_html(ws, { editable: false });
+          const wrapper = document.createElement("div");
+          wrapper.innerHTML = htmlStr;
+          container.appendChild(wrapper);
+        }
+      } catch (err) {
+        container.textContent = "Error rendering spreadsheet: " + err.message;
+      }
+    }
+
+    // ---- Grades ----
+    function renderGrades(run) {
+      const section = document.getElementById("grades-section");
+      const content = document.getElementById("grades-content");
+
+      if (!run.grading) {
+        section.style.display = "none";
+        return;
+      }
+
+      const grading = run.grading;
+      section.style.display = "block";
+      // Reset to collapsed
+      content.classList.remove("open");
+      document.getElementById("grades-arrow").classList.remove("open");
+
+      const summary = grading.summary || {};
+      const expectations = grading.expectations || [];
+
+      let html = '<div style="padding: 1rem;">';
+
+      // Summary line
+      const passRate = summary.pass_rate != null
+        ? Math.round(summary.pass_rate * 100) + "%"
+        : "?";
+      const badgeClass = summary.pass_rate >= 0.8 ? "grade-pass" : summary.pass_rate >= 0.5 ? "" : "grade-fail";
+      html += '<div class="grades-summary">';
+      html += '<span class="grade-badge ' + badgeClass + '">' + passRate + '</span>';
+      html += '<span>' + (summary.passed || 0) + ' passed, ' + (summary.failed || 0) + ' failed of ' + (summary.total || 0) + '</span>';
+      html += '</div>';
+
+      // Assertions list
+      html += '<ul class="assertion-list">';
+      for (const exp of expectations) {
+        const statusClass = exp.passed ? "pass" : "fail";
+        const statusIcon = exp.passed ? "\u2713" : "\u2717";
+        html += '<li class="assertion-item">';
+        html += '<span class="assertion-status ' + statusClass + '">' + statusIcon + '</span>';
+        html += '<span>' + escapeHtml(exp.text) + '</span>';
+        if (exp.evidence) {
+          html += '<div class="assertion-evidence">' + escapeHtml(exp.evidence) + '</div>';
+        }
+        html += '</li>';
+      }
+      html += '</ul>';
+
+      html += '</div>';
+      content.innerHTML = html;
+    }
+
+    function toggleGrades() {
+      const content = document.getElementById("grades-content");
+      const arrow = document.getElementById("grades-arrow");
+      content.classList.toggle("open");
+      arrow.classList.toggle("open");
+    }
+
+    // ---- Previous outputs (collapsible) ----
+    function renderPrevOutputs(run) {
+      const section = document.getElementById("prev-outputs-section");
+      const content = document.getElementById("prev-outputs-content");
+      const prevOutputs = (EMBEDDED_DATA.previous_outputs || {})[run.id];
+
+      if (!prevOutputs || prevOutputs.length === 0) {
+        section.style.display = "none";
+        return;
+      }
+
+      section.style.display = "block";
+      // Reset to collapsed
+      content.classList.remove("open");
+      document.getElementById("prev-outputs-arrow").classList.remove("open");
+
+      // Render the files into the content area
+      content.innerHTML = "";
+      const wrapper = document.createElement("div");
+      wrapper.style.padding = "1rem";
+
+      for (const file of prevOutputs) {
+        const fileDiv = document.createElement("div");
+        fileDiv.className = "output-file";
+
+        const header = document.createElement("div");
+        header.className = "output-file-header";
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = file.name;
+        header.appendChild(nameSpan);
+        const dlBtn = document.createElement("a");
+        dlBtn.className = "dl-btn";
+        dlBtn.textContent = "Download";
+        dlBtn.download = file.name;
+        dlBtn.href = getDownloadUri(file);
+        header.appendChild(dlBtn);
+        fileDiv.appendChild(header);
+
+        const fc = document.createElement("div");
+        fc.className = "output-file-content";
+
+        if (file.type === "text") {
+          const pre = document.createElement("pre");
+          pre.textContent = file.content;
+          fc.appendChild(pre);
+        } else if (file.type === "image") {
+          const img = document.createElement("img");
+          img.src = file.data_uri;
+          img.alt = file.name;
+          fc.appendChild(img);
+        } else if (file.type === "pdf") {
+          const iframe = document.createElement("iframe");
+          iframe.src = file.data_uri;
+          fc.appendChild(iframe);
+        } else if (file.type === "xlsx") {
+          renderXlsx(fc, file.data_b64);
+        } else if (file.type === "binary") {
+          const a = document.createElement("a");
+          a.className = "download-link";
+          a.href = file.data_uri;
+          a.download = file.name;
+          a.textContent = "Download " + file.name;
+          fc.appendChild(a);
+        }
+
+        fileDiv.appendChild(fc);
+        wrapper.appendChild(fileDiv);
+      }
+
+      content.appendChild(wrapper);
+    }
+
+    function togglePrevOutputs() {
+      const content = document.getElementById("prev-outputs-content");
+      const arrow = document.getElementById("prev-outputs-arrow");
+      content.classList.toggle("open");
+      arrow.classList.toggle("open");
+    }
+
+    // ---- Feedback (saved to server -> feedback.json) ----
+    function saveCurrentFeedback() {
+      const run = EMBEDDED_DATA.runs[currentIndex];
+      const text = document.getElementById("feedback").value;
+
+      if (text.trim() === "") {
+        delete feedbackMap[run.id];
+      } else {
+        feedbackMap[run.id] = text;
+      }
+
+      // Build reviews array from map
+      const reviews = [];
+      for (const [run_id, feedback] of Object.entries(feedbackMap)) {
+        if (feedback.trim()) {
+          reviews.push({ run_id, feedback, timestamp: new Date().toISOString() });
+        }
+      }
+
+      fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reviews, status: "in_progress" }),
+      }).then(() => {
+        document.getElementById("feedback-status").textContent = "Saved";
+      }).catch(() => {
+        // Static mode or server unavailable — no-op on auto-save,
+        // feedback will be downloaded on final submit
+        document.getElementById("feedback-status").textContent = "Will download on submit";
+      });
+    }
+
+    // ---- Done ----
+    function showDoneDialog() {
+      // Save current textarea to feedbackMap (but don't POST yet)
+      const run = EMBEDDED_DATA.runs[currentIndex];
+      const text = document.getElementById("feedback").value;
+      if (text.trim() === "") {
+        delete feedbackMap[run.id];
+      } else {
+        feedbackMap[run.id] = text;
+      }
+
+      // POST once with status: complete — include ALL runs so the model
+      // can distinguish "no feedback" (looks good) from "not reviewed"
+      const reviews = [];
+      const ts = new Date().toISOString();
+      for (const r of EMBEDDED_DATA.runs) {
+        reviews.push({ run_id: r.id, feedback: feedbackMap[r.id] || "", timestamp: ts });
+      }
+      const payload = JSON.stringify({ reviews, status: "complete" }, null, 2);
+      fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+      }).then(() => {
+        document.getElementById("done-overlay").classList.add("visible");
+      }).catch(() => {
+        // Server not available (static mode) — download as file
+        const blob = new Blob([payload], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "feedback.json";
+        a.click();
+        URL.revokeObjectURL(url);
+        document.getElementById("done-overlay").classList.add("visible");
+      });
+    }
+
+    function closeDoneDialog() {
+      // Reset status back to in_progress
+      saveCurrentFeedback();
+      document.getElementById("done-overlay").classList.remove("visible");
+    }
+
+    // ---- Toast ----
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.add("visible");
+      setTimeout(() => toast.classList.remove("visible"), 2000);
+    }
+
+    // ---- Keyboard nav ----
+    document.addEventListener("keydown", (e) => {
+      // Don't capture when typing in textarea
+      if (e.target.tagName === "TEXTAREA") return;
+
+      if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        e.preventDefault();
+        navigate(-1);
+      } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        e.preventDefault();
+        navigate(1);
+      }
+    });
+
+    // ---- Util ----
+    function getDownloadUri(file) {
+      if (file.data_uri) return file.data_uri;
+      if (file.data_b64) return "data:application/octet-stream;base64," + file.data_b64;
+      if (file.type === "text") return "data:text/plain;charset=utf-8," + encodeURIComponent(file.content);
+      return "#";
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement("div");
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // ---- View switching ----
+    function switchView(view) {
+      document.querySelectorAll(".view-tab").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".view-panel").forEach(p => p.classList.remove("active"));
+      document.querySelector(`[onclick="switchView('${view}')"]`).classList.add("active");
+      document.getElementById("panel-" + view).classList.add("active");
+    }
+
+    // ---- Benchmark rendering ----
+    function renderBenchmark() {
+      const data = EMBEDDED_DATA.benchmark;
+      if (!data) return;
+
+      // Show the tabs
+      document.getElementById("view-tabs").style.display = "flex";
+
+      const container = document.getElementById("benchmark-content");
+      const summary = data.run_summary || {};
+      const metadata = data.metadata || {};
+      const notes = data.notes || [];
+
+      let html = "";
+
+      // Header
+      html += "<h2 style='font-family: Poppins, sans-serif; margin-bottom: 0.5rem;'>Benchmark Results</h2>";
+      html += "<p style='color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1.25rem;'>";
+      if (metadata.skill_name) html += "<strong>" + escapeHtml(metadata.skill_name) + "</strong> &mdash; ";
+      if (metadata.timestamp) html += metadata.timestamp + " &mdash; ";
+      if (metadata.evals_run) html += "Evals: " + metadata.evals_run.join(", ") + " &mdash; ";
+      html += (metadata.runs_per_configuration || "?") + " runs per configuration";
+      html += "</p>";
+
+      // Summary table
+      html += '<table class="benchmark-table">';
+
+      function fmtStat(stat, pct) {
+        if (!stat) return "—";
+        const suffix = pct ? "%" : "";
+        const m = pct ? (stat.mean * 100).toFixed(0) : stat.mean.toFixed(1);
+        const s = pct ? (stat.stddev * 100).toFixed(0) : stat.stddev.toFixed(1);
+        return m + suffix + " ± " + s + suffix;
+      }
+
+      function deltaClass(val) {
+        if (!val) return "";
+        const n = parseFloat(val);
+        if (n > 0) return "benchmark-delta-positive";
+        if (n < 0) return "benchmark-delta-negative";
+        return "";
+      }
+
+      // Discover config names dynamically (everything except "delta")
+      const configs = Object.keys(summary).filter(k => k !== "delta");
+      const configA = configs[0] || "config_a";
+      const configB = configs[1] || "config_b";
+      const labelA = configA.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      const labelB = configB.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      const a = summary[configA] || {};
+      const b = summary[configB] || {};
+      const delta = summary.delta || {};
+
+      html += "<thead><tr><th>Metric</th><th>" + escapeHtml(labelA) + "</th><th>" + escapeHtml(labelB) + "</th><th>Delta</th></tr></thead>";
+      html += "<tbody>";
+
+      html += "<tr><td><strong>Pass Rate</strong></td>";
+      html += "<td>" + fmtStat(a.pass_rate, true) + "</td>";
+      html += "<td>" + fmtStat(b.pass_rate, true) + "</td>";
+      html += '<td class="' + deltaClass(delta.pass_rate) + '">' + (delta.pass_rate || "—") + "</td></tr>";
+
+      // Time (only show row if data exists)
+      if (a.time_seconds || b.time_seconds) {
+        html += "<tr><td><strong>Time (s)</strong></td>";
+        html += "<td>" + fmtStat(a.time_seconds, false) + "</td>";
+        html += "<td>" + fmtStat(b.time_seconds, false) + "</td>";
+        html += '<td class="' + deltaClass(delta.time_seconds) + '">' + (delta.time_seconds ? delta.time_seconds + "s" : "—") + "</td></tr>";
+      }
+
+      // Tokens (only show row if data exists)
+      if (a.tokens || b.tokens) {
+        html += "<tr><td><strong>Tokens</strong></td>";
+        html += "<td>" + fmtStat(a.tokens, false) + "</td>";
+        html += "<td>" + fmtStat(b.tokens, false) + "</td>";
+        html += '<td class="' + deltaClass(delta.tokens) + '">' + (delta.tokens || "—") + "</td></tr>";
+      }
+
+      html += "</tbody></table>";
+
+      // Per-eval breakdown (if runs data available)
+      const runs = data.runs || [];
+      if (runs.length > 0) {
+        const evalIds = [...new Set(runs.map(r => r.eval_id))].sort((a, b) => a - b);
+
+        html += "<h3 style='font-family: Poppins, sans-serif; margin-bottom: 0.75rem;'>Per-Eval Breakdown</h3>";
+
+        const hasTime = runs.some(r => r.result && r.result.time_seconds != null);
+        const hasErrors = runs.some(r => r.result && r.result.errors > 0);
+
+        for (const evalId of evalIds) {
+          const evalRuns = runs.filter(r => r.eval_id === evalId);
+          const evalName = evalRuns[0] && evalRuns[0].eval_name ? evalRuns[0].eval_name : "Eval " + evalId;
+
+          html += "<h4 style='font-family: Poppins, sans-serif; margin: 1rem 0 0.5rem; color: var(--text);'>" + escapeHtml(evalName) + "</h4>";
+          html += '<table class="benchmark-table">';
+          html += "<thead><tr><th>Config</th><th>Run</th><th>Pass Rate</th>";
+          if (hasTime) html += "<th>Time (s)</th>";
+          if (hasErrors) html += "<th>Crashes During Execution</th>";
+          html += "</tr></thead>";
+          html += "<tbody>";
+
+          // Group by config and render with average rows
+          const configGroups = [...new Set(evalRuns.map(r => r.configuration))];
+          for (let ci = 0; ci < configGroups.length; ci++) {
+            const config = configGroups[ci];
+            const configRuns = evalRuns.filter(r => r.configuration === config);
+            if (configRuns.length === 0) continue;
+
+            const rowClass = ci === 0 ? "benchmark-row-with" : "benchmark-row-without";
+            const configLabel = config.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+
+            for (const run of configRuns) {
+              const r = run.result || {};
+              const prClass = r.pass_rate >= 0.8 ? "benchmark-delta-positive" : r.pass_rate < 0.5 ? "benchmark-delta-negative" : "";
+              html += '<tr class="' + rowClass + '">';
+              html += "<td>" + configLabel + "</td>";
+              html += "<td>" + run.run_number + "</td>";
+              html += '<td class="' + prClass + '">' + ((r.pass_rate || 0) * 100).toFixed(0) + "% (" + (r.passed || 0) + "/" + (r.total || 0) + ")</td>";
+              if (hasTime) html += "<td>" + (r.time_seconds != null ? r.time_seconds.toFixed(1) : "—") + "</td>";
+              if (hasErrors) html += "<td>" + (r.errors || 0) + "</td>";
+              html += "</tr>";
+            }
+
+            // Average row
+            const rates = configRuns.map(r => (r.result || {}).pass_rate || 0);
+            const avgRate = rates.reduce((a, b) => a + b, 0) / rates.length;
+            const avgPrClass = avgRate >= 0.8 ? "benchmark-delta-positive" : avgRate < 0.5 ? "benchmark-delta-negative" : "";
+            html += '<tr class="benchmark-row-avg ' + rowClass + '">';
+            html += "<td>" + configLabel + "</td>";
+            html += "<td>Avg</td>";
+            html += '<td class="' + avgPrClass + '">' + (avgRate * 100).toFixed(0) + "%</td>";
+            if (hasTime) {
+              const times = configRuns.map(r => (r.result || {}).time_seconds).filter(t => t != null);
+              html += "<td>" + (times.length ? (times.reduce((a, b) => a + b, 0) / times.length).toFixed(1) : "—") + "</td>";
+            }
+            if (hasErrors) html += "<td></td>";
+            html += "</tr>";
+          }
+          html += "</tbody></table>";
+
+          // Per-assertion detail for this eval
+          const runsWithExpectations = {};
+          for (const config of configGroups) {
+            runsWithExpectations[config] = evalRuns.filter(r => r.configuration === config && r.expectations && r.expectations.length > 0);
+          }
+          const hasAnyExpectations = Object.values(runsWithExpectations).some(runs => runs.length > 0);
+          if (hasAnyExpectations) {
+            // Collect all unique assertion texts across all configs
+            const allAssertions = [];
+            const seen = new Set();
+            for (const config of configGroups) {
+              for (const run of runsWithExpectations[config]) {
+                for (const exp of (run.expectations || [])) {
+                  if (!seen.has(exp.text)) {
+                    seen.add(exp.text);
+                    allAssertions.push(exp.text);
+                  }
+                }
+              }
+            }
+
+            html += '<table class="benchmark-table" style="margin-top: 0.5rem;">';
+            html += "<thead><tr><th>Assertion</th>";
+            for (const config of configGroups) {
+              const label = config.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+              html += "<th>" + escapeHtml(label) + "</th>";
+            }
+            html += "</tr></thead><tbody>";
+
+            for (const assertionText of allAssertions) {
+              html += "<tr><td>" + escapeHtml(assertionText) + "</td>";
+
+              for (const config of configGroups) {
+                html += "<td>";
+                for (const run of runsWithExpectations[config]) {
+                  const exp = (run.expectations || []).find(e => e.text === assertionText);
+                  if (exp) {
+                    const cls = exp.passed ? "benchmark-delta-positive" : "benchmark-delta-negative";
+                    const icon = exp.passed ? "\u2713" : "\u2717";
+                    html += '<span class="' + cls + '" title="Run ' + run.run_number + ': ' + escapeHtml(exp.evidence || "") + '">' + icon + "</span> ";
+                  } else {
+                    html += "— ";
+                  }
+                }
+                html += "</td>";
+              }
+              html += "</tr>";
+            }
+            html += "</tbody></table>";
+          }
+        }
+      }
+
+      // Notes
+      if (notes.length > 0) {
+        html += '<div class="benchmark-notes">';
+        html += "<h3>Analysis Notes</h3>";
+        html += "<ul>";
+        for (const note of notes) {
+          html += "<li>" + escapeHtml(note) + "</li>";
+        }
+        html += "</ul></div>";
+      }
+
+      container.innerHTML = html;
+    }
+
+    // ---- Start ----
+    init();
+    renderBenchmark();
+  </script>
+</body>
+</html>

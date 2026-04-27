@@ -82,7 +82,7 @@ export const CatalogEditor: React.FC = () => {
             </button>
           </div>
           
-          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
             {loading ? (
               <div className="p-8 text-center text-slate-400">Carregando catálogo...</div>
             ) : items.map(item => (
@@ -179,7 +179,7 @@ const ComponentForm: React.FC<{ type: ActiveTab, initialData: any, onSaved: () =
         <button type="button" onClick={onCancel} className="text-slate-400 hover:text-slate-700"><X size={20}/></button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
         <div>
            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Identificação</h3>
            <div className="grid grid-cols-2 gap-4">

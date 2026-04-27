@@ -40,9 +40,9 @@ export const MapZoomSlider: React.FC = () => {
   const percentage = ((storeZoom - minZoom) / (maxZoom - minZoom)) * 100;
 
   return (
-    <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-[1000] flex flex-col items-center gap-2 group">
+    <div className="absolute bottom-10 lg:bottom-14 left-1/2 -translate-x-1/2 z-[1000] flex flex-col items-center gap-1.5 lg:gap-2 group transition-all">
       {/* Label de Telemetria de Zoom */}
-      <div className="px-2 py-0.5 bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-full flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none mb-1">
+      <div className="px-2 py-0.5 bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-full hidden sm:flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none mb-1">
         <ZoomIn size={10} className="text-indigo-400" />
         <span className="text-[10px] font-mono font-black text-indigo-100 tracking-tighter">
           NÍVEL {storeZoom.toFixed(1)}
@@ -50,17 +50,17 @@ export const MapZoomSlider: React.FC = () => {
       </div>
 
       {/* Frame do Slider */}
-      <div className="flex items-center gap-4 bg-slate-950/80 backdrop-blur-xl border border-slate-800/80 px-4 py-2.5 rounded-full shadow-2xl ring-1 ring-white/5">
+      <div className="flex items-center gap-2 lg:gap-4 bg-slate-950/80 backdrop-blur-xl border border-slate-800/80 px-3 lg:px-4 py-1.5 lg:py-2.5 rounded-full shadow-2xl ring-1 ring-white/5">
         
         <button 
           onClick={decrement}
           disabled={storeZoom <= minZoom}
-          className="text-slate-500 hover:text-white transition-colors disabled:opacity-20"
+          className="p-1 text-slate-500 hover:text-white transition-colors disabled:opacity-20"
         >
-          <Minus size={14} strokeWidth={3} />
+          <Minus size={12} className="lg:w-[14px] lg:h-[14px]" strokeWidth={3} />
         </button>
 
-        <div className="relative flex items-center w-48 h-6">
+        <div className="relative flex items-center w-32 lg:w-48 h-6">
           {/* Track customizada */}
           <div className="absolute inset-x-0 h-1 bg-slate-800 rounded-full overflow-hidden">
             <div 
@@ -90,9 +90,9 @@ export const MapZoomSlider: React.FC = () => {
         <button 
           onClick={increment}
           disabled={storeZoom >= maxZoom}
-          className="text-slate-500 hover:text-white transition-colors disabled:opacity-20"
+          className="p-1 text-slate-500 hover:text-white transition-colors disabled:opacity-20"
         >
-          <Plus size={14} strokeWidth={3} />
+          <Plus size={12} className="lg:w-[14px] lg:h-[14px]" strokeWidth={3} />
         </button>
 
       </div>

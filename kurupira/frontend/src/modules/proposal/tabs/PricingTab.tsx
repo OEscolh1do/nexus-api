@@ -21,7 +21,7 @@ export const PricingTab: React.FC = () => {
             {/* =================================================================================
                 LEFT PANEL: CALCULATION ENGINE (Inputs)
                ================================================================================= */}
-            <div className="w-2/3 h-full overflow-y-auto p-6 border-r border-slate-200">
+            <div className="w-2/3 h-full overflow-y-auto custom-scrollbar p-6 border-r border-slate-200">
                 <div className="max-w-2xl mx-auto pb-12">
 
                     {/* Header */}

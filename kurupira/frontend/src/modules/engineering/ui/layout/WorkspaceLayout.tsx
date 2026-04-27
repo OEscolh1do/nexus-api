@@ -205,7 +205,7 @@ export const WorkspaceLayout: React.FC = () => {
                    Descartar / Fechar
                 </button>
               </div>
-              <div className="flex-1 overflow-auto">
+              <div className="flex-1 overflow-auto custom-scrollbar">
                  <SettingsModule />
               </div>
            </div>

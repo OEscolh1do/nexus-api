@@ -16,9 +16,9 @@
 
 import {
   CheckCircle2,
-  Undo2, Redo2, Save, LayoutDashboard,
+  Undo2, Redo2, Save, ChevronLeft,
   Activity, ChevronDown, Flag, Check, User,
-  ShieldCheck, ShieldAlert, Minimize2, Maximize2, Loader2
+  ShieldCheck, ShieldAlert, Minimize2, Maximize2, Loader2, Zap
 } from 'lucide-react';
 import { usePanelStore } from '../../store/panelStore';
 import { ClientDataModal } from '../components/ClientDataModal';
@@ -111,27 +111,39 @@ export const TopRibbon: React.FC<TopRibbonProps> = () => {
   return (
     <div className="relative h-full w-full bg-slate-900 border-b border-slate-800 flex items-center px-0 select-none">
 
-      {/* ── LEFT: Identity & Hub ── */}
+      {/* ── LEFT: Branded Hub Return ── */}
       <div className="flex items-center h-full min-w-0">
         <button 
           onClick={() => setActiveModule('hub')} 
-          className="px-3.5 h-full hover:bg-slate-800 text-slate-500 hover:text-emerald-400 transition-colors border-r border-slate-800/80 group" 
-          title="Voltar ao Explorador (Hub)"
+          className="group/hub flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3.5 h-full hover:bg-slate-800/60 transition-all border-r border-slate-800/80 shrink-0 active:scale-[0.97]" 
+          title="Voltar ao Explorador de Projetos"
         >
-          <LayoutDashboard size={14} className="group-active:scale-90 transition-transform" />
+          {/* Chevron direcional — desliza no hover */}
+          <ChevronLeft 
+            size={12} 
+            className="text-slate-600 group-hover/hub:text-emerald-400 transition-all duration-200 group-hover/hub:-translate-x-0.5" 
+          />
+          {/* Logo icon */}
+          <div className="w-5 h-5 sm:w-6 sm:h-6 bg-gradient-to-br from-emerald-400 to-teal-600 rounded-[4px] flex items-center justify-center shadow-[0_0_12px_rgba(16,185,129,0.25)] group-hover/hub:shadow-[0_0_16px_rgba(16,185,129,0.4)] transition-shadow">
+            <Zap size={11} className="text-slate-950 fill-slate-950" />
+          </div>
+          {/* Wordmark — hidden on ultra-narrow */}
+          <span className="text-[10px] sm:text-[11px] font-black tracking-[0.15em] text-slate-300 group-hover/hub:text-white transition-colors hidden xs:block">
+            NEONORTE
+          </span>
         </button>
         
-        <div className="px-4 flex items-center h-full border-r border-slate-800/40">
+        <div className="px-3 sm:px-4 flex items-center h-full border-r border-slate-800/40 min-w-0">
           <div className="flex flex-col gap-0.5 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] leading-none">Projeto Ativo</span>
-              <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
+              <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] leading-none hidden sm:inline">Projeto Ativo</span>
+              <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.4)] hidden sm:block" />
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[11px] font-black text-slate-100 uppercase tracking-widest truncate max-w-[120px] sm:max-w-[200px] lg:max-w-[400px]">
+              <span className="text-[10px] sm:text-[11px] font-black text-slate-100 uppercase tracking-widest truncate max-w-[80px] xs:max-w-[140px] sm:max-w-[240px] lg:max-w-[480px]">
                 {projectName}
               </span>
-              <span className="text-[9px] font-bold text-slate-600 uppercase tracking-wider hidden sm:block">/ {clientCity}</span>
+              <span className="text-[9px] font-bold text-slate-600 uppercase tracking-wider hidden md:block">/ {clientCity}</span>
             </div>
           </div>
         </div>
@@ -143,7 +155,7 @@ export const TopRibbon: React.FC<TopRibbonProps> = () => {
       <div className="flex items-center h-full">
         
         {/* History Control Group */}
-        <div className="flex items-center h-full border-l border-slate-800/80 bg-slate-950/20">
+        <div className="hidden md:flex items-center h-full border-l border-slate-800/80 bg-slate-950/20">
           <button 
             onClick={() => canUndo && undo()} 
             disabled={!canUndo} 
@@ -182,21 +194,21 @@ export const TopRibbon: React.FC<TopRibbonProps> = () => {
         <div className="flex items-center h-full border-l border-slate-800/80">
           <button 
             onClick={() => setIsClientModalOpen(true)} 
-            className="px-3 h-full hover:bg-slate-800 text-slate-500 hover:text-blue-400 transition-all active:bg-slate-700" 
+            className="hidden sm:flex px-2.5 sm:px-3 h-full hover:bg-slate-800 text-slate-500 hover:text-blue-400 transition-all active:bg-slate-700 items-center justify-center" 
             title="Ficha do Cliente"
           >
             <User size={14} />
           </button>
           <button 
             onClick={toggleSettingsDrawer} 
-            className="px-3 h-full hover:bg-slate-800 text-slate-500 hover:text-amber-400 transition-all border-l border-slate-800/40 active:bg-slate-700" 
+            className="hidden sm:flex px-2.5 sm:px-3 h-full hover:bg-slate-800 text-slate-500 hover:text-amber-400 transition-all border-l border-slate-800/40 active:bg-slate-700 items-center justify-center" 
             title="Configurações de Premissas"
           >
             <Activity size={14} />
           </button>
           <button 
             onClick={toggleFullscreen} 
-            className="px-3 h-full hover:bg-slate-800 text-slate-500 hover:text-white transition-all border-l border-slate-800/40 hidden sm:flex items-center active:bg-slate-700" 
+            className="px-3 h-full hover:bg-slate-800 text-slate-500 hover:text-white transition-all border-l border-slate-800/40 hidden lg:flex items-center active:bg-slate-700" 
             title="Alternar Tela Cheia"
           >
              {fullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
@@ -208,22 +220,22 @@ export const TopRibbon: React.FC<TopRibbonProps> = () => {
           onClick={handleSave} 
           disabled={saveStatus === 'saving' || saveStatus === 'success'} 
           className={cn(
-            'flex items-center justify-center gap-2 px-6 min-w-[110px] h-full text-[10px] font-black uppercase tracking-[0.2em] border-l border-slate-700 transition-all duration-300',
+            'flex items-center justify-center gap-2 px-3 sm:px-6 min-w-[40px] sm:min-w-[110px] h-full text-[10px] font-black uppercase tracking-[0.2em] border-l border-slate-700 transition-all duration-300',
             saveStatus === 'idle' && 'text-slate-100 bg-emerald-600 hover:bg-emerald-500 active:scale-95 shadow-[inset_0_0_15px_rgba(255,255,255,0.1)]',
             saveStatus === 'saving' && 'text-slate-500 bg-slate-800 cursor-not-allowed',
             saveStatus === 'success' && 'text-white bg-blue-600 shadow-[inset_0_0_20px_rgba(0,0,0,0.2)]',
             saveStatus === 'error' && 'text-white bg-rose-600'
           )}
         >
-          {saveStatus === 'idle' && <><Save size={13} /><span>Salvar</span></>}
-          {saveStatus === 'saving' && <><Loader2 className="w-3.5 h-3.5 animate-spin" /><span>Sincronizando</span></>}
-          {saveStatus === 'success' && <><CheckCircle2 size={13} className="animate-in zoom-in" /><span>Concluído</span></>}
-          {saveStatus === 'error' && <><ShieldAlert size={13} /><span>Erro</span></>}
+          {saveStatus === 'idle' && <><Save size={13} /><span className="hidden sm:inline">Salvar</span></>}
+          {saveStatus === 'saving' && <><Loader2 className="w-3.5 h-3.5 animate-spin" /><span className="hidden sm:inline">Sincronizando</span></>}
+          {saveStatus === 'success' && <><CheckCircle2 size={13} className="animate-in zoom-in" /><span className="hidden sm:inline">Concluído</span></>}
+          {saveStatus === 'error' && <><ShieldAlert size={13} /><span className="hidden sm:inline">Erro</span></>}
         </button>
 
         {/* User Auth Context */}
         <div className={cn(
-          "flex items-center gap-2 px-4 h-full border-l border-slate-800/80",
+          "hidden xl:flex items-center gap-2 px-4 h-full border-l border-slate-800/80",
           userRole === 'ADMIN' ? 'bg-rose-950/20' : 'bg-emerald-950/10'
         )}>
           {userRole === 'ADMIN' ? <ShieldAlert size={12} className="text-rose-500" /> : <ShieldCheck size={12} className="text-emerald-500" />}
@@ -282,21 +294,21 @@ const ProjectStatusHub: React.FC = () => {
 
     return (
         <div className="relative group h-full">
-            <button className="flex items-center gap-3 px-4 h-full hover:bg-slate-800 transition-all border-r border-slate-800/80 group/btn">
+            <button className="flex items-center gap-2 sm:gap-3 px-2 sm:px-4 h-full hover:bg-slate-800 transition-all border-r border-slate-800/80 group/btn">
                 <div className={cn(
-                  "w-4 h-4 rounded-full flex items-center justify-center transition-all",
+                  "w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full flex items-center justify-center transition-all shrink-0",
                   isEmpty ? 'bg-slate-800' : 
                   globalHealth === 'error' ? 'bg-rose-500/20 shadow-[0_0_10px_rgba(244,63,94,0.3)] animate-pulse' :
                   isUnderSized ? 'bg-amber-500/20 shadow-[0_0_10px_rgba(245,158,11,0.2)]' :
                   'bg-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
                 )}>
-                  <Activity size={10} className={cn("transition-all", iconColor)} />
+                  <Activity size={9} className={cn("transition-all sm:w-[10px] sm:h-[10px]", iconColor)} />
                 </div>
                 <div className="flex flex-col items-start gap-0">
-                  <span className={cn("text-[9px] font-black uppercase tracking-[0.15em] leading-none", iconColor)}>
+                  <span className={cn("text-[7px] sm:text-[9px] font-black uppercase tracking-[0.1em] sm:tracking-[0.15em] leading-none hidden xs:inline", iconColor)}>
                       {statusLabel}
                   </span>
-                  <div className="flex items-center gap-1">
+                  <div className="hidden sm:flex items-center gap-1">
                     <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest leading-none">Central de Diagnóstico</span>
                     <ChevronDown size={8} className="text-slate-600 group-hover/btn:text-slate-400 transition-colors" />
                   </div>
@@ -476,16 +488,16 @@ const ApprovalDropdown: React.FC = () => {
                   setIsOpen(!isOpen);
                 }}
                 className={cn(
-                    "flex items-center gap-3 px-4 h-full transition-all border-r border-slate-800/80 hover:bg-slate-800/50 z-10 relative",
+                    "flex items-center gap-2 sm:gap-3 px-2.5 sm:px-4 h-full transition-all border-r border-slate-800/80 hover:bg-slate-800/50 z-10 relative",
                     current.color, current.bg
                 )}
             >
                 <div className={cn(
-                  "w-2 h-2 rounded-full transition-all",
+                  "w-2 h-2 rounded-full transition-all shrink-0",
                   projectStatus === 'approved' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-600'
                 )} />
-                <span className="text-[9px] font-black uppercase tracking-[0.2em]">{current.label}</span>
-                <ChevronDown size={10} className={cn("transition-transform duration-200 opacity-30", isOpen && "rotate-180")} />
+                <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.2em] hidden xs:inline">{current.label}</span>
+                <ChevronDown size={10} className={cn("transition-transform duration-200 opacity-30 hidden sm:block", isOpen && "rotate-180")} />
             </button>
 
             {isOpen && (

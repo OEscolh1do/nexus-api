@@ -1,0 +1,15 @@
+{
+  "eval_id": 2,
+  "variant": "with_skill",
+  "expectations": [
+    {"text": "useStringWireTool.ts exists",    "passed": true, "evidence": "file found"},
+    {"text": "StringWireHUD.tsx exists",       "passed": true, "evidence": "file found"},
+    {"text": "state machine (idle/dragging)",  "passed": true, "evidence": "state phases found"},
+    {"text": "Voc formula (tempCoeffVoc)",     "passed": true, "evidence": "formula constants found"},
+    {"text": "polarity validation",            "passed": true, "evidence": "polarity check present"},
+    {"text": "threshold 0.9 in HUD",           "passed": true, "evidence": "0.9 threshold found"},
+    {"text": "StringGroupID pattern (S1,S2)",  "passed": true, "evidence": "group id generation found"},
+    {"text": "color rotation (indigo/sky)",    "passed": true, "evidence": "color tokens found"},
+    {"text": "no TypeScript any in hook",      "passed": true, "evidence": "no any found"}
+  ]
+}

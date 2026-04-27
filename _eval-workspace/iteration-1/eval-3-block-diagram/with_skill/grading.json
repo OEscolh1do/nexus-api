@@ -1,0 +1,16 @@
+{
+  "eval_id": 3,
+  "variant": "with_skill",
+  "expectations": [
+    {"text": "file exists (>80 lines)",           "passed": true, "evidence": "504 lines"},
+    {"text": "slate-950 background (no satellite)","passed": true, "evidence": "bg found"},
+    {"text": "amber mismatch style on MPPT",       "passed": true, "evidence": "amber classes found"},
+    {"text": "panel 280px + translateX animation", "passed": true, "evidence": "animation found"},
+    {"text": "Ver no mapa / Layer 1 navigation",   "passed": true, "evidence": "nav action found"},
+    {"text": "CTA Validação Elétrica / setFocusedBlock", "passed": true, "evidence": "CTA found"},
+    {"text": "mismatch banner",                    "passed": true, "evidence": "banner found"},
+    {"text": "CTA disabled on errors",             "passed": true, "evidence": "disabled state found"},
+    {"text": "no TypeScript any",                  "passed": true, "evidence": "no any found"},
+    {"text": "reads from store",                   "passed": true, "evidence": "store hook found"}
+  ]
+}

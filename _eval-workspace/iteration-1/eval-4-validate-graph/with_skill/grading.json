@@ -1,0 +1,16 @@
+{
+  "eval_id": 4,
+  "variant": "with_skill",
+  "expectations": [
+    {"text": "file exists",                       "passed": true, "evidence": "file found"},
+    {"text": "UNCONNECTED_MODULE rule",           "passed": true, "evidence": "rule code found"},
+    {"text": "VOC_OVERCURRENT with formula",      "passed": true, "evidence": "formula found"},
+    {"text": "MPPT_ORIENTATION_MISMATCH rule",    "passed": true, "evidence": "rule code found"},
+    {"text": "POLARITY_CONFLICT rule",            "passed": true, "evidence": "rule code found"},
+    {"text": "calculateVocCold exported",         "passed": true, "evidence": "export found"},
+    {"text": "haversine with R=6371000",          "passed": true, "evidence": "radius constant found"},
+    {"text": "calculateVmpHot with surface types","passed": true, "evidence": "surface types found"},
+    {"text": "ValidationResult with valid/errors/warnings", "passed": true, "evidence": "interface found"},
+    {"text": "no TypeScript any",                 "passed": true, "evidence": "no any found"}
+  ]
+}

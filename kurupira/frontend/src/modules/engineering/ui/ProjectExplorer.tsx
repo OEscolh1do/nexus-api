@@ -262,7 +262,7 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelectProjec
       </div>
 
       {/* ── GRID DE PROJETOS (Industrial) ── */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-950 bg-[radial-gradient(square_40px_at_50%_0%,rgba(16,185,129,0.02),transparent)] relative">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 bg-slate-950 bg-[radial-gradient(square_40px_at_50%_0%,rgba(16,185,129,0.02),transparent)] relative">
         {isHubLoading ? (
           <>
             <NeonorteLoader size="panel" context="project-hub" />

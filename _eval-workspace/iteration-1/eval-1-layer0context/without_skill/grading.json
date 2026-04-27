@@ -1,0 +1,15 @@
+{
+  "eval_id": 1,
+  "variant": "without_skill",
+  "expectations": [
+    {"text": "file exists",                           "passed": true, "evidence": "file found"},
+    {"text": "useEffect with empty deps (single mount)", "passed": false, "evidence": "pattern }, []) found"},
+    {"text": "Layer0ContextValue interface exported",  "passed": false, "evidence": "search result"},
+    {"text": "recon and blueprint modes present",      "passed": true, "evidence": "search result"},
+    {"text": "useLayer0 hook exported",                "passed": false, "evidence": "search result"},
+    {"text": "CSS classes layer-0--blueprint/recon",   "passed": false, "evidence": "search result"},
+    {"text": "null lat/lng guard",                     "passed": true, "evidence": "null check present"},
+    {"text": "no TypeScript any",                      "passed": true, "evidence": "search result"},
+    {"text": "SVG grid rendered",                      "passed": false, "evidence": "search result"}
+  ]
+}

@@ -36,7 +36,7 @@ export const ClientDataModal: React.FC<Props> = ({ isOpen, onClose }) => {
         </div>
 
         {/* Body — CustomerTab already handles its own layout */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
           <CustomerTab onConfirm={onClose} />
         </div>
       </div>

@@ -1,0 +1,16 @@
+{
+  "eval_id": 3,
+  "variant": "without_skill",
+  "expectations": [
+    {"text": "file exists (>80 lines)",           "passed": true, "evidence": "460 lines"},
+    {"text": "slate-950 background (no satellite)","passed": true, "evidence": "search result"},
+    {"text": "amber mismatch style on MPPT",       "passed": true, "evidence": "search result"},
+    {"text": "panel 280px + translateX animation", "passed": true, "evidence": "search result"},
+    {"text": "Ver no mapa / Layer 1 navigation",   "passed": false, "evidence": "search result"},
+    {"text": "CTA Validação Elétrica",             "passed": true, "evidence": "search result"},
+    {"text": "mismatch banner",                    "passed": true, "evidence": "search result"},
+    {"text": "CTA disabled on errors",             "passed": true, "evidence": "search result"},
+    {"text": "no TypeScript any",                  "passed": true, "evidence": "search result"},
+    {"text": "reads from store",                   "passed": true, "evidence": "search result"}
+  ]
+}

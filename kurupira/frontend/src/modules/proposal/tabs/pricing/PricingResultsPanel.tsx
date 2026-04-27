@@ -20,7 +20,7 @@ export const PricingResultsPanel = () => {
     ].filter(item => item.value > 0);
 
     return (
-        <div className="w-1/3 bg-slate-50 border-l border-slate-200 h-full p-6 overflow-y-auto flex flex-col shadow-inner">
+        <div className="w-1/3 bg-slate-50 border-l border-slate-200 h-full p-6 overflow-y-auto custom-scrollbar flex flex-col shadow-inner">
 
             <div className="mb-6">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Composição de Preço</h3>

@@ -1,0 +1,15 @@
+{
+  "eval_id": 1,
+  "variant": "with_skill",
+  "expectations": [
+    {"text": "file exists",                           "passed": true, "evidence": "file found at outputs/Layer0Context.tsx"},
+    {"text": "useEffect with empty deps (single mount)", "passed": true, "evidence": "pattern }, []) or eslint-disable exhaustive-deps found"},
+    {"text": "Layer0ContextValue interface exported",  "passed": true, "evidence": "Layer0ContextValue found in file"},
+    {"text": "recon and blueprint modes present",      "passed": true, "evidence": "mode strings found"},
+    {"text": "useLayer0 hook exported",                "passed": true, "evidence": "export function/const useLayer0 found"},
+    {"text": "CSS classes layer-0--blueprint/recon",   "passed": true, "evidence": "class names found"},
+    {"text": "null lat/lng guard",                     "passed": true, "evidence": "null check present"},
+    {"text": "no TypeScript any",                      "passed": true, "evidence": "no :any or as any found"},
+    {"text": "SVG grid rendered",                      "passed": true, "evidence": "svg/grid pattern found"}
+  ]
+}

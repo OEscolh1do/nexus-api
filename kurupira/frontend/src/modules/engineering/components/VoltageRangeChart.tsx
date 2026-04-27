@@ -90,17 +90,17 @@ export const VoltageRangeChart: React.FC<{ className?: string, entityId?: string
     return (
         <Card className={cn("h-auto min-h-[50px] bg-slate-900/90 backdrop-blur-md border-slate-800 flex flex-col overflow-hidden relative shadow-2xl", className)}>
              <div className="absolute top-2 left-3 z-10 flex flex-col">
-                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                <span className="text-[8px] lg:text-[9px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
                     <Zap size={10} className="text-emerald-400" />
                     Janela Operacional MPPT
                 </span>
              </div>
 
              {/* Custom HTML Visualization Overlay - precise control */}
-             <div className="pt-8 px-3 pb-3 space-y-2">
+             <div className="pt-6 lg:pt-8 px-2 lg:px-3 pb-2 lg:pb-3 space-y-1.5 lg:space-y-2">
                  {chartData.map((d, i) => (
                      <div key={i} className="flex items-center gap-2 text-xs">
-                         <div className="w-24 shrink-0 text-right truncate text-[9px] font-bold text-slate-400" title={d.name}>{d.name}</div>
+                         <div className="w-14 sm:w-20 lg:w-24 shrink-0 text-right truncate text-[7px] xs:text-[8px] lg:text-[9px] font-bold text-slate-400" title={d.name}>{d.name}</div>
                          
                          <div className="flex-1 h-3 bg-slate-950/50 rounded-sm relative border border-slate-800/50 mt-0.5">
                              

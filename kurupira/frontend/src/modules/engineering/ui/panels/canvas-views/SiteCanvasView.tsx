@@ -3,14 +3,17 @@ import {
   Plus, Minus, Zap, Home, Edit2, RefreshCw
 } from 'lucide-react';
 import { useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useSolarStore } from '@/core/state/solarStore';
-import { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { MapCore, globalLeafletMapRef } from '../../../components/MapCore';
 import { fetchWeatherAnalysis } from '@/services/weatherService';
 import { cn } from '@/lib/utils';
 import { useGoogleGeocoding } from '../../../hooks/useGoogleGeocoding';
 import { ProjectSiteMarker } from '../../../components/ProjectSiteMarker';
+import { Autocomplete } from '@/components/ui/Autocomplete';
+import { BRAZILIAN_UTILITIES, STATE_TO_DEFAULT_UTILITY } from '@/core/data/utilities';
 
 const MapClickHandler: React.FC<{ onLocationSelect: (lat: number, lng: number) => void }> = ({ onLocationSelect }) => {
   useMapEvents({ click: (e) => onLocationSelect(e.latlng.lat, e.latlng.lng) });
@@ -18,27 +21,52 @@ const MapClickHandler: React.FC<{ onLocationSelect: (lat: number, lng: number) =
 };
 
 // ── Field primitives (Engineering UI High-Density) ─────────────────────────
-const fieldBase = 'w-full bg-slate-900/50 border border-slate-800 rounded-sm px-2.5 py-1.5 text-[13px] outline-none transition-all placeholder:text-slate-600 hover:border-slate-700';
-const fieldDefault = `${fieldBase} text-slate-200 focus:border-purple-500/50 focus:bg-slate-900 focus:ring-1 focus:ring-purple-500/20`;
-const fieldAccent = `${fieldBase} text-emerald-400 font-bold font-mono focus:border-emerald-500/50 focus:bg-slate-900`;
+const fieldBase = 'w-full bg-slate-900/40 border border-slate-800/80 rounded-sm px-2.5 py-1.5 text-[13px] outline-none transition-all placeholder:text-slate-700 hover:border-slate-700/60';
+const fieldDefault = `${fieldBase} text-slate-200 focus:border-purple-500/50 focus:bg-slate-900 focus:ring-1 focus:ring-purple-500/10`;
+const fieldAccent = `${fieldBase} text-slate-100 font-mono font-medium focus:border-amber-500/50 focus:bg-slate-900 focus:ring-1 focus:ring-amber-500/10`;
 
 const FieldCell: React.FC<{ label: string; children: React.ReactNode; accent?: boolean; className?: string }> = ({
   label, children, accent = false, className
 }) => (
   <div className={cn('flex flex-col gap-1', className)}>
-    <label className={cn('text-[10px] font-black uppercase tracking-[0.15em] font-sans', accent ? 'text-emerald-500' : 'text-slate-500')}>
+    <label className={cn(
+      'text-[10px] font-bold uppercase tracking-[0.2em] font-sans transition-colors',
+      accent ? 'text-amber-500/90' : 'text-slate-400/90'
+    )}>
       {label}
     </label>
     {children}
   </div>
 );
 
-const SectionHeader: React.FC<{ icon: React.ReactNode; label: string; color?: string }> = ({ icon, label, color = 'text-slate-400' }) => (
-  <div className={cn('flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] border-b border-slate-800/80 pb-1.5 font-sans', color)}>
-    <div className="p-1 bg-slate-900 rounded-sm border border-slate-800">
-      {icon || <div className="w-2 h-2 rounded-full bg-current opacity-50" />}
+const SectionHeader: React.FC<{ 
+  icon: React.ReactNode; 
+  label: string; 
+  color?: string; 
+  completed?: boolean;
+  secondary?: React.ReactNode;
+}> = ({ 
+  icon, label, color = 'text-slate-400', completed = false, secondary 
+}) => (
+  <div className={cn('flex items-center justify-between border-b border-slate-800/80 pb-2 mb-1 group/sec gap-2')}>
+    <div className={cn('flex items-center gap-2 text-[9px] lg:text-[10px] font-bold uppercase tracking-[0.2em] font-sans transition-colors shrink-0', color)}>
+      {icon && (
+        <div className="p-1.5 bg-slate-950 rounded-sm border border-slate-800 shadow-inner group-hover/sec:border-slate-700 transition-colors">
+      {React.isValidElement(icon) && React.cloneElement(icon as React.ReactElement<any>, { size: 10 })}
+        </div>
+      )}
+      {label}
     </div>
-    {label}
+    
+    <div className="flex items-center gap-2 overflow-hidden">
+      {secondary}
+      {completed && (
+        <div className="flex items-center gap-1.5 text-[8px] font-black text-emerald-400 uppercase tracking-[0.2em] bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 animate-in fade-in zoom-in duration-300 shrink-0">
+          <div className="w-1 h-1 rounded-full bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.5)]" />
+          <span className="hidden sm:inline">Preenchido</span>
+        </div>
+      )}
+    </div>
   </div>
 );
 
@@ -47,12 +75,13 @@ const PanelHeader: React.FC<{
   label: string; 
   secondary?: React.ReactNode;
 }> = ({ icon, label, secondary }) => (
-  <div className="shrink-0 h-10 px-4 border-b border-l-[3px] border-l-purple-600 border-b-slate-800/80 bg-slate-950/40 backdrop-blur-xl flex items-center justify-between gap-3 shadow-lg z-10">
-    <div className="flex items-center gap-3">
-      <div className="text-purple-500 drop-shadow-[0_0_8px_rgba(168,85,247,0.4)]">{icon}</div>
-      <span className="text-[11px] text-slate-200 font-black uppercase tracking-[0.2em] font-sans">{label}</span>
+  <div className="shrink-0 h-10 px-4 border-b border-l-[3px] border-l-purple-600 border-b-slate-800/80 bg-slate-950/80 backdrop-blur-2xl flex items-center justify-between gap-3 shadow-xl z-20 relative overflow-hidden">
+    <div className="absolute top-0 left-0 w-full h-[1px] bg-white/5" />
+    <div className="flex items-center gap-3 relative z-10">
+      <div className="text-purple-400/80">{icon}</div>
+      <span className="text-[10px] lg:text-[11px] text-slate-200 font-black uppercase tracking-[0.25em] font-sans drop-shadow-sm">{label}</span>
     </div>
-    {secondary}
+    <div className="relative z-10">{secondary}</div>
   </div>
 );
 
@@ -88,10 +117,24 @@ export const SiteCanvasView: React.FC = () => {
   // ── Geocoding & Reverse Geocoding (Hookified) ──────────────────────────
   const { isGeocoding, geocodeStatus, geocodeAddress, reverseGeocode, detectedAddress, setDetectedAddress } = useGoogleGeocoding();
   const [isEditingGeo, setIsEditingGeo] = useState(false);
+  const [mobileView, setMobileView] = useState<'form' | 'map'>('form');
+
+  // ── Auto-Pan: Fly to location when coords change ───────────────────────
+  useEffect(() => {
+    const lat = Number(clientData.lat);
+    const lng = Number(clientData.lng);
+    
+    if (!isNaN(lat) && !isNaN(lng) && (lat !== 0 || lng !== 0) && globalLeafletMapRef.current) {
+      globalLeafletMapRef.current.flyTo(L.latLng(lat, lng), 18, {
+        animate: true,
+        duration: 1.5
+      });
+    }
+  }, [clientData.lat, clientData.lng]);
 
   // ── Climate Sync ───────────────────────────────────────────────────────
   const syncClimateData = useCallback(async () => {
-    if (!clientData.lat || !clientData.lng || !clientData.city) return;
+    if (!clientData.lat || !clientData.lng || !clientData.city || isNaN(clientData.lat) || isNaN(clientData.lng)) return;
     try {
       const data = await fetchWeatherAnalysis(clientData.lat, clientData.lng, clientData.city, clientData.state);
       setWeatherData(data);
@@ -105,7 +148,7 @@ export const SiteCanvasView: React.FC = () => {
   }, [clientData.lat, clientData.lng, clientData.city, clientData.state, syncClimateData]);
 
   useEffect(() => {
-    if (clientData.lat && clientData.lng) {
+    if (clientData.lat && clientData.lng && !isNaN(clientData.lat) && !isNaN(clientData.lng)) {
       setDetectedAddress(null);
       const t = setTimeout(() => {
         reverseGeocode(clientData.lat!, clientData.lng!, true);
@@ -115,6 +158,7 @@ export const SiteCanvasView: React.FC = () => {
   }, [clientData.lat, clientData.lng, reverseGeocode, setDetectedAddress]);
 
   // ── ViaCEP ─────────────────────────────────────────────────────────────
+  // ── ViaCEP & Auto-Fill ─────────────────────────────────────────────────
   const handleZipCodeChange = async (cep: string) => {
     const cleanCep = cep.replace(/\D/g, '');
     updateClientData({ zipCode: cleanCep });
@@ -122,18 +166,38 @@ export const SiteCanvasView: React.FC = () => {
       try {
         const resp = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
         const data = await resp.json();
-        if (!data.erro) updateClientData({ street: data.logradouro || clientData.street, city: data.localidade || clientData.city, state: data.uf || clientData.state });
+        if (!data.erro) {
+          const newState = (data.uf || clientData.state).toUpperCase();
+          const defaultUtility = STATE_TO_DEFAULT_UTILITY[newState];
+          
+          updateClientData({ 
+            street: data.logradouro || clientData.street, 
+            city: data.localidade || clientData.city, 
+            state: newState,
+            concessionaire: defaultUtility || clientData.concessionaire
+          });
+        }
       } catch (e) { console.error('ViaCEP Error:', e); }
     }
+  };
+
+  const handleStateChange = (val: string) => {
+    const newState = val.toUpperCase();
+    const defaultUtility = STATE_TO_DEFAULT_UTILITY[newState];
+    
+    updateClientData({ 
+      state: newState,
+      concessionaire: defaultUtility || clientData.concessionaire
+    });
   };
 
   const handleMapClick = useCallback((newLat: number, newLng: number) => {
     updateClientData({ lat: parseFloat(newLat.toFixed(6)), lng: parseFloat(newLng.toFixed(6)) });
   }, [updateClientData]);
 
-  // ── Derived values ─────────────────────────────────────────────────────
-  const activeLat = (clientData.lat !== undefined && !isNaN(clientData.lat)) ? clientData.lat : -3.1316;
-  const activeLng = (clientData.lng !== undefined && !isNaN(clientData.lng)) ? clientData.lng : -60.0233;
+  // ── Derived values (Defensive Lat/Lng) ──────────────────────────────────
+  const activeLat = (clientData.lat !== undefined && clientData.lat !== null && !isNaN(clientData.lat)) ? clientData.lat : -3.1316;
+  const activeLng = (clientData.lng !== undefined && clientData.lng !== null && !isNaN(clientData.lng)) ? clientData.lng : -60.0233;
   const mapCenter: [number, number] = [activeLat, activeLng];
 
   const hspMonthly = clientData.monthlyIrradiation ?? Array(12).fill(0);
@@ -152,43 +216,87 @@ export const SiteCanvasView: React.FC = () => {
   else if (azimuth >= 270 && azimuth <= 315) prSugerido -= 0.02;
 
   return (
-    <div className="w-full h-full bg-slate-950 font-sans flex flex-col lg:flex-row lg:overflow-hidden overflow-y-auto">
+    <div className="w-full h-full bg-slate-950 font-sans flex flex-col lg:flex-row overflow-hidden relative">
+
+      {/* ── MOBILE TOGGLE TABS ── */}
+      <div className="lg:hidden shrink-0 flex p-1.5 bg-slate-900/80 border-b border-slate-800 backdrop-blur-md z-[2000]">
+        <button 
+          onClick={() => setMobileView('form')}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-2 h-9 rounded-sm text-[10px] font-black uppercase tracking-widest transition-all",
+            mobileView === 'form' ? "bg-purple-600 text-white shadow-lg" : "text-slate-500 hover:text-slate-300"
+          )}
+        >
+          <FileText size={12} />
+          Dossiê
+        </button>
+        <button 
+          onClick={() => setMobileView('map')}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-2 h-9 rounded-sm text-[10px] font-black uppercase tracking-widest transition-all",
+            mobileView === 'map' ? "bg-purple-600 text-white shadow-lg" : "text-slate-500 hover:text-slate-300"
+          )}
+        >
+          <Navigation size={12} />
+          Mapa
+        </button>
+      </div>
 
       {/* ── PAINEL ESQUERDO — Dossiê (460px) ── */}
-      <div className="w-full lg:w-[460px] shrink-0 lg:h-full flex flex-col border-b lg:border-b-0 lg:border-r border-slate-800 lg:overflow-hidden overflow-y-auto custom-scrollbar">
+      <div className={cn(
+        "w-full lg:w-[460px] 2xl:w-[480px] shrink-0 flex flex-col border-b lg:border-b-0 lg:border-r border-slate-800 overflow-hidden transition-all duration-500",
+        mobileView === 'map' ? "hidden lg:flex" : "flex-1 lg:h-full"
+      )}>
         <PanelHeader icon={<FileText size={13} />} label="Dossiê Técnico do Projeto" />
 
-        <div className="flex-1 p-3.5 lg:p-5 flex flex-col gap-5">
-          <div className="flex flex-col gap-3">
-            <SectionHeader icon={null} label="Identificação do Projeto" />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <FieldCell label="Cliente *">
+        <div className="flex-1 p-3 lg:p-5 pb-10 lg:pb-20 flex flex-col gap-5 lg:gap-6 overflow-y-auto custom-scrollbar">
+          <div className="flex flex-col gap-3.5">
+            <SectionHeader 
+              icon={null} 
+              label="Identificação do Projeto" 
+              completed={!!clientData.clientName}
+            />
+            <div className="grid grid-cols-12 gap-3">
+              <FieldCell label="Cliente *" className="col-span-12 sm:col-span-7">
                 <input type="text" value={clientData.clientName || ''} onChange={e => updateClientData({ clientName: e.target.value })} className={fieldDefault} placeholder="Nome do titular" />
               </FieldCell>
-              <FieldCell label="Título do Projeto">
-                <input type="text" value={clientData.projectName || ''} onChange={e => updateClientData({ projectName: e.target.value })} className={fieldDefault} placeholder="Fase 1" />
+              <FieldCell label="Projeto" className="col-span-12 sm:col-span-5">
+                <input type="text" value={clientData.projectName || ''} onChange={e => updateClientData({ projectName: e.target.value })} className={fieldDefault} placeholder="Ex: Fase 1" />
               </FieldCell>
             </div>
           </div>
 
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
-              <SectionHeader icon={<MapPin size={9} />} label="Endereço de Instalação" />
-              <button
-                onClick={() => geocodeAddress()}
-                disabled={isGeocoding || (!clientData.street && (!clientData.zipCode || clientData.zipCode.length < 8))}
-                className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-sm transition-all disabled:opacity-20 text-[9px] font-black uppercase tracking-[0.15em] shadow-lg shadow-purple-500/20 active:scale-95"
-              >
-                {isGeocoding ? <Loader2 size={10} className="animate-spin" /> : <Search size={10} />}
-                Localizar
-              </button>
+          <div className="flex flex-col gap-3.5">
+            <div className="flex flex-col">
+              <SectionHeader 
+                icon={<MapPin size={10} />} 
+                label="Endereço de Instalação" 
+                completed={!!(clientData.zipCode && clientData.city)}
+                secondary={
+                  <button
+                    onClick={() => geocodeAddress()}
+                    disabled={isGeocoding || (!clientData.street && (!clientData.zipCode || clientData.zipCode.length < 8))}
+                    className="flex items-center gap-1.5 px-2 py-1 bg-slate-900/80 hover:bg-slate-800 text-slate-300 rounded-sm transition-all disabled:opacity-20 text-[8px] font-black uppercase tracking-widest border border-slate-800/60 active:scale-95 shrink-0"
+                    title="Localizar no Mapa"
+                  >
+                    {isGeocoding ? <Loader2 size={10} className="animate-spin text-purple-400" /> : <Search size={10} className="text-slate-500" />}
+                    <span className="hidden sm:inline">Localizar</span>
+                  </button>
+                }
+              />
             </div>
             <div className="grid grid-cols-12 gap-3">
-              <FieldCell label="CEP *" className="col-span-5" accent>
+              <FieldCell label="CEP *" className="col-span-6 sm:col-span-5" accent>
                 <input type="text" value={clientData.zipCode || ''} onChange={e => handleZipCodeChange(e.target.value)} className={fieldAccent} placeholder="00000-000" maxLength={9} />
               </FieldCell>
-              <FieldCell label="UF" className="col-span-3">
-                <input type="text" value={clientData.state || ''} onChange={e => updateClientData({ state: e.target.value.toUpperCase() })} maxLength={2} className={`${fieldBase} text-purple-200 font-black text-center focus:border-purple-500/50`} />
+              <FieldCell label="UF" className="col-span-6 sm:col-span-3">
+                <input 
+                  type="text" 
+                  value={clientData.state || ''} 
+                  onChange={e => handleStateChange(e.target.value)} 
+                  maxLength={2} 
+                  className={`${fieldBase} text-slate-100 font-bold text-center focus:border-slate-600`} 
+                />
               </FieldCell>
               <FieldCell label="Cidade *" className="col-span-12 sm:col-span-4">
                 <input type="text" value={clientData.city || ''} onChange={e => updateClientData({ city: e.target.value })} className={fieldDefault} />
@@ -202,42 +310,61 @@ export const SiteCanvasView: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex flex-col gap-3">
-            <SectionHeader icon={<Zap size={9} />} label="Rede Elétrica" color="text-amber-500/80" />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <FieldCell label="Concessionária">
-                <input type="text" value={clientData.concessionaire || ''} onChange={e => updateClientData({ concessionaire: e.target.value })} className={`${fieldBase} text-slate-300 focus:border-amber-500/40`} placeholder="Ex: CEMIG..." />
+          <div className="flex flex-col gap-3.5">
+            <SectionHeader 
+              icon={<Zap size={10} />} 
+              label="Rede Elétrica" 
+              color="text-amber-500/80" 
+              completed={!!(clientData.concessionaire && clientData.tariffRate && clientData.tariffRate > 0)}
+            />
+            <div className="grid grid-cols-12 gap-3">
+              <FieldCell label="Concessionária" className="col-span-12 sm:col-span-8">
+                <Autocomplete 
+                  value={clientData.concessionaire || ''} 
+                  onChange={val => updateClientData({ concessionaire: val })} 
+                  options={BRAZILIAN_UTILITIES.map(u => u.name)}
+                  placeholder="Ex: CEMIG..."
+                />
               </FieldCell>
-              <FieldCell label="Tarifa (R$/kWh)" accent>
+              <FieldCell label="Tarifa (R$/kWh)" className="col-span-12 sm:col-span-4" accent>
                 <div className="relative">
-                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-700 font-mono font-black text-[10px]">R$</span>
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-amber-500/40 font-mono font-bold text-[10px]">R$</span>
                   <input type="number" step="0.01" value={clientData.tariffRate || 0} onChange={e => updateClientData({ tariffRate: Number(e.target.value) })} className={`${fieldAccent} pl-8 text-right`} />
                 </div>
               </FieldCell>
             </div>
           </div>
 
-          <div className="flex flex-col gap-3">
-            <SectionHeader icon={<Home size={9} />} label="Premissas Estruturais" />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <FieldCell label="Tipo de Telhado">
-                <select value={clientData.roofType || ''} onChange={e => updateClientData({ roofType: (e.target.value || undefined) as any })} className={`${fieldBase} text-slate-300 focus:border-slate-700 bg-slate-900`}>
-                  <option value="">— Selecionar —</option>
-                  {ROOF_TYPES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+          <div className="flex flex-col gap-3.5">
+            <SectionHeader 
+              icon={<Home size={10} />} 
+              label="Premissas Estruturais" 
+              completed={!!clientData.roofType}
+            />
+            <div className="grid grid-cols-12 gap-3">
+              <FieldCell label="Tipo de Telhado" className="col-span-12 sm:col-span-7">
+                <select value={clientData.roofType || ''} onChange={e => updateClientData({ roofType: (e.target.value || undefined) as any })} className={`${fieldAccent} bg-slate-900`}>
+                  <option value="" className="bg-slate-900 text-slate-500">— Selecionar —</option>
+                  {ROOF_TYPES.map(r => <option key={r.value} value={r.value} className="bg-slate-900 text-slate-100">{r.label}</option>)}
                 </select>
               </FieldCell>
-              <FieldCell label="Azimute">
-                <select value={clientData.azimuth ?? 0} onChange={e => updateClientData({ azimuth: Number(e.target.value) })} className={`${fieldBase} text-emerald-400 font-bold focus:border-emerald-500 bg-slate-900`}>
-                  {AZIMUTH_OPTIONS.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
+              <FieldCell label="Azimute" className="col-span-12 sm:col-span-5">
+                <select value={clientData.azimuth ?? 0} onChange={e => updateClientData({ azimuth: Number(e.target.value) })} className={`${fieldAccent} bg-slate-900`}>
+                  {AZIMUTH_OPTIONS.map(a => <option key={a.value} value={a.value} className="bg-slate-900 text-slate-100">{a.label}</option>)}
                 </select>
               </FieldCell>
             </div>
+            {/* Espaçador de segurança para evitar corte no Azimute */}
+            <div className="h-4 sm:h-0" />
           </div>
         </div>
       </div>
 
       {/* ── PAINEL DIREITO: Mapa + Viewport ── */}
-      <div className="flex-1 lg:h-full flex flex-col min-h-[400px]">
+      <div className={cn(
+        "flex-1 lg:h-full flex flex-col overflow-hidden transition-all duration-500",
+        mobileView === 'form' ? "hidden lg:flex" : "flex"
+      )}>
         <PanelHeader 
           icon={<Navigation size={13} />} 
           label="Área de Projeto e Simulação" 
@@ -259,17 +386,28 @@ export const SiteCanvasView: React.FC = () => {
             <ProjectSiteMarker />
           </MapCore>
 
+          {/* ── GEOLOCATING SCAN OVERLAY ── */}
+          {isGeocoding && (
+            <div className="absolute inset-0 z-[1001] pointer-events-none flex items-center justify-center bg-slate-950/20 backdrop-blur-[1px]">
+              <div className="absolute inset-0 bg-[linear-gradient(rgba(147,51,234,0.05)_2px,transparent_2px)] bg-[length:100%_40px] animate-[scan_2s_linear_infinite]" />
+              <div className="px-4 py-2 bg-slate-900/90 border border-purple-500/30 rounded-sm shadow-2xl flex items-center gap-3 animate-pulse">
+                <Loader2 size={12} className="animate-spin text-purple-400" />
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-purple-200">Sincronizando Coordenadas...</span>
+              </div>
+            </div>
+          )}
+
           {/* ── HUDs SUPERIORES ── */}
-          <div className="absolute top-3 left-3 right-3 lg:top-4 lg:left-4 lg:right-4 z-[1000] flex items-start pointer-events-none gap-2 lg:gap-3">
+          <div className="absolute top-2 left-0 right-0 px-2 lg:top-4 lg:px-4 z-[1000] flex items-start pointer-events-none gap-1.5 lg:gap-3">
             <div className="shrink-0 pointer-events-auto h-9 lg:h-11">
               <div className="h-full bg-slate-950/40 backdrop-blur-xl border border-white/10 p-1 lg:p-1.5 rounded-sm flex items-center gap-2 lg:gap-4 shadow-2xl">
-                <div className="flex flex-col px-1">
-                  <span className="text-[6px] lg:text-[7px] text-purple-400/80 font-black uppercase tracking-tighter hidden md:block">LATITUDE</span>
+                <div className="flex flex-col px-0.5 lg:px-1">
+                  <span className="text-[6px] lg:text-[7px] text-purple-400/80 font-black uppercase tracking-tighter hidden 2xl:block">LATITUDE</span>
                   <span className="text-[10px] lg:text-[12px] font-mono font-bold text-slate-200">{clientData.lat?.toFixed(5) || '—'}</span>
                 </div>
                 <div className="w-px h-4 lg:h-5 bg-white/10" />
-                <div className="flex flex-col px-1">
-                  <span className="text-[6px] lg:text-[7px] text-purple-400/80 font-black uppercase tracking-tighter hidden md:block">LONGITUDE</span>
+                <div className="flex flex-col px-0.5 lg:px-1">
+                  <span className="text-[6px] lg:text-[7px] text-purple-400/80 font-black uppercase tracking-tighter hidden 2xl:block">LONGITUDE</span>
                   <span className="text-[10px] lg:text-[12px] font-mono font-bold text-slate-200">{clientData.lng?.toFixed(5) || '—'}</span>
                 </div>
                 <button onClick={() => setIsEditingGeo(!isEditingGeo)} className="p-1.5 lg:p-2 rounded-sm bg-white/5 hover:bg-purple-500/20 text-slate-400 hover:text-purple-400 transition-all">
@@ -278,25 +416,7 @@ export const SiteCanvasView: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex-1 flex justify-center h-9 lg:h-11 overflow-hidden">
-              {detectedAddress && (
-                <div className="pointer-events-auto min-w-0 max-w-[640px] h-full">
-                  <div className="h-full bg-slate-950/40 backdrop-blur-xl border border-purple-500/20 p-1 lg:p-1.5 rounded-sm flex items-center gap-2 lg:gap-4 shadow-2xl animate-in fade-in slide-in-from-top-4 duration-700">
-                    <div className="flex flex-col flex-1 min-w-0 pl-1 lg:pl-2">
-                      <div className="hidden sm:flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
-                        <span className="text-[7px] lg:text-[8px] text-purple-400 font-black uppercase tracking-[0.2em]">Detectada</span>
-                      </div>
-                      <p className="text-[9px] lg:text-[11px] text-slate-200 font-bold leading-tight truncate italic opacity-90">{detectedAddress}</p>
-                    </div>
-                    <div className="w-px h-5 lg:h-6 bg-white/10 shrink-0" />
-                    <button onClick={() => reverseGeocode(clientData.lat!, clientData.lng!, false)} className="group relative flex items-center justify-center w-7 h-7 lg:w-8 lg:h-8 bg-purple-600/90 hover:bg-purple-500 text-white rounded-full transition-all shrink-0">
-                      <RefreshCw size={12} className="group-hover:rotate-180 transition-transform duration-700" />
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+            <div className="flex-1" />
 
             <div className="shrink-0 pointer-events-auto h-auto">
               <div className="flex flex-col lg:flex-row bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-sm shadow-2xl p-0.5">
@@ -310,74 +430,105 @@ export const SiteCanvasView: React.FC = () => {
               </div>
             </div>
           </div>
+          
+          {/* ── HUD INFERIOR ESQUERDO: Endereço ── */}
+          {detectedAddress && (
+            <div className="absolute bottom-4 left-4 z-[1000] pointer-events-auto max-w-[calc(100vw-32px)] sm:max-w-[420px] h-9 lg:h-11">
+              <div className="h-full bg-slate-950/60 backdrop-blur-xl border border-purple-500/30 p-1 lg:p-1.5 rounded-sm flex items-center gap-2 lg:gap-3 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <button 
+                  onClick={() => reverseGeocode(clientData.lat!, clientData.lng!, false)}
+                  className="flex flex-col flex-1 min-w-0 pl-1 lg:pl-2 text-left hover:opacity-80 transition-opacity"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className={cn("w-1.5 h-1.5 rounded-full bg-purple-500", isGeocoding && "animate-pulse")} />
+                    <span className="text-[7px] lg:text-[8px] text-purple-400 font-black uppercase tracking-[0.2em]">Sítio Identificado</span>
+                  </div>
+                  <p className="text-[9px] lg:text-[11px] text-slate-200 font-bold leading-tight truncate italic opacity-90">{detectedAddress}</p>
+                </button>
+                <div className="w-px h-5 lg:h-6 bg-white/10 shrink-0" />
+                <button onClick={() => reverseGeocode(clientData.lat!, clientData.lng!, true)} className="group relative flex items-center justify-center w-7 h-7 lg:w-8 lg:h-8 bg-purple-600/90 hover:bg-purple-500 text-white rounded-full transition-all shrink-0 shadow-lg">
+                  <RefreshCw size={11} className={cn("transition-transform duration-700", isGeocoding ? "animate-spin" : "group-hover:rotate-180")} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── BARRA DE TELEMETRIA METROLÓGICA (Rodapé SCADA/Heatmap) ── */}
         <div className="shrink-0 bg-slate-950 border-t border-slate-800 flex flex-col lg:flex-row h-auto lg:h-24 relative">
           
           {/* Métricas de Performance (SCADA Displays) */}
-          <div className="w-full lg:w-[420px] flex border-b lg:border-b-0 lg:border-r border-slate-800/80">
-            {/* HSP Média (Yellow) */}
-            <div className="flex-1 p-3 lg:p-4 border-r border-yellow-500/20 bg-yellow-900/10 flex flex-col justify-center gap-1">
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] font-black text-yellow-400 uppercase tracking-widest">HSP Médio</span>
-                <div className="w-1.5 h-1.5 bg-yellow-500 rounded-sm" />
+          <div className="w-full lg:w-[420px] grid grid-cols-2 border-b lg:border-b-0 lg:border-r border-slate-800/80 bg-slate-950/20">
+            {/* HSP Média (☀️ Yellow) */}
+            <div className="flex-1 p-3 lg:p-4 border-r border-slate-800/60 bg-gradient-to-br from-yellow-500/10 to-transparent flex flex-col justify-center gap-0.5 lg:gap-1 relative overflow-hidden group">
+              <div className="absolute top-0 left-0 w-full h-[1px] bg-yellow-500/20" />
+              <div className="flex items-center justify-between relative z-10">
+                <span className="text-[8px] lg:text-[9px] font-bold text-slate-500 lg:text-slate-400 uppercase tracking-widest">HSP Médio</span>
+                <div className="w-1.5 h-1.5 bg-yellow-500 rounded-sm shadow-[0_0_8px_rgba(234,179,8,0.5)] group-hover:scale-125 transition-transform" />
               </div>
-              <div className="flex items-baseline gap-1 mt-1">
-                <span className="text-2xl font-mono font-black text-slate-100 tracking-tighter tabular-nums">
+              <div className="flex items-baseline gap-1 mt-0.5 lg:mt-1 relative z-10">
+                <span className="text-xl lg:text-2xl font-mono font-black text-yellow-400 tracking-tighter tabular-nums drop-shadow-[0_0_10px_rgba(234,179,8,0.2)]">
                   {(totalHsp / 12).toFixed(2)}
                 </span>
-                <span className="text-[9px] font-bold text-yellow-400/70 uppercase">kWh/m².dia</span>
+                <span className="text-[8px] lg:text-[9px] font-bold text-slate-600 uppercase">kWh/m².dia</span>
               </div>
             </div>
 
-            {/* Temperatura Média (Rose) */}
-            <div className="flex-1 p-3 lg:p-4 flex flex-col justify-center gap-1 bg-rose-900/10">
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] font-black text-rose-400 uppercase tracking-widest">Temperatura Média</span>
-                <div className="w-1.5 h-1.5 bg-rose-500 rounded-sm" />
+            {/* Temperatura Média (🌡️ Rose) */}
+            <div className="flex-1 p-3 lg:p-4 bg-gradient-to-br from-rose-500/10 to-transparent flex flex-col justify-center gap-0.5 lg:gap-1 relative overflow-hidden group">
+              <div className="absolute top-0 left-0 w-full h-[1px] bg-rose-500/20" />
+              <div className="flex items-center justify-between relative z-10">
+                <span className="text-[8px] lg:text-[9px] font-bold text-slate-500 lg:text-slate-400 uppercase tracking-widest">Temp. Média</span>
+                <div className="w-1.5 h-1.5 bg-rose-500 rounded-sm shadow-[0_0_8px_rgba(244,63,94,0.5)] group-hover:scale-125 transition-transform" />
               </div>
-              <div className="flex items-baseline gap-1 mt-1">
-                <span className="text-2xl font-mono font-black text-slate-100 tracking-tighter tabular-nums">
+              <div className="flex items-baseline gap-1 mt-0.5 lg:mt-1 relative z-10">
+                <span className="text-xl lg:text-2xl font-mono font-black text-rose-400 tracking-tighter tabular-nums drop-shadow-[0_0_10px_rgba(244,63,94,0.2)]">
                   {weatherData?.ambient_temp_avg?.toFixed(1) || '27.5'}
                 </span>
-                <span className="text-[9px] font-bold text-rose-400/70 uppercase">°C</span>
+                <span className="text-[8px] lg:text-[9px] font-bold text-slate-600 uppercase">°C</span>
               </div>
             </div>
           </div>
 
-          {/* Heatmap Linear de Irradiância (Yellow) */}
-          <div className="flex-1 p-3 lg:p-4 flex flex-col justify-center min-w-0 bg-yellow-900/5">
-            <div className="flex items-center justify-between mb-2.5">
-              <div className="flex items-center gap-2">
-                <div className="w-1 h-3 bg-yellow-500 rounded-[1px]" />
-                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-yellow-400">Série Histórica Climatológica</span>
+          {/* Heatmap Linear de Irradiância (☀️ Yellow) */}
+          <div className="flex-1 p-3 lg:p-4 flex flex-col justify-center min-w-0 bg-yellow-900/5 transition-colors hover:bg-yellow-900/10">
+            <div className="flex items-center justify-between mb-2 lg:mb-2.5 relative z-10">
+              <div className="flex items-center gap-2 lg:gap-3">
+                <div className="w-1 h-3 bg-yellow-500 rounded-[1px] shadow-[0_0_5px_rgba(234,179,8,0.5)]" />
+                <div className="flex flex-col lg:flex-row lg:items-center lg:gap-2">
+                  <span className="text-[8px] lg:text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">Base de Irradiância</span>
+                  {weatherData?.irradiation_source && (
+                    <span className="text-[6px] lg:text-[7px] text-yellow-500/60 font-black uppercase tracking-widest hidden xs:block">
+                      [{weatherData.irradiation_source}]
+                    </span>
+                  )}
+                </div>
               </div>
-              <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest px-2 py-0.5 border border-slate-700 rounded-sm bg-slate-900">Base de Irradiância</span>
+              <span className="hidden sm:block text-[7px] lg:text-[8px] font-bold text-slate-500 lg:text-slate-600 uppercase tracking-widest px-2 py-0.5 border border-slate-800/60 rounded-sm bg-slate-950/60 backdrop-blur-md">Série Histórica</span>
             </div>
             
-            <div className="flex-1 grid grid-cols-6 md:grid-cols-12 gap-1.5 w-full max-h-[32px] min-h-[32px]">
+            <div className="flex-1 grid grid-cols-6 md:grid-cols-12 gap-0.5 sm:gap-1 lg:gap-1.5 w-full min-h-[36px] lg:min-h-[32px]">
               {hspMonthly.map((hsp, idx) => {
                 const months = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
                 const intensity = Math.max(0, Math.min(1, (hsp - 3.5) / (6.5 - 3.5)));
                 
-                // Color ramp baseada na escala Yellow do context.md
-                const bgColor = intensity < 0.25 ? 'bg-slate-900 text-slate-500 border-slate-800' 
-                              : intensity < 0.55 ? 'bg-yellow-900/30 text-yellow-500 border-yellow-500/20'
-                              : intensity < 0.85 ? 'bg-yellow-600/50 text-yellow-100 border-yellow-500/40'
-                              : 'bg-yellow-500 text-yellow-950 font-black border-yellow-400';
+                const bgColor = intensity < 0.25 ? 'bg-slate-950/80 text-slate-600 border-slate-800/40' 
+                              : intensity < 0.55 ? 'bg-yellow-900/20 text-yellow-500/70 border-yellow-500/10'
+                              : intensity < 0.85 ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+                              : 'bg-yellow-500 text-slate-950 font-black border-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.25)]';
 
                 return (
                   <div 
                     key={months[idx]} 
                     className={cn(
-                      "flex flex-col items-center justify-center rounded-sm transition-colors cursor-default select-none border",
+                      "flex flex-col items-center justify-center rounded-sm transition-all cursor-default select-none border group/month",
+                      "hover:scale-105 lg:hover:scale-110 hover:z-20 hover:shadow-xl",
                       bgColor
                     )}
                     title={`${months[idx]}: ${hsp.toFixed(2)} kWh/m².dia`}
                   >
-                    <span className="text-[10px] font-mono tabular-nums leading-none mb-[1px]">{hsp.toFixed(1)}</span>
-                    <span className="text-[6.5px] uppercase tracking-widest opacity-80 font-sans font-black">{months[idx]}</span>
+                    <span className="text-[8px] xs:text-[9px] lg:text-[10px] font-mono font-bold tabular-nums leading-none mb-[1px] group-hover/month:scale-110 transition-transform">{hsp.toFixed(1)}</span>
+                    <span className="text-[5px] xs:text-[6px] lg:text-[6.5px] uppercase tracking-widest opacity-80 font-sans font-black">{months[idx]}</span>
                   </div>
                 );
               })}
