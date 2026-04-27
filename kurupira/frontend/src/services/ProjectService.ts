@@ -1,6 +1,7 @@
 import { useSolarStore } from '@/core/state/solarStore';
 import { initialClientData } from '@/core/state/slices/clientSlice';
 import { useTechStore } from '@/modules/engineering/store/useTechStore';
+import { useUIStore } from '@/core/state/uiStore';
 import { KurupiraClient, TechnicalDesignSummary } from './NexusClient';
 
 const DESIGN_DATA_VERSION = '3.1';
@@ -102,10 +103,23 @@ export const ProjectService = {
 
   async loadProjectAndHydrate(projectId: string): Promise<boolean> {
     try {
-      // Clear before loading to avoid array leaks from old projects
+      // Clear before loading to completely reset the workspace and avoid memory leaks from old projects
       useSolarStore.setState(s => ({ 
-          project: { ...s.project, installationAreas: [], placedModules: [] } 
+          project: { ...s.project, installationAreas: [], placedModules: [], dropPoints: [], projectStatus: 'draft' },
+          modules: { ids: [], entities: {} },
+          inverters: { ids: [], entities: {} },
+          simulatedItems: { ids: [], entities: {} },
+          bosInventory: null,
+          clientData: { ...initialClientData },
+          legalData: null,
+          weatherData: null,
+          engineeringData: { orientation: 'Norte', azimute: 0, roofTilt: 15, shadingFactor: 0 },
+          kWpAlvo: 0,
+          loadGrowthFactor: 1,
+          activeInvoiceId: null,
       }));
+      useTechStore.getState().resetProject();
+      useUIStore.getState().resetUIState();
 
       const design = await KurupiraClient.designs.get(projectId);
       hydrateStores(design.designData);
@@ -154,10 +168,23 @@ export const ProjectService = {
         longitude: payload.lng,
       });
 
-      // Clear local state early
+      // Clear local state completely before building the new project snapshot
       useSolarStore.setState(s => ({ 
-        project: { ...s.project, installationAreas: [], placedModules: [], projectName: payload.projectName } 
+          project: { ...s.project, installationAreas: [], placedModules: [], dropPoints: [], projectStatus: 'draft' },
+          modules: { ids: [], entities: {} },
+          inverters: { ids: [], entities: {} },
+          simulatedItems: { ids: [], entities: {} },
+          bosInventory: null,
+          clientData: { ...initialClientData },
+          legalData: null,
+          weatherData: null,
+          engineeringData: { orientation: 'Norte', azimute: 0, roofTilt: 15, shadingFactor: 0 },
+          kWpAlvo: 0,
+          loadGrowthFactor: 1,
+          activeInvoiceId: null,
       }));
+      useTechStore.getState().resetProject();
+      useUIStore.getState().resetUIState();
 
       const skeletonData = buildDesignData();
 

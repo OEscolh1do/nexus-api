@@ -137,6 +137,9 @@ export interface UIState {
   setAppLoading: (context: LoadingContext, message?: string) => void;
   /** Finaliza o estado de carregamento — reseta todos os campos */
   clearAppLoading: () => void;
+
+  /** Reseta o estado de navegação visual ao carregar/criar projetos */
+  resetUIState: () => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -242,6 +245,21 @@ export const useUIStore = create<UIState>((set) => ({
     isAppLoading: false,
     loadingContext: null,
     loadingMessage: '',
+  }),
+
+  resetUIState: () => set({
+    activeTool: 'SELECT',
+    selectedEntity: EMPTY_SELECTION,
+    viewportSnapshot: null,
+    workspaceMode: 'SIMULATION',
+    activeFocusedBlock: 'site',
+    canvasViewMode: 'CONTEXT',
+    autoSizingStep: 'idle',
+    isSettingsDrawerOpen: false,
+    isAnatomyPanelOpen: false,
+    isLossSidebarOpen: false,
+    searchQuery: '',
+    // Note: Do not reset mapType or role, as they are user preferences
   }),
 }));
 
