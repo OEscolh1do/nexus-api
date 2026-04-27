@@ -36,7 +36,7 @@ export const useGoogleGeocoding = () => {
       try {
         const response = await geocoder.geocode({ location: { lat, lng } });
         
-        if (response.results && response.results.length > 0) {
+        if (response && response.results && response.results.length > 0) {
           const firstResult = response.results[0];
           const formattedAddress = firstResult.formatted_address;
           setDetectedAddress(formattedAddress);
@@ -60,10 +60,15 @@ export const useGoogleGeocoding = () => {
             });
             setGeocodeStatus('success');
           }
+        } else {
+          console.warn('Google SDK Geocode: No results found or empty response.');
+          if (!previewOnly) setGeocodeStatus('error');
         }
         return;
       } catch (e) {
         console.error('Google SDK Geocode Error:', e);
+        // Não retornar aqui para permitir que o fallback de fetch tente, 
+        // caso o problema seja apenas no SDK mas a chave ainda funcione via HTTP
       }
     }
 
@@ -146,7 +151,7 @@ export const useGoogleGeocoding = () => {
       try {
         const response = await geocoder.geocode({ address: query });
         
-        if (response.results && response.results.length > 0) {
+        if (response && response.results && response.results.length > 0) {
           const result = response.results[0];
           const coords = result.geometry.location;
           const resultType = result.geometry.location_type === 'ROOFTOP' ? 'success' : 'partial';
@@ -157,12 +162,13 @@ export const useGoogleGeocoding = () => {
           });
           setGeocodeStatus(resultType);
         } else {
+          console.warn('Google SDK Geocode (Address): No results found.');
           setGeocodeStatus('error');
         }
         return;
       } catch (e) {
-        console.error('Google SDK Geocode Error:', e);
-        // Fallback para fetch se o SDK falhar por algum motivo
+        console.error('Google SDK Geocode Error (Address):', e);
+        // Fallback para fetch se o SDK falhar
       } finally {
         setIsGeocoding(false);
         setTimeout(() => setGeocodeStatus('idle'), 4000);

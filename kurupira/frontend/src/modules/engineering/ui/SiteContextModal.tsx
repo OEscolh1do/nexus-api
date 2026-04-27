@@ -398,17 +398,17 @@ const StatChip: React.FC<{ label: string; value: string; unit: string; theme: 'e
   const colorClass = theme === 'sky' ? 'text-sky-400' : theme === 'amber' ? 'text-amber-400' : 'text-emerald-400';
   
   return (
-    <div className="bg-slate-950 border border-slate-800 p-3 flex flex-col relative overflow-hidden">
+    <div className="bg-slate-950 border border-slate-800 p-2 sm:p-3 flex flex-col relative overflow-hidden">
       <div className={`absolute top-0 left-0 w-1 h-full ${theme === 'sky' ? 'bg-sky-500/20' : theme === 'amber' ? 'bg-amber-500/20' : 'bg-emerald-500/20'}`} />
-      <div className="flex items-center justify-between mb-1.5 ml-1">
-        <p className="text-[8px] text-slate-500 font-black uppercase tracking-[0.15em]">{label}</p>
-        {icon && <div className="text-slate-600 opacity-50">{icon}</div>}
+      <div className="flex items-center justify-between mb-1 ml-1">
+        <p className="text-[7.5px] sm:text-[8px] text-slate-500 font-black uppercase tracking-[0.15em] truncate">{label}</p>
+        {icon && <div className="text-slate-600 opacity-50 scale-75 sm:scale-100">{icon}</div>}
       </div>
       <div className="flex items-baseline gap-1 ml-1">
-        <span className={`text-[14px] font-black font-mono tabular-nums leading-none ${colorClass}`}>
+        <span className={`text-[12px] sm:text-[14px] font-black font-mono tabular-nums leading-none ${colorClass}`}>
           {value}
         </span>
-        {unit && <span className="text-[8px] text-slate-600 font-bold uppercase">{unit}</span>}
+        {unit && <span className="text-[7px] sm:text-[8px] text-slate-600 font-bold uppercase">{unit}</span>}
       </div>
     </div>
   );

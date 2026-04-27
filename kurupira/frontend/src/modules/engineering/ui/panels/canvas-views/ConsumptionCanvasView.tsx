@@ -4,7 +4,7 @@ import { useSolarStore } from '@/core/state/solarStore';
 import { calcKWpAlvo } from '@/core/state/slices/journeySlice';
 import { ConsumptionChart } from './consumption/ConsumptionChart';
 import { SimulatedLoadsPanel } from './consumption/SimulatedLoadsPanel';
-import { TrendingUp, Plus, Ruler, Info, CheckCircle2, Factory, Trash2, X, AlertTriangle, Hash, Activity } from 'lucide-react';
+import { TrendingUp, Plus, Ruler, Info, CheckCircle2, Layers, Trash2, X, AlertTriangle, Hash, Activity, DollarSign, Cable } from 'lucide-react';
 
 const formatNumber = (val: number) => {
   return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
@@ -111,228 +111,274 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
     <div className={cn('relative w-full h-full flex flex-col bg-slate-950 overflow-hidden', className)}>
       
       {/* ── LEVEL 2: INSTALLATION HUB (Navigation Bar) ───────────────────────────── */}
-      <div className="bg-slate-900/50 border-b border-slate-800 flex items-center shrink-0 z-20 h-10">
-         <div className="flex items-center h-full px-3 border-r border-slate-800 text-slate-500">
-            <Factory size={12} />
-         </div>
-         
-         <div className="flex-1 flex items-center overflow-x-auto custom-scrollbar h-full">
-            {invoices.map((inv, idx) => {
-               const isActive = inv.id === activeInvoiceId;
-               const isEditing = editingUcId === inv.id;
+      <div className="bg-slate-900/50 border-b border-slate-800 flex items-center shrink-0 z-20 h-14">
 
-               return (
-                 <div key={inv.id} className="flex items-center shrink-0 h-full relative group/tab">
-                   {isEditing ? (
-                     <input
-                        autoFocus
-                        defaultValue={inv.name}
-                        onBlur={(e) => {
-                          updateActiveInvoice({ name: e.target.value });
-                          setEditingUcId(null);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            updateActiveInvoice({ name: (e.target as HTMLInputElement).value });
-                            setEditingUcId(null);
-                          }
-                          if (e.key === 'Escape') setEditingUcId(null);
-                        }}
-                        className="h-full bg-slate-950 text-indigo-400 text-[10px] font-mono font-bold uppercase tracking-wider px-6 focus:outline-none border-r border-indigo-500/30 min-w-[120px]"
-                     />
-                   ) : (
-                     <button
-                       onClick={() => setActiveInvoice(inv.id)}
-                       onDoubleClick={() => setEditingUcId(inv.id)}
-                       className={cn(
-                         "h-full px-6 text-[10px] font-black uppercase tracking-[0.15em] transition-all relative border-r border-slate-800 cursor-text",
-                         isActive 
-                           ? "bg-slate-950 text-sky-400 shadow-[inset_0_-2px_0_theme(colors.sky.500)]" 
-                           : "text-slate-500 hover:text-slate-300 hover:bg-slate-900/50"
-                       )}
-                     >
-                       {inv.name || `UC ${idx + 1}`}
-                     </button>
-                   )}
-                   
-                   {!isEditing && isActive && invoices.length > 1 && (
-                     <button 
-                       onClick={(e) => { e.stopPropagation(); handleDeleteRequest(inv.id); }}
-                       className="absolute right-1 top-1 p-0.5 text-slate-700 hover:text-rose-400 rounded-sm transition-all bg-slate-950/30 opacity-0 group-hover/tab:opacity-100"
-                       title="Excluir Unidade"
-                     >
-                       <X size={8} strokeWidth={3} />
-                     </button>
-                   )}
-                 </div>
-               );
-            })}
+        {/* Prefixo — ícone + badge de contagem */}
+        <div className="flex flex-col items-center justify-center gap-0.5 px-3 h-full border-r border-slate-800 shrink-0">
+          <Layers size={13} className="text-slate-600" />
+          <span className="text-[8px] text-slate-600 font-black tabular-nums leading-none">
+            {invoices.length} UC
+          </span>
+        </div>
+
+        {/* Abas de UC */}
+        <div className="flex-1 flex items-stretch overflow-x-auto custom-scrollbar h-full">
+          {invoices.map((inv, idx) => {
+            const isActive = inv.id === activeInvoiceId;
+            const isEditing = editingUcId === inv.id;
+            const avg = inv.monthlyHistory?.length === 12
+              ? Math.round(inv.monthlyHistory.reduce((a: number, b: number) => a + b, 0) / 12)
+              : 0;
+            const voltageLabel = inv.voltage ? ` · ${inv.voltage}V` : '';
+
+            return (
+              <div key={inv.id} className="flex items-stretch shrink-0 h-full relative group/tab">
+                {isEditing ? (
+                  <input
+                    autoFocus
+                    defaultValue={inv.name}
+                    onBlur={(e) => {
+                      updateActiveInvoice({ name: e.target.value });
+                      setEditingUcId(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        updateActiveInvoice({ name: (e.target as HTMLInputElement).value });
+                        setEditingUcId(null);
+                      }
+                      if (e.key === 'Escape') setEditingUcId(null);
+                    }}
+                    className="bg-slate-950 text-indigo-400 text-[10px] font-mono font-bold uppercase tracking-wider px-5 focus:outline-none border-r border-indigo-500/30 min-w-[120px] self-stretch"
+                  />
+                ) : (
+                  <button
+                    onClick={() => setActiveInvoice(inv.id)}
+                    onDoubleClick={() => setEditingUcId(inv.id)}
+                    className={cn(
+                      "flex flex-col justify-center px-5 pr-7 transition-all relative border-r border-slate-800 text-left",
+                      isActive
+                        ? "bg-slate-950 border-t-2 border-t-sky-500"
+                        : "border-t-2 border-t-transparent hover:bg-slate-900/40 hover:border-t-slate-700"
+                    )}
+                  >
+                    {/* Linha 1 — Nome */}
+                    <div className="flex items-center gap-1.5">
+                      {isActive && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-sky-500 shadow-[0_0_6px_rgba(14,165,233,0.6)] animate-pulse shrink-0" />
+                      )}
+                      <span className={cn(
+                        "text-[10px] font-black uppercase tracking-[0.12em] leading-none whitespace-nowrap",
+                        isActive ? "text-sky-400" : "text-slate-500 group-hover/tab:text-slate-300"
+                      )}>
+                        {inv.name || `UC ${idx + 1}`}
+                      </span>
+                    </div>
+                    {/* Linha 2 — Microdado */}
+                    <div className={cn(
+                      "text-[9px] font-mono tabular-nums leading-none mt-1",
+                      isActive ? "text-slate-500" : "text-slate-700 group-hover/tab:text-slate-600"
+                    )}>
+                      {avg > 0 ? `${avg} kWh${voltageLabel}` : 'Sem dados'}
+                    </div>
+                  </button>
+                )}
+
+                {/* Botão delete — visível no hover da aba ativa */}
+                {!isEditing && isActive && invoices.length > 1 && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDeleteRequest(inv.id); }}
+                    className="absolute right-1 top-1.5 p-0.5 text-slate-700 hover:text-rose-400 rounded-sm transition-all opacity-0 group-hover/tab:opacity-100"
+                    title="Excluir Unidade"
+                  >
+                    <X size={8} strokeWidth={3} />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Botão — Nova Unidade (separado, borda tracejada) */}
+          <div className="flex items-center px-3 border-r border-slate-800">
             <button
               onClick={() => addInvoice({ name: `UC ${invoices.length + 1}` })}
-              className="h-full px-4 flex items-center gap-2 text-slate-500 hover:text-indigo-400 transition-all text-[9px] font-bold uppercase tracking-widest border-r border-slate-800"
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-dashed border-slate-700 hover:border-indigo-500/60 text-slate-600 hover:text-indigo-400 rounded-sm transition-all text-[9px] font-black uppercase tracking-widest"
             >
-              <Plus size={12} /> Nova Unidade
+              <Plus size={10} strokeWidth={2.5} /> Nova UC
             </button>
-         </div>
+          </div>
+        </div>
 
-         {/* ALVO CC - Integrated into Hub Bar */}
-         <div className="flex items-center gap-4 px-5 h-full bg-slate-950/80 border-l border-slate-800 shadow-inner shrink-0 group">
-            <div className="flex flex-col justify-center">
-              <span className="text-[7px] text-slate-500 font-bold uppercase tracking-[0.2em] leading-none mb-0.5">
-                Alvo CC
+        {/* ALVO CC — Integrated into Hub Bar */}
+        <div className="flex items-center gap-3 px-5 h-full bg-slate-950/80 border-l border-slate-800 shadow-inner shrink-0">
+          <div className="flex flex-col justify-center">
+            <span className="text-[7px] text-slate-600 font-bold uppercase tracking-[0.2em] leading-none mb-1">
+              Alvo CC
+            </span>
+            <div className="flex items-baseline gap-1">
+              <div className="w-1 h-1 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)] mr-1 mb-0.5 animate-pulse" />
+              <span className="text-[13px] font-mono font-black text-slate-100 tabular-nums tracking-tighter">
+                {kWpAlvo && kWpAlvo > 0 ? formatNumber(kWpAlvo) : "0.00"}
               </span>
-              <div className="flex items-baseline gap-1">
-                <div className="w-1 h-1 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.4)] mr-1.5 mb-0.5 animate-pulse" />
-                <span className="text-[12px] font-mono font-black text-slate-100 tabular-nums tracking-tighter">
-                  {kWpAlvo && kWpAlvo > 0 ? formatNumber(kWpAlvo) : "0.00"}
-                </span>
-                <span className="text-[8px] font-bold text-slate-500 uppercase ml-0.5">kWp</span>
-              </div>
+              <span className="text-[8px] font-bold text-slate-500 uppercase ml-0.5">kWp</span>
             </div>
-         </div>
+          </div>
+        </div>
       </div>
 
       {/* ── LEVEL 3: ACTIVE METER SETTINGS (UC Strip) ───────────────────────────── */}
-      <div className="bg-slate-950/50 border-b border-slate-800/60 flex items-center px-4 py-1.5 shrink-0 gap-6 z-10 overflow-x-auto custom-scrollbar">
-          
+      <div className="bg-slate-950/50 border-b border-slate-800/60 flex items-center shrink-0 z-10 overflow-x-auto custom-scrollbar divide-x divide-slate-800/60">
+
+        {/* ── GRUPO: ELÉTRICO ─────────────────────────────────────── */}
+        <div className="flex items-center gap-4 px-4 py-1.5 shrink-0">
+          {/* Badge de Seção */}
+          <div className="flex items-center gap-1.5 px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/20 rounded-sm shrink-0">
+            <Cable size={9} className="text-indigo-400" />
+            <span className="text-[8px] text-indigo-400 font-black uppercase tracking-[0.15em]">Elétrico</span>
+          </div>
+
           {/* NÚMERO DA INSTALAÇÃO */}
           <div className="flex items-center gap-2">
-             <span className="text-[9px] text-slate-500 uppercase font-bold tracking-widest flex items-center gap-1.5">
-                <Hash size={10} className="text-slate-600" /> Instalação
-             </span>
-             <div className="flex items-center bg-slate-900 border border-slate-800/80 rounded-sm px-2 py-0.5">
-               <input 
-                 type="text"
-                 placeholder="Número da fatura..."
-                 value={activeInvoice.installationNumber || ''}
-                 onChange={e => updateActiveInvoice({ installationNumber: e.target.value })}
-                 className="bg-transparent text-slate-300 font-mono font-bold text-[10px] focus:outline-none w-24 uppercase placeholder:text-slate-700/60"
-               />
-             </div>
+            <span className="text-[9px] text-slate-600 uppercase font-bold tracking-widest flex items-center gap-1">
+              <Hash size={9} className="text-slate-700" /> Inst.
+            </span>
+            <div className="flex items-center bg-slate-900 border border-slate-800/80 rounded-sm px-2 py-0.5">
+              <input
+                type="text"
+                placeholder="Nº fatura..."
+                value={activeInvoice.installationNumber || ''}
+                onChange={e => updateActiveInvoice({ installationNumber: e.target.value })}
+                className="bg-transparent text-slate-300 font-mono font-bold text-[10px] focus:outline-none w-20 uppercase placeholder:text-slate-700/60"
+              />
+            </div>
           </div>
 
           {/* LIGAÇÃO ELÉTRICA (Flyout) */}
-          <div className="flex items-center gap-3 border-l border-slate-800/80 pl-6">
-             <span className="text-[9px] text-slate-600 uppercase font-black tracking-widest flex items-center gap-1.5">
-                <Ruler size={10} className="text-slate-700" /> Ligação
-             </span>
-             <div className="flex items-center bg-slate-900 border border-slate-800/80 rounded-[2px] overflow-hidden relative">
-                {['monofasico', 'bifasico', 'trifasico'].map((type) => {
-                  const isActive = activeInvoice.connectionType === type;
-                  const isExpanded = expandedField === 'connection';
-                  if (!isActive && !isExpanded) return null;
-                  
-                  return (
-                    <button
-                      key={type}
-                      onClick={() => {
-                        if (!isExpanded) {
-                          setExpandedField('connection');
-                        } else {
-                          updateActiveInvoice({ connectionType: type as any });
-                          setExpandedField(null);
-                        }
-                      }}
-                      className={cn(
-                        "h-6 px-2.5 text-[9px] font-mono font-bold uppercase transition-all duration-200 border-r border-slate-800/50 last:border-0",
-                        isActive 
-                          ? "bg-slate-800 text-indigo-400 border-indigo-500/30 z-10" 
-                          : "text-slate-500 bg-slate-950/40 hover:text-slate-300 hover:bg-slate-800 animate-in slide-in-from-left-1"
-                      )}
-                    >
-                      {type === 'monofasico' ? 'Mono' : type === 'bifasico' ? 'Bi' : 'Tri'}
-                    </button>
-                  );
-                })}
-                {expandedField === 'connection' && (
-                  <button 
-                    onClick={() => setExpandedField(null)}
-                    className="absolute inset-0 z-0"
-                  />
-                )}
-             </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] text-slate-600 uppercase font-bold tracking-widest flex items-center gap-1">
+              <Ruler size={9} className="text-slate-700" /> Ligação
+            </span>
+            <div className="flex items-center bg-slate-900 border border-slate-800/80 rounded-[2px] overflow-hidden relative">
+              {['monofasico', 'bifasico', 'trifasico'].map((type) => {
+                const isActive = activeInvoice.connectionType === type;
+                const isExpanded = expandedField === 'connection';
+                if (!isActive && !isExpanded) return null;
+                return (
+                  <button
+                    key={type}
+                    onClick={() => {
+                      if (!isExpanded) {
+                        setExpandedField('connection');
+                      } else {
+                        updateActiveInvoice({ connectionType: type as any });
+                        setExpandedField(null);
+                      }
+                    }}
+                    className={cn(
+                      "h-6 px-2.5 text-[9px] font-mono font-bold uppercase transition-all duration-200 border-r border-slate-800/50 last:border-0",
+                      isActive
+                        ? "bg-slate-800 text-indigo-400 border-indigo-500/30 z-10"
+                        : "text-slate-500 bg-slate-950/40 hover:text-slate-300 hover:bg-slate-800 animate-in slide-in-from-left-1"
+                    )}
+                  >
+                    {type === 'monofasico' ? 'Mono' : type === 'bifasico' ? 'Bi' : 'Tri'}
+                  </button>
+                );
+              })}
+              {expandedField === 'connection' && (
+                <button onClick={() => setExpandedField(null)} className="absolute inset-0 z-0" />
+              )}
+            </div>
           </div>
 
           {/* NÍVEL DE TENSÃO (Flyout) */}
-          <div className="flex items-center gap-2 border-l border-slate-800/80 pl-6">
-             <span className="text-[9px] text-slate-600 uppercase font-black tracking-widest">Tensão</span>
-             <div className="flex items-center bg-slate-900 border border-slate-800/80 rounded-[2px] overflow-hidden relative">
-                {['127', '220', '380'].map((v) => {
-                  const isActive = activeInvoice.voltage === v;
-                  const isExpanded = expandedField === 'voltage';
-                  if (!isActive && !isExpanded) return null;
-
-                  return (
-                    <button
-                      key={v}
-                      onClick={() => {
-                        if (!isExpanded) {
-                          setExpandedField('voltage');
-                        } else {
-                          updateActiveInvoice({ voltage: v });
-                          setExpandedField(null);
-                        }
-                      }}
-                      className={cn(
-                        "h-6 px-2 text-[9px] font-mono font-bold uppercase transition-all duration-200 border-r border-slate-800/50 last:border-0",
-                        isActive 
-                          ? "bg-slate-800 text-indigo-400 border-indigo-500/30 z-10" 
-                          : "text-slate-500 bg-slate-950/40 hover:text-slate-300 hover:bg-slate-800 animate-in slide-in-from-left-1"
-                      )}
-                    >
-                      {v}V
-                    </button>
-                  );
-                })}
-             </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] text-slate-600 uppercase font-bold tracking-widest">Tensão</span>
+            <div className="flex items-center bg-slate-900 border border-slate-800/80 rounded-[2px] overflow-hidden relative">
+              {['127', '220', '380'].map((v) => {
+                const isActive = activeInvoice.voltage === v;
+                const isExpanded = expandedField === 'voltage';
+                if (!isActive && !isExpanded) return null;
+                return (
+                  <button
+                    key={v}
+                    onClick={() => {
+                      if (!isExpanded) {
+                        setExpandedField('voltage');
+                      } else {
+                        updateActiveInvoice({ voltage: v });
+                        setExpandedField(null);
+                      }
+                    }}
+                    className={cn(
+                      "h-6 px-2 text-[9px] font-mono font-bold uppercase transition-all duration-200 border-r border-slate-800/50 last:border-0",
+                      isActive
+                        ? "bg-slate-800 text-indigo-400 border-indigo-500/30 z-10"
+                        : "text-slate-500 bg-slate-950/40 hover:text-slate-300 hover:bg-slate-800 animate-in slide-in-from-left-1"
+                    )}
+                  >
+                    {v}V
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* DISJUNTOR DE ENTRADA */}
-          <div className="flex items-center gap-2 border-l border-slate-800/80 pl-6">
-             <span className="text-[9px] text-slate-600 uppercase font-black tracking-widest">Disjuntor</span>
-             <select 
-                value={activeInvoice.breakerCurrent || 50}
-                onChange={e => updateActiveInvoice({ breakerCurrent: Number(e.target.value) })}
-                className="bg-slate-900 border border-slate-800/80 rounded-sm px-1.5 py-0.5 text-slate-200 font-mono font-bold text-[10px] outline-none focus:border-slate-600"
-             >
-                {BREAKER_OPTIONS.map(val => (
-                  <option key={val} value={val}>{val}A</option>
-                ))}
-             </select>
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] text-slate-600 uppercase font-bold tracking-widest">Disjuntor</span>
+            <select
+              value={activeInvoice.breakerCurrent || 50}
+              onChange={e => updateActiveInvoice({ breakerCurrent: Number(e.target.value) })}
+              className="bg-slate-900 border border-slate-800/80 rounded-sm px-1.5 py-0.5 text-slate-200 font-mono font-bold text-[10px] outline-none focus:border-indigo-500/40 transition-colors"
+            >
+              {BREAKER_OPTIONS.map(val => (
+                <option key={val} value={val}>{val}A</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* ── GRUPO: TARIFÁRIO ────────────────────────────────────── */}
+        <div className="flex items-center gap-4 px-4 py-1.5 shrink-0">
+          {/* Badge de Seção */}
+          <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded-sm shrink-0">
+            <DollarSign size={9} className="text-emerald-400" />
+            <span className="text-[8px] text-emerald-400 font-black uppercase tracking-[0.15em]">Tarifário</span>
           </div>
 
-          {/* TARIFA (Individual) */}
-          <div className="flex items-center gap-2 border-l border-slate-800/80 pl-6">
-              <span className="text-[9px] text-slate-500 uppercase font-bold tracking-widest flex items-center gap-1.5">
-                <Activity size={10} className="text-slate-600" /> Tarifa
-              </span>
-              <div className="flex items-center bg-slate-900 border border-slate-800 rounded-sm px-2 py-0.5">
-                <span className="text-[9px] text-slate-500 font-mono font-bold mr-1">R$</span>
-                <input 
-                  type="number"
-                  step={0.01}
-                  value={activeInvoice.tariffRate || 0.92}
-                  onChange={e => updateActiveInvoice({ tariffRate: Number(e.target.value) })}
-                  className="w-12 bg-transparent text-slate-200 font-mono font-bold text-[10px] focus:outline-none tabular-nums text-center"
-                />
-              </div>
+          {/* TARIFA */}
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] text-slate-600 uppercase font-bold tracking-widest flex items-center gap-1">
+              <Activity size={9} className="text-slate-700" /> Tarifa
+            </span>
+            <div className="flex items-center bg-slate-900 border border-slate-800 rounded-sm px-2 py-0.5">
+              <span className="text-[9px] text-slate-500 font-mono font-bold mr-1">R$</span>
+              <input
+                type="number"
+                step={0.01}
+                value={activeInvoice.tariffRate || 0.92}
+                onChange={e => updateActiveInvoice({ tariffRate: Number(e.target.value) })}
+                className="w-12 bg-transparent text-emerald-300 font-mono font-bold text-[10px] focus:outline-none tabular-nums text-center"
+              />
+            </div>
           </div>
-          
+
           {/* MÉDIA BASE */}
-          <div className="flex items-center gap-3 border-l border-slate-800/80 pl-6">
-             <span className="text-[9px] text-slate-500 uppercase font-bold tracking-widest flex items-center gap-1.5">
-                <TrendingUp size={10} className="text-slate-600" /> Média Base
-             </span>
-             <div className="flex items-center bg-slate-900 border border-slate-800 rounded-sm px-2 py-0.5">
-               <input 
-                 type="number"
-                 value={activeInvoiceAvg ? Number(activeInvoiceAvg.toFixed(2)) : 0}
-                 onChange={e => handleAverageChange(Number(e.target.value))}
-                 className="bg-transparent text-slate-100 font-mono font-bold text-[12px] focus:outline-none w-16 text-center tabular-nums"
-               />
-               <span className="text-[9px] text-slate-500 font-bold ml-1">kWh</span>
-             </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] text-slate-600 uppercase font-bold tracking-widest flex items-center gap-1">
+              <TrendingUp size={9} className="text-slate-700" /> Média
+            </span>
+            <div className="flex items-center bg-slate-900 border border-slate-800 rounded-sm px-2 py-0.5">
+              <input
+                type="number"
+                value={activeInvoiceAvg ? Number(activeInvoiceAvg.toFixed(2)) : 0}
+                onChange={e => handleAverageChange(Number(e.target.value))}
+                className="bg-transparent text-emerald-200 font-mono font-bold text-[12px] focus:outline-none w-16 text-center tabular-nums"
+              />
+              <span className="text-[9px] text-slate-500 font-bold ml-1">kWh</span>
+            </div>
           </div>
+        </div>
       </div>
 
       {/* ── MAIN CONTENT (Visualization & Payload) ───────────────── */}

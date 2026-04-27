@@ -11,7 +11,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { useSolarStore } from '@/core/state/solarStore';
-import { Zap, Sun, Thermometer } from 'lucide-react';
+import { Zap, Sun, Thermometer, TrendingUp, ArrowUp, CalendarDays, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
@@ -150,6 +150,16 @@ export const ConsumptionChart: React.FC = () => {
     });
   }, [monthlyConsumption, simulatedItems, clientData.monthlyIrradiation, weatherData]);
 
+  // KPIs derivados
+  const kpis = useMemo(() => {
+    const totals = chartData.map(d => d.consumoBase + d.cargasSimuladas);
+    const validTotals = totals.filter(v => v > 0);
+    const media = validTotals.length > 0 ? validTotals.reduce((a, b) => a + b, 0) / validTotals.length : 0;
+    const pico = validTotals.length > 0 ? Math.max(...validTotals) : 0;
+    const totalAnual = totals.reduce((a, b) => a + b, 0);
+    return { media, pico, totalAnual };
+  }, [chartData]);
+
   // Adaptive Climate Domains (Smart Correlation Scaling)
   const climateDomains = useMemo(() => {
     // 1. Temperature Domain (Min Span: 15°C)
@@ -188,7 +198,60 @@ export const ConsumptionChart: React.FC = () => {
   const isEmpty = averageConsumption === 0 && chartData.every(d => d.consumoBase === 0 && d.cargasSimuladas === 0);
 
   return (
-    <div className="flex flex-col h-full gap-4 z-0">
+    <div className="flex flex-col h-full gap-3 z-0">
+
+      {/* ── KPI BAR ────────────────────────────────────────── */}
+      <div className="grid grid-cols-3 gap-px bg-slate-800/40 border border-slate-800/60 rounded-sm shrink-0 overflow-hidden">
+        {/* Média Mensal */}
+        <div className="flex items-center gap-3 px-3 py-2 bg-slate-900/60">
+          <div className="p-1.5 bg-sky-500/10 border border-sky-500/20 rounded-sm shrink-0">
+            <TrendingUp size={10} className="text-sky-400" />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-[8px] text-slate-600 font-black uppercase tracking-[0.15em] leading-none mb-0.5">Média Mensal</span>
+            <div className="flex items-baseline gap-1">
+              <span className="text-[13px] font-mono font-black text-slate-100 tabular-nums leading-none">
+                {isEmpty ? '—' : kpis.media.toFixed(0)}
+              </span>
+              <span className="text-[8px] text-slate-500 font-bold uppercase">kWh</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Pico */}
+        <div className="flex items-center gap-3 px-3 py-2 bg-slate-900/60">
+          <div className="p-1.5 bg-amber-500/10 border border-amber-500/20 rounded-sm shrink-0">
+            <ArrowUp size={10} className="text-amber-400" />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-[8px] text-slate-600 font-black uppercase tracking-[0.15em] leading-none mb-0.5">Pico Mensal</span>
+            <div className="flex items-baseline gap-1">
+              <span className="text-[13px] font-mono font-black text-slate-100 tabular-nums leading-none">
+                {isEmpty ? '—' : kpis.pico.toFixed(0)}
+              </span>
+              <span className="text-[8px] text-slate-500 font-bold uppercase">kWh</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Total Anual */}
+        <div className="flex items-center gap-3 px-3 py-2 bg-slate-900/60">
+          <div className="p-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-sm shrink-0">
+            <CalendarDays size={10} className="text-indigo-400" />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-[8px] text-slate-600 font-black uppercase tracking-[0.15em] leading-none mb-0.5">Total Anual</span>
+            <div className="flex items-baseline gap-1">
+              <span className="text-[13px] font-mono font-black text-slate-100 tabular-nums leading-none">
+                {isEmpty ? '—' : kpis.totalAnual >= 1000 ? (kpis.totalAnual / 1000).toFixed(2) : kpis.totalAnual.toFixed(0)}
+              </span>
+              <span className="text-[8px] text-slate-500 font-bold uppercase">
+                {isEmpty ? '' : kpis.totalAnual >= 1000 ? 'MWh' : 'kWh'}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
       
       {/* ── CONTROLES E LEGENDA (UNIFICADOS) ────────────────────────── */}
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 bg-slate-900 border border-slate-800/60 p-2 lg:px-3 lg:py-1.5 rounded-sm shrink-0">
@@ -341,11 +404,14 @@ export const ConsumptionChart: React.FC = () => {
         )}
       </div>
 
-      {/* ── GRADE DE EDIÇÃO DIRETA (12 MESES) ────────────────────────── */}
+      {/* ── GRADE DE EDIÇÃO DIRETA (12 MESES) ─────────────────────── */}
       {!isEmpty && (
         <div className="flex flex-col gap-1.5 shrink-0">
-           <span className="text-[9px] text-slate-600 uppercase font-black tracking-widest ml-1">Lançamento por Mês Elétrico (Grade Histórica)</span>
-           <div className="grid grid-cols-6 lg:grid-cols-12 gap-1 p-1.5 bg-slate-900 border border-slate-800/80 rounded-sm">
+           <div className="flex items-center gap-1.5 ml-1">
+             <Pencil size={8} className="text-slate-600" />
+             <span className="text-[9px] text-slate-600 uppercase font-black tracking-widest">Grade Histórica — Edite por mês</span>
+           </div>
+           <div className="grid grid-cols-6 lg:grid-cols-12 gap-1 p-2 bg-slate-900 border border-slate-800/80 rounded-sm">
               {chartData.map((d, i) => (
                 <div key={d.mes} className="flex flex-col items-center gap-1 group">
                    <label className="text-[11px] text-slate-500 group-hover:text-sky-500 transition-colors uppercase font-bold tracking-tighter">
@@ -356,10 +422,10 @@ export const ConsumptionChart: React.FC = () => {
                      value={localConsumption[i]}
                      onChange={e => handleInputChange(i, e.target.value)}
                      onBlur={e => handleInputBlur(i, e.target.value)}
-                     className="w-full bg-slate-950 border border-slate-800 rounded-sm py-1.5 text-xs text-sky-500/80 font-mono text-center tabular-nums focus:border-sky-500 focus:text-sky-400 focus:outline-none focus:bg-slate-900 transition-all placeholder:text-slate-800"
+                     className="w-full bg-slate-950 border border-slate-800 rounded-sm py-1.5 text-xs text-sky-400/90 font-mono text-center tabular-nums focus:border-sky-500 focus:ring-1 focus:ring-sky-500/20 focus:text-sky-300 focus:outline-none focus:bg-slate-900 transition-all placeholder:text-slate-800"
                      placeholder="0"
                    />
-                   <div className="text-[11px] text-slate-700 font-mono">
+                   <div className="text-[10px] text-slate-700 font-mono">
                       {d.cargasSimuladas > 0 ? `+${Math.round(d.cargasSimuladas)}` : ''}
                    </div>
                 </div>
