@@ -29,14 +29,49 @@ export const MapFlyToSync: React.FC = () => {
     if (selectedEntity.type === 'site') {
       const siteLat = Number(useSolarStore.getState().clientData.lat);
       const siteLng = Number(useSolarStore.getState().clientData.lng);
-      if (!isNaN(siteLat) && !isNaN(siteLng) && (siteLat !== 0 || siteLng !== 0)) {
-        map.flyTo(L.latLng(siteLat, siteLng), map.getZoom() || 18, { duration: 1.2 });
+      
+      // Validação rigorosa (P10)
+      if (Number.isFinite(siteLat) && Number.isFinite(siteLng) && (siteLat !== 0 || siteLng !== 0)) {
+        try {
+          const currentCenter = map.getCenter();
+          const zoom = map.getZoom();
+          const mapSize = map.getSize();
+          
+          // Só voa se o centro atual e zoom forem válidos e o mapa já tiver tamanho.
+          // Se o container estiver com tamanho 0 (antes de renderizar), flyTo gera NaN.
+          if (
+            Number.isFinite(currentCenter.lat) && 
+            Number.isFinite(currentCenter.lng) &&
+            Number.isFinite(zoom) &&
+            mapSize.x > 0 && mapSize.y > 0
+          ) {
+            map.flyTo(L.latLng(siteLat, siteLng), zoom || 18, { duration: 1.2 });
+          } else {
+            map.setView(L.latLng(siteLat, siteLng), 18);
+          }
+        } catch (err) {
+          console.warn('MapFlyToSync: Erro no flyTo, usando setView fallback', err);
+          try {
+             map.setView(L.latLng(siteLat, siteLng), 18);
+          } catch (e) {
+             // Ignora erro do fallback
+          }
+        }
       }
     }
     else if (selectedEntity.type === 'module') {
       const mod = placedModules.find((m: PlacedModule) => m.id === selectedEntity.id);
       if (mod && mod.center && !isNaN(Number(mod.center[0])) && !isNaN(Number(mod.center[1]))) {
-        map.flyTo(L.latLng(mod.center[0], mod.center[1]), 21, { duration: 0.6 });
+        try {
+          const mapSize = map.getSize();
+          if (mapSize.x > 0 && mapSize.y > 0) {
+            map.flyTo(L.latLng(mod.center[0], mod.center[1]), 21, { duration: 0.6 });
+          } else {
+            map.setView(L.latLng(mod.center[0], mod.center[1]), 21);
+          }
+        } catch (e) {
+          try { map.setView(L.latLng(mod.center[0], mod.center[1]), 21); } catch (err) {}
+        }
       }
     } 
     else if (selectedEntity.type === 'area' || selectedEntity.type === 'polygon') {
@@ -63,10 +98,17 @@ export const MapFlyToSync: React.FC = () => {
             const polygon = L.polygon(geoPoints);
             const bounds = polygon.getBounds();
             if (bounds.isValid()) {
-              map.flyToBounds(bounds, { duration: 0.6, padding: [20, 20] });
+              const mapSize = map.getSize();
+              if (mapSize.x > 0 && mapSize.y > 0) {
+                map.flyToBounds(bounds, { duration: 0.6, padding: [20, 20] });
+              } else {
+                map.fitBounds(bounds, { padding: [20, 20] });
+              }
             }
           } catch (err) {
             console.warn('MapFlyToSync: Falha ao calcular bounds para área', area.id, err);
+            // Fallback para setView no centro da area
+            try { map.setView(L.latLng(area.center[0], area.center[1]), 19); } catch (e) {}
           }
         }
       }

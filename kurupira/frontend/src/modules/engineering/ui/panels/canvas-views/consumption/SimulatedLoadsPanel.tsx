@@ -136,9 +136,9 @@ export const SimulatedLoadsPanel: React.FC<SimulatedLoadsPanelProps> = ({
             onChange={e => setForm(f => ({...f, name: e.target.value}))}
             className="w-full h-8 bg-slate-900 border border-slate-800 rounded-sm px-2 text-[10px] text-slate-200 focus:outline-none focus:border-sky-500/50 font-mono uppercase tracking-tight transition-colors"
           />
-          <div className="grid grid-cols-3 gap-1.5">
-            <div className="flex flex-col gap-1">
-              <label className="text-[8px] text-slate-600 font-black uppercase text-center tracking-widest">Potência (W)</label>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-2 gap-y-3">
+            <div className="flex flex-col gap-1 col-span-2 sm:col-span-1">
+              <label className="text-[8px] text-slate-600 font-black uppercase text-left sm:text-center tracking-widest">Potência (W)</label>
               <input
                 type="number" min={1}
                 value={form.power || ''}
@@ -147,7 +147,7 @@ export const SimulatedLoadsPanel: React.FC<SimulatedLoadsPanelProps> = ({
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[8px] text-slate-600 font-black uppercase text-center tracking-widest">Uso (H/Dia)</label>
+              <label className="text-[8px] text-slate-600 font-black uppercase text-left sm:text-center tracking-widest">Uso (H/Dia)</label>
               <input
                 type="number" min={0.1} step={0.5}
                 value={form.hoursPerDay || ''}
@@ -158,7 +158,7 @@ export const SimulatedLoadsPanel: React.FC<SimulatedLoadsPanelProps> = ({
             <button
               onClick={handleAddItem}
               disabled={!form.name || !form.power || form.power <= 0}
-              className="h-8 mt-auto bg-sky-600 hover:bg-sky-500 text-slate-950 text-[9px] font-black uppercase tracking-[0.15em] rounded-sm transition-all disabled:opacity-20 flex items-center justify-center gap-1.5 active:scale-95"
+              className="h-8 sm:mt-auto bg-sky-600 hover:bg-sky-500 text-slate-950 text-[9px] font-black uppercase tracking-[0.15em] rounded-sm transition-all disabled:opacity-20 flex items-center justify-center gap-1.5 active:scale-95"
             >
               <Plus size={10} strokeWidth={3} /> Add
             </button>
@@ -248,18 +248,18 @@ export const SimulatedLoadsPanel: React.FC<SimulatedLoadsPanelProps> = ({
                   </div>
 
                   {/* Actions */}
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+                  <div className="flex gap-1.5 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all shrink-0">
                     <button
                       onClick={() => setEditingItem(editingItem === item.id ? null : item.id)}
-                      className="w-6 h-6 flex items-center justify-center hover:text-sky-400 text-slate-600 transition-colors bg-slate-950 border border-slate-800 rounded-sm"
+                      className="w-7 h-7 flex items-center justify-center hover:text-sky-400 text-slate-600 transition-colors bg-slate-950 border border-slate-800 rounded-sm"
                     >
-                      <Pencil size={10} />
+                      <Pencil size={11} />
                     </button>
                     <button
                       onClick={() => removeLoadItem(item.id)}
-                      className="w-6 h-6 flex items-center justify-center hover:text-red-400 text-slate-600 transition-colors bg-slate-950 border border-slate-800 rounded-sm"
+                      className="w-7 h-7 flex items-center justify-center hover:text-red-400 text-slate-600 transition-colors bg-slate-950 border border-slate-800 rounded-sm"
                     >
-                      <Trash2 size={10} />
+                      <Trash2 size={11} />
                     </button>
                   </div>
                 </div>

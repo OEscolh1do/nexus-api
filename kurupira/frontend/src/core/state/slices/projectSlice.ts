@@ -311,13 +311,24 @@ export const createProjectSlice: StateCreator<
 > = (set) => ({
   project: initialProjectData,
 
-  setCoordinates: (lat, lng) => set((s) => ({
-    project: { ...s.project, coordinates: { lat, lng } },
-  })),
+  setCoordinates: (lat, lng) => set((s) => {
+    // Blindagem contra coordenadas inválidas (NaN, Infinity, etc)
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      console.warn('setCoordinates: Abortando por valor não finito', { lat, lng });
+      return s;
+    }
+    return {
+      project: { ...s.project, coordinates: { lat, lng } },
+    };
+  }),
 
-  setZoom: (z) => set((s) => ({
-    project: { ...s.project, zoom: z },
-  })),
+  setZoom: (z) => set((s) => {
+    // Blindagem contra zoom inválido
+    if (!Number.isFinite(z)) return s;
+    return {
+      project: { ...s.project, zoom: z },
+    };
+  }),
 
   // ─── ÁREAS DE INSTALAÇÃO (FREEFORM CSG) ──────────────────────────────────────
 

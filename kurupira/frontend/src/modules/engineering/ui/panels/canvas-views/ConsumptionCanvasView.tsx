@@ -111,137 +111,141 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
     <div className={cn('relative w-full h-full flex flex-col bg-slate-950 overflow-hidden', className)}>
       
       {/* ── LEVEL 2: INSTALLATION HUB (Navigation Bar) ───────────────────────────── */}
-      <div className="bg-slate-900/50 border-b border-slate-800 flex items-center shrink-0 z-20 h-14">
+      <div className="bg-slate-900/50 border-b border-slate-800 flex flex-col lg:flex-row lg:items-center shrink-0 z-20 min-h-[3.5rem] lg:h-14">
 
-        {/* Prefixo — ícone + badge de contagem */}
-        <div className="flex flex-col items-center justify-center gap-0.5 px-3 h-full border-r border-slate-800 shrink-0">
-          <Layers size={13} className="text-slate-600" />
-          <span className="text-[8px] text-slate-600 font-black tabular-nums leading-none">
-            {invoices.length} UC
-          </span>
-        </div>
+        {/* TOP ROW / MAIN NAVIGATION (UCs) */}
+        <div className="flex items-center flex-1 min-w-0 h-14 lg:h-full">
+          {/* Prefixo — ícone + badge de contagem */}
+          <div className="flex flex-col items-center justify-center gap-0.5 px-3 h-full border-r border-slate-800 shrink-0">
+            <Layers size={13} className="text-slate-600" />
+            <span className="text-[8px] text-slate-600 font-black tabular-nums leading-none">
+              {invoices.length} UC
+            </span>
+          </div>
 
-        {/* Abas de UC */}
-        <div className="flex-1 flex items-stretch overflow-x-auto custom-scrollbar h-full">
-          {invoices.map((inv, idx) => {
-            const isActive = inv.id === activeInvoiceId;
-            const isEditing = editingUcId === inv.id;
-            const avg = inv.monthlyHistory?.length === 12
-              ? Math.round(inv.monthlyHistory.reduce((a: number, b: number) => a + b, 0) / 12)
-              : 0;
-            const voltageLabel = inv.voltage ? ` · ${inv.voltage}V` : '';
+          {/* Abas de UC */}
+          <div className="flex-1 flex items-stretch overflow-x-auto custom-scrollbar h-full">
+            {invoices.map((inv, idx) => {
+              const isActive = inv.id === activeInvoiceId;
+              const isEditing = editingUcId === inv.id;
+              const avg = inv.monthlyHistory?.length === 12
+                ? Math.round(inv.monthlyHistory.reduce((a: number, b: number) => a + b, 0) / 12)
+                : 0;
+              const voltageLabel = inv.voltage ? ` · ${inv.voltage}V` : '';
 
-            return (
-              <div key={inv.id} className="flex items-stretch shrink-0 h-full relative group/tab">
-                {isEditing ? (
-                  <input
-                    autoFocus
-                    defaultValue={inv.name}
-                    onBlur={(e) => {
-                      updateActiveInvoice({ name: e.target.value });
-                      setEditingUcId(null);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        updateActiveInvoice({ name: (e.target as HTMLInputElement).value });
+              return (
+                <div key={inv.id} className="flex items-stretch shrink-0 h-full relative group/tab">
+                  {isEditing ? (
+                    <input
+                      autoFocus
+                      defaultValue={inv.name}
+                      onBlur={(e) => {
+                        updateActiveInvoice({ name: e.target.value });
                         setEditingUcId(null);
-                      }
-                      if (e.key === 'Escape') setEditingUcId(null);
-                    }}
-                    className="bg-slate-950 text-indigo-400 text-[10px] font-mono font-bold uppercase tracking-wider px-5 focus:outline-none border-r border-indigo-500/30 min-w-[120px] self-stretch"
-                  />
-                ) : (
-                  <button
-                    onClick={() => setActiveInvoice(inv.id)}
-                    onDoubleClick={() => setEditingUcId(inv.id)}
-                    className={cn(
-                      "flex flex-col justify-center px-5 pr-7 transition-all relative border-r border-slate-800 text-left",
-                      isActive
-                        ? "bg-slate-950 border-t-2 border-t-sky-500"
-                        : "border-t-2 border-t-transparent hover:bg-slate-900/40 hover:border-t-slate-700"
-                    )}
-                  >
-                    {/* Linha 1 — Nome */}
-                    <div className="flex items-center gap-1.5">
-                      {isActive && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-sky-500 shadow-[0_0_6px_rgba(14,165,233,0.6)] animate-pulse shrink-0" />
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          updateActiveInvoice({ name: (e.target as HTMLInputElement).value });
+                          setEditingUcId(null);
+                        }
+                        if (e.key === 'Escape') setEditingUcId(null);
+                      }}
+                      className="bg-slate-950 text-indigo-400 text-[10px] font-mono font-bold uppercase tracking-wider px-5 focus:outline-none border-r border-indigo-500/30 min-w-[120px] self-stretch"
+                    />
+                  ) : (
+                    <button
+                      onClick={() => setActiveInvoice(inv.id)}
+                      onDoubleClick={() => setEditingUcId(inv.id)}
+                      className={cn(
+                        "flex flex-col justify-center px-5 pr-7 pt-1 transition-all relative border-r border-slate-800 text-left",
+                        isActive
+                          ? "bg-slate-950 border-t-2 border-t-sky-500"
+                          : "border-t-2 border-t-transparent hover:bg-slate-900/40 hover:border-t-slate-700",
+                        "min-w-[140px] sm:min-w-[160px]"
                       )}
-                      <span className={cn(
-                        "text-[10px] font-black uppercase tracking-[0.12em] leading-none whitespace-nowrap",
-                        isActive ? "text-sky-400" : "text-slate-500 group-hover/tab:text-slate-300"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        {isActive && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-sky-500 shadow-[0_0_6px_rgba(14,165,233,0.6)] animate-pulse shrink-0" />
+                        )}
+                        <span className={cn(
+                          "text-[10px] font-black uppercase tracking-[0.12em] leading-none whitespace-nowrap",
+                          isActive ? "text-sky-400" : "text-slate-500 group-hover/tab:text-slate-300"
+                        )}>
+                          {inv.name || `UC ${idx + 1}`}
+                        </span>
+                      </div>
+                      <div className={cn(
+                        "text-[9px] font-mono tabular-nums leading-none mt-1",
+                        isActive ? "text-slate-500" : "text-slate-700 group-hover/tab:text-slate-600"
                       )}>
-                        {inv.name || `UC ${idx + 1}`}
-                      </span>
-                    </div>
-                    {/* Linha 2 — Microdado */}
-                    <div className={cn(
-                      "text-[9px] font-mono tabular-nums leading-none mt-1",
-                      isActive ? "text-slate-500" : "text-slate-700 group-hover/tab:text-slate-600"
-                    )}>
-                      {avg > 0 ? `${avg} kWh${voltageLabel}` : 'Sem dados'}
-                    </div>
-                  </button>
-                )}
+                        {avg > 0 ? `${avg} kWh${voltageLabel}` : 'Sem dados'}
+                      </div>
+                    </button>
+                  )}
 
-                {/* Botão delete — visível no hover da aba ativa */}
-                {!isEditing && isActive && invoices.length > 1 && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleDeleteRequest(inv.id); }}
-                    className="absolute right-1 top-1.5 p-0.5 text-slate-700 hover:text-rose-400 rounded-sm transition-all opacity-0 group-hover/tab:opacity-100"
-                    title="Excluir Unidade"
-                  >
-                    <X size={8} strokeWidth={3} />
-                  </button>
-                )}
-              </div>
-            );
-          })}
+                  {!isEditing && isActive && invoices.length > 1 && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDeleteRequest(inv.id); }}
+                      className="absolute right-1 top-1.5 p-0.5 text-slate-700 hover:text-rose-400 rounded-sm transition-all opacity-0 group-hover/tab:opacity-100"
+                      title="Excluir Unidade"
+                    >
+                      <X size={8} strokeWidth={3} />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
 
-          {/* Botão — Nova Unidade (separado, borda tracejada) */}
-          <div className="flex items-center px-3 border-r border-slate-800">
-            <button
-              onClick={() => addInvoice({ name: `UC ${invoices.length + 1}` })}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-dashed border-slate-700 hover:border-indigo-500/60 text-slate-600 hover:text-indigo-400 rounded-sm transition-all text-[9px] font-black uppercase tracking-widest"
-            >
-              <Plus size={10} strokeWidth={2.5} /> Nova UC
-            </button>
+            <div className="flex items-center px-2 sm:px-3 border-l lg:border-r border-slate-800 h-full shrink-0">
+              <button
+                onClick={() => addInvoice({ name: `UC ${invoices.length + 1}` })}
+                className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 border border-dashed border-slate-700 hover:border-indigo-500/60 text-slate-600 hover:text-indigo-400 rounded-sm transition-all text-[9px] font-black uppercase tracking-widest"
+              >
+                <Plus size={10} strokeWidth={2.5} /> 
+                <span className="hidden min-[450px]:inline">Nova UC</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* ALVO CC — Integrated into Hub Bar */}
-        <div className="flex items-center gap-3 px-5 h-full bg-slate-950/80 border-l border-slate-800 shadow-inner shrink-0">
+        {/* ALVO CC — Adaptive Position */}
+        <div className="flex items-center justify-between lg:justify-start gap-3 px-5 py-2 lg:py-0 h-12 lg:h-full bg-slate-900 lg:bg-transparent border-t lg:border-t-0 lg:border-l border-slate-800 shadow-inner shrink-0">
           <div className="flex flex-col justify-center">
-            <span className="text-[7px] text-slate-600 font-bold uppercase tracking-[0.2em] leading-none mb-1">
+            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.15em] leading-none mb-1">
               Alvo CC
             </span>
-            <div className="flex items-baseline gap-1">
-              <div className="w-1 h-1 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)] mr-1 mb-0.5 animate-pulse" />
-              <span className="text-[13px] font-mono font-black text-slate-100 tabular-nums tracking-tighter">
+            <div className="flex items-baseline gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)] mr-0.5 mb-0.5 animate-pulse" />
+              <span className="text-[16px] lg:text-[14px] font-mono font-black text-indigo-400 tabular-nums">
                 {kWpAlvo && kWpAlvo > 0 ? formatNumber(kWpAlvo) : "0.00"}
               </span>
-              <span className="text-[8px] font-bold text-slate-500 uppercase ml-0.5">kWp</span>
+              <span className="text-[9px] font-bold text-slate-500 uppercase ml-0.5">kWp Alvo</span>
             </div>
+          </div>
+          <div className="lg:hidden">
+            <TrendingUp size={14} className="text-indigo-500/40" />
           </div>
         </div>
       </div>
 
       {/* ── LEVEL 3: ACTIVE METER SETTINGS (UC Strip) ───────────────────────────── */}
-      <div className="bg-slate-950/50 border-b border-slate-800/60 flex items-center shrink-0 z-10 overflow-x-auto custom-scrollbar divide-x divide-slate-800/60">
+      <div className="bg-slate-950/50 border-b border-slate-800 flex flex-col lg:flex-row lg:items-center shrink-0 z-10 divide-y lg:divide-y-0 lg:divide-x divide-slate-800">
 
         {/* ── GRUPO: ELÉTRICO ─────────────────────────────────────── */}
-        <div className="flex items-center gap-4 px-4 py-1.5 shrink-0">
+        <div className="flex items-center gap-4 px-4 py-3 lg:py-1.5 shrink-0 overflow-x-auto scrollbar-hide scroll-mask-h">
           {/* Badge de Seção */}
-          <div className="flex items-center gap-1.5 px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/20 rounded-sm shrink-0">
+          <div className="flex items-center gap-1.5 px-2 py-1 lg:py-0.5 bg-indigo-500/10 border border-indigo-500/20 rounded-sm shrink-0 w-fit">
             <Cable size={9} className="text-indigo-400" />
             <span className="text-[8px] text-indigo-400 font-black uppercase tracking-[0.15em]">Elétrico</span>
           </div>
 
           {/* NÚMERO DA INSTALAÇÃO */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <span className="text-[9px] text-slate-600 uppercase font-bold tracking-widest flex items-center gap-1">
               <Hash size={9} className="text-slate-700" /> Inst.
             </span>
-            <div className="flex items-center bg-slate-900 border border-slate-800/80 rounded-sm px-2 py-0.5">
+            <div className="flex items-center bg-slate-900 border border-slate-800 rounded-sm px-2 h-11 lg:h-7">
               <input
                 type="text"
                 placeholder="Nº fatura..."
@@ -253,11 +257,11 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
           </div>
 
           {/* LIGAÇÃO ELÉTRICA (Flyout) */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <span className="text-[9px] text-slate-600 uppercase font-bold tracking-widest flex items-center gap-1">
               <Ruler size={9} className="text-slate-700" /> Ligação
             </span>
-            <div className="flex items-center bg-slate-900 border border-slate-800/80 rounded-[2px] overflow-hidden relative">
+            <div className="flex items-center bg-slate-900 border border-slate-800 rounded-[2px] overflow-hidden relative h-11 lg:h-7">
               {['monofasico', 'bifasico', 'trifasico'].map((type) => {
                 const isActive = activeInvoice.connectionType === type;
                 const isExpanded = expandedField === 'connection';
@@ -274,7 +278,7 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
                       }
                     }}
                     className={cn(
-                      "h-6 px-2.5 text-[9px] font-mono font-bold uppercase transition-all duration-200 border-r border-slate-800/50 last:border-0",
+                      "h-full px-2.5 text-[9px] font-mono font-bold uppercase transition-all duration-200 border-r border-slate-800 last:border-0",
                       isActive
                         ? "bg-slate-800 text-indigo-400 border-indigo-500/30 z-10"
                         : "text-slate-500 bg-slate-950/40 hover:text-slate-300 hover:bg-slate-800 animate-in slide-in-from-left-1"
@@ -291,9 +295,9 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
           </div>
 
           {/* NÍVEL DE TENSÃO (Flyout) */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <span className="text-[9px] text-slate-600 uppercase font-bold tracking-widest">Tensão</span>
-            <div className="flex items-center bg-slate-900 border border-slate-800/80 rounded-[2px] overflow-hidden relative">
+            <div className="flex items-center bg-slate-900 border border-slate-800 rounded-[2px] overflow-hidden relative h-11 lg:h-7">
               {['127', '220', '380'].map((v) => {
                 const isActive = activeInvoice.voltage === v;
                 const isExpanded = expandedField === 'voltage';
@@ -310,7 +314,7 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
                       }
                     }}
                     className={cn(
-                      "h-6 px-2 text-[9px] font-mono font-bold uppercase transition-all duration-200 border-r border-slate-800/50 last:border-0",
+                      "h-full px-2 text-[9px] font-mono font-bold uppercase transition-all duration-200 border-r border-slate-800 last:border-0",
                       isActive
                         ? "bg-slate-800 text-indigo-400 border-indigo-500/30 z-10"
                         : "text-slate-500 bg-slate-950/40 hover:text-slate-300 hover:bg-slate-800 animate-in slide-in-from-left-1"
@@ -324,12 +328,12 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
           </div>
 
           {/* DISJUNTOR DE ENTRADA */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <span className="text-[9px] text-slate-600 uppercase font-bold tracking-widest">Disjuntor</span>
             <select
               value={activeInvoice.breakerCurrent || 50}
               onChange={e => updateActiveInvoice({ breakerCurrent: Number(e.target.value) })}
-              className="bg-slate-900 border border-slate-800/80 rounded-sm px-1.5 py-0.5 text-slate-200 font-mono font-bold text-[10px] outline-none focus:border-indigo-500/40 transition-colors"
+              className="bg-slate-900 border border-slate-800 rounded-sm px-1.5 h-11 lg:h-7 text-slate-200 font-mono font-bold text-[10px] outline-none focus:border-indigo-500/40 transition-colors"
             >
               {BREAKER_OPTIONS.map(val => (
                 <option key={val} value={val}>{val}A</option>
@@ -339,23 +343,24 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
         </div>
 
         {/* ── GRUPO: TARIFÁRIO ────────────────────────────────────── */}
-        <div className="flex items-center gap-4 px-4 py-1.5 shrink-0">
+        <div className="flex items-center gap-4 px-4 py-3 lg:py-1.5 shrink-0 overflow-x-auto scrollbar-hide scroll-mask-h">
           {/* Badge de Seção */}
-          <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded-sm shrink-0">
+          <div className="flex items-center gap-1.5 px-2 py-1 lg:py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded-sm shrink-0 w-fit">
             <DollarSign size={9} className="text-emerald-400" />
             <span className="text-[8px] text-emerald-400 font-black uppercase tracking-[0.15em]">Tarifário</span>
           </div>
 
           {/* TARIFA */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <span className="text-[9px] text-slate-600 uppercase font-bold tracking-widest flex items-center gap-1">
               <Activity size={9} className="text-slate-700" /> Tarifa
             </span>
-            <div className="flex items-center bg-slate-900 border border-slate-800 rounded-sm px-2 py-0.5">
+            <div className="flex items-center bg-slate-900 border border-slate-800 rounded-sm px-2 h-11 lg:h-7">
               <span className="text-[9px] text-slate-500 font-mono font-bold mr-1">R$</span>
               <input
                 type="number"
                 step={0.01}
+                inputMode="decimal"
                 value={activeInvoice.tariffRate || 0.92}
                 onChange={e => updateActiveInvoice({ tariffRate: Number(e.target.value) })}
                 className="w-12 bg-transparent text-emerald-300 font-mono font-bold text-[10px] focus:outline-none tabular-nums text-center"
@@ -364,16 +369,17 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
           </div>
 
           {/* MÉDIA BASE */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <span className="text-[9px] text-slate-600 uppercase font-bold tracking-widest flex items-center gap-1">
               <TrendingUp size={9} className="text-slate-700" /> Média
             </span>
-            <div className="flex items-center bg-slate-900 border border-slate-800 rounded-sm px-2 py-0.5">
+            <div className="flex items-center bg-slate-900 border border-slate-800 rounded-sm px-2 h-11 lg:h-7">
               <input
                 type="number"
+                inputMode="numeric"
                 value={activeInvoiceAvg ? Number(activeInvoiceAvg.toFixed(2)) : 0}
                 onChange={e => handleAverageChange(Number(e.target.value))}
-                className="bg-transparent text-emerald-200 font-mono font-bold text-[12px] focus:outline-none w-16 text-center tabular-nums"
+                className="bg-transparent text-emerald-200 font-mono font-black text-[12px] focus:outline-none w-16 text-center tabular-nums"
               />
               <span className="text-[9px] text-slate-500 font-bold ml-1">kWh</span>
             </div>
@@ -384,8 +390,8 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
       {/* ── MAIN CONTENT (Visualization & Payload) ───────────────── */}
       <div className="flex-1 flex flex-col min-h-0 bg-slate-950 p-4 relative gap-4">
          
-         <div className="bg-slate-900/50 border border-slate-800 rounded-sm shadow-2xl overflow-hidden flex-1 flex flex-col relative">
-            <div className="flex flex-col lg:flex-row flex-1 min-h-0">
+         <div className="bg-slate-900/50 border border-slate-800 rounded-sm shadow-2xl overflow-y-auto lg:overflow-hidden flex-1 flex flex-col relative custom-scrollbar">
+            <div className="flex flex-col lg:flex-row lg:flex-1 lg:min-h-0">
                
                {/* Primary Chart Area */}
                <div className="flex-1 min-h-[300px] lg:min-h-0 p-4 lg:p-6 flex flex-col relative">

@@ -35,6 +35,7 @@ import { useCatalogStore } from '../../store/useCatalogStore';
 import { useUIStore } from '@/core/state/uiStore';
 import { SettingsModule } from '@/modules/settings/SettingsModule';
 import { NeonorteLoader } from '@/components/ui/NeonorteLoader';
+import { cn } from '@/lib/utils';
 
 // =============================================================================
 // COMPONENT
@@ -175,7 +176,14 @@ export const WorkspaceLayout: React.FC = () => {
       {isMobile && <MobileOutlinerSheet />}
 
       {/* ── CENTER CANVAS (row 2, col 2) ── */}
-      <div id="engineering-viewport" style={{ gridArea: 'canvas' }} className="overflow-hidden relative z-0 flex flex-col">
+      <div 
+        id="engineering-viewport" 
+        style={{ gridArea: 'canvas' }} 
+        className={cn(
+          "overflow-hidden relative z-0 flex flex-col",
+          isMobile && "pb-[52px]" // Reserva espaço para o MobileOutlinerSheet fixo na base
+        )}
+      >
         <div className="flex-1 overflow-hidden relative">
             <CanvasContainer>
               <CenterCanvas />

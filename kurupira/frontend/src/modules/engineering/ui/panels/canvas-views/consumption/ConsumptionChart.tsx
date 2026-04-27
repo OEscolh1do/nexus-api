@@ -201,7 +201,7 @@ export const ConsumptionChart: React.FC = () => {
     <div className="flex flex-col h-full gap-3 z-0">
 
       {/* ── KPI BAR ────────────────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-px bg-slate-800/40 border border-slate-800/60 rounded-sm shrink-0 overflow-hidden">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-slate-800/40 border border-slate-800/60 rounded-sm shrink-0 overflow-hidden">
         {/* Média Mensal */}
         <div className="flex items-center gap-3 px-3 py-2 bg-slate-900/60">
           <div className="p-1.5 bg-sky-500/10 border border-sky-500/20 rounded-sm shrink-0">
@@ -254,10 +254,10 @@ export const ConsumptionChart: React.FC = () => {
       </div>
       
       {/* ── CONTROLES E LEGENDA (UNIFICADOS) ────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 bg-slate-900 border border-slate-800/60 p-2 lg:px-3 lg:py-1.5 rounded-sm shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-x-6 gap-y-3 bg-slate-900 border border-slate-800/60 p-3 lg:px-3 lg:py-1.5 rounded-sm shrink-0">
         
         {/* Visibility Toggles */}
-        <div className="flex items-center gap-2 pr-4 border-r border-slate-800">
+        <div className="flex items-center gap-2 pr-0 sm:pr-4 border-b sm:border-b-0 sm:border-r border-slate-800 pb-2 sm:pb-0">
             <span className="text-[10px] text-slate-600 uppercase font-black tracking-widest mr-1">Camadas TMY:</span>
             <button 
               onClick={() => setShowHSP(!showHSP)}
@@ -411,7 +411,7 @@ export const ConsumptionChart: React.FC = () => {
              <Pencil size={8} className="text-slate-600" />
              <span className="text-[9px] text-slate-600 uppercase font-black tracking-widest">Grade Histórica — Edite por mês</span>
            </div>
-           <div className="grid grid-cols-6 lg:grid-cols-12 gap-1 p-2 bg-slate-900 border border-slate-800/80 rounded-sm">
+           <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-1.5 p-2 bg-slate-900 border border-slate-800/80 rounded-sm">
               {chartData.map((d, i) => (
                 <div key={d.mes} className="flex flex-col items-center gap-1 group">
                    <label className="text-[11px] text-slate-500 group-hover:text-sky-500 transition-colors uppercase font-bold tracking-tighter">

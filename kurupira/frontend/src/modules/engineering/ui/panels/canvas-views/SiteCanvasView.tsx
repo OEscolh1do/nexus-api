@@ -453,98 +453,96 @@ export const SiteCanvasView: React.FC = () => {
         </div>
 
         {/* ── BARRA DE TELEMETRIA METROLÓGICA (Rodapé SCADA/Heatmap) ── */}
-        <div className="shrink-0 bg-slate-950 border-t border-slate-800 flex flex-row h-auto lg:h-24 relative overflow-hidden">
-          
-          {/* Métricas de Performance (SCADA Displays) */}
-          <div className="w-[100px] lg:w-[420px] grid grid-cols-1 lg:grid-cols-2 border-r border-slate-800/80 bg-slate-950/20 shrink-0">
-            {/* HSP Médio (☀️ Yellow) */}
-            <div className="flex-1 p-2 lg:p-4 border-r lg:border-r border-slate-800/60 lg:border-b-0 border-b bg-gradient-to-br from-yellow-500/10 to-transparent flex flex-col justify-center gap-0 lg:gap-1 relative overflow-hidden group">
-              <div className="absolute top-0 left-0 w-full h-[1px] bg-yellow-500/20" />
-              <div className="flex items-center justify-between relative z-10">
-                <span className="text-[7.5px] lg:text-[9px] font-bold text-slate-500 lg:text-slate-400 uppercase tracking-widest">
-                  <span className="lg:inline hidden">HSP Médio</span>
-                  <span className="lg:hidden">HSP</span>
-                </span>
-                <div className="w-1 h-1 lg:w-1.5 lg:h-1.5 bg-yellow-500 rounded-sm shadow-[0_0_8px_rgba(234,179,8,0.5)] group-hover:scale-125 transition-transform" />
-              </div>
-              <div className="flex items-baseline gap-0.5 mt-0.5 lg:mt-1 relative z-10">
-                <span className="text-sm xs:text-base lg:text-2xl font-mono font-black text-yellow-400 tracking-tighter tabular-nums drop-shadow-[0_0_10px_rgba(234,179,8,0.2)]">
-                  {(totalHsp / 12).toFixed(2)}
-                </span>
-                <span className="text-[6px] lg:text-[9px] font-bold text-slate-600 uppercase">
-                  <span className="lg:inline hidden">kWh/m².dia</span>
-                  <span className="lg:hidden">kWh</span>
-                </span>
-              </div>
-            </div>
-
-            {/* Temperatura Médio (🌡️ Rose) */}
-            <div className="flex-1 p-2 lg:p-4 bg-gradient-to-br from-rose-500/10 to-transparent flex flex-col justify-center gap-0 lg:gap-1 relative overflow-hidden group">
-              <div className="absolute top-0 left-0 w-full h-[1px] bg-rose-500/20" />
-              <div className="flex items-center justify-between relative z-10">
-                <span className="text-[7.5px] lg:text-[9px] font-bold text-slate-500 lg:text-slate-400 uppercase tracking-widest">
-                  <span className="lg:inline hidden">Temp. Média</span>
-                  <span className="lg:hidden">Temp.</span>
-                </span>
-                <div className="w-1 h-1 lg:w-1.5 lg:h-1.5 bg-rose-500 rounded-sm shadow-[0_0_8px_rgba(244,63,94,0.5)] group-hover:scale-125 transition-transform" />
-              </div>
-              <div className="flex items-baseline gap-0.5 mt-0.5 lg:mt-1 relative z-10">
-                <span className="text-sm xs:text-base lg:text-2xl font-mono font-black text-rose-400 tracking-tighter tabular-nums drop-shadow-[0_0_10px_rgba(244,63,94,0.2)]">
-                  {weatherData?.ambient_temp_avg?.toFixed(1) || '27.5'}
-                </span>
-                <span className="text-[6px] lg:text-[9px] font-bold text-slate-600 uppercase">°C</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Heatmap Linear de Irradiância (☀️ Yellow) */}
-          <div className="flex-1 p-3 lg:p-4 flex flex-col justify-center min-w-0 bg-yellow-900/5 transition-colors hover:bg-yellow-900/10">
-            <div className="flex items-center justify-between mb-2 lg:mb-2.5 relative z-10">
-              <div className="flex items-center gap-2 lg:gap-3">
-                <div className="w-1 h-3 bg-yellow-500 rounded-[1px] shadow-[0_0_5px_rgba(234,179,8,0.5)]" />
-                <div className="flex flex-col lg:flex-row lg:items-center lg:gap-2">
-                  <span className="text-[8px] lg:text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">
-                    <span className="lg:inline hidden">Base de Irradiância</span>
-                    <span className="lg:hidden">Base Irrad.</span>
+        <div className="@container shrink-0 bg-slate-950 border-t border-slate-800">
+          <div className="flex flex-col @3xl:flex-row h-auto @3xl:h-24 relative overflow-hidden">
+            
+            {/* Métricas de Performance (SCADA Displays) */}
+            <div className="w-full @3xl:w-[420px] grid grid-cols-2 border-b @3xl:border-b-0 @3xl:border-r border-slate-800/80 bg-slate-950/20 shrink-0">
+              {/* HSP Médio (☀️ Yellow) */}
+              <div className="flex-1 p-2 @3xl:p-4 border-r border-slate-800/60 bg-gradient-to-br from-yellow-500/10 to-transparent flex flex-col justify-center gap-1 relative overflow-hidden group">
+                <div className="absolute top-0 left-0 w-full h-[1px] bg-yellow-500/20" />
+                <div className="flex items-center justify-between relative z-10">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                    HSP Médio
                   </span>
-                  {weatherData?.irradiation_source && (
-                    <span className="text-[6px] lg:text-[7px] text-yellow-500/60 font-black uppercase tracking-widest hidden xs:block">
-                      [{weatherData.irradiation_source}]
-                    </span>
-                  )}
+                  <div className="w-1.5 h-1.5 bg-yellow-500 rounded-sm shadow-[0_0_8px_rgba(234,179,8,0.5)] group-hover:scale-125 transition-transform" />
+                </div>
+                <div className="flex items-baseline gap-1 mt-1 relative z-10">
+                  <span className="text-xl @3xl:text-2xl font-mono font-black text-yellow-400 tracking-tighter tabular-nums drop-shadow-[0_0_10px_rgba(234,179,8,0.2)]">
+                    {(totalHsp / 12).toFixed(2)}
+                  </span>
+                  <span className="text-[8px] @3xl:text-[9px] font-bold text-slate-600 uppercase">
+                    kWh/m².dia
+                  </span>
                 </div>
               </div>
-              <span className="hidden sm:block text-[7px] lg:text-[8px] font-bold text-slate-500 lg:text-slate-600 uppercase tracking-widest px-2 py-0.5 border border-slate-800/60 rounded-sm bg-slate-950/60 backdrop-blur-md">Série Histórica</span>
-            </div>
-            
-            <div className="flex-1 grid grid-cols-6 md:grid-cols-12 gap-0.5 sm:gap-1 lg:gap-1.5 w-full min-h-[36px] lg:min-h-[32px]">
-              {hspMonthly.map((hsp, idx) => {
-                const months = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
-                const intensity = Math.max(0, Math.min(1, (hsp - 3.5) / (6.5 - 3.5)));
-                
-                const bgColor = intensity < 0.25 ? 'bg-slate-950/80 text-slate-600 border-slate-800/40' 
-                              : intensity < 0.55 ? 'bg-yellow-900/20 text-yellow-500/70 border-yellow-500/10'
-                              : intensity < 0.85 ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
-                              : 'bg-yellow-500 text-slate-950 font-black border-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.25)]';
 
-                return (
-                  <div 
-                    key={months[idx]} 
-                    className={cn(
-                      "flex flex-col items-center justify-center rounded-sm transition-all cursor-default select-none border group/month",
-                      "hover:scale-105 lg:hover:scale-110 hover:z-20 hover:shadow-xl",
-                      bgColor
+              {/* Temperatura Média (🌡️ Rose) */}
+              <div className="flex-1 p-2 @3xl:p-4 bg-gradient-to-br from-rose-500/10 to-transparent flex flex-col justify-center gap-1 relative overflow-hidden group">
+                <div className="absolute top-0 left-0 w-full h-[1px] bg-rose-500/20" />
+                <div className="flex items-center justify-between relative z-10">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                    Temp. Média
+                  </span>
+                  <div className="w-1.5 h-1.5 bg-rose-500 rounded-sm shadow-[0_0_8px_rgba(244,63,94,0.5)] group-hover:scale-125 transition-transform" />
+                </div>
+                <div className="flex items-baseline gap-1 mt-1 relative z-10">
+                  <span className="text-xl @3xl:text-2xl font-mono font-black text-rose-400 tracking-tighter tabular-nums drop-shadow-[0_0_10px_rgba(244,63,94,0.2)]">
+                    {weatherData?.ambient_temp_avg?.toFixed(1) || '27.5'}
+                  </span>
+                  <span className="text-[8px] @3xl:text-[9px] font-bold text-slate-600 uppercase">°C</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Heatmap Linear de Irradiância (☀️ Yellow) */}
+            <div className="flex-1 p-3 @3xl:p-4 flex flex-col justify-center min-w-0 bg-yellow-900/5 transition-colors hover:bg-yellow-900/10">
+              <div className="flex items-center justify-between mb-2 @3xl:mb-2.5 relative z-10">
+                <div className="flex items-center gap-2 @3xl:gap-3">
+                  <div className="w-1 h-3 bg-yellow-500 rounded-[1px] shadow-[0_0_5px_rgba(234,179,8,0.5)]" />
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">
+                      Base de Irradiância
+                    </span>
+                    {weatherData?.irradiation_source && (
+                      <span className="text-[7px] text-yellow-500/60 font-black uppercase tracking-widest hidden xs:block">
+                        [{weatherData.irradiation_source}]
+                      </span>
                     )}
-                    title={`${months[idx]}: ${hsp.toFixed(2)} kWh/m².dia`}
-                  >
-                    <span className="text-[8px] xs:text-[9px] lg:text-[10px] font-mono font-bold tabular-nums leading-none mb-[1px] group-hover/month:scale-110 transition-transform">{hsp.toFixed(1)}</span>
-                    <span className="text-[5px] xs:text-[6px] lg:text-[6.5px] uppercase tracking-widest opacity-80 font-sans font-black">{months[idx]}</span>
                   </div>
-                );
-              })}
-            </div>
-          </div>
+                </div>
+                <span className="hidden sm:block text-[8px] font-bold text-slate-600 uppercase tracking-widest px-2 py-0.5 border border-slate-800/60 rounded-sm bg-slate-950/60 backdrop-blur-md">Série Histórica</span>
+              </div>
+              
+              <div className="flex-1 grid grid-cols-6 @xl:grid-cols-12 gap-1 @3xl:gap-1.5 w-full min-h-[36px] @3xl:min-h-[32px]">
+                {hspMonthly.map((hsp, idx) => {
+                  const months = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+                  const intensity = Math.max(0, Math.min(1, (hsp - 3.5) / (6.5 - 3.5)));
+                  
+                  const bgColor = intensity < 0.25 ? 'bg-slate-950/80 text-slate-600 border-slate-800/40' 
+                                : intensity < 0.55 ? 'bg-yellow-900/20 text-yellow-500/70 border-yellow-500/10'
+                                : intensity < 0.85 ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+                                : 'bg-yellow-500 text-slate-950 font-black border-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.25)]';
 
+                  return (
+                    <div 
+                      key={months[idx]} 
+                      className={cn(
+                        "flex flex-col items-center justify-center rounded-sm transition-all cursor-default select-none border group/month",
+                        "hover:scale-110 hover:z-20 hover:shadow-xl",
+                        bgColor
+                      )}
+                      title={`${months[idx]}: ${hsp.toFixed(2)} kWh/m².dia`}
+                    >
+                      <span className="text-[9px] @3xl:text-[10px] font-mono font-bold tabular-nums leading-none mb-[1px] group-hover/month:scale-110 transition-transform">{hsp.toFixed(1)}</span>
+                      <span className="text-[6px] @3xl:text-[6.5px] uppercase tracking-widest opacity-80 font-sans font-black">{months[idx]}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+          </div>
         </div>
       </div>
     </div>

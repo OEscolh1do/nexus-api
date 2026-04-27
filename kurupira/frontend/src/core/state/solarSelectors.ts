@@ -76,7 +76,12 @@ export const selectCoordinates = (s: SolarState) => s.project.coordinates;
 export const selectProjectSiteLocation = createMemoSelector(
   (s: SolarState) => `${s.clientData.lat}_${s.clientData.lng}`,
   (serialized) => {
-    const [lat, lng] = serialized.split('_').map(Number);
+    let [lat, lng] = serialized.split('_').map(Number);
+    // Fallback de Manaus se o estado contiver lixo (NaN)
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      lat = -3.1316;
+      lng = -60.0233;
+    }
     return { lat, lng };
   }
 );

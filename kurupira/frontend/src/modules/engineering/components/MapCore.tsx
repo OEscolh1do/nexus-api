@@ -351,11 +351,11 @@ const MapCoreInner: React.FC<MapCoreProps> = ({
   // 4. Fallback (Manaus)
   const finalCenter: [number, number] = propsCenter 
     ? propsCenter
-    : (installationAreas.length === 0 && siteLocation.lat && siteLocation.lng)
+    : (installationAreas.length === 0 && Number.isFinite(siteLocation.lat) && Number.isFinite(siteLocation.lng) && (siteLocation.lat !== 0 || siteLocation.lng !== 0))
       ? [siteLocation.lat, siteLocation.lng]
-      : coordinates
+      : (coordinates && Number.isFinite(coordinates.lat) && Number.isFinite(coordinates.lng))
         ? [coordinates.lat, coordinates.lng]
-        : (siteLocation.lat && siteLocation.lng)
+        : (Number.isFinite(siteLocation.lat) && Number.isFinite(siteLocation.lng) && (siteLocation.lat !== 0 || siteLocation.lng !== 0))
           ? [siteLocation.lat, siteLocation.lng]
           : [-3.1316, -60.0233];
 
