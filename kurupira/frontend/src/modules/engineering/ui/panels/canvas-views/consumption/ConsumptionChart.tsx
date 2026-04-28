@@ -9,21 +9,27 @@ import {
   Tooltip,
   ResponsiveContainer,
   ReferenceLine,
+  Label,
 } from 'recharts';
 import { useSolarStore } from '@/core/state/solarStore';
-import { Zap, Sun, Thermometer, TrendingUp, ArrowUp, CalendarDays, Pencil } from 'lucide-react';
+import { Zap, Sun, Thermometer, TrendingUp, ArrowUp, CalendarDays, DollarSign, Pencil, BarChart3, Clipboard, Settings2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAnimatedValue } from '@/hooks/useAnimatedValue';
+
+const formatBRL = (val: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
 // Custom Tooltip component
-const CustomConsumptionTooltip = ({ active, payload, label }: any) => {
+const CustomConsumptionTooltip = ({ active, payload, label, tariffRate }: any) => {
   if (!active || !payload?.length) return null;
   const base = payload.find((p: any) => p.dataKey === 'consumoBase')?.value ?? 0;
   const simul = payload.find((p: any) => p.dataKey === 'cargasSimuladas')?.value ?? 0;
   const hsp = payload.find((p: any) => p.dataKey === 'hsp')?.value ?? null;
   const temp = payload.find((p: any) => p.dataKey === 'temp')?.value ?? null;
   const total = base + simul;
+  const cost = tariffRate > 0 ? total * tariffRate : null;
 
   return (
     <div className="bg-slate-900 border border-slate-700 rounded-sm p-4 text-[11px] shadow-2xl backdrop-blur-md z-50">
@@ -43,6 +49,12 @@ const CustomConsumptionTooltip = ({ active, payload, label }: any) => {
           <span className="text-slate-300 font-bold">CARGA TOTAL</span>
           <span className="text-white font-mono font-bold tabular-nums">{total.toFixed(2)} kWh</span>
         </div>
+        {cost !== null && (
+          <div className="flex justify-between gap-8">
+            <span className="text-emerald-600 font-bold">CUSTO ESTIMADO</span>
+            <span className="text-emerald-400 font-mono font-bold tabular-nums">{formatBRL(cost)}</span>
+          </div>
+        )}
 
         {(hsp !== null || temp !== null) && (
           <div className="flex flex-col gap-1.5 mt-2 pt-2 border-t border-slate-800/80">
@@ -77,9 +89,6 @@ export const ConsumptionChart: React.FC = () => {
   const averageConsumption = clientData.averageConsumption || 0;
   const updateMonthlyConsumption = useSolarStore(s => s.updateMonthlyConsumption);
   const simulatedItems = useSolarStore(s => s.simulatedItems);
-
-
-
 
   // Climate Visibility States
   const [showHSP, setShowHSP] = useState(false);
@@ -120,9 +129,6 @@ export const ConsumptionChart: React.FC = () => {
     updateMonthlyConsumption(index, numValue);
   };
 
-
-
-
   // Derived chart data combining base consumption and simulated per-month profile
   const chartData = useMemo(() => {
     const validMonths = monthlyConsumption.filter(v => v > 0);
@@ -157,8 +163,25 @@ export const ConsumptionChart: React.FC = () => {
     const media = validTotals.length > 0 ? validTotals.reduce((a, b) => a + b, 0) / validTotals.length : 0;
     const pico = validTotals.length > 0 ? Math.max(...validTotals) : 0;
     const totalAnual = totals.reduce((a, b) => a + b, 0);
-    return { media, pico, totalAnual };
+    const picoIndex = totals.indexOf(pico);
+    const picoMes = picoIndex >= 0 ? MESES[picoIndex] : '';
+    // Percentages for legend
+    const totalBase = chartData.reduce((s, d) => s + d.consumoBase, 0);
+    const totalSim = chartData.reduce((s, d) => s + d.cargasSimuladas, 0);
+    const totalAll = totalBase + totalSim;
+    const pctBase = totalAll > 0 ? Math.round((totalBase / totalAll) * 100) : 100;
+    const pctSim = totalAll > 0 ? 100 - pctBase : 0;
+    return { media, pico, totalAnual, picoMes, pctBase, pctSim };
   }, [chartData]);
+
+  const tariffRate = activeInvoice?.tariffRate ?? 0;
+  const monthlyCost = kpis.media * tariffRate;
+
+  // Animated KPI values
+  const animMedia = useAnimatedValue(kpis.media);
+  const animPico = useAnimatedValue(kpis.pico);
+  const animTotal = useAnimatedValue(kpis.totalAnual);
+  const animCost = useAnimatedValue(monthlyCost);
 
   // Adaptive Climate Domains (Smart Correlation Scaling)
   const climateDomains = useMemo(() => {
@@ -201,52 +224,67 @@ export const ConsumptionChart: React.FC = () => {
     <div className="flex flex-col h-full gap-3 z-0">
 
       {/* ── KPI BAR ────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-slate-800/40 border border-slate-800/60 rounded-sm shrink-0 overflow-hidden">
-        {/* Média Mensal */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-slate-800/40 border border-slate-800/60 rounded-sm shrink-0 overflow-hidden">
+        {/* Consumo Médio */}
         <div className="flex items-center gap-3 px-3 py-2 bg-slate-900/60">
           <div className="p-1.5 bg-sky-500/10 border border-sky-500/20 rounded-sm shrink-0">
             <TrendingUp size={10} className="text-sky-400" />
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-[8px] text-slate-600 font-black uppercase tracking-[0.15em] leading-none mb-0.5">Média Mensal</span>
+            <span className="text-[8px] text-slate-600 font-black uppercase tracking-[0.15em] leading-none mb-0.5">{isEmpty ? 'Configure o consumo' : 'Consumo Médio'}</span>
             <div className="flex items-baseline gap-1">
               <span className="text-[13px] font-mono font-black text-slate-100 tabular-nums leading-none">
-                {isEmpty ? '—' : kpis.media.toFixed(0)}
+                {isEmpty ? '—' : Math.round(animMedia)}
               </span>
-              <span className="text-[8px] text-slate-500 font-bold uppercase">kWh</span>
+              {!isEmpty && <span className="text-[8px] text-slate-500 font-bold uppercase">kWh</span>}
             </div>
           </div>
         </div>
 
-        {/* Pico */}
+        {/* Mês de Pico */}
         <div className="flex items-center gap-3 px-3 py-2 bg-slate-900/60">
           <div className="p-1.5 bg-amber-500/10 border border-amber-500/20 rounded-sm shrink-0">
             <ArrowUp size={10} className="text-amber-400" />
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-[8px] text-slate-600 font-black uppercase tracking-[0.15em] leading-none mb-0.5">Pico Mensal</span>
+            <span className="text-[8px] text-slate-600 font-black uppercase tracking-[0.15em] leading-none mb-0.5">{isEmpty ? 'Pico' : `Pico (${kpis.picoMes})`}</span>
             <div className="flex items-baseline gap-1">
               <span className="text-[13px] font-mono font-black text-slate-100 tabular-nums leading-none">
-                {isEmpty ? '—' : kpis.pico.toFixed(0)}
+                {isEmpty ? '—' : Math.round(animPico)}
               </span>
-              <span className="text-[8px] text-slate-500 font-bold uppercase">kWh</span>
+              {!isEmpty && <span className="text-[8px] text-slate-500 font-bold uppercase">kWh</span>}
             </div>
           </div>
         </div>
 
-        {/* Total Anual */}
+        {/* Demanda Anual */}
         <div className="flex items-center gap-3 px-3 py-2 bg-slate-900/60">
           <div className="p-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-sm shrink-0">
             <CalendarDays size={10} className="text-indigo-400" />
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-[8px] text-slate-600 font-black uppercase tracking-[0.15em] leading-none mb-0.5">Total Anual</span>
+            <span className="text-[8px] text-slate-600 font-black uppercase tracking-[0.15em] leading-none mb-0.5">Demanda Anual</span>
             <div className="flex items-baseline gap-1">
               <span className="text-[13px] font-mono font-black text-slate-100 tabular-nums leading-none">
-                {isEmpty ? '—' : kpis.totalAnual >= 1000 ? (kpis.totalAnual / 1000).toFixed(2) : kpis.totalAnual.toFixed(0)}
+                {isEmpty ? '—' : animTotal >= 1000 ? (animTotal / 1000).toFixed(2) : Math.round(animTotal)}
               </span>
               <span className="text-[8px] text-slate-500 font-bold uppercase">
                 {isEmpty ? '' : kpis.totalAnual >= 1000 ? 'MWh' : 'kWh'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* 4º KPI: Custo Mensal Estimado */}
+        <div className="flex items-center gap-3 px-3 py-2 bg-slate-900/60">
+          <div className="p-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-sm shrink-0">
+            <DollarSign size={10} className="text-emerald-400" />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-[8px] text-slate-600 font-black uppercase tracking-[0.15em] leading-none mb-0.5">{tariffRate > 0 ? 'Custo Mensal' : 'Configure a tarifa'}</span>
+            <div className="flex items-baseline gap-1">
+              <span className="text-[13px] font-mono font-black text-slate-100 tabular-nums leading-none">
+                {isEmpty || tariffRate <= 0 ? '—' : formatBRL(animCost)}
               </span>
             </div>
           </div>
@@ -285,25 +323,65 @@ export const ConsumptionChart: React.FC = () => {
             </button>
         </div>
 
-        {/* Legenda Dinâmica */}
+        {/* Legenda Dinâmica com Percentuais */}
         <div className="flex items-center gap-4 h-5">
            <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-sky-500 rounded-sm" />
-              <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Histórico</span>
+              <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Histórico{!isEmpty && kpis.pctBase < 100 ? ` (${kpis.pctBase}%)` : ''}</span>
            </div>
-           <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-sky-500/30 rounded-sm" />
-              <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Simulado</span>
-           </div>
+           {kpis.pctSim > 0 && (
+             <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-sky-500/30 rounded-sm" />
+                <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Simulado ({kpis.pctSim}%)</span>
+             </div>
+           )}
         </div>
       </div>
 
       {/* ── ÁREA DO GRÁFICO (FLEXÍVEL) ────────────────────────────────── */}
       <div className="flex-1 relative min-h-[140px] max-h-none">
         {isEmpty ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none opacity-40">
-            <Zap size={24} className="text-sky-500/40 mb-2" />
-            <p className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">Aguardando dados de consumo</p>
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 pointer-events-auto">
+            <div className="flex flex-col items-center gap-2">
+              <Zap size={28} className="text-sky-500/30" />
+              <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">Configure o Consumo</p>
+              <p className="text-[10px] text-slate-600 max-w-xs text-center">Escolha como iniciar a análise de consumo desta UC</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full max-w-md px-4">
+              <button
+                className="flex flex-col items-center gap-1.5 p-3 bg-slate-900/80 border border-slate-800 rounded-sm hover:border-sky-500/40 hover:bg-slate-900 transition-all group"
+                onClick={() => {
+                  const avgInput = document.querySelector<HTMLInputElement>('[data-field="average-consumption"]');
+                  avgInput?.focus();
+                }}
+              >
+                <Clipboard size={14} className="text-sky-500/60 group-hover:text-sky-400 transition-colors" />
+                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Informar Média</span>
+                <span className="text-[8px] text-slate-600 text-center leading-tight">Média mensal em kWh</span>
+              </button>
+              <button
+                className="flex flex-col items-center gap-1.5 p-3 bg-slate-900/80 border border-slate-800 rounded-sm hover:border-sky-500/40 hover:bg-slate-900 transition-all group"
+                onClick={() => {
+                  const gridEl = document.getElementById('consumption-history-grid');
+                  gridEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }}
+              >
+                <BarChart3 size={14} className="text-sky-500/60 group-hover:text-sky-400 transition-colors" />
+                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Preencher Histórico</span>
+                <span className="text-[8px] text-slate-600 text-center leading-tight">12 meses individuais</span>
+              </button>
+              <button
+                className="flex flex-col items-center gap-1.5 p-3 bg-slate-900/80 border border-slate-800 rounded-sm hover:border-sky-500/40 hover:bg-slate-900 transition-all group"
+                onClick={() => {
+                  const loadsEl = document.getElementById('simulated-loads-panel');
+                  loadsEl?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
+              >
+                <Settings2 size={14} className="text-sky-500/60 group-hover:text-sky-400 transition-colors" />
+                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Simular Cargas</span>
+                <span className="text-[8px] text-slate-600 text-center leading-tight">Inventário de equipamentos</span>
+              </button>
+            </div>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
@@ -354,9 +432,19 @@ export const ConsumptionChart: React.FC = () => {
                   className="tabular-nums"
                 />
               )}
-              
-              <Tooltip content={<CustomConsumptionTooltip />} cursor={{ fill: 'rgba(245,158,11,0.03)' }} />
-              <ReferenceLine yAxisId="energy" y={chartData[0]?.media} stroke="#0ea5e9" strokeDasharray="3 3" strokeOpacity={0.2} />
+              <Tooltip content={<CustomConsumptionTooltip tariffRate={tariffRate} />} cursor={{ fill: 'rgba(245,158,11,0.03)' }} />
+              <ReferenceLine yAxisId="energy" y={chartData[0]?.media} stroke="#0ea5e9" strokeDasharray="3 3" strokeOpacity={0.2}>
+                {!isEmpty && chartData[0]?.media > 0 && (
+                  <Label
+                    value={`Média: ${Math.round(chartData[0].media)} kWh`}
+                    position="insideTopLeft"
+                    fill="#475569"
+                    fontSize={9}
+                    fontFamily="var(--font-mono)"
+                    offset={4}
+                  />
+                )}
+              </ReferenceLine>
               
               <Bar 
                 yAxisId="energy"
@@ -404,38 +492,61 @@ export const ConsumptionChart: React.FC = () => {
         )}
       </div>
 
-      {/* ── GRADE DE EDIÇÃO DIRETA (12 MESES) ─────────────────────── */}
-      {!isEmpty && (
-        <div className="flex flex-col gap-1.5 shrink-0">
-           <div className="flex items-center gap-1.5 ml-1">
-             <Pencil size={8} className="text-slate-600" />
-             <span className="text-[9px] text-slate-600 uppercase font-black tracking-widest">Grade Histórica — Edite por mês</span>
-           </div>
-           <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-1.5 p-2 bg-slate-900 border border-slate-800/80 rounded-sm">
-              {chartData.map((d, i) => (
-                <div key={d.mes} className="flex flex-col items-center gap-1 group">
-                   <label className="text-[11px] text-slate-500 group-hover:text-sky-500 transition-colors uppercase font-bold tracking-tighter">
-                      {d.mes}
-                   </label>
-                   <input
-                     type="number"
-                     value={localConsumption[i]}
-                     onChange={e => handleInputChange(i, e.target.value)}
-                     onBlur={e => handleInputBlur(i, e.target.value)}
-                     className="w-full bg-slate-950 border border-slate-800 rounded-sm py-1.5 text-xs text-sky-400/90 font-mono text-center tabular-nums focus:border-sky-500 focus:ring-1 focus:ring-sky-500/20 focus:text-sky-300 focus:outline-none focus:bg-slate-900 transition-all placeholder:text-slate-800"
-                     placeholder="0"
-                   />
-                   <div className="text-[10px] text-slate-700 font-mono">
-                      {d.cargasSimuladas > 0 ? `+${Math.round(d.cargasSimuladas)}` : ''}
-                   </div>
-                </div>
-              ))}
-           </div>
-        </div>
-      )}
-
-
-
+      <div className="flex flex-col gap-1.5 shrink-0" id="consumption-history-grid">
+         <div className="flex items-center gap-1.5 ml-1">
+           <Pencil size={8} className="text-slate-600" />
+           <span className="text-[9px] text-slate-600 uppercase font-black tracking-widest">Grade Histórica — Edite por mês</span>
+         </div>
+         <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-1.5 p-2 bg-slate-900 border border-slate-800/80 rounded-sm">
+            {(() => {
+              const values = monthlyConsumption;
+              const maxVal = Math.max(...values, 1);
+              const positiveValues = values.filter(v => v > 0);
+              const minVal = positiveValues.length > 0 ? Math.min(...positiveValues) : 0;
+              const maxIdx = values.indexOf(Math.max(...values));
+              const minIdx = values.findIndex(v => v > 0 && v === minVal);
+              return chartData.map((d, i) => {
+                const val = values[i] ?? 0;
+                const pct = maxVal > 0 ? (val / maxVal) * 100 : 0;
+                const isMax = i === maxIdx && val > 0;
+                const isMin = i === minIdx && val > 0 && minIdx !== maxIdx;
+                return (
+                  <div key={d.mes} className="flex flex-col items-center gap-1 group">
+                     <label className="text-[11px] text-slate-500 group-hover:text-sky-500 transition-colors uppercase font-bold tracking-tighter">
+                        {d.mes}
+                     </label>
+                     <input
+                       type="number"
+                       value={localConsumption[i]}
+                       onChange={e => handleInputChange(i, e.target.value)}
+                       onBlur={e => handleInputBlur(i, e.target.value)}
+                       className={cn(
+                         "w-full bg-slate-950 border rounded-sm py-1.5 text-xs text-sky-400/90 font-mono text-center tabular-nums focus:border-sky-500 focus:ring-1 focus:ring-sky-500/20 focus:text-sky-300 focus:outline-none focus:bg-slate-900 transition-all placeholder:text-slate-800",
+                         isMax ? 'border-amber-500/30 ring-1 ring-amber-500/10' :
+                         isMin ? 'border-sky-500/20 ring-1 ring-sky-500/10' :
+                         'border-slate-800'
+                       )}
+                       placeholder="0"
+                     />
+                     {/* Micro-barra proporcional */}
+                     <div className="w-full h-[3px] bg-slate-800 rounded-full overflow-hidden">
+                       <div
+                         className={cn(
+                           "h-full rounded-full transition-all duration-300",
+                           isMax ? 'bg-amber-500/60' : 'bg-sky-500/50'
+                         )}
+                         style={{ width: `${pct}%` }}
+                       />
+                     </div>
+                     <div className="text-[10px] text-slate-700 font-mono">
+                        {d.cargasSimuladas > 0 ? `+${Math.round(d.cargasSimuladas)}` : ''}
+                     </div>
+                  </div>
+                );
+              });
+            })()}
+         </div>
+      </div>
     </div>
   );
 };

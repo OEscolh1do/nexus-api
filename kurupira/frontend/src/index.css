@@ -222,3 +222,31 @@ div[style*="z-index: 1000000"],
   0% { background-position: 0 -100px; }
   100% { background-position: 0 100vh; }
 }
+
+@keyframes kwp-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes dot-breathe {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.45; transform: scale(0.8); }
+}
+
+.kwp-shimmer {
+  background: linear-gradient(90deg, transparent 0%, rgba(99,102,241,0.08) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: kwp-shimmer 0.6s ease-out;
+}
+
+.dot-breathe {
+  animation: dot-breathe 2.5s ease-in-out infinite;
+}
+
+/* Accessibility: disable all custom animations for users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .kwp-shimmer,
+  .dot-breathe {
+    animation: none !important;
+  }
+}

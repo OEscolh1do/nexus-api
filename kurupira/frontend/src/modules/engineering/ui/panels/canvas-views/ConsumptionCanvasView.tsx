@@ -4,7 +4,8 @@ import { useSolarStore } from '@/core/state/solarStore';
 import { calcKWpAlvo } from '@/core/state/slices/journeySlice';
 import { ConsumptionChart } from './consumption/ConsumptionChart';
 import { SimulatedLoadsPanel } from './consumption/SimulatedLoadsPanel';
-import { TrendingUp, Plus, Ruler, Info, CheckCircle2, Layers, Trash2, X, AlertTriangle, Hash, Activity, DollarSign, Cable } from 'lucide-react';
+import { UCCompletionRing } from './consumption/UCCompletionRing';
+import { TrendingUp, Plus, Ruler, Info, CheckCircle2, Trash2, X, AlertTriangle, Hash, Activity, DollarSign, Cable } from 'lucide-react';
 
 const formatNumber = (val: number) => {
   return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
@@ -115,9 +116,16 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
 
         {/* TOP ROW / MAIN NAVIGATION (UCs) */}
         <div className="flex items-center flex-1 min-w-0 h-14 lg:h-full">
-          {/* Prefixo — ícone + badge de contagem */}
+          {/* Prefixo — ícone + badge de contagem + completion ring */}
           <div className="flex flex-col items-center justify-center gap-0.5 px-3 h-full border-r border-slate-800 shrink-0">
-            <Layers size={13} className="text-slate-600" />
+            <UCCompletionRing
+              monthlyHistory={activeInvoice?.monthlyHistory}
+              connectionType={activeInvoice?.connectionType}
+              voltage={activeInvoice?.voltage}
+              tariffRate={activeInvoice?.tariffRate}
+              installationNumber={activeInvoice?.installationNumber}
+              size={22}
+            />
             <span className="text-[8px] text-slate-600 font-black tabular-nums leading-none">
               {invoices.length} UC
             </span>
@@ -166,7 +174,7 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
                     >
                       <div className="flex items-center gap-1.5">
                         {isActive && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-sky-500 shadow-[0_0_6px_rgba(14,165,233,0.6)] animate-pulse shrink-0" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-sky-500 shadow-[0_0_6px_rgba(14,165,233,0.6)] dot-breathe shrink-0" />
                         )}
                         <span className={cn(
                           "text-[10px] font-black uppercase tracking-[0.12em] leading-none whitespace-nowrap",
@@ -209,18 +217,21 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
           </div>
         </div>
 
-        {/* ALVO CC — Adaptive Position */}
-        <div className="flex items-center justify-between lg:justify-start gap-3 px-5 py-2 lg:py-0 h-12 lg:h-full bg-slate-900 lg:bg-transparent border-t lg:border-t-0 lg:border-l border-slate-800 shadow-inner shrink-0">
+        {/* ALVO CC — Hero Metric with shimmer */}
+        <div className="flex items-center justify-between lg:justify-start gap-3 px-5 py-2 lg:py-0 h-12 lg:h-full bg-gradient-to-r from-indigo-500/5 to-transparent border-t lg:border-t-0 lg:border-l border-slate-800 shadow-inner shrink-0">
           <div className="flex flex-col justify-center">
             <span className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.15em] leading-none mb-1">
               Alvo CC
             </span>
             <div className="flex items-baseline gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)] mr-0.5 mb-0.5 animate-pulse" />
-              <span className="text-[16px] lg:text-[14px] font-mono font-black text-indigo-400 tabular-nums">
+              <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)] mr-0.5 mb-0.5 dot-breathe" />
+              <span
+                key={kWpAlvo?.toFixed(2)}
+                className="text-[16px] lg:text-[18px] font-mono font-black text-indigo-400 tabular-nums kwp-shimmer rounded-sm px-1 -ml-1"
+              >
                 {kWpAlvo && kWpAlvo > 0 ? formatNumber(kWpAlvo) : "0.00"}
               </span>
-              <span className="text-[9px] font-bold text-slate-500 uppercase ml-0.5">kWp Alvo</span>
+              <span className="text-[9px] font-bold text-slate-500 uppercase ml-0.5">kWp</span>
             </div>
           </div>
           <div className="lg:hidden">
@@ -377,6 +388,7 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
               <input
                 type="number"
                 inputMode="numeric"
+                data-field="average-consumption"
                 value={activeInvoiceAvg ? Number(activeInvoiceAvg.toFixed(2)) : 0}
                 onChange={e => handleAverageChange(Number(e.target.value))}
                 className="bg-transparent text-emerald-200 font-mono font-black text-[12px] focus:outline-none w-16 text-center tabular-nums"
@@ -399,7 +411,7 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
                </div>
                
                {/* Simulated Loads Sidebar */}
-               <div className="w-full lg:w-[320px] border-t lg:border-t-0 lg:border-l border-slate-800 p-4 flex flex-col overflow-hidden bg-slate-950/40">
+               <div id="simulated-loads-panel" className="w-full lg:w-[320px] border-t lg:border-t-0 lg:border-l border-slate-800 p-4 flex flex-col overflow-hidden bg-slate-950/40">
                   <SimulatedLoadsPanel 
                     compact 
                     projectionAvg={totalConsumptionAvg} 

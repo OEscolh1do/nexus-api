@@ -190,11 +190,32 @@ export const SimulatedLoadsPanel: React.FC<SimulatedLoadsPanelProps> = ({
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar border border-slate-800 rounded-sm bg-slate-900/50">
           {simulatedItems.length === 0 ? (
-            <div className="py-8 flex flex-col items-center justify-center opacity-30">
-              <div className="w-8 h-8 border border-dashed border-slate-600 rounded-full flex items-center justify-center mb-2">
+            <div className="py-6 flex flex-col items-center justify-center gap-3">
+              <div className="w-8 h-8 border border-dashed border-slate-600 rounded-full flex items-center justify-center opacity-30">
                 <Zap size={14} className="text-slate-600" />
               </div>
-              <p className="text-[9px] text-slate-600 font-black uppercase tracking-[0.2em] italic">Inventário Vazio</p>
+              <p className="text-[9px] text-slate-500 font-black uppercase tracking-[0.2em]">Inventário Vazio</p>
+              <button
+                onClick={() => {
+                  const preset = LOAD_PRESETS[0]; // Ar-condicionado 12k BTU
+                  addLoadItem({
+                    id: crypto.randomUUID(),
+                    name: preset.name,
+                    power: preset.power,
+                    perfil: 'constante',
+                    hoursPerDay: preset.hoursPerDay,
+                    daysPerMonth: 30,
+                    qty: 1,
+                    dutyCycle: 1,
+                  } as LoadItem);
+                }}
+                className="flex items-center gap-2 px-3 py-2 border border-dashed border-slate-700 hover:border-sky-500/40 rounded-sm transition-all group"
+              >
+                <Plus size={10} className="text-slate-600 group-hover:text-sky-400 transition-colors" />
+                <span className="text-[8px] text-slate-500 group-hover:text-slate-300 font-bold uppercase tracking-wider transition-colors">
+                  Ar-condicionado 12k BTU (1200W)
+                </span>
+              </button>
             </div>
           ) : (
             <div className="flex flex-col">
