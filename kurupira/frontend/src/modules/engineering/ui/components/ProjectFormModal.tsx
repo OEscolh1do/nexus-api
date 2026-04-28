@@ -115,7 +115,7 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
 
       {/* Modal / Command Dialog */}
       <div 
-        className="relative bg-[#0B0D13] border border-slate-800 w-full max-w-[420px] rounded-none shadow-[0_0_40px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden animate-in fade-in zoom-in-[0.98] duration-150"
+        className="relative bg-[#0B0D13] border border-slate-800 w-full max-w-[420px] sm:rounded-none shadow-[0_0_40px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden animate-in fade-in zoom-in-[0.98] duration-150"
         role="dialog"
         aria-modal="true"
       >
@@ -134,7 +134,7 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
         `}</style>
 
         {/* ── HEADER (Terminal Style) ── */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800/80 bg-slate-900/50">
+        <div className="flex items-center justify-between px-4 py-3.5 sm:py-3 border-b border-slate-800/80 bg-slate-900/50">
           <div className="flex items-center gap-2.5 text-slate-300">
             <TerminalSquare size={14} className="text-indigo-400" />
             <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-100">Inicializar Workspace</h2>
@@ -142,7 +142,7 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
           <button 
             onClick={onClose} 
             disabled={saving} 
-            className="text-slate-500 hover:text-white hover:bg-slate-800 rounded-none p-1 transition-colors"
+            className="w-10 h-10 sm:w-8 sm:h-8 flex items-center justify-center text-slate-500 hover:text-white hover:bg-slate-800 rounded-none transition-colors active:scale-90"
             aria-label="Close"
           >
             <X size={14} />
@@ -175,12 +175,12 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
                   onKeyDown={handleClientKeyDown}
                   disabled={saving}
                   placeholder="EX: SUPERMERCADO CENTRAL"
-                  className="w-full bg-slate-950/50 border border-slate-700 px-3 py-2 h-9 text-[11px] font-mono font-medium text-white placeholder:text-slate-600 outline-none focus:border-indigo-500/50 focus:bg-slate-900 transition-all uppercase tracking-wider rounded-none"
+                  className="w-full bg-slate-950/50 border border-slate-700 px-3 py-2 h-11 sm:h-9 text-[11px] font-mono font-medium text-white placeholder:text-slate-600 outline-none focus:border-indigo-500/50 focus:bg-slate-900 transition-all uppercase tracking-wider rounded-none"
                   autoComplete="off"
                   spellCheck="false"
                 />
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-focus-within:opacity-100 transition-opacity pointer-events-none flex items-center gap-1">
-                  <kbd className="h-4 px-1 rounded-sm bg-slate-800/80 border border-slate-700 text-[8px] font-mono text-slate-200 font-bold flex items-center">↵</kbd>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-focus-within:opacity-100 transition-opacity pointer-events-none flex items-center gap-1">
+                  <kbd className="hidden sm:inline-flex h-4 px-1 rounded-sm bg-slate-800/80 border border-slate-700 text-[8px] font-mono text-slate-200 font-bold items-center">↵</kbd>
                 </div>
               </div>
             </div>
@@ -201,12 +201,12 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
                   onKeyDown={handleProjectKeyDown}
                   disabled={saving}
                   placeholder="EX: MATRIZ - FASE 1"
-                  className="w-full bg-slate-950/50 border border-slate-700 px-3 py-2 h-9 text-[11px] font-mono font-medium text-white placeholder:text-slate-600 outline-none focus:border-indigo-500/50 focus:bg-slate-900 transition-all uppercase tracking-wider rounded-none"
+                  className="w-full bg-slate-950/50 border border-slate-700 px-3 py-2 h-11 sm:h-9 text-[11px] font-mono font-medium text-white placeholder:text-slate-600 outline-none focus:border-indigo-500/50 focus:bg-slate-900 transition-all uppercase tracking-wider rounded-none"
                   autoComplete="off"
                   spellCheck="false"
                 />
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-focus-within:opacity-100 transition-opacity pointer-events-none flex items-center gap-1">
-                  <kbd className="h-4 px-1 rounded-sm bg-slate-800/80 border border-slate-700 text-[8px] font-mono text-slate-200 font-bold flex items-center">↵</kbd>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-focus-within:opacity-100 transition-opacity pointer-events-none flex items-center gap-1">
+                  <kbd className="hidden sm:inline-flex h-4 px-1 rounded-sm bg-slate-800/80 border border-slate-700 text-[8px] font-mono text-slate-200 font-bold items-center">↵</kbd>
                 </div>
               </div>
             </div>
@@ -215,7 +215,7 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
 
         {/* ── FOOTER ── */}
         <div className="px-5 py-4 border-t border-slate-800/80 bg-slate-900/30 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2 text-[11px] font-mono font-bold text-slate-400 uppercase tracking-widest">
+          <div className="hidden sm:flex items-center gap-2 text-[11px] font-mono font-bold text-slate-400 uppercase tracking-widest">
             <span className="flex items-center gap-1"><kbd className="h-4 px-1 rounded-sm border border-slate-800 bg-slate-950 text-slate-200">ESC</kbd> Cancelar</span>
           </div>
 
@@ -223,7 +223,7 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
             ref={submitBtnRef}
             onClick={handleSave} 
             disabled={saving}
-            className="flex items-center justify-center gap-2 px-5 py-2 h-8 text-white text-[11px] font-black uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed transition-all bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] outline-none focus:ring-2 focus:ring-indigo-500/30 rounded-none"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2 h-11 sm:h-8 text-white text-[11px] font-black uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed transition-all bg-indigo-600 hover:bg-indigo-500 active:scale-[0.95] outline-none focus:ring-2 focus:ring-indigo-500/30 rounded-none"
           >
             {saving ? 'Aprovisionando...' : 'Criar Workspace'}
           </button>

@@ -1,8 +1,9 @@
 import { 
-  FileText, MapPin, Zap, TrendingUp, Loader2, Thermometer,
-  Navigation, Home, RefreshCw, Snowflake, Flame
+  FileText, MapPin, Zap, Loader2, Thermometer,
+  Navigation, Home, RefreshCw, Snowflake, Flame, Search
 } from 'lucide-react';
-import { useMapEvents } from 'react-leaflet';
+import { useMapEvents, useMap } from 'react-leaflet';
+import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useSolarStore } from '@/core/state/solarStore';
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
@@ -15,8 +16,33 @@ import { Autocomplete } from '@/components/ui/Autocomplete';
 import { BRAZILIAN_UTILITIES, STATE_TO_DEFAULT_UTILITY } from '@/core/data/utilities';
 import { MapFlyToSync } from '../../../components/MapFlyToSync';
 
-const MapClickHandler: React.FC<{ onLocationSelect: (lat: number, lng: number) => void }> = ({ onLocationSelect }) => {
-  useMapEvents({ click: (e) => onLocationSelect(e.latlng.lat, e.latlng.lng) });
+const GeocodeFlyTo: React.FC<{ lat: number, lng: number, isPanning: boolean }> = ({ lat, lng, isPanning }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (isPanning || !lat || !lng || isNaN(lat) || isNaN(lng)) return;
+    
+    const currentCenter = map.getCenter();
+    const target = L.latLng(lat, lng);
+    
+    // Se a distância for maior que 5 metros (evita micro-tremores de float)
+    // E não estamos ativamente movendo o mapa na mão, então voa.
+    if (currentCenter.distanceTo(target) > 5) {
+      map.flyTo(target, 18, { duration: 1.2 });
+    }
+  }, [lat, lng, isPanning, map]);
+  return null;
+};
+
+const MapInteractionHandler: React.FC<{ 
+  onLocationSelect: (lat: number, lng: number) => void;
+  onPanStart: () => void;
+  onPanEnd: (lat: number, lng: number) => void;
+}> = ({ onLocationSelect, onPanStart, onPanEnd }) => {
+  useMapEvents({ 
+    click: (e) => onLocationSelect(e.latlng.lat, e.latlng.lng),
+    movestart: () => onPanStart(),
+    moveend: (e) => onPanEnd(e.target.getCenter().lat, e.target.getCenter().lng)
+  });
   return null;
 };
 
@@ -116,7 +142,7 @@ const HeatmapPanel: React.FC<{ hspMonthly: number[]; irradiationSource?: string 
   }, [hspMonthly]);
 
   return (
-    <div className="flex-1 flex flex-col p-2 @3xl:p-3 gap-1.5 @3xl:gap-2 bg-yellow-900/5 transition-colors hover:bg-yellow-900/10 overflow-hidden">
+    <div className="flex-1 flex flex-col p-2 pb-4 @3xl:p-3 @3xl:pb-6 gap-1.5 @3xl:gap-2 bg-yellow-900/5 transition-colors hover:bg-yellow-900/10 overflow-hidden">
       <div className="flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
           <div className="w-1 h-3 bg-yellow-500 rounded-full shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
@@ -195,6 +221,7 @@ export const SiteCanvasView: React.FC = () => {
   // ── Geocoding & Reverse Geocoding (Hookified) ──────────────────────────
   const { isGeocoding, geocodeStatus, geocodeAddress, reverseGeocode, detectedAddress, setDetectedAddress } = useGoogleGeocoding();
   const [mobileView, setMobileView] = useState<'form' | 'map'>('form');
+  const [isMapPanning, setIsMapPanning] = useState(false);
 
 
   // ── Climate Sync ───────────────────────────────────────────────────────
@@ -257,6 +284,15 @@ export const SiteCanvasView: React.FC = () => {
   };
 
   const handleMapClick = useCallback((newLat: number, newLng: number) => {
+    updateClientData({ lat: parseFloat(newLat.toFixed(6)), lng: parseFloat(newLng.toFixed(6)) });
+  }, [updateClientData]);
+
+  const handlePanStart = useCallback(() => {
+    setIsMapPanning(true);
+  }, []);
+
+  const handlePanEnd = useCallback((newLat: number, newLng: number) => {
+    setIsMapPanning(false);
     updateClientData({ lat: parseFloat(newLat.toFixed(6)), lng: parseFloat(newLng.toFixed(6)) });
   }, [updateClientData]);
 
@@ -323,17 +359,6 @@ export const SiteCanvasView: React.FC = () => {
                 icon={<MapPin size={10} />} 
                 label="Endereço" 
                 completed={!!(clientData.zipCode && clientData.city)}
-                secondary={
-                  <button
-                    onClick={() => geocodeAddress()}
-                    disabled={isGeocoding || (!clientData.street && (!clientData.zipCode || clientData.zipCode.length < 8))}
-                    className="flex items-center gap-1 px-1.5 py-0.5 bg-slate-900/80 hover:bg-slate-800 text-slate-300 rounded-sm transition-all disabled:opacity-20 text-[7px] font-black uppercase tracking-widest border border-slate-800/60 active:scale-95 shrink-0"
-                    title="Localizar no Mapa"
-                  >
-                    {isGeocoding ? <Loader2 size={9} className="animate-spin text-purple-400" /> : <TrendingUp size={9} className="text-slate-500" />}
-                    <span className="hidden 2xl:inline">Localizar</span>
-                  </button>
-                }
               />
             </div>
             <div className="grid grid-cols-12 gap-2">
@@ -359,6 +384,16 @@ export const SiteCanvasView: React.FC = () => {
                 <input type="text" value={clientData.number || ''} onChange={e => updateClientData({ number: e.target.value })} className={`${fieldBase} text-slate-100 text-center focus:border-slate-700 px-1`} />
               </FieldCell>
             </div>
+            
+            {/* CTA: Buscar Endereço (Full Width Action) */}
+            <button
+              onClick={() => geocodeAddress()}
+              disabled={isGeocoding || (!clientData.street && (!clientData.zipCode || clientData.zipCode.length < 8))}
+              className="mt-1 flex items-center justify-center gap-2 w-full h-10 bg-indigo-600 hover:bg-indigo-500 text-white rounded-sm transition-all disabled:opacity-30 disabled:grayscale text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-indigo-900/20 active:scale-[0.98]"
+            >
+              {isGeocoding ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+              <span>Buscar Endereço no Mapa</span>
+            </button>
           </div>
 
           <div className="flex flex-col gap-2">
@@ -430,11 +465,36 @@ export const SiteCanvasView: React.FC = () => {
         />
 
         <div className="flex-1 min-h-[300px] relative group select-none">
-          <MapCore activeTool="SELECT" center={[activeLat, activeLng]} zoom={clientData.lat ? 17 : 12} showLayers={false} variant="EXPLORATION">
-            <MapClickHandler onLocationSelect={handleMapClick} />
+          <MapCore activeTool="SELECT" showLayers={false} variant="EXPLORATION">
+            <GeocodeFlyTo lat={activeLat} lng={activeLng} isPanning={isMapPanning} />
+            <MapInteractionHandler onLocationSelect={handleMapClick} onPanStart={handlePanStart} onPanEnd={handlePanEnd} />
             <ProjectSiteMarker />
             <MapFlyToSync />
           </MapCore>
+
+          {/* ── FIXED CROSSHAIR (Rank 1 - Engineering UI) ── */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-[1000] flex items-center justify-center transition-all duration-300">
+            <div className={cn(
+              "relative flex items-center justify-center transition-all duration-300",
+              isMapPanning ? "scale-90 opacity-60" : "scale-100 opacity-100"
+            )}>
+              {/* Outer Ring */}
+              <div className={cn("absolute w-10 h-10 rounded-full border border-indigo-500/50 transition-all duration-500", isMapPanning && "w-8 h-8 border-indigo-400")} />
+              {/* Center Dot */}
+              <div className="w-1 h-1 rounded-full bg-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.8)]" />
+              {/* Reticles */}
+              <div className="absolute w-14 h-[1px] bg-indigo-500/50" />
+              <div className="absolute h-14 w-[1px] bg-indigo-500/50" />
+            </div>
+            
+            {/* Label Tooltip */}
+            <div className={cn(
+              "absolute top-8 px-2 py-0.5 bg-slate-950/90 border border-indigo-500/30 rounded-sm text-[8px] font-black uppercase tracking-widest text-indigo-400 whitespace-nowrap transition-all duration-300 shadow-xl backdrop-blur-md",
+              isMapPanning ? "opacity-100 translate-y-2 scale-100" : "opacity-0 translate-y-0 scale-95"
+            )}>
+              Ajustando Posição...
+            </div>
+          </div>
 
           {/* ── GEOLOCATING SCAN OVERLAY ── */}
           {isGeocoding && (
@@ -501,7 +561,7 @@ export const SiteCanvasView: React.FC = () => {
 
         {/* ── BARRA DE TELEMETRIA (Rodapé) ── */}
         <div className="@container shrink-0 bg-slate-950 border-t border-slate-800">
-          <div className="flex flex-row h-24 @3xl:h-28 relative overflow-hidden">
+          <div className="flex flex-row h-32 @3xl:h-36 relative overflow-visible">
             
             {/* 1. Cockpit Térmico (Esquerda) */}
             {/* 1. Cockpit Térmico (Esquerda) */}
@@ -520,7 +580,7 @@ export const SiteCanvasView: React.FC = () => {
               const glowColor = avgPct > 70 ? 'bg-rose-500' : avgPct < 30 ? 'bg-sky-500' : 'bg-emerald-500';
 
               return (
-                <div className="w-[210px] @3xl:w-[260px] flex flex-col border-r border-slate-800/80 bg-slate-950/40 shrink-0 group/kpi relative overflow-hidden">
+                <div className="w-[210px] @3xl:w-[260px] flex flex-col border-r border-slate-800/80 bg-slate-950/40 shrink-0 group/kpi relative overflow-visible">
                   
                   {/* Glow Radial Dinâmico de Fundo */}
                   <div 
@@ -530,7 +590,7 @@ export const SiteCanvasView: React.FC = () => {
                     )}
                   />
 
-                  <div className="flex-1 p-3 @3xl:p-4 flex flex-col relative z-10 justify-between">
+                  <div className="flex-1 p-3 pb-5 @3xl:p-4 @3xl:pb-7 flex flex-col relative z-10 gap-2 overflow-visible">
                     
                     {/* Título & Ícone (Topo) */}
                     <div className="flex items-center justify-between w-full shrink-0">
@@ -539,20 +599,20 @@ export const SiteCanvasView: React.FC = () => {
                     </div>
                     
                     {/* Foco Central: Tavg */}
-                    <div className="flex-1 flex flex-col items-center justify-center mt-1 mb-2">
+                    <div className="flex-1 flex flex-col items-center justify-center">
                       <div className="flex items-start gap-1">
-                        <span className="text-3xl @3xl:text-4xl font-mono font-black text-slate-100 tabular-nums leading-none tracking-tight">
+                        <span className="text-2xl @3xl:text-3xl font-mono font-black text-slate-100 tabular-nums leading-none tracking-tight">
                           {tAvg.toFixed(1)}
                         </span>
-                        <span className="text-[9px] @3xl:text-[10px] font-bold text-slate-500 uppercase mt-0.5">°C</span>
+                        <span className="text-[8px] @3xl:text-[9px] font-bold text-slate-500 uppercase mt-0.5">°C</span>
                       </div>
-                      <span className="text-[7px] @3xl:text-[8px] text-slate-600 font-bold uppercase tracking-[0.2em] mt-1.5 opacity-80">
-                        Temperatura Média
+                      <span className="text-[7px] @3xl:text-[8px] text-slate-600 font-bold uppercase tracking-[0.2em] mt-1 opacity-80">
+                        Média Histórica
                       </span>
                     </div>
 
                     {/* Escala HMI (Rodapé) */}
-                    <div className="flex items-center gap-2.5 @3xl:gap-3 w-full shrink-0">
+                    <div className="flex items-center gap-2.5 @3xl:gap-3 w-full shrink-0 mt-auto overflow-visible">
                       
                       {/* T. Mín Limit (Frio) */}
                       <div className="flex flex-col items-end shrink-0 w-9 @3xl:w-10">
@@ -564,22 +624,22 @@ export const SiteCanvasView: React.FC = () => {
                       </div>
                       
                       {/* Track Full-Width SCADA */}
-                      <div className="flex-1 h-2.5 @3xl:h-3 bg-slate-950 rounded-sm border border-slate-900 shadow-[inset_0_1px_3px_rgba(0,0,0,1)] relative overflow-hidden">
+                      <div className="flex-1 h-2.5 @3xl:h-3 bg-slate-950 rounded-sm border border-slate-900 shadow-[inset_0_1px_3px_rgba(0,0,0,1)] relative overflow-visible">
                         
                         {/* Gradiente Local da Amplitude Térmica */}
-                        <div className="absolute inset-0 bg-gradient-to-r from-sky-500/90 via-emerald-500/90 to-rose-500/90 opacity-85" />
+                        <div className="absolute inset-0 bg-gradient-to-r from-sky-500/90 via-emerald-500/90 to-rose-500/90 opacity-85 rounded-[inherit]" />
                         
                         {/* Régua de Marcação (Ticks a cada 10%) */}
-                        <div className="absolute inset-0 bg-[repeating-linear-gradient(90deg,transparent,transparent_calc(10%-1px),rgba(0,0,0,0.8)_calc(10%-1px),rgba(0,0,0,0.8)_10%)] mix-blend-multiply" />
+                        <div className="absolute inset-0 bg-[repeating-linear-gradient(90deg,transparent,transparent_calc(10%-1px),rgba(0,0,0,0.8)_calc(10%-1px),rgba(0,0,0,0.8)_10%)] mix-blend-multiply rounded-[inherit]" />
                         
                         {/* Agulha SCADA de Precisão */}
                         <div 
-                          className="absolute top-1/2 w-[2px] h-4 @3xl:h-5 bg-white shadow-[0_0_10px_rgba(255,255,255,1)] z-10 transition-all duration-1000 ease-out"
+                          className="absolute top-1/2 w-[1.5px] h-3.5 @3xl:h-4.5 bg-white shadow-[0_0_10px_rgba(255,255,255,1)] z-10 transition-all duration-1000 ease-out"
                           style={{ left: `${avgPct}%`, transform: 'translate(-50%, -50%)' }}
                         >
                           {/* Retículas superior e inferior */}
-                          <div className="absolute -top-[2px] left-1/2 -translate-x-1/2 border-x-[3px] border-x-transparent border-t-[3px] border-t-white" />
-                          <div className="absolute -bottom-[2px] left-1/2 -translate-x-1/2 border-x-[3px] border-x-transparent border-b-[3px] border-b-white" />
+                          <div className="absolute -top-[2px] left-1/2 -translate-x-1/2 border-x-[2.5px] border-x-transparent border-t-[2.5px] border-t-white" />
+                          <div className="absolute -bottom-[2px] left-1/2 -translate-x-1/2 border-x-[2.5px] border-x-transparent border-b-[2.5px] border-b-white" />
                         </div>
                       </div>
 

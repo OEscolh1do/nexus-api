@@ -204,37 +204,41 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelectProjec
     <div className="h-full flex flex-col bg-slate-950 overflow-hidden">
 
       {/* ── COMMAND BAR (Solid / Tool-like) ── */}
-      <div className="shrink-0 border-b border-slate-800 bg-slate-900 px-4 sm:px-6 py-3 flex flex-col md:flex-row md:items-center justify-between gap-4 z-10">
-        <div className="flex items-center gap-4">
-          <div className="flex flex-col">
-            <h1 className="text-sm font-black text-slate-100 uppercase tracking-widest flex items-center gap-2">
-              <div className="w-1 h-3 bg-emerald-500" />
-              Explorador de Projetos
-            </h1>
-            <p className="text-[10px] font-bold text-slate-500 mt-0.5 uppercase tracking-wider">
-              {isHubLoading ? 'Sincronizando...' : `${filteredProjects.length} Indexados`}
-            </p>
+      <div className="shrink-0 border-b border-slate-800 bg-slate-900 px-4 sm:px-6 py-2 flex flex-col md:flex-row md:items-center justify-between gap-3 z-20">
+        <div className="flex flex-col md:flex-row md:items-center gap-4 min-w-0">
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="flex flex-col">
+              <h1 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <div className="w-1 h-2 bg-emerald-500/50" />
+                Filtros de Visão
+              </h1>
+              <p className="text-[9px] font-bold text-slate-600 mt-0.5 uppercase tracking-wider">
+                {isHubLoading ? 'Sincronizando...' : `${filteredProjects.length} Projetos`}
+              </p>
+            </div>
+            <div className="w-px h-6 bg-slate-800 hidden md:block mx-1" />
           </div>
-          <div className="w-px h-8 bg-slate-800 hidden md:block mx-2" />
           
-          {/* PERMANENT FILTER TABS (VS Code Style) */}
-          <div className="hidden lg:flex items-center gap-0.5 bg-slate-950 p-0.5 rounded-sm border border-slate-800">
-             {['ALL', 'DRAFT', 'IN_PROGRESS', 'REVIEW', 'APPROVED'].map(status => {
-              const isActive = statusFilter === status;
-              const config = STATUS_CONFIG[status];
-              return (
-                <button
-                  key={status}
-                  onClick={() => setStatusFilter(status)}
-                  className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-widest transition-all rounded-sm ${isActive
-                    ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/30'
-                    : 'text-slate-500 hover:text-slate-300 border border-transparent hover:bg-slate-900/50'
-                    }`}
-                >
-                  {status === 'ALL' ? 'Todos' : config?.label || status}
-                </button>
-              );
-            })}
+          {/* PERMANENT FILTER TABS (Hybrid: Horizontal Scroll on Mobile) */}
+          <div className="flex items-center gap-0.5 bg-slate-950 p-0.5 rounded-sm border border-slate-800 overflow-x-auto scrollbar-hide scroll-mask-h">
+            <div className="flex items-center gap-0.5 shrink-0">
+               {['ALL', 'DRAFT', 'IN_PROGRESS', 'REVIEW', 'APPROVED'].map(status => {
+                const isActive = statusFilter === status;
+                const config = STATUS_CONFIG[status];
+                return (
+                  <button
+                    key={status}
+                    onClick={() => setStatusFilter(status)}
+                    className={`px-3 py-2 md:py-1.5 text-[9px] font-black uppercase tracking-widest transition-all rounded-sm whitespace-nowrap min-h-[32px] flex items-center ${isActive
+                      ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/30'
+                      : 'text-slate-500 hover:text-slate-300 border border-transparent hover:bg-slate-900/50'
+                      }`}
+                  >
+                    {status === 'ALL' ? 'Todos' : config?.label || status}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -247,14 +251,17 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelectProjec
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="BUSCAR CLIENTE, CIDADE..."
-              className="w-full h-8 pl-9 pr-12 rounded-sm bg-slate-950 border border-slate-800 text-[11px] font-bold text-white placeholder:text-slate-700 focus:border-indigo-500/50 outline-none transition-all uppercase tracking-wider"
+              className="w-full h-10 md:h-8 pl-9 pr-12 rounded-sm bg-slate-950 border border-slate-800 text-[11px] font-bold text-white placeholder:text-slate-700 focus:border-indigo-500/50 outline-none transition-all uppercase tracking-wider"
             />
             <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1 pointer-events-none">
               <kbd className="hidden sm:inline-flex items-center h-4 px-1 rounded-sm bg-slate-800 text-[8px] font-mono text-slate-400 font-bold border border-slate-700">⌘K</kbd>
             </div>
           </div>
           
-          <button onClick={() => setFormProjectId('NEW')} className="flex items-center justify-center gap-2 h-8 px-4 rounded-sm bg-emerald-600 hover:bg-emerald-500 text-slate-950 text-[11px] font-black uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(16,185,129,0.2)] hover:shadow-[0_0_20px_rgba(16,185,129,0.4)]">
+          <button 
+            onClick={() => setFormProjectId('NEW')} 
+            className="flex items-center justify-center gap-2 h-10 md:h-8 px-4 rounded-sm bg-emerald-600 hover:bg-emerald-500 text-slate-950 text-[11px] font-black uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(16,185,129,0.2)] hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] active:scale-95"
+          >
             <Plus size={14} />
             <span className="hidden xs:inline">Novo</span>
           </button>
@@ -262,11 +269,11 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelectProjec
       </div>
 
       {/* ── GRID DE PROJETOS (Industrial) ── */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 bg-slate-950 bg-[radial-gradient(square_40px_at_50%_0%,rgba(16,185,129,0.02),transparent)] relative">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-6 bg-slate-950 bg-[radial-gradient(square_40px_at_50%_0%,rgba(16,185,129,0.02),transparent)] relative">
         {isHubLoading ? (
           <>
             <NeonorteLoader size="panel" context="project-hub" />
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 opacity-50">
+            <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-4 opacity-50">
                {Array(10).fill(0).map((_, i) => <ProjectSkeletonCard key={i} />)}
             </div>
           </>
@@ -282,7 +289,7 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelectProjec
             <p className="text-[9px] text-slate-700 mt-2 uppercase tracking-widest">Sincronize ou crie um novo projeto para iniciar a telemetria.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 lg:gap-5">
+          <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
             {filteredProjects.map(project => (
               <ProjectCardComponent
                 key={project.projectId}
@@ -376,18 +383,18 @@ const ProjectCardComponent: React.FC<{
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === 'Enter' && onClick()}
-      className="group relative bg-[#0B0D13] border border-slate-800 rounded-sm overflow-hidden text-left transition-all duration-200 hover:border-indigo-500/40 hover:shadow-[0_0_20px_rgba(99,102,241,0.05)] cursor-pointer flex flex-col"
+      className="group relative bg-[#0B0D13] border border-slate-800 rounded-sm overflow-hidden text-left transition-all duration-200 hover:border-indigo-500/40 hover:shadow-[0_0_20px_rgba(99,102,241,0.05)] active:scale-[0.98] cursor-pointer flex flex-col @container"
     >
       {/* ── HEADER ── */}
       <div className="px-3 py-2.5 flex items-center justify-between border-b border-slate-800/50 bg-slate-900/30">
         <div className="flex items-center gap-2 min-w-0">
           <div className={`shrink-0 w-2 h-2 rounded-none ${status.dot} shadow-[0_0_8px_rgba(var(--tw-color-indigo-500),0.3)]`} />
-          <h3 className="text-[11px] font-black text-slate-300 uppercase tracking-[0.1em] truncate group-hover:text-white transition-colors" title={ctx.clientName}>
+          <h3 className="text-[clamp(10px,4cqi,12px)] font-black text-slate-300 uppercase tracking-[0.1em] truncate group-hover:text-white transition-colors" title={ctx.clientName}>
             {ctx.clientName}
           </h3>
         </div>
         
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
             <button 
               onClick={(e) => { e.stopPropagation(); onArchive(e); }}
               title="Arquivar"
@@ -448,28 +455,28 @@ const ProjectCardComponent: React.FC<{
       </div>
 
       {/* ── TELEMETRY GRID ── */}
-      <div className="grid grid-cols-4 divide-x divide-slate-800/50 bg-[#0B0D13]">
-        <div className="p-2 flex flex-col items-center justify-center text-center">
+      <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-slate-800/50 bg-[#0B0D13]">
+        <div className="p-2 flex flex-col items-center justify-center text-center border-slate-800/50">
           <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Potência (kWp)</span>
-          <span className="text-[12px] font-mono font-bold text-indigo-400 tabular-nums">
+          <span className="text-[11px] sm:text-[12px] font-mono font-bold text-indigo-400 tabular-nums">
              {project.targetPowerKwp > 0 ? project.targetPowerKwp.toFixed(2) : '0.00'}
           </span>
         </div>
-        <div className="p-2 flex flex-col items-center justify-center text-center">
+        <div className="p-2 flex flex-col items-center justify-center text-center border-slate-800/50">
           <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Consumo (kWh)</span>
-          <span className="text-[12px] font-mono font-bold text-sky-400 tabular-nums">
+          <span className="text-[11px] sm:text-[12px] font-mono font-bold text-sky-400 tabular-nums">
             {ctx.averageConsumptionKwh > 0 ? Math.round(ctx.averageConsumptionKwh) : '0'}
           </span>
         </div>
-        <div className="p-2 flex flex-col items-center justify-center text-center bg-slate-900/10">
+        <div className="p-2 flex flex-col items-center justify-center text-center bg-slate-900/10 border-slate-800/50">
           <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Módulos</span>
-          <span className="text-[12px] font-mono font-bold text-emerald-400 tabular-nums">
+          <span className="text-[11px] sm:text-[12px] font-mono font-bold text-emerald-400 tabular-nums">
             {project.moduleCount}
           </span>
         </div>
-        <div className="p-2 flex flex-col items-center justify-center text-center bg-slate-900/10">
+        <div className="p-2 flex flex-col items-center justify-center text-center bg-slate-900/10 border-slate-800/50">
           <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Inversores</span>
-          <span className="text-[12px] font-mono font-bold text-amber-400 tabular-nums">
+          <span className="text-[11px] sm:text-[12px] font-mono font-bold text-amber-400 tabular-nums">
              {project.inverterCount}
           </span>
         </div>

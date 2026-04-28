@@ -201,7 +201,7 @@ export const SiteContextModal: React.FC<SiteContextModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 sm:p-8">
+    <div className="fixed inset-0 z-[90] flex items-center justify-center p-0 sm:p-4 md:p-8">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
@@ -209,31 +209,32 @@ export const SiteContextModal: React.FC<SiteContextModalProps> = ({
       />
 
       {/* Modal Container (Engineering Terminal Aesthetic) */}
-      <div className="relative w-full max-w-5xl max-h-[90vh] bg-[#0B0D13] rounded-sm border border-slate-800 shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden animate-in zoom-in-95 fade-in duration-300 flex flex-col">
+      <div className="relative w-full h-full sm:h-auto sm:max-w-5xl sm:max-h-[90vh] bg-[#0B0D13] sm:rounded-sm border-0 sm:border border-slate-800 shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden animate-in zoom-in-95 fade-in duration-300 flex flex-col">
         
         {/* LCD Frame Details */}
         <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-slate-700 pointer-events-none" />
         <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-slate-700 pointer-events-none" />
 
         {/* ── HEADER (Telemetry Strip) ── */}
-        <div className="shrink-0 flex items-center justify-between px-5 py-3 border-b border-slate-800 bg-slate-900/50">
+        <div className="shrink-0 flex items-center justify-between px-4 sm:px-5 py-3 border-b border-slate-800 bg-slate-900/50">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-sm bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+            <div className="w-10 h-10 sm:w-8 sm:h-8 rounded-sm bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 shrink-0">
               <MapPin size={16} className="text-emerald-500" />
             </div>
-            <div>
-              <h2 className="text-[12px] font-black text-slate-200 uppercase tracking-widest">{context.clientName}</h2>
-              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">{context.city}, {context.state} — {context.street}</p>
+            <div className="min-w-0">
+              <h2 className="text-[clamp(11px,2.5cqi,14px)] font-black text-slate-200 uppercase tracking-widest truncate">{context.clientName}</h2>
+              <p className="text-[clamp(8px,1.5cqi,10px)] text-slate-500 font-bold uppercase tracking-widest mt-0.5 truncate">{context.city}, {context.state} — {context.street}</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-             <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-slate-950 border border-slate-800 rounded-sm">
+          <div className="flex items-center gap-2 sm:gap-4">
+             <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-slate-950 border border-slate-800 rounded-sm">
                 <div className="w-1.5 h-1.5 bg-amber-500 rounded-none animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
                 <span className="text-[9px] uppercase font-black tracking-widest text-slate-400">Contexto Sincronizado</span>
              </div>
             <button
               onClick={onClose}
-              className="w-8 h-8 flex items-center justify-center rounded-sm bg-slate-950 border border-slate-800 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30 text-slate-500 transition-all"
+              className="w-11 h-11 sm:w-8 sm:h-8 flex items-center justify-center rounded-sm bg-slate-950 border border-slate-800 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30 text-slate-500 transition-all active:scale-90"
+              aria-label="Close"
             >
               <X size={16} />
             </button>
@@ -245,13 +246,13 @@ export const SiteContextModal: React.FC<SiteContextModalProps> = ({
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-0 min-h-[400px]">
 
             {/* LEFT: Mapa Interativo (Radar Theme) */}
-            <div className="lg:col-span-7 bg-[#0B0D13] p-4 sm:p-6 border-r border-slate-800/80 flex flex-col relative">
+            <div className="lg:col-span-7 bg-[#0B0D13] p-4 sm:p-6 border-r border-slate-800/80 flex flex-col relative @container">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-[10px] font-black text-emerald-500/70 uppercase tracking-[0.2em] flex items-center gap-2">
                   <div className="w-1.5 h-1.5 rounded-none bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
                   Visualização Espacial
                 </h3>
-                <span className="text-[9px] font-mono font-bold text-slate-600 tracking-widest">MAP_API_RDY</span>
+                <span className="text-[9px] font-mono font-bold text-slate-600 tracking-widest opacity-0 @md:opacity-100 transition-opacity">MAP_API_RDY</span>
               </div>
               
               {/* Map Container */}
@@ -300,7 +301,7 @@ export const SiteContextModal: React.FC<SiteContextModalProps> = ({
             </div>
 
             {/* RIGHT: Histórico de Consumo (SCADA Style) */}
-            <div className="lg:col-span-5 bg-[#0B0D13] p-4 sm:p-6 flex flex-col">
+            <div className="lg:col-span-5 bg-[#0B0D13] p-4 sm:p-6 flex flex-col @container">
               <h3 className="text-[10px] font-black text-sky-500/70 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-none bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.5)]" />
                 Telemetria de Carga
@@ -363,7 +364,7 @@ export const SiteContextModal: React.FC<SiteContextModalProps> = ({
         </div>
 
         {/* ── FOOTER / ACTION BAR ── */}
-        <div className="shrink-0 flex items-center justify-between px-6 py-4 border-t border-slate-800 bg-slate-950">
+        <div className="shrink-0 flex items-center justify-between px-5 sm:px-6 py-4 border-t border-slate-800 bg-slate-950">
           <div className="flex flex-col">
             <span className="text-[9px] font-mono font-black text-slate-600 tracking-widest uppercase tabular-nums">
               ID: {context.projectId.slice(0, 8)}
@@ -372,7 +373,7 @@ export const SiteContextModal: React.FC<SiteContextModalProps> = ({
 
           <button
             onClick={() => onDimensionar(context.projectId)}
-            className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-slate-950 text-[11px] font-black uppercase tracking-wider transition-all active:scale-[0.98] shadow-[0_0_15px_rgba(16,185,129,0.2)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)] border border-emerald-400/20 group"
+            className="flex items-center gap-2 px-6 py-3 sm:py-2.5 bg-emerald-600 hover:bg-emerald-500 text-slate-950 text-[11px] font-black uppercase tracking-wider transition-all active:scale-[0.95] shadow-[0_0_15px_rgba(16,185,129,0.2)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)] border border-emerald-400/20 group min-h-[44px]"
           >
             Abrir Engenharia
             <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
@@ -398,17 +399,17 @@ const StatChip: React.FC<{ label: string; value: string; unit: string; theme: 'e
   const colorClass = theme === 'sky' ? 'text-sky-400' : theme === 'amber' ? 'text-amber-400' : 'text-emerald-400';
   
   return (
-    <div className="bg-slate-950 border border-slate-800 p-2 sm:p-3 flex flex-col relative overflow-hidden">
-      <div className={`absolute top-0 left-0 w-1 h-full ${theme === 'sky' ? 'bg-sky-500/20' : theme === 'amber' ? 'bg-amber-500/20' : 'bg-emerald-500/20'}`} />
+    <div className="bg-slate-950 border border-slate-800 p-3 h-full flex flex-col relative overflow-hidden group">
+      <div className={`absolute top-0 left-0 w-1 h-full transition-all duration-300 group-hover:w-1.5 ${theme === 'sky' ? 'bg-sky-500/30' : theme === 'amber' ? 'bg-amber-500/30' : 'bg-emerald-500/30'}`} />
       <div className="flex items-center justify-between mb-1 ml-1">
-        <p className="text-[7.5px] sm:text-[8px] text-slate-500 font-black uppercase tracking-[0.15em] truncate">{label}</p>
-        {icon && <div className="text-slate-600 opacity-50 scale-75 sm:scale-100">{icon}</div>}
+        <p className="text-[clamp(7px,1.5cqi,8px)] text-slate-500 font-black uppercase tracking-[0.15em] truncate">{label}</p>
+        {icon && <div className="text-slate-600 opacity-50 scale-75 @md:scale-100">{icon}</div>}
       </div>
       <div className="flex items-baseline gap-1 ml-1">
-        <span className={`text-[12px] sm:text-[14px] font-black font-mono tabular-nums leading-none ${colorClass}`}>
+        <span className={`text-[clamp(12px,4cqi,16px)] font-black font-mono tabular-nums leading-none ${colorClass}`}>
           {value}
         </span>
-        {unit && <span className="text-[7px] sm:text-[8px] text-slate-600 font-bold uppercase">{unit}</span>}
+        {unit && <span className="text-[clamp(7px,1.5cqi,8px)] text-slate-600 font-bold uppercase">{unit}</span>}
       </div>
     </div>
   );
