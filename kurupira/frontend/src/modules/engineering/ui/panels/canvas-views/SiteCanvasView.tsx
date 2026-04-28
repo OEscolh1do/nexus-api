@@ -1,19 +1,19 @@
 import { 
-  FileText, Navigation, MapPin, Loader2, Search, 
-  Plus, Minus, Zap, Home, Edit2, RefreshCw
+  FileText, MapPin, Zap, TrendingUp, Loader2, Thermometer,
+  Navigation, Home, RefreshCw, Snowflake, Flame
 } from 'lucide-react';
 import { useMapEvents } from 'react-leaflet';
-import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useSolarStore } from '@/core/state/solarStore';
-import React, { useCallback, useEffect, useState } from 'react';
-import { MapCore, globalLeafletMapRef } from '../../../components/MapCore';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
+import { MapCore } from '../../../components/MapCore';
 import { fetchWeatherAnalysis } from '@/services/weatherService';
 import { cn } from '@/lib/utils';
 import { useGoogleGeocoding } from '../../../hooks/useGoogleGeocoding';
 import { ProjectSiteMarker } from '../../../components/ProjectSiteMarker';
 import { Autocomplete } from '@/components/ui/Autocomplete';
 import { BRAZILIAN_UTILITIES, STATE_TO_DEFAULT_UTILITY } from '@/core/data/utilities';
+import { MapFlyToSync } from '../../../components/MapFlyToSync';
 
 const MapClickHandler: React.FC<{ onLocationSelect: (lat: number, lng: number) => void }> = ({ onLocationSelect }) => {
   useMapEvents({ click: (e) => onLocationSelect(e.latlng.lat, e.latlng.lng) });
@@ -104,9 +104,87 @@ const AZIMUTH_OPTIONS = [
   { value: 315, label: 'Noroeste (315°)' }
 ] as const;
 
-/**
- * SITE CANVAS VIEW — Cockpit 460/flex — spec-view-site-2026-04-26
- */
+// ─────────────────────────────────────────────────────────────────────────────────
+// MELHORIA — HEATMAP PANEL (Otimizado para Rodapé 2-Colunas)
+// ─────────────────────────────────────────────────────────────────────────────────
+
+const HeatmapPanel: React.FC<{ hspMonthly: number[]; irradiationSource?: string }> = ({ hspMonthly, irradiationSource }) => {
+  const maxVal = Math.max(...hspMonthly, 0.1);
+  const rankMap = useMemo(() => {
+    const sorted = [...hspMonthly].sort((a, b) => b - a);
+    return hspMonthly.map(v => sorted.indexOf(v) + 1);
+  }, [hspMonthly]);
+
+  return (
+    <div className="flex-1 flex flex-col p-2 @3xl:p-3 gap-1.5 @3xl:gap-2 bg-yellow-900/5 transition-colors hover:bg-yellow-900/10 overflow-hidden">
+      <div className="flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="w-1 h-3 bg-yellow-500 rounded-full shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
+          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Base de Irradiância</span>
+          {irradiationSource && (
+            <span className="text-[7px] text-yellow-500/40 font-black uppercase tracking-widest ml-2">[{irradiationSource}]</span>
+          )}
+        </div>
+        <span className="text-[8px] font-bold text-slate-600 uppercase tracking-widest px-2 py-0.5 border border-slate-800/60 rounded-sm bg-slate-950/60 backdrop-blur-md">Série Histórica Contínua</span>
+      </div>
+
+      <div className="flex-1 grid grid-cols-12 gap-[1px] @3xl:gap-0.5 w-full min-h-0">
+        {hspMonthly.map((hsp, idx) => {
+          const months = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+          const intensity = Math.max(0, Math.min(1, (hsp - 3.5) / (6.5 - 3.5)));
+          const isPeak = hsp === Math.max(...hspMonthly) && hsp > 0;
+          const heightPercent = hsp > 0 ? (hsp / maxVal) * 100 : 0;
+          
+          const barColor = isPeak 
+            ? 'bg-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.3)] border-t-2 border-yellow-300'
+            : intensity < 0.25 ? 'bg-slate-800/60 border-t border-slate-700' 
+            : intensity < 0.55 ? 'bg-yellow-900/40 border-t border-yellow-700/50'
+            : 'bg-yellow-600/60 border-t border-yellow-500/50';
+
+          return (
+            <div 
+              key={months[idx]} 
+              className="group/month relative flex flex-col h-full bg-slate-950/40 border border-slate-800/30 rounded-sm cursor-help transition-colors hover:border-yellow-500/50 hover:bg-slate-900/60"
+            >
+              {/* Valor (Topo) */}
+              <div className="h-4 @3xl:h-5 flex items-center justify-center shrink-0 z-10 border-b border-slate-800/50 bg-slate-950/40">
+                <span className={cn(
+                  "text-[7px] @3xl:text-[8.5px] font-mono font-bold tabular-nums leading-none",
+                  isPeak ? "text-yellow-400 drop-shadow-[0_0_2px_rgba(234,179,8,0.5)]" : hsp > 0 ? "text-slate-300" : "text-slate-600"
+                )}>
+                  {hsp > 0 ? hsp.toFixed(1) : '—'}
+                </span>
+              </div>
+
+              {/* Área do Gráfico */}
+              <div className="flex-1 relative w-full flex items-end bg-slate-950/20">
+                <div 
+                  className={cn("w-full transition-all duration-1000 ease-out", barColor)} 
+                  style={{ height: `${heightPercent}%` }} 
+                />
+              </div>
+
+              {/* Mês (Base) */}
+              <div className="h-3 @3xl:h-4 flex items-center justify-center shrink-0 z-10 border-t border-slate-800/50 bg-slate-950/80">
+                <span className={cn(
+                  "text-[5px] @3xl:text-[5.5px] uppercase tracking-widest font-sans font-black",
+                  isPeak ? "text-yellow-500" : "text-slate-500"
+                )}>
+                  {months[idx]}
+                </span>
+              </div>
+              
+              {/* Tooltip de Ranking */}
+              <div className="absolute opacity-0 group-hover/month:opacity-100 top-[-22px] left-1/2 -translate-x-1/2 pointer-events-none z-50 bg-slate-900 border border-slate-700 px-1.5 py-0.5 rounded shadow-xl text-[7px] font-black text-amber-500 uppercase whitespace-nowrap transition-opacity">
+                #{rankMap[idx]}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 export const SiteCanvasView: React.FC = () => {
   const clientData    = useSolarStore(s => s.clientData);
   const updateClientData = useSolarStore(s => s.updateClientData);
@@ -116,21 +194,8 @@ export const SiteCanvasView: React.FC = () => {
 
   // ── Geocoding & Reverse Geocoding (Hookified) ──────────────────────────
   const { isGeocoding, geocodeStatus, geocodeAddress, reverseGeocode, detectedAddress, setDetectedAddress } = useGoogleGeocoding();
-  const [isEditingGeo, setIsEditingGeo] = useState(false);
   const [mobileView, setMobileView] = useState<'form' | 'map'>('form');
 
-  // ── Auto-Pan: Fly to location when coords change ───────────────────────
-  useEffect(() => {
-    const lat = Number(clientData.lat);
-    const lng = Number(clientData.lng);
-    
-    if (!isNaN(lat) && !isNaN(lng) && (lat !== 0 || lng !== 0) && globalLeafletMapRef.current) {
-      globalLeafletMapRef.current.flyTo(L.latLng(lat, lng), 18, {
-        animate: true,
-        duration: 1.5
-      });
-    }
-  }, [clientData.lat, clientData.lng]);
 
   // ── Climate Sync ───────────────────────────────────────────────────────
   const syncClimateData = useCallback(async () => {
@@ -195,25 +260,11 @@ export const SiteCanvasView: React.FC = () => {
     updateClientData({ lat: parseFloat(newLat.toFixed(6)), lng: parseFloat(newLng.toFixed(6)) });
   }, [updateClientData]);
 
-  // ── Derived values (Defensive Lat/Lng) ──────────────────────────────────
-  const activeLat = (clientData.lat !== undefined && clientData.lat !== null && !isNaN(clientData.lat)) ? clientData.lat : -3.1316;
-  const activeLng = (clientData.lng !== undefined && clientData.lng !== null && !isNaN(clientData.lng)) ? clientData.lng : -60.0233;
-  const mapCenter: [number, number] = [activeLat, activeLng];
-
+  const activeLat = Number(clientData.lat) || -3.1316;
+  const activeLng = Number(clientData.lng) || -60.0233;
   const hspMonthly = clientData.monthlyIrradiation ?? Array(12).fill(0);
-  const totalHsp = hspMonthly.reduce((a, b) => a + b, 0);
+  const geocodeStatusLabel = { searching: 'Buscando...', success: 'OK', partial: 'Aprox.', error: 'Erro', idle: '' }[geocodeStatus as string] || '';
 
-  const geocodeStatusLabel = { searching: 'Buscando...', success: 'Localização exata', partial: 'Aproximação', error: 'Não encontrado', idle: '' }[geocodeStatus as string] || '';
-
-  // ── Solar Analysis (Suggested PR) ───────────────────────────────────
-  const isSulSudeste = ['RS', 'SC', 'PR', 'SP', 'RJ', 'MG', 'ES'].includes(clientData.state || '');
-  let prSugerido = isSulSudeste ? 0.82 : 0.80;
-  
-  const azimuth = clientData.azimuth ?? 0;
-  if (azimuth >= 135 && azimuth <= 225) prSugerido -= 0.15;
-  else if ((azimuth > 90 && azimuth < 135) || (azimuth > 225 && azimuth < 270)) prSugerido -= 0.05;
-  else if (azimuth > 45 && azimuth <= 90) prSugerido -= 0.02;
-  else if (azimuth >= 270 && azimuth <= 315) prSugerido -= 0.02;
 
   return (
     <div className="w-full h-full bg-slate-950 font-sans flex flex-col lg:flex-row overflow-hidden relative">
@@ -279,7 +330,7 @@ export const SiteCanvasView: React.FC = () => {
                     className="flex items-center gap-1 px-1.5 py-0.5 bg-slate-900/80 hover:bg-slate-800 text-slate-300 rounded-sm transition-all disabled:opacity-20 text-[7px] font-black uppercase tracking-widest border border-slate-800/60 active:scale-95 shrink-0"
                     title="Localizar no Mapa"
                   >
-                    {isGeocoding ? <Loader2 size={9} className="animate-spin text-purple-400" /> : <Search size={9} className="text-slate-500" />}
+                    {isGeocoding ? <Loader2 size={9} className="animate-spin text-purple-400" /> : <TrendingUp size={9} className="text-slate-500" />}
                     <span className="hidden 2xl:inline">Localizar</span>
                   </button>
                 }
@@ -379,9 +430,10 @@ export const SiteCanvasView: React.FC = () => {
         />
 
         <div className="flex-1 min-h-[300px] relative group select-none">
-          <MapCore activeTool="SELECT" center={mapCenter} zoom={clientData.lat ? 17 : 12} showLayers={false} variant="EXPLORATION">
+          <MapCore activeTool="SELECT" center={[activeLat, activeLng]} zoom={clientData.lat ? 17 : 12} showLayers={false} variant="EXPLORATION">
             <MapClickHandler onLocationSelect={handleMapClick} />
             <ProjectSiteMarker />
+            <MapFlyToSync />
           </MapCore>
 
           {/* ── GEOLOCATING SCAN OVERLAY ── */}
@@ -395,7 +447,18 @@ export const SiteCanvasView: React.FC = () => {
             </div>
           )}
 
-          {/* ── HUDs SUPERIORES ── */}
+          {/* ── GEOLOCATING SCAN OVERLAY ── */}
+          {isGeocoding && (
+            <div className="absolute inset-0 z-[1001] pointer-events-none flex items-center justify-center bg-slate-950/20 backdrop-blur-[1px]">
+              <div className="absolute inset-0 bg-[linear-gradient(rgba(147,51,234,0.05)_2px,transparent_2px)] bg-[length:100%_40px] animate-[scan_2s_linear_infinite]" />
+              <div className="px-4 py-2 bg-slate-900/90 border border-purple-500/30 rounded-sm shadow-2xl flex items-center gap-3 animate-pulse">
+                <Loader2 size={12} className="animate-spin text-purple-400" />
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-purple-200">Sincronizando Coordenadas...</span>
+              </div>
+            </div>
+          )}
+
+          {/* ── HUDs SUPERIORES (Coordenadas) ── */}
           <div className="absolute top-2 left-0 right-0 px-2 lg:top-4 lg:px-4 z-[1000] flex items-start pointer-events-none gap-1.5 lg:gap-3">
             <div className="shrink-0 pointer-events-auto h-9 lg:h-11">
               <div className="h-full bg-slate-950/40 backdrop-blur-xl border border-white/10 p-1 lg:p-1.5 rounded-sm flex items-center gap-2 lg:gap-4 shadow-2xl">
@@ -408,25 +471,9 @@ export const SiteCanvasView: React.FC = () => {
                   <span className="text-[6px] lg:text-[7px] text-purple-400/80 font-black uppercase tracking-tighter hidden 2xl:block">LONGITUDE</span>
                   <span className="text-[10px] lg:text-[12px] font-mono font-bold text-slate-200">{clientData.lng?.toFixed(5) || '—'}</span>
                 </div>
-                <button onClick={() => setIsEditingGeo(!isEditingGeo)} className="p-1.5 lg:p-2 rounded-sm bg-white/5 hover:bg-purple-500/20 text-slate-400 hover:text-purple-400 transition-all">
-                  <Edit2 size={10} />
-                </button>
               </div>
             </div>
-
             <div className="flex-1" />
-
-            <div className="shrink-0 pointer-events-auto h-auto">
-              <div className="flex flex-col lg:flex-row bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-sm shadow-2xl p-0.5">
-                <button className="w-8 h-8 lg:w-9 lg:h-9 hover:bg-white/5 text-slate-400 hover:text-purple-400 transition-all flex items-center justify-center rounded-sm" onClick={() => globalLeafletMapRef.current?.zoomIn()}>
-                  <Plus className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
-                </button>
-                <div className="hidden lg:block w-px h-6 bg-white/10 self-center" />
-                <button className="w-8 h-8 lg:w-9 lg:h-9 hover:bg-white/5 text-slate-400 hover:text-purple-400 transition-all flex items-center justify-center rounded-sm" onClick={() => globalLeafletMapRef.current?.zoomOut()}>
-                  <Minus className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
-                </button>
-              </div>
-            </div>
           </div>
           
           {/* ── HUD INFERIOR ESQUERDO: Endereço ── */}
@@ -452,99 +499,111 @@ export const SiteCanvasView: React.FC = () => {
           )}
         </div>
 
-        {/* ── BARRA DE TELEMETRIA METROLÓGICA (Rodapé SCADA/Heatmap) ── */}
+        {/* ── BARRA DE TELEMETRIA (Rodapé) ── */}
         <div className="@container shrink-0 bg-slate-950 border-t border-slate-800">
-          <div className="flex flex-col @3xl:flex-row h-auto @3xl:h-24 relative overflow-hidden">
+          <div className="flex flex-row h-24 @3xl:h-28 relative overflow-hidden">
             
-            {/* Métricas de Performance (SCADA Displays) */}
-            <div className="w-full @3xl:w-[420px] grid grid-cols-2 border-b @3xl:border-b-0 @3xl:border-r border-slate-800/80 bg-slate-950/20 shrink-0">
-              {/* HSP Médio (☀️ Yellow) */}
-              <div className="flex-1 p-2 @3xl:p-4 border-r border-slate-800/60 bg-gradient-to-br from-yellow-500/10 to-transparent flex flex-col justify-center gap-1 relative overflow-hidden group">
-                <div className="absolute top-0 left-0 w-full h-[1px] bg-yellow-500/20" />
-                <div className="flex items-center justify-between relative z-10">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                    HSP Médio
-                  </span>
-                  <div className="w-1.5 h-1.5 bg-yellow-500 rounded-sm shadow-[0_0_8px_rgba(234,179,8,0.5)] group-hover:scale-125 transition-transform" />
-                </div>
-                <div className="flex items-baseline gap-1 mt-1 relative z-10">
-                  <span className="text-xl @3xl:text-2xl font-mono font-black text-yellow-400 tracking-tighter tabular-nums drop-shadow-[0_0_10px_rgba(234,179,8,0.2)]">
-                    {(totalHsp / 12).toFixed(2)}
-                  </span>
-                  <span className="text-[8px] @3xl:text-[9px] font-bold text-slate-600 uppercase">
-                    kWh/m².dia
-                  </span>
-                </div>
-              </div>
+            {/* 1. Cockpit Térmico (Esquerda) */}
+            {/* 1. Cockpit Térmico (Esquerda) */}
+            {(() => {
+              const tAvg = weatherData?.ambient_temp_avg || 27.5;
+              const tMonthly = weatherData?.temp_monthly?.length === 12 ? weatherData.temp_monthly : Array(12).fill(tAvg);
+              
+              const tMinRaw = Math.min(...tMonthly);
+              const tMaxRaw = Math.max(...tMonthly);
+              const tMin = tMinRaw === tMaxRaw ? tAvg - 3 : tMinRaw;
+              const tMax = tMinRaw === tMaxRaw ? tAvg + 3 : tMaxRaw;
+              
+              const avgPct = Math.max(0, Math.min(100, ((tAvg - tMin) / (tMax - tMin)) * 100));
+              
+              // Glow color based on relative thermal severity
+              const glowColor = avgPct > 70 ? 'bg-rose-500' : avgPct < 30 ? 'bg-sky-500' : 'bg-emerald-500';
 
-              {/* Temperatura Média (🌡️ Rose) */}
-              <div className="flex-1 p-2 @3xl:p-4 bg-gradient-to-br from-rose-500/10 to-transparent flex flex-col justify-center gap-1 relative overflow-hidden group">
-                <div className="absolute top-0 left-0 w-full h-[1px] bg-rose-500/20" />
-                <div className="flex items-center justify-between relative z-10">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                    Temp. Média
-                  </span>
-                  <div className="w-1.5 h-1.5 bg-rose-500 rounded-sm shadow-[0_0_8px_rgba(244,63,94,0.5)] group-hover:scale-125 transition-transform" />
-                </div>
-                <div className="flex items-baseline gap-1 mt-1 relative z-10">
-                  <span className="text-xl @3xl:text-2xl font-mono font-black text-rose-400 tracking-tighter tabular-nums drop-shadow-[0_0_10px_rgba(244,63,94,0.2)]">
-                    {weatherData?.ambient_temp_avg?.toFixed(1) || '27.5'}
-                  </span>
-                  <span className="text-[8px] @3xl:text-[9px] font-bold text-slate-600 uppercase">°C</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Heatmap Linear de Irradiância (☀️ Yellow) */}
-            <div className="flex-1 p-3 @3xl:p-4 flex flex-col justify-center min-w-0 bg-yellow-900/5 transition-colors hover:bg-yellow-900/10">
-              <div className="flex items-center justify-between mb-2 @3xl:mb-2.5 relative z-10">
-                <div className="flex items-center gap-2 @3xl:gap-3">
-                  <div className="w-1 h-3 bg-yellow-500 rounded-[1px] shadow-[0_0_5px_rgba(234,179,8,0.5)]" />
-                  <div className="flex items-center gap-2">
-                    <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">
-                      Base de Irradiância
-                    </span>
-                    {weatherData?.irradiation_source && (
-                      <span className="text-[7px] text-yellow-500/60 font-black uppercase tracking-widest hidden xs:block">
-                        [{weatherData.irradiation_source}]
-                      </span>
+              return (
+                <div className="w-[210px] @3xl:w-[260px] flex flex-col border-r border-slate-800/80 bg-slate-950/40 shrink-0 group/kpi relative overflow-hidden">
+                  
+                  {/* Glow Radial Dinâmico de Fundo */}
+                  <div 
+                    className={cn(
+                      "absolute -top-12 -right-12 w-32 h-32 rounded-full mix-blend-screen opacity-[0.07] blur-2xl pointer-events-none transition-colors duration-1000",
+                      glowColor
                     )}
+                  />
+
+                  <div className="flex-1 p-3 @3xl:p-4 flex flex-col relative z-10 justify-between">
+                    
+                    {/* Título & Ícone (Topo) */}
+                    <div className="flex items-center justify-between w-full shrink-0">
+                      <span className="text-[8px] @3xl:text-[9px] font-bold text-slate-500 uppercase tracking-widest">Perfil Térmico</span>
+                      <Thermometer size={10} className="text-rose-500/40" />
+                    </div>
+                    
+                    {/* Foco Central: Tavg */}
+                    <div className="flex-1 flex flex-col items-center justify-center mt-1 mb-2">
+                      <div className="flex items-start gap-1">
+                        <span className="text-3xl @3xl:text-4xl font-mono font-black text-slate-100 tabular-nums leading-none tracking-tight">
+                          {tAvg.toFixed(1)}
+                        </span>
+                        <span className="text-[9px] @3xl:text-[10px] font-bold text-slate-500 uppercase mt-0.5">°C</span>
+                      </div>
+                      <span className="text-[7px] @3xl:text-[8px] text-slate-600 font-bold uppercase tracking-[0.2em] mt-1.5 opacity-80">
+                        Temperatura Média
+                      </span>
+                    </div>
+
+                    {/* Escala HMI (Rodapé) */}
+                    <div className="flex items-center gap-2.5 @3xl:gap-3 w-full shrink-0">
+                      
+                      {/* T. Mín Limit (Frio) */}
+                      <div className="flex flex-col items-end shrink-0 w-9 @3xl:w-10">
+                        <div className="flex items-center gap-0.5">
+                          <Snowflake size={8} className="text-sky-400" />
+                          <span className="text-[10px] @3xl:text-[11px] font-bold text-sky-100 tabular-nums">{tMin.toFixed(0)}°</span>
+                        </div>
+                        <span className="text-[6px] @3xl:text-[6.5px] text-slate-500 uppercase font-bold tracking-[0.1em] mt-0.5 pr-0.5">T. Mín</span>
+                      </div>
+                      
+                      {/* Track Full-Width SCADA */}
+                      <div className="flex-1 h-2.5 @3xl:h-3 bg-slate-950 rounded-sm border border-slate-900 shadow-[inset_0_1px_3px_rgba(0,0,0,1)] relative overflow-hidden">
+                        
+                        {/* Gradiente Local da Amplitude Térmica */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-sky-500/90 via-emerald-500/90 to-rose-500/90 opacity-85" />
+                        
+                        {/* Régua de Marcação (Ticks a cada 10%) */}
+                        <div className="absolute inset-0 bg-[repeating-linear-gradient(90deg,transparent,transparent_calc(10%-1px),rgba(0,0,0,0.8)_calc(10%-1px),rgba(0,0,0,0.8)_10%)] mix-blend-multiply" />
+                        
+                        {/* Agulha SCADA de Precisão */}
+                        <div 
+                          className="absolute top-1/2 w-[2px] h-4 @3xl:h-5 bg-white shadow-[0_0_10px_rgba(255,255,255,1)] z-10 transition-all duration-1000 ease-out"
+                          style={{ left: `${avgPct}%`, transform: 'translate(-50%, -50%)' }}
+                        >
+                          {/* Retículas superior e inferior */}
+                          <div className="absolute -top-[2px] left-1/2 -translate-x-1/2 border-x-[3px] border-x-transparent border-t-[3px] border-t-white" />
+                          <div className="absolute -bottom-[2px] left-1/2 -translate-x-1/2 border-x-[3px] border-x-transparent border-b-[3px] border-b-white" />
+                        </div>
+                      </div>
+
+                      {/* T. Máx Limit (Calor) */}
+                      <div className="flex flex-col items-start shrink-0 w-9 @3xl:w-10">
+                        <div className="flex items-center gap-0.5">
+                          <span className="text-[10px] @3xl:text-[11px] font-bold text-rose-100 tabular-nums">{tMax.toFixed(0)}°</span>
+                          <Flame size={8} className="text-rose-400" />
+                        </div>
+                        <span className="text-[6px] @3xl:text-[6.5px] text-slate-500 uppercase font-bold tracking-[0.1em] mt-0.5 pl-0.5">T. Máx</span>
+                      </div>
+                    </div>
+                    
                   </div>
                 </div>
-                <span className="hidden sm:block text-[8px] font-bold text-slate-600 uppercase tracking-widest px-2 py-0.5 border border-slate-800/60 rounded-sm bg-slate-950/60 backdrop-blur-md">Série Histórica</span>
-              </div>
-              
-              <div className="flex-1 grid grid-cols-6 @xl:grid-cols-12 gap-1 @3xl:gap-1.5 w-full min-h-[36px] @3xl:min-h-[32px]">
-                {hspMonthly.map((hsp, idx) => {
-                  const months = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
-                  const intensity = Math.max(0, Math.min(1, (hsp - 3.5) / (6.5 - 3.5)));
-                  
-                  const bgColor = intensity < 0.25 ? 'bg-slate-950/80 text-slate-600 border-slate-800/40' 
-                                : intensity < 0.55 ? 'bg-yellow-900/20 text-yellow-500/70 border-yellow-500/10'
-                                : intensity < 0.85 ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
-                                : 'bg-yellow-500 text-slate-950 font-black border-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.25)]';
+              );
+            })()}
 
-                  return (
-                    <div 
-                      key={months[idx]} 
-                      className={cn(
-                        "flex flex-col items-center justify-center rounded-sm transition-all cursor-default select-none border group/month",
-                        "hover:scale-110 hover:z-20 hover:shadow-xl",
-                        bgColor
-                      )}
-                      title={`${months[idx]}: ${hsp.toFixed(2)} kWh/m².dia`}
-                    >
-                      <span className="text-[9px] @3xl:text-[10px] font-mono font-bold tabular-nums leading-none mb-[1px] group-hover/month:scale-110 transition-transform">{hsp.toFixed(1)}</span>
-                      <span className="text-[6px] @3xl:text-[6.5px] uppercase tracking-widest opacity-80 font-sans font-black">{months[idx]}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            {/* 2. Heatmap Panel (Direita) */}
+            <HeatmapPanel hspMonthly={hspMonthly} irradiationSource={weatherData?.irradiation_source} />
 
-          </div>
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 };

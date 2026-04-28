@@ -327,6 +327,24 @@ Para informações detalhadas sobre arquitetura, decisões técnicas e guias de 
 
 ---
 
+## 🎨 UI/UX DECISIONS (2026-04-28)
+
+### WorkspaceTabs (Hidden)
+- **Status:** Oculto (Comentado em `WorkspaceLayout.tsx`)
+- **Motivo:** Modernização para "Engineering Cockpit" visando maximizar a densidade do canvas e reduzir distrações visuais.
+- **Restauração:** Para reativar, descomentar o import e o componente `<WorkspaceTabs />` no `WorkspaceLayout.tsx`.
+
+---
+
+## 🎨 UI/UX DECISIONS (2026-04-28)
+
+### WorkspaceTabs (Hidden)
+- **Status:** Oculto (Comentado em `WorkspaceLayout.tsx`)
+- **Motivo:** Modernização para "Engineering Cockpit" visando maximizar a densidade do canvas e reduzir distrações visuais.
+- **Restauração:** Para reativar, descomentar o import e o componente `<WorkspaceTabs />` no `WorkspaceLayout.tsx`.
+
+---
+
 ## 🔄 CHANGELOG
 
 ### v2.2.0 (2026-01-26)

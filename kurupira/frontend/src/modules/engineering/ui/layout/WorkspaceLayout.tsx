@@ -28,7 +28,7 @@ import { CenterCanvas } from '../panels/CenterCanvas';
 import { CanvasContainer } from '../panels/CanvasContainer';
 import { LeftOutliner } from '../panels/LeftOutliner';
 import { MobileOutlinerSheet } from '../panels/MobileOutlinerSheet';
-import { WorkspaceTabs } from '../panels/WorkspaceTabs';
+// import { WorkspaceTabs } from '../panels/WorkspaceTabs';
 import { useSolarStore, selectModules } from '@/core/state/solarStore';
 import { useTechStore } from '../../store/useTechStore';
 import { useCatalogStore } from '../../store/useCatalogStore';
@@ -196,7 +196,7 @@ export const WorkspaceLayout: React.FC = () => {
               />
             )}
         </div>
-        <WorkspaceTabs />
+            {/* <WorkspaceTabs /> */}
       </div>
 
       {/* ── SETTINGS / PREMISSAS DRAWER OVERLAY ── */}
