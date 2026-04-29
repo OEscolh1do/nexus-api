@@ -12,15 +12,16 @@ export interface AlertDescriptor {
 
 interface DiagnosticAlertsListProps {
   alerts: AlertDescriptor[];
+  onAlertClick?: (mpptId: string) => void;
 }
 
-export const DiagnosticAlertsList: React.FC<DiagnosticAlertsListProps> = ({ alerts }) => {
+export const DiagnosticAlertsList: React.FC<DiagnosticAlertsListProps> = ({ alerts, onAlertClick }) => {
   const scrollToMppt = (mpptId?: string) => {
     if (!mpptId) return;
+    onAlertClick?.(mpptId);
     const el = document.getElementById(`mppt-${mpptId}`);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      // Adiciona highlight visual rápido (usando classList por ser efêmero)
       el.classList.add('ring-2', 'ring-red-500', 'ring-offset-2', 'ring-offset-slate-950');
       setTimeout(() => {
         el.classList.remove('ring-2', 'ring-red-500', 'ring-offset-2', 'ring-offset-slate-950');
