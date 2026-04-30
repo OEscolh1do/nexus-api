@@ -1,12 +1,13 @@
 import { 
   FileText, MapPin, Zap, Loader2, Thermometer,
-  Navigation, Home, RefreshCw, Snowflake, Flame, Search
+  Navigation, Home, RefreshCw, Snowflake, Flame, Search,
+  Check, X, Crosshair
 } from 'lucide-react';
 import { useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useSolarStore } from '@/core/state/solarStore';
-import React, { useCallback, useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { MapCore } from '../../../components/MapCore';
 import { fetchWeatherAnalysis } from '@/services/weatherService';
 import { cn } from '@/lib/utils';
@@ -16,20 +17,37 @@ import { Autocomplete } from '@/components/ui/Autocomplete';
 import { BRAZILIAN_UTILITIES, STATE_TO_DEFAULT_UTILITY } from '@/core/data/utilities';
 import { MapFlyToSync } from '../../../components/MapFlyToSync';
 
-const GeocodeFlyTo: React.FC<{ lat: number, lng: number, isPanning: boolean }> = ({ lat, lng, isPanning }) => {
+const GeocodeFlyTo: React.FC<{ lat: number, lng: number, isPanning: boolean, isDesktop?: boolean }> = ({ lat, lng, isPanning, isDesktop }) => {
   const map = useMap();
+  const lastCoords = useRef({ lat, lng });
+
   useEffect(() => {
+    // Se estiver movendo (PAN), não faz nada.
     if (isPanning || !lat || !lng || isNaN(lat) || isNaN(lng)) return;
     
     const currentCenter = map.getCenter();
     const target = L.latLng(lat, lng);
     
-    // Se a distância for maior que 5 metros (evita micro-tremores de float)
-    // E não estamos ativamente movendo o mapa na mão, então voa.
+    // REGRA HÍBRIDA (UX-002):
+    // No Desktop, só forçamos o FlyTo se as coordenadas MUDARAM no store (ex: busca, CEP).
+    // Se o usuário apenas arrastou o mapa, as coordenadas no store são as mesmas, 
+    // mas o center do mapa é diferente. Nesse caso, NÃO voltamos para o centro.
+    if (isDesktop) {
+      const coordsChanged = lastCoords.current.lat !== lat || lastCoords.current.lng !== lng;
+      lastCoords.current = { lat, lng };
+      
+      if (coordsChanged) {
+        map.flyTo(target, 18, { duration: 1.2 });
+      }
+      return;
+    }
+
+    // No Mobile (Mira Fixa), sempre voltamos para o centro para alinhar com a mira.
     if (currentCenter.distanceTo(target) > 5) {
       map.flyTo(target, 18, { duration: 1.2 });
     }
-  }, [lat, lng, isPanning, map]);
+  }, [lat, lng, isPanning, map, isDesktop]);
+
   return null;
 };
 
@@ -211,6 +229,7 @@ const HeatmapPanel: React.FC<{ hspMonthly: number[]; irradiationSource?: string 
     </div>
   );
 };
+
 export const SiteCanvasView: React.FC = () => {
   const clientData    = useSolarStore(s => s.clientData);
   const updateClientData = useSolarStore(s => s.updateClientData);
@@ -222,7 +241,37 @@ export const SiteCanvasView: React.FC = () => {
   const { isGeocoding, geocodeStatus, geocodeAddress, reverseGeocode, detectedAddress, setDetectedAddress } = useGoogleGeocoding();
   const [mobileView, setMobileView] = useState<'form' | 'map'>('form');
   const [isMapPanning, setIsMapPanning] = useState(false);
+  
+  // ── Hybrid Interaction Paradigm (UX-002 SPEC-008) ───────────────────────
+  // Desktop (lg+): Tradicional "Click-to-Mark" (Standard Map UX).
+  // Mobile/Tablet: Navegação livre por padrão + Modo Reposicionamento manual.
+  const [isDesktop, setIsDesktop] = useState(() => window.innerWidth >= 1024);
+  const [isRepositioning, setIsRepositioning] = useState(false);
+  const [initialCoords, setInitialCoords] = useState<{lat: number, lng: number} | null>(null);
 
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 1024px)');
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    media.addEventListener('change', handler);
+    return () => media.removeEventListener('change', handler);
+  }, []);
+
+  const startRepositioning = () => {
+    setInitialCoords({ lat: clientData.lat || 0, lng: clientData.lng || 0 });
+    setIsRepositioning(true);
+  };
+
+  const cancelRepositioning = () => {
+    if (initialCoords) {
+      updateClientData({ lat: initialCoords.lat, lng: initialCoords.lng });
+    }
+    setIsRepositioning(false);
+  };
+
+  const confirmRepositioning = () => {
+    setIsRepositioning(false);
+    setInitialCoords(null);
+  };
 
   // ── Climate Sync ───────────────────────────────────────────────────────
   const syncClimateData = useCallback(async () => {
@@ -249,7 +298,6 @@ export const SiteCanvasView: React.FC = () => {
     }
   }, [clientData.lat, clientData.lng, reverseGeocode, setDetectedAddress]);
 
-  // ── ViaCEP ─────────────────────────────────────────────────────────────
   // ── ViaCEP & Auto-Fill ─────────────────────────────────────────────────
   const handleZipCodeChange = async (cep: string) => {
     const cleanCep = cep.replace(/\D/g, '');
@@ -284,8 +332,12 @@ export const SiteCanvasView: React.FC = () => {
   };
 
   const handleMapClick = useCallback((newLat: number, newLng: number) => {
-    updateClientData({ lat: parseFloat(newLat.toFixed(6)), lng: parseFloat(newLng.toFixed(6)) });
-  }, [updateClientData]);
+    // No Mobile, ignoramos cliques diretos no mapa para evitar erros de toque,
+    // a menos que estejamos no modo reposicionamento (mas no mobile usamos a mira central).
+    if (isDesktop) {
+      updateClientData({ lat: parseFloat(newLat.toFixed(6)), lng: parseFloat(newLng.toFixed(6)) });
+    }
+  }, [updateClientData, isDesktop]);
 
   const handlePanStart = useCallback(() => {
     setIsMapPanning(true);
@@ -293,8 +345,13 @@ export const SiteCanvasView: React.FC = () => {
 
   const handlePanEnd = useCallback((newLat: number, newLng: number) => {
     setIsMapPanning(false);
-    updateClientData({ lat: parseFloat(newLat.toFixed(6)), lng: parseFloat(newLng.toFixed(6)) });
-  }, [updateClientData]);
+    
+    // No Desktop, o PAN nunca altera a localização.
+    // No Mobile, só altera se o usuário ativou explicitamente o Modo Reposicionamento.
+    if (!isDesktop && isRepositioning) {
+      updateClientData({ lat: parseFloat(newLat.toFixed(6)), lng: parseFloat(newLng.toFixed(6)) });
+    }
+  }, [updateClientData, isDesktop, isRepositioning]);
 
   const activeLat = Number(clientData.lat) || -3.1316;
   const activeLng = Number(clientData.lng) || -60.0233;
@@ -466,43 +523,47 @@ export const SiteCanvasView: React.FC = () => {
 
         <div className="flex-1 min-h-[300px] relative group select-none">
           <MapCore activeTool="SELECT" showLayers={false} variant="EXPLORATION">
-            <GeocodeFlyTo lat={activeLat} lng={activeLng} isPanning={isMapPanning} />
+            <GeocodeFlyTo lat={activeLat} lng={activeLng} isPanning={isMapPanning} isDesktop={isDesktop} />
             <MapInteractionHandler onLocationSelect={handleMapClick} onPanStart={handlePanStart} onPanEnd={handlePanEnd} />
             <ProjectSiteMarker />
             <MapFlyToSync />
           </MapCore>
 
-          {/* ── FIXED CROSSHAIR (Rank 1 - Engineering UI) ── */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-[1000] flex items-center justify-center transition-all duration-300">
-            <div className={cn(
-              "relative flex items-center justify-center transition-all duration-300",
-              isMapPanning ? "scale-90 opacity-60" : "scale-100 opacity-100"
-            )}>
-              {/* Outer Ring */}
-              <div className={cn("absolute w-10 h-10 rounded-full border border-indigo-500/50 transition-all duration-500", isMapPanning && "w-8 h-8 border-indigo-400")} />
-              {/* Center Dot */}
-              <div className="w-1 h-1 rounded-full bg-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.8)]" />
-              {/* Reticles */}
-              <div className="absolute w-14 h-[1px] bg-indigo-500/50" />
-              <div className="absolute h-14 w-[1px] bg-indigo-500/50" />
-            </div>
-            
-            {/* Label Tooltip */}
-            <div className={cn(
-              "absolute top-8 px-2 py-0.5 bg-slate-950/90 border border-indigo-500/30 rounded-sm text-[8px] font-black uppercase tracking-widest text-indigo-400 whitespace-nowrap transition-all duration-300 shadow-xl backdrop-blur-md",
-              isMapPanning ? "opacity-100 translate-y-2 scale-100" : "opacity-0 translate-y-0 scale-95"
-            )}>
-              Ajustando Posição...
-            </div>
-          </div>
-
-          {/* ── GEOLOCATING SCAN OVERLAY ── */}
-          {isGeocoding && (
-            <div className="absolute inset-0 z-[1001] pointer-events-none flex items-center justify-center bg-slate-950/20 backdrop-blur-[1px]">
-              <div className="absolute inset-0 bg-[linear-gradient(rgba(147,51,234,0.05)_2px,transparent_2px)] bg-[length:100%_40px] animate-[scan_2s_linear_infinite]" />
-              <div className="px-4 py-2 bg-slate-900/90 border border-purple-500/30 rounded-sm shadow-2xl flex items-center gap-3 animate-pulse">
-                <Loader2 size={12} className="animate-spin text-purple-400" />
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-purple-200">Sincronizando Coordenadas...</span>
+          {/* ── FIXED CROSSHAIR (Apenas Mobile/Tablet - Modo Reposicionamento Ativo) ── */}
+          {!isDesktop && isRepositioning && (
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-[1000] flex items-center justify-center transition-all duration-300">
+              <div className={cn(
+                "relative flex items-center justify-center transition-all duration-300",
+                isMapPanning ? "scale-90" : "scale-100"
+              )}>
+                {/* 1. Anel de Radar Externo (Pulsante & Brilhante) */}
+                <div className={cn(
+                  "absolute w-16 h-16 rounded-full border-[2px] border-emerald-500/50 shadow-[0_0_30px_rgba(16,185,129,0.4)] transition-all duration-500", 
+                  isMapPanning ? "w-14 h-14 border-emerald-400/80" : "animate-pulse"
+                )} />
+                
+                {/* 2. Anel de Precisão Central */}
+                <div className="absolute w-8 h-8 rounded-full border border-white/30 bg-emerald-500/5" />
+                
+                {/* 3. Retículas (Thicker & Neon Emerald) */}
+                <div className="absolute w-24 h-[2px] bg-emerald-400 shadow-[0_0_15px_rgba(16,185,129,1)]" />
+                <div className="absolute h-24 w-[2px] bg-emerald-400 shadow-[0_0_15px_rgba(16,185,129,1)]" />
+                
+                {/* 4. Ponto de Laser Central (Ultra High Contrast) */}
+                <div className="w-3 h-3 rounded-full bg-white shadow-[0_0_15px_#fff,0_0_30px_#10B981] z-10" />
+                
+                {/* 5. Ticks de Ângulo (Engineering Aesthetics) */}
+                {[0, 90, 180, 270].map(deg => (
+                  <div key={deg} className="absolute w-1 h-3 bg-emerald-300/60" style={{ transform: `rotate(${deg}deg) translateY(-28px)` }} />
+                ))}
+              </div>
+              
+              {/* Label Tooltip (Refined) */}
+              <div className={cn(
+                "absolute top-16 px-3 py-1 bg-emerald-950/95 border border-emerald-500/50 rounded-sm text-[9px] font-black uppercase tracking-[0.2em] text-emerald-300 whitespace-nowrap transition-all duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-md",
+                isMapPanning ? "opacity-100 translate-y-2 scale-100" : "opacity-0 translate-y-0 scale-95"
+              )}>
+                Alinhando Sítio...
               </div>
             </div>
           )}
@@ -518,7 +579,7 @@ export const SiteCanvasView: React.FC = () => {
             </div>
           )}
 
-          {/* ── HUDs SUPERIORES (Coordenadas) ── */}
+          {/* ── HUDs SUPERIORES (Coordenadas + Ações) ── */}
           <div className="absolute top-2 left-0 right-0 px-2 lg:top-4 lg:px-4 z-[1000] flex items-start pointer-events-none gap-1.5 lg:gap-3">
             <div className="shrink-0 pointer-events-auto h-9 lg:h-11">
               <div className="h-full bg-slate-950/40 backdrop-blur-xl border border-white/10 p-1 lg:p-1.5 rounded-sm flex items-center gap-2 lg:gap-4 shadow-2xl">
@@ -533,7 +594,40 @@ export const SiteCanvasView: React.FC = () => {
                 </div>
               </div>
             </div>
+            
             <div className="flex-1" />
+
+            {/* ── AÇÃO DE REPOSICIONAMENTO (Mobile Only) ── */}
+            {!isDesktop && (
+              <div className="shrink-0 pointer-events-auto h-9 lg:h-11">
+                {!isRepositioning ? (
+                  <button 
+                    onClick={startRepositioning}
+                    className="h-full px-3 lg:px-4 bg-indigo-500/20 hover:bg-indigo-500/30 backdrop-blur-xl border border-indigo-500/50 transition-all rounded-sm flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-indigo-100 shadow-2xl group"
+                  >
+                    <Crosshair size={15} className="text-emerald-400 group-hover:rotate-90 transition-transform duration-500 drop-shadow-[0_0_5px_rgba(16,185,129,0.8)]" />
+                    <span className="hidden sm:inline">Mover Marcador</span>
+                  </button>
+                ) : (
+                  <div className="h-full p-1 bg-slate-950/60 backdrop-blur-2xl border border-indigo-500/40 rounded-sm flex items-center gap-1.5 shadow-2xl animate-in zoom-in duration-300">
+                    <button 
+                      onClick={cancelRepositioning}
+                      className="w-7 h-7 lg:w-8 lg:h-8 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors rounded-sm"
+                      title="Cancelar"
+                    >
+                      <X size={14} />
+                    </button>
+                    <button 
+                      onClick={confirmRepositioning}
+                      className="h-7 lg:h-8 px-3 lg:px-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-emerald-500/20"
+                    >
+                      <Check size={14} />
+                      Confirmar Local
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           
           {/* ── HUD INFERIOR ESQUERDO: Endereço ── */}
@@ -563,7 +657,6 @@ export const SiteCanvasView: React.FC = () => {
         <div className="@container shrink-0 bg-slate-950 border-t border-slate-800">
           <div className="flex flex-row h-32 @3xl:h-36 relative overflow-visible">
             
-            {/* 1. Cockpit Térmico (Esquerda) */}
             {/* 1. Cockpit Térmico (Esquerda) */}
             {(() => {
               const tAvg = weatherData?.ambient_temp_avg || 27.5;

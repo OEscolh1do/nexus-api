@@ -141,10 +141,8 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelectProjec
 
   const handleArchive = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    console.debug(`[ProjectExplorer] Archive requested for ID: ${id}`);
     
     if (!window.confirm('Deseja arquivar este projeto? Ele será ocultado da lista principal.')) {
-      console.debug(`[ProjectExplorer] Archive cancelled for ID: ${id}`);
       return;
     }
     
@@ -159,15 +157,12 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelectProjec
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    console.debug(`[ProjectExplorer] Delete requested for ID: ${id}`);
     
     if (!window.confirm('ATENÇÃO: Deseja ELIMINAR definitivamente este projeto? Esta ação não pode ser desfeita.')) {
-      console.debug(`[ProjectExplorer] Delete cancelled for ID: ${id}`);
       return;
     }
     
     try {
-      console.debug(`[ProjectExplorer] Executing DELETE for ID: ${id}`);
       await KurupiraClient.designs.delete(id);
       fetchProjects();
     } catch (err) {
