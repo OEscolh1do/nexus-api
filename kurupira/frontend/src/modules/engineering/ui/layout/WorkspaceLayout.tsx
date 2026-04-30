@@ -22,15 +22,12 @@
  * =============================================================================
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TopRibbon } from '../panels/TopRibbon';
 import { CenterCanvas } from '../panels/CenterCanvas';
 import { CanvasContainer } from '../panels/CanvasContainer';
 import { LeftOutliner } from '../panels/LeftOutliner';
 import { MobileOutlinerSheet } from '../panels/MobileOutlinerSheet';
-// import { WorkspaceTabs } from '../panels/WorkspaceTabs';
-import { useSolarStore, selectModules } from '@/core/state/solarStore';
-import { useTechStore } from '../../store/useTechStore';
 import { useCatalogStore } from '../../store/useCatalogStore';
 import { useUIStore } from '@/core/state/uiStore';
 import { SettingsModule } from '@/modules/settings/SettingsModule';
@@ -60,11 +57,6 @@ export const WorkspaceLayout: React.FC = () => {
   const isSettingsOpen = useUIStore(s => s.isSettingsDrawerOpen);
   const closeSettings = useUIStore(s => s.closeSettingsDrawer);
 
-  // ── Bootstrap: inject default equipment on empty project (Ação 4) ──
-  const hasBootstrapped = useRef(false);
-  const userModules = useSolarStore(selectModules);
-  const addModule = useSolarStore(state => state.addModule);
-  
   const { modules: catalogModules, inverters: catalogInverters, fetchCatalog, isLoading } = useCatalogStore();
 
   useEffect(() => {
@@ -73,55 +65,6 @@ export const WorkspaceLayout: React.FC = () => {
       fetchCatalog();
     }
   }, [fetchCatalog, catalogModules.length, catalogInverters.length, isLoading]);
-
-  useEffect(() => {
-    const userModuleCount = userModules.length;
-    const userInverterCount = useTechStore.getState().inverters.ids.length;
-
-    // Só faz bootstrap se o catálogo do banco já carregou as opções
-    if (userModuleCount === 0 && userInverterCount === 0 && !hasBootstrapped.current && catalogModules.length > 0 && catalogInverters.length > 0) {
-      hasBootstrapped.current = true;
-
-      const cat = catalogModules[0];
-      if (cat) {
-        addModule({
-          id: Math.random().toString(36).substr(2, 9),
-          quantity: 1,
-          supplier: cat.manufacturer,
-          manufacturer: cat.manufacturer,
-          model: cat.model,
-          type: 'Mono PERC',
-          power: cat.electrical.pmax,
-          efficiency: Number(((cat.electrical.efficiency || 0.2) * 100).toFixed(2)),
-          cells: cat.physical.cells || 144,
-          imp: cat.electrical.imp,
-          vmp: cat.electrical.vmp,
-          isc: cat.electrical.isc,
-          voc: cat.electrical.voc,
-          weight: cat.physical.weightKg,
-          area: (cat.physical.widthMm * cat.physical.heightMm) / 1000000,
-          dimensions: `${cat.physical.heightMm}x${cat.physical.widthMm}x${cat.physical.depthMm}`,
-          inmetroId: 'Aprovado',
-          maxFuseRating: cat.electrical.maxFuseRating || 20,
-          tempCoeff: cat.electrical.tempCoeffVoc,
-          annualDepreciation: 0.8,
-        });
-      }
-
-      const inv = catalogInverters[0];
-      if (inv) {
-        useTechStore.getState().addInverter({
-          id: inv.id,
-          manufacturer: inv.manufacturer,
-          model: inv.model,
-          nominalPower: inv.nominalPowerW / 1000, // W → kW
-          mppts: inv.mppts.length,
-          connectionType: inv.connectionType || 'Trifásico',
-          maxInputVoltage: inv.mppts?.[0]?.maxInputVoltage || 600,
-        });
-      }
-    }
-  }, [catalogModules, catalogInverters, userModules.length, addModule]);
 
   // Em mobile, a sidebar some do grid (col 0px fixo) — o Bottom Sheet assume
   const gridCols = [

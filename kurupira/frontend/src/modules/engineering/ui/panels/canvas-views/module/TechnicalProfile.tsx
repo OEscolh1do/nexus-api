@@ -3,13 +3,17 @@ import { ChevronDown, ShieldAlert, Sun, Zap, Activity, Component } from 'lucide-
 import { cn } from '@/lib/utils';
 import { type ModuleSpecs } from '@/core/schemas/equipment.schemas';
 import { TechnicalDiagram } from './TechnicalDiagram';
+import { type SystemValidationReport } from '@/modules/engineering/utils/electricalMath';
+import { type InverterState } from '../../../../store/useTechStore';
 
 interface TechnicalProfileProps {
   module?: ModuleSpecs;
   quantity?: number;
+  electricalReport?: SystemValidationReport | null;
+  activeInverter?: InverterState | null;
 }
 
-export const TechnicalProfile: React.FC<TechnicalProfileProps> = ({ module, quantity }) => {
+export const TechnicalProfile: React.FC<TechnicalProfileProps> = ({ module, quantity, electricalReport, activeInverter }) => {
   const [showStringCompat, setShowStringCompat] = useState(true);
 
   if (!module || quantity === undefined) {
@@ -142,6 +146,68 @@ export const TechnicalProfile: React.FC<TechnicalProfileProps> = ({ module, quan
           </div>
         )}
       </div>
+
+      {/* CROSS-CONTEXT FEEDBACK: Inverter Compatibility */}
+      {activeInverter && (
+        <div className="p-4 bg-slate-950/60 border-t-2 border-slate-800 relative overflow-hidden">
+          {/* Subtle glow effect based on status */}
+          <div className={cn(
+            "absolute -top-10 -right-10 w-24 h-24 rounded-full opacity-10 blur-xl",
+            electricalReport?.globalStatus === 'error' ? 'bg-rose-500' :
+            electricalReport?.globalStatus === 'warning' ? 'bg-amber-500' : 'bg-emerald-500'
+          )} />
+          
+          <span className="text-[8px] text-slate-500 font-black uppercase tracking-widest mb-3 flex items-center gap-1.5">
+            <Zap size={9} className={cn(
+               electricalReport?.globalStatus === 'error' ? 'text-rose-500' :
+               electricalReport?.globalStatus === 'warning' ? 'text-amber-500' : 'text-emerald-500'
+            )} /> 
+            Compatibilidade com Inversor
+          </span>
+          
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] text-slate-400 font-bold truncate max-w-[150px]">{activeInverter.snapshot.model}</span>
+              <span className={cn(
+                "text-[8px] font-black uppercase px-2 py-0.5 rounded-sm",
+                electricalReport?.globalStatus === 'error' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' :
+                electricalReport?.globalStatus === 'warning' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 
+                'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+              )}>
+                {electricalReport?.globalStatus === 'error' ? 'Incompatível' :
+                 electricalReport?.globalStatus === 'warning' ? 'Revisar' : 'Compatível'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 mt-1">
+              <div className="flex flex-col p-2 bg-slate-900/50 border border-slate-800/40 rounded-sm">
+                <span className="text-[7px] text-slate-500 uppercase font-black mb-1">Corrente MPPT</span>
+                <div className="flex items-baseline justify-between">
+                  <span className={cn("text-[10px] font-mono font-bold", ((module.isc * 1.25) > activeInverter.snapshot.maxCurrentPerMPPT) ? 'text-rose-400' : 'text-slate-300')}>
+                    {(module.isc * 1.25).toFixed(1)}A
+                  </span>
+                  <span className="text-[8px] text-slate-600 font-bold">/ {activeInverter.snapshot.maxCurrentPerMPPT}A</span>
+                </div>
+              </div>
+              <div className="flex flex-col p-2 bg-slate-900/50 border border-slate-800/40 rounded-sm">
+                <span className="text-[7px] text-slate-500 uppercase font-black mb-1">Tensão MPPT Máx</span>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-[10px] font-mono font-bold text-slate-300">
+                    {activeInverter.snapshot.maxInputVoltage}V
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Electrical Alerts specific to module mismatch */}
+            {electricalReport?.globalStatus !== 'ok' && (
+              <div className="mt-1 p-2 bg-slate-900/50 border-l-2 border-amber-500/50 text-[9px] text-slate-400">
+                Verifique a aba <strong>Elétrica</strong> para ver o detalhamento dos alertas de tensão e corrente nas strings.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -135,9 +135,8 @@ Concentra telemetria passiva e feedbacks de modos ativos (CAD/Stringing).
 ---
 
 ## 7. Workflow de Projeto (The Zero-UI Path)
-1. **Locação (1)**: Uso da `SearchIsland` para centro geográfico -> `DraftingIsland` para desenhar perímetro (`P`).
-2. **Prancheta (2)**: Seleção da superfície (`C`, `M`, `F`, `L`) -> Acionamento do `Auto-Layout`.
-3. **Topologia (3)**: Refinamento das conexões entre strings e inversores.
-4. **Validação (4)**: Verificação final de `Voc` e `FDI` no Footer antes do fechamento do projeto.
-ão do modo `Contexto` para selecionar módulos e criar strings através da `StringToolbar`.
-5. **Validação Final**: Verificação das métricas de `FDI` e `Voc` nos HUDs superiores antes da exportação.
+1. **Locação (1)**: Uso da `SearchIsland` para busca de endereço -> `DraftingIsland` para desenhar perímetro (`P`).
+2. **Prancheta (2)**: Seleção da superfície (`C`, `M`, `F`, `L`) no Anatomy Panel -> Acionamento de ferramentas CAD.
+3. **Topologia (3)**: Uso das ferramentas de *Stringing* para conectar módulos e formar as séries fotovoltaicas.
+4. **Unifilar (4)**: Visualização do diagrama elétrico gerado com base nas conexões lógicas.
+5. **Validação Final**: Verificação das métricas de `Voc Total` e correntes de curto-circuito no HUD inferior antes da conclusão da engenharia.

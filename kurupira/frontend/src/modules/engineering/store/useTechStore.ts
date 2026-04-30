@@ -58,6 +58,8 @@ export interface InverterState {
         minMpptVoltage: number;
         maxMpptVoltage: number;
         maxCurrentPerMPPT: number;
+        maxInputCurrent: number;
+        maxEfficiency: number;
     };
 }
 
@@ -178,6 +180,8 @@ export const useTechStore = create<TechState>()(
                       minMpptVoltage: equipment.minMpptVoltage || equipment.mpptMinV || 150,
                       maxMpptVoltage: equipment.maxMpptVoltage || equipment.mpptMaxV || 500,
                       maxCurrentPerMPPT: equipment.maxCurrentPerMPPT || equipment.maxCurrent || 15,
+                      maxInputCurrent: equipment.maxInputCurrent || (equipment.maxCurrentPerMPPT * mpptCount) || 30,
+                      maxEfficiency: equipment.maxEfficiency || 98.0,
                   },
               };
               newIds.push(instanceId);

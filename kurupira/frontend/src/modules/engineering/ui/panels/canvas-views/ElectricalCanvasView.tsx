@@ -1,22 +1,28 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useCallback, useEffect } from 'react';
 import { useSolarStore, selectModules } from '@/core/state/solarStore';
 import { useTechStore } from '../../../store/useTechStore';
 import { useTechKPIs } from '../../../hooks/useTechKPIs';
 import { useElectricalValidation } from '../../../hooks/useElectricalValidation';
+import { useInverterUIStore } from '../../../store/useInverterUIStore';
 import { useCatalogStore } from '../../../store/useCatalogStore';
 import { toArray } from '@/core/types/normalized.types';
-import { Zap, Cpu, Sun } from 'lucide-react';
+import { Zap, Cpu, Sun, Terminal, ChevronUp, ChevronDown } from 'lucide-react';
 import { useUIStore } from '@/core/state/uiStore';
 import { calculateStringMetrics } from '../../../utils/electricalMath';
 import type { InverterCatalogItem } from '@/core/schemas/inverterSchema';
+import { cn } from '@/lib/utils';
+
 
 // Componentes do Hub + Strip + Canvas
 import { InverterHub, type InverterChipData, type ValidationPill } from './electrical/InverterHub';
 import { MPPTConfigStrip } from './electrical/MPPTConfigStrip';
 import { VoltageRangeChart, type MpptThermalProfile } from './electrical/VoltageRangeChart';
-import { ElectricalDiagnosticPanel } from './electrical/ElectricalDiagnosticPanel';
 import { StringTopologyViewer } from './electrical/StringTopologyViewer';
-import { AlertDescriptor } from './electrical/components/DiagnosticAlertsList';
+import { OversizingPanel } from './electrical/OversizingPanel';
+import { CalculationAuditPanel } from './electrical/components/CalculationAuditPanel';
+import { DiagnosticAlertsList, AlertDescriptor } from './electrical/components/DiagnosticAlertsList';
+import { parsePanOnd } from '../../../utils/pvsystParser';
+import { mapOndToInverter } from '../../../utils/ondAdapter';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTES DE FALLBACK POR UF (pior cenário — Q5 sem manualTmax)
@@ -60,11 +66,18 @@ export const ElectricalCanvasView: React.FC = () => {
 
   const setFocusedBlock = useUIStore(s => s.setFocusedBlock);
   const { kpi }        = useTechKPIs();
-  const { electrical, globalHealth } = useElectricalValidation();
+  const { electrical, globalHealth, inventory } = useElectricalValidation();
   const { inverters: catalogInverters } = useCatalogStore();
 
   const techInverters   = useMemo(() => toArray(invertersNorm), [invertersNorm]);
-  const [activeInverterId, setActiveInverterId] = useState<string | null>(null);
+  
+  const activeInverterId = useInverterUIStore(s => s.activeInverterId);
+  const setActiveInverterId = useInverterUIStore(s => s.setActiveInverterId);
+  const activeCanvasTab = useInverterUIStore(s => s.activeCanvasTab);
+  const setActiveCanvasTab = useInverterUIStore(s => s.setActiveCanvasTab);
+  const terminalOpen = useInverterUIStore(s => s.terminalOpen);
+  const setTerminalOpen = useInverterUIStore(s => s.setTerminalOpen);
+  const highlightMpptId = useInverterUIStore(s => s.highlightMpptId);
 
   // Resolução do inversor ativo (multi-inversor Tier 2 — default [0])
   const activeInverter = useMemo(() => {
@@ -74,6 +87,12 @@ export const ElectricalCanvasView: React.FC = () => {
 
   const repModule = modules[0] ?? null;
 
+  // totalKwpCC — soma de todos os módulos no projeto
+  const totalKwpCC = useMemo(
+    () => modules.reduce((sum, m) => sum + (m.power || 0) / 1000, 0),
+    [modules]
+  );
+
   // T1-A: campo correto — electrical.tempCoeffVoc (não .tempCoeff)
   const moduleSpecs = useMemo(() => {
     if (!repModule) return null;
@@ -81,7 +100,13 @@ export const ElectricalCanvasView: React.FC = () => {
       voc:         repModule.voc,
       vmp:         repModule.vmp ?? repModule.voc * 0.82,
       isc:         repModule.isc ?? 0,
+      imp:         repModule.imp ?? repModule.isc * 0.95,
+      pmax:        repModule.power ?? (repModule as any).pmax ?? 0,
       tempCoeffVoc: (repModule as any).electrical?.tempCoeffVoc ?? repModule.tempCoeff ?? -0.29,
+      tempCoeffVmp: (repModule as any).electrical?.tempCoeffVmp ?? -0.34,
+      noct:        (repModule as any).noct ?? 45,
+      isBifacial:  (repModule as any).isBifacial ?? false,
+      albedo:      0.2, // Padrão Conservador
     };
   }, [repModule]);
 
@@ -108,6 +133,21 @@ export const ElectricalCanvasView: React.FC = () => {
     const limitMpptVMin      = activeInverter.snapshot?.minMpptVoltage ?? 150;
     const limitMpptVMax      = activeInverter.snapshot?.maxMpptVoltage ?? 800;
     const limitIscMaxMppt    = activeInverter.snapshot?.maxCurrentPerMPPT ?? 22;
+
+    // ── Cálculo dos limites físicos por string (baseado em 1 módulo)
+    const vocFrio1 = calculateStringMetrics(moduleSpecs, 1, tmin).vocMax;
+    const vmpCalor1 = calcVmpCalor(1);
+    
+    // Teto absoluto: Tensão de circuito aberto no frio extremo vs Limite do Inversor
+    const maxModulesLimit = vocFrio1 > 0 ? Math.floor(limitInverterVMax / vocFrio1) : 40;
+    
+    // Piso de segurança: Considera a tensão mínima do MPPT e a Tensão de Partida (Startup Voltage)
+    const startupVoltage = (activeInverter.snapshot as any)?.startupVoltage ?? limitMpptVMin;
+    const effectiveMinVoltage = Math.max(limitMpptVMin, startupVoltage);
+    
+    // Perda ôhmica simulada de 1.5% no cabo CC
+    const voltageDropFactor = 0.985; 
+    const minModulesLimit = vmpCalor1 > 0 ? Math.ceil(effectiveMinVoltage / (vmpCalor1 * voltageDropFactor)) : 0;
 
     let totalVocMax = 0;
     let totalIscMax = 0;
@@ -148,6 +188,7 @@ export const ElectricalCanvasView: React.FC = () => {
       totalVocMax, totalIscMax,
       limitInverterVMax, limitMpptVMin, limitMpptVMax, limitIscMaxMppt,
       mpptProfiles, alerts,
+      minModulesLimit, maxModulesLimit,
     };
   }, [activeInverter, moduleSpecs, tmin, electrical, calcVmpCalor]);
 
@@ -162,12 +203,15 @@ export const ElectricalCanvasView: React.FC = () => {
       const vmpCalor = mods > 0 ? calcVmpCalor(mods) : 0;
       const localPmax = (repModule as any)?.electrical?.pmax || (repModule as any)?.pmax || 0;
 
+      const bifacialFactor = moduleSpecs.isBifacial ? (1 + 0.70 * moduleSpecs.albedo) : 1;
+
       // Mismatch: verifica se azimute difere entre configs — simplificado
       // (comparação futura entre stringIds quando Tier 3 estiver disponível)
       result[mppt.mpptId] = {
         vocFrio:    metrics?.vocMax ?? 0,
         vmpCalor,
-        iscTotal:   (moduleSpecs.isc || 0) * strCount,
+        iscTotal:   (moduleSpecs.isc || 0) * strCount * bifacialFactor,
+        impTotal:   (moduleSpecs.imp || 0) * strCount * bifacialFactor,
         powerKwp:   mods > 0 && strCount > 0 ? (localPmax * mods * strCount) / 1000 : 0,
         hasMismatch: false, // Tier 3: detectar por azimuthDeg das strings
       };
@@ -210,25 +254,6 @@ export const ElectricalCanvasView: React.FC = () => {
     return pills;
   }, [dashboardData, kpi.dcAcRatio, tmin]);
 
-  // ── Dados normativos do inversor ativo (catálogo) ─────────────────────────
-  const inverterCatalogData = useMemo(() => {
-    if (!activeInverter) return null;
-    return catalogInverters.find((c: InverterCatalogItem) => c.id === activeInverter.catalogId) ?? null;
-  }, [activeInverter, catalogInverters]);
-
-  const hasAfci = inverterCatalogData ? (inverterCatalogData as any).afci === true : true;
-  const hasRsd  = inverterCatalogData ? (inverterCatalogData as any).rsd === true : true;
-
-  // Derating: passivo + >10kW + região tropical
-  const hasDeratingRisk = useMemo(() => {
-    if (!inverterCatalogData || !activeInverter) return false;
-    const uf = (clientData as any)?.state ?? '';
-    const isTropical = ESTADOS_TROPICAIS.has(uf);
-    const isPassive  = (inverterCatalogData as any).coolingType === 'passive';
-    const powerKw    = activeInverter.snapshot.nominalPower;
-    return isTropical && isPassive && powerKw > 10;
-  }, [inverterCatalogData, activeInverter, clientData]);
-
   // ── Handlers de inversor ─────────────────────────────────────────────────
   const handleAddInverter = useCallback((item: InverterCatalogItem) => {
     const newId = Math.random().toString(36).substr(2, 9);
@@ -251,6 +276,29 @@ export const ElectricalCanvasView: React.FC = () => {
     setActiveInverterId(newId);
   }, [addInverterTech]);
 
+  const handleUploadOnd = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      try {
+        const parsed = parsePanOnd(content);
+        const mapped = mapOndToInverter(parsed);
+        const importedInverter: InverterCatalogItem = {
+          ...mapped,
+          id: `imported-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
+        };
+        handleAddInverter(importedInverter);
+      } catch (err) {
+        console.error("Erro ao processar arquivo .OND:", err);
+        alert("Falha ao processar arquivo .OND. Verifique se o formato está correto.");
+      }
+    };
+    reader.readAsText(file);
+  }, [handleAddInverter]);
+
   const handleRemoveInverter = useCallback((id: string) => {
     useSolarStore.getState().removeInverter(id);
     removeInverterTech(id);
@@ -258,13 +306,15 @@ export const ElectricalCanvasView: React.FC = () => {
   }, [removeInverterTech, activeInverterId]);
 
   // ── Scroll-to MPPT ao clicar em alerta ───────────────────────────────────
-  const [highlightMpptId, setHighlightMpptId] = useState<number | undefined>(undefined);
+  const setHighlightMpptId = useInverterUIStore(s => s.setHighlightMpptId);
+  
   const handleAlertClick = useCallback((mpptId: string) => {
     const id = parseInt(mpptId);
     setHighlightMpptId(id);
-    document.getElementById(`mppt-strip-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    setTimeout(() => setHighlightMpptId(undefined), 2500);
-  }, []);
+    // Quando clicar no alerta, abre o terminal se não estiver e pisca o MPPT
+    document.getElementById(`mppt-strip-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => setHighlightMpptId(null), 2500);
+  }, [setHighlightMpptId]);
 
   // ── Chips de inversor para o Hub ─────────────────────────────────────────
   const inverterChips: InverterChipData[] = useMemo(() =>
@@ -280,6 +330,17 @@ export const ElectricalCanvasView: React.FC = () => {
     }),
     [techInverters, catalogInverters]
   );
+
+  // ── Auto-open terminal if errors arrive ──────────────────────────────────
+  const errorCount = dashboardData?.alerts.filter(a => a.severity === 'error').length ?? 0;
+  const warnCount = dashboardData?.alerts.filter(a => a.severity === 'warning').length ?? 0;
+  const hasAlerts = errorCount > 0 || warnCount > 0;
+
+  useEffect(() => {
+    if (errorCount > 0) {
+      setTerminalOpen(true);
+    }
+  }, [errorCount]);
 
   // ── Empty State — 3 casos ─────────────────────────────────────────────────
   if (modules.length === 0 && techInverters.length === 0) {
@@ -299,12 +360,6 @@ export const ElectricalCanvasView: React.FC = () => {
           >
             <Sun size={12} /> Módulos
           </button>
-          <button
-            onClick={() => setFocusedBlock('inverter')}
-            className="flex items-center gap-2 px-4 py-2 border border-emerald-500/40 text-emerald-400 text-[11px] font-black uppercase tracking-widest rounded-sm hover:bg-emerald-950/20 transition-all"
-          >
-            <Cpu size={12} /> Inversor
-          </button>
         </div>
       </div>
     );
@@ -319,11 +374,13 @@ export const ElectricalCanvasView: React.FC = () => {
           activeInverterId={null}
           onChipSelect={() => {}}
           onChipRemove={() => {}}
-          catalogInverters={catalogInverters}
-          onAddInverter={handleAddInverter}
-          activeInverterIds={[]}
+          onSelectInverter={handleAddInverter}
+          onUploadOnd={handleUploadOnd}
+          activeCatalogIds={[]}
           pills={[]}
           globalHealth="ok"
+          totalKwpCC={totalKwpCC}
+          inventory={inventory}
         />
         <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8 text-slate-500">
           <Cpu size={36} className="text-emerald-500/40 animate-pulse" />
@@ -350,7 +407,7 @@ export const ElectricalCanvasView: React.FC = () => {
   }
 
   return (
-    <div className="w-full h-full flex flex-col bg-slate-950 overflow-hidden">
+    <div className="w-full h-full flex flex-col bg-slate-950 overflow-hidden relative">
 
       {/* LEVEL 1: InverterHub */}
       <InverterHub
@@ -358,65 +415,151 @@ export const ElectricalCanvasView: React.FC = () => {
         activeInverterId={activeInverter.id}
         onChipSelect={setActiveInverterId}
         onChipRemove={handleRemoveInverter}
-        catalogInverters={catalogInverters}
-        onAddInverter={handleAddInverter}
-        activeInverterIds={techInverters.map(i => i.catalogId)}
+        onSelectInverter={handleAddInverter}
+        onUploadOnd={handleUploadOnd}
+        activeCatalogIds={techInverters.map(inv => inv.catalogId).filter(Boolean) as string[]}
         pills={validationPills}
         globalHealth={globalHealth}
+        fdi={kpi.dcAcRatio}
+        totalKwpCC={totalKwpCC}
+        inventory={inventory}
       />
 
-      {/* LEVEL 2: MPPTConfigStrip */}
-      <MPPTConfigStrip
-        inverterId={activeInverter.id}
-        mpptConfigs={activeInverter.mpptConfigs}
-        mpptMetrics={mpptMetrics}
-        updateMPPT={updateMPPTConfig}
-        limitVMax={dashboardData.limitInverterVMax}
-        limitVMpptMin={dashboardData.limitMpptVMin}
-      />
+      {/* LEVEL 2: MPPTConfigStrip (Dynamic Capacity Cockpit) */}
+      <div className="shrink-0 max-h-[40vh] overflow-y-auto custom-scrollbar">
+        <MPPTConfigStrip
+          inverterId={activeInverter.id}
+          mpptConfigs={activeInverter.mpptConfigs}
+          mpptMetrics={mpptMetrics}
+          updateMPPT={updateMPPTConfig}
+          limitVMax={dashboardData.limitInverterVMax}
+          limitVMpptMin={dashboardData.limitMpptVMin}
+          limitIscMaxMppt={dashboardData.limitIscMaxMppt}
+          inventoryStatus={inventory.status}
+          minModulesLimit={dashboardData.minModulesLimit}
+          maxModulesLimit={dashboardData.maxModulesLimit}
+        />
+      </div>
 
-      {/* LEVEL 3: Canvas Principal */}
-      <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-y-auto lg:overflow-hidden p-3 gap-3">
-
-        {/* Área principal — gráficos */}
-        <div className="flex-1 flex flex-col gap-3 min-h-[400px] lg:min-h-0 min-w-0 overflow-y-auto custom-scrollbar pr-1">
-          <VoltageRangeChart
-            mpptProfiles={dashboardData.mpptProfiles}
-            limitInversorVMax={dashboardData.limitInverterVMax}
-            limitMpptVMin={dashboardData.limitMpptVMin}
-            limitMpptVMax={dashboardData.limitMpptVMax}
-            limitVStart={dashboardData.limitMpptVMin}
-          />
-          <StringTopologyViewer
-            mpptConfigs={activeInverter.mpptConfigs}
-            highlightMpptId={highlightMpptId}
-          />
+      {/* LEVEL 3: Canvas Principal (Full-Width) */}
+      <div className="flex-1 flex flex-col min-h-0">
+        {/* Tab Bar */}
+        <div className="flex items-center border-b border-slate-800 shrink-0 bg-slate-950/80 px-4">
+          {([
+            { id: 'voltage',   label: 'Tensão Térmica' },
+            { id: 'oversizing', label: 'FDI / Oversizing' },
+            { id: 'topology',  label: 'Topologia Elétrica' },
+            { id: 'audit',     label: 'Auditoria de Cálculo' },
+          ] as const).map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveCanvasTab(tab.id)}
+              className={cn(
+                'flex items-center gap-1.5 px-6 py-2.5 min-h-[40px] text-[10px] font-black uppercase tracking-widest transition-all border-b-2 -mb-px',
+                activeCanvasTab === tab.id
+                  ? 'text-emerald-400 border-emerald-500 bg-emerald-950/10'
+                  : 'text-slate-500 border-transparent hover:text-slate-300 hover:border-slate-700'
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
-        {/* Painel lateral — diagnósticos */}
-        <div className="w-full lg:w-[280px] shrink-0 overflow-hidden">
-          <ElectricalDiagnosticPanel
-            inverterState={activeInverter}
-            fdi={kpi.dcAcRatio}
-            vocMaxGlobal={dashboardData.totalVocMax}
-            iscMaxGlobal={dashboardData.totalIscMax}
-            vocGlobalStatus={
-              dashboardData.totalVocMax > dashboardData.limitInverterVMax ? 'error' :
-              dashboardData.totalVocMax > dashboardData.limitInverterVMax * 0.95 ? 'warning' : 'ok'
-            }
-            iscGlobalStatus={
-              dashboardData.totalIscMax > dashboardData.limitIscMaxMppt ? 'error' :
-              dashboardData.totalIscMax > dashboardData.limitIscMaxMppt * 0.9 ? 'warning' : 'ok'
-            }
-            alerts={dashboardData.alerts}
-            abrirCatalogo={() => setFocusedBlock('inverter')}
-            hasAfci={hasAfci}
-            hasRsd={hasRsd}
-            hasDeratingRisk={hasDeratingRisk}
-            onAlertClick={handleAlertClick}
-          />
+        {/* Tab Content */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+          {activeCanvasTab === 'voltage' && (
+            <div className="max-w-5xl mx-auto">
+              <VoltageRangeChart
+                mpptProfiles={dashboardData.mpptProfiles}
+                limitInversorVMax={dashboardData.limitInverterVMax}
+                limitMpptVMin={dashboardData.limitMpptVMin}
+                limitMpptVMax={dashboardData.limitMpptVMax}
+                limitVStart={dashboardData.limitMpptVMin}
+              />
+            </div>
+          )}
+          {activeCanvasTab === 'oversizing' && (
+            <div className="max-w-4xl mx-auto">
+              <OversizingPanel
+                fdi={kpi.dcAcRatio}
+                totalKwpCC={totalKwpCC}
+                totalKwCA={activeInverter.snapshot.nominalPower}
+                uf={(clientData as any)?.state}
+              />
+            </div>
+          )}
+          {activeCanvasTab === 'topology' && (
+            <div className="w-full">
+              <StringTopologyViewer
+                mpptConfigs={activeInverter.mpptConfigs}
+                mpptMetrics={mpptMetrics}
+                highlightMpptId={highlightMpptId}
+              />
+            </div>
+          )}
+          {activeCanvasTab === 'audit' && (
+            <div className="max-w-5xl mx-auto">
+              <CalculationAuditPanel
+                mpptConfigs={activeInverter.mpptConfigs}
+                mpptMetrics={mpptMetrics}
+                dashboardData={dashboardData}
+                activeInverterSnapshot={activeInverter.snapshot}
+                moduleSpecs={moduleSpecs}
+                fdi={kpi.dcAcRatio}
+                totalKwpCC={totalKwpCC}
+                totalKwCA={activeInverter.snapshot.nominalPower}
+                tmin={tmin}
+                tambMax={tamb_max}
+              />
+            </div>
+          )}
         </div>
       </div>
+
+      {/* LEVEL 4: Diagnostics Terminal (Rodapé) */}
+      <div className={cn(
+        "w-full border-t border-slate-800 bg-slate-950 transition-all duration-300 flex flex-col shrink-0 z-10 shadow-[0_-4px_20px_rgba(0,0,0,0.5)]",
+        terminalOpen ? "h-[250px]" : "h-10"
+      )}>
+        {/* Terminal Header */}
+        <button 
+          onClick={() => setTerminalOpen(!terminalOpen)}
+          className="w-full h-10 flex items-center justify-between px-4 hover:bg-slate-900/50 transition-colors border-b border-slate-800/50"
+        >
+          <div className="flex items-center gap-3">
+            <Terminal size={14} className={hasAlerts ? "text-amber-500" : "text-emerald-500"} />
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+              Terminal de Diagnóstico
+            </span>
+            {hasAlerts ? (
+              <div className="flex items-center gap-2 ml-2">
+                {errorCount > 0 && <span className="text-[10px] font-mono font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-sm">{errorCount} Erro{errorCount !== 1 && 's'}</span>}
+                {warnCount > 0 && <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-sm">{warnCount} Alerta{warnCount !== 1 && 's'}</span>}
+              </div>
+            ) : (
+              <span className="text-[10px] font-mono font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-sm ml-2">Sistema Nominal</span>
+            )}
+          </div>
+          <div className="text-slate-500 flex items-center gap-2">
+            {terminalOpen ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+          </div>
+        </button>
+
+        {/* Terminal Body */}
+        {terminalOpen && (
+          <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#0D1117] p-2">
+            {hasAlerts ? (
+              <DiagnosticAlertsList alerts={dashboardData.alerts} onAlertClick={handleAlertClick} />
+            ) : (
+              <div className="h-full flex items-center justify-center text-[11px] text-slate-500 font-mono">
+                &gt; Nenhuma anomalia de engenharia detectada no circuito elétrico ativo.
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
     </div>
   );
 };

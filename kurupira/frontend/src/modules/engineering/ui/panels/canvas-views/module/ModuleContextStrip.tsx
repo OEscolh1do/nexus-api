@@ -7,6 +7,7 @@ interface ModuleContextStripProps {
   model?: string;
   power?: number;
   quantity?: number;
+  placedCount?: number;
   totalKwp?: number;
   totalArea?: number;
   onUpdateQty: (qty: number) => void;
@@ -17,6 +18,7 @@ export const ModuleContextStrip: React.FC<ModuleContextStripProps> = ({
   model,
   power,
   quantity,
+  placedCount,
   totalKwp,
   totalArea,
   onUpdateQty,
@@ -105,6 +107,23 @@ export const ModuleContextStrip: React.FC<ModuleContextStripProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Placed Status */}
+      {!isEmpty && (
+        <div className="flex items-center gap-3 px-4 py-2.5 lg:py-1.5 shrink-0 bg-slate-900/40">
+          <span className="text-[9px] text-slate-600 uppercase font-bold tracking-widest">Colocados</span>
+          <div className="flex items-baseline gap-1">
+            <span className={cn(
+              "text-[13px] font-mono font-black tabular-nums",
+              placedCount === quantity ? "text-emerald-400" :
+              (placedCount ?? 0) > (quantity ?? 0) ? "text-rose-400" : "text-amber-500/80"
+            )}>
+              {placedCount ?? 0}
+            </span>
+            <span className="text-[10px] text-slate-700 font-bold">/ {quantity}</span>
+          </div>
+        </div>
+      )}
 
       {/* kWp deste arranjo */}
       <div className="flex items-center gap-3 px-4 py-2.5 lg:py-1.5 shrink-0">

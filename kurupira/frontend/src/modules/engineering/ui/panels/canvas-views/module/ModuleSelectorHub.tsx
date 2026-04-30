@@ -9,6 +9,7 @@ interface ArrayChip {
   manufacturer: string;
   power: number;
   quantity: number;
+  placedCount: number;
   totalKwp: number;
 }
 
@@ -34,6 +35,10 @@ interface ModuleSelectorHubProps {
   kWpInstalado: number;
   /** Upload .PAN */
   onUploadPan: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  /** FDI (Oversize Ratio) provido pelo Inversor Ativo */
+  fdi?: number;
+  /** Nome ou Alias do Inversor Ativo */
+  inverterAlias?: string | null;
 }
 
 export const ModuleSelectorHub: React.FC<ModuleSelectorHubProps> = ({
@@ -48,6 +53,8 @@ export const ModuleSelectorHub: React.FC<ModuleSelectorHubProps> = ({
   kWpAlvo,
   kWpInstalado,
   onUploadPan,
+  fdi = 0,
+  inverterAlias,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -152,6 +159,31 @@ export const ModuleSelectorHub: React.FC<ModuleSelectorHubProps> = ({
           </div>
         </div>
 
+        {/* INVERTER FEEDBACK KPI */}
+        {inverterAlias && (
+          <div className="flex items-center gap-4 px-4 h-full border-r border-slate-800 shrink-0 bg-slate-900/10" title="Taxa de Oversizing (FDI) baseada no Inversor selecionado">
+            <div className="flex flex-col justify-center">
+              <span className="text-[8px] text-slate-500 font-bold uppercase tracking-[0.15em] leading-none mb-0.5 truncate max-w-[80px]">
+                {inverterAlias}
+              </span>
+              <div className="flex items-baseline gap-1">
+                <div className={cn(
+                  'w-1.5 h-1.5 rounded-full shadow-lg shrink-0',
+                  fdi >= 1.05 && fdi <= 1.35 ? 'bg-emerald-500 shadow-emerald-500/50' :
+                  fdi > 1.35 ? 'bg-amber-500 shadow-amber-500/50' : 'bg-slate-600'
+                )} />
+                <span className={cn(
+                  'text-[13px] font-mono font-black tabular-nums',
+                  fdi < 1.05 || fdi > 1.50 ? 'text-rose-400' :
+                  fdi <= 1.35 ? 'text-emerald-400' : 'text-amber-400'
+                )}>
+                  FDI {(fdi * 100).toFixed(0)}%
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Arrangement Chips */}
         <div className="flex items-center gap-1.5 px-3 overflow-x-auto custom-scrollbar h-full">
           {arrayChips.map(chip => {
@@ -177,8 +209,12 @@ export const ModuleSelectorHub: React.FC<ModuleSelectorHubProps> = ({
                   )}>
                     {chip.manufacturer} {chip.power}W
                   </span>
-                  <span className="text-[9px] font-mono text-slate-600 tabular-nums leading-none mt-0.5">
-                    ×{chip.quantity} · {chip.totalKwp.toFixed(1)} kWp
+                  <span className={cn(
+                    "text-[9px] font-mono tabular-nums leading-none mt-0.5",
+                    chip.placedCount === chip.quantity ? "text-slate-600" : 
+                    chip.placedCount > chip.quantity ? "text-rose-400 font-bold" : "text-amber-500/70"
+                  )}>
+                    {chip.placedCount} / {chip.quantity} · {chip.totalKwp.toFixed(1)} kWp
                   </span>
                 </div>
                 <button

@@ -5,6 +5,10 @@ import { mapCatalogToSpecs } from '../../../utils/catalogMappers';
 import { parsePanOnd } from '@/utils/pvsystParser';
 import { mapPanToModule } from '@/utils/panToModuleMapper';
 import { useGenerationEstimate } from '../../../hooks/useGenerationEstimate';
+import { useTechStore } from '../../../store/useTechStore';
+import { useTechKPIs } from '../../../hooks/useTechKPIs';
+import { useElectricalValidation } from '../../../hooks/useElectricalValidation';
+import { toArray } from '@/core/types/normalized.types';
 
 import { ModuleSelectorHub } from './module/ModuleSelectorHub';
 import { ModuleContextStrip } from './module/ModuleContextStrip';
@@ -22,6 +26,7 @@ import { type ModuleCatalogItem } from '@/core/schemas/moduleSchema';
 
 export const ModuleCanvasView: React.FC = () => {
   const projectModules = useSolarStore(selectModules);
+  const placedModules = useSolarStore(state => state.project.placedModules);
   const kWpAlvo = useSolarStore(s => s.kWpAlvo);
   const setModules = useSolarStore(s => s.setModules);
 
@@ -39,6 +44,16 @@ export const ModuleCanvasView: React.FC = () => {
   // Generation estimate hook
   const estimate = useGenerationEstimate();
 
+  // ── Integração com Contexto Elétrico ──
+  const invertersNorm = useTechStore(state => state.inverters);
+  const techInverters = useMemo(() => toArray(invertersNorm), [invertersNorm]);
+  const activeInverter = techInverters[0] ?? null;
+
+  const { kpi } = useTechKPIs();
+  const fdi = kpi.dcAcRatio;
+  
+  const { electrical } = useElectricalValidation();
+
   // ── Derive arrays from global state ──
   const arrays = useMemo(() => {
     const grouped = projectModules.reduce((acc, mod) => {
@@ -48,6 +63,7 @@ export const ModuleCanvasView: React.FC = () => {
           name: `Arranjo ${mod.model}`,
           moduleBase: mod,
           quantity: 0,
+          placedCount: 0,
           ids: [] as string[],
         };
       }
@@ -55,14 +71,24 @@ export const ModuleCanvasView: React.FC = () => {
       acc[mod.model].ids.push(mod.id);
       return acc;
     }, {} as Record<string, any>);
+
+    // Sync with physical placed modules
+    placedModules.forEach(pm => {
+        const mod = projectModules.find(m => m.id === pm.moduleSpecId);
+        if (mod && grouped[mod.model]) {
+            grouped[mod.model].placedCount += 1;
+        }
+    });
+
     return Object.values(grouped) as Array<{
       id: string;
       name: string;
       moduleBase: any;
       quantity: number;
+      placedCount: number;
       ids: string[];
     }>;
-  }, [projectModules]);
+  }, [projectModules, placedModules]);
 
   // Auto-select first chip
   useEffect(() => {
@@ -76,6 +102,8 @@ export const ModuleCanvasView: React.FC = () => {
 
   const activeArray = arrays.find(a => a.id === activeChipId);
   const activeModuleModels = arrays.map(a => a.moduleBase.model);
+  
+  // KPI Instalado: Reflete o Inventário (comercial/proposta)
   const totalDcKwp = arrays.reduce((sum, a) => sum + (a.quantity * a.moduleBase.power), 0) / 1000;
 
   // ── Chips data ──
@@ -86,6 +114,7 @@ export const ModuleCanvasView: React.FC = () => {
       manufacturer: a.moduleBase.manufacturer,
       power: a.moduleBase.power,
       quantity: a.quantity,
+      placedCount: a.placedCount,
       totalKwp: (a.quantity * a.moduleBase.power) / 1000,
     })),
   [arrays]);
@@ -175,6 +204,8 @@ export const ModuleCanvasView: React.FC = () => {
         kWpAlvo={kWpAlvo ?? 0}
         kWpInstalado={totalDcKwp}
         onUploadPan={handlePanUpload}
+        fdi={fdi}
+        inverterAlias={activeInverter?.snapshot.model ?? null}
       />
 
       {/* LEVEL 2: Context Strip */}
@@ -183,6 +214,7 @@ export const ModuleCanvasView: React.FC = () => {
         model={activeArray?.moduleBase.model}
         power={activeArray?.moduleBase.power}
         quantity={activeArray?.quantity}
+        placedCount={activeArray?.placedCount}
         totalKwp={activeArray ? (activeArray.quantity * activeArray.moduleBase.power) / 1000 : undefined}
         totalArea={activeArray ? activeArray.quantity * (activeArray.moduleBase.area || 2.5) : undefined}
         onUpdateQty={activeArray ? (qty) => handleUpdateQty(activeArray.id, qty) : () => {}}
@@ -206,6 +238,8 @@ export const ModuleCanvasView: React.FC = () => {
           <TechnicalProfile
             module={activeArray?.moduleBase}
             quantity={activeArray?.quantity}
+            electricalReport={electrical}
+            activeInverter={activeInverter}
           />
         </div>
       </div>

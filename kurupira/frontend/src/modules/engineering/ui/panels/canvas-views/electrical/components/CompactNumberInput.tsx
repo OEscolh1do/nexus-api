@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { cn } from '@/lib/utils';
 
 interface CompactNumberInputProps {
   label: string;
@@ -6,6 +7,7 @@ interface CompactNumberInputProps {
   min?: number;
   max?: number;
   onCommit: (val: number) => void;
+  className?: string;
 }
 
 export const CompactNumberInput: React.FC<CompactNumberInputProps> = ({
@@ -14,6 +16,7 @@ export const CompactNumberInput: React.FC<CompactNumberInputProps> = ({
   min = 0,
   max = 9999,
   onCommit,
+  className,
 }) => {
   const [localValue, setLocalValue] = useState<string>(String(value));
 
@@ -43,7 +46,10 @@ export const CompactNumberInput: React.FC<CompactNumberInputProps> = ({
       <label className="text-[11px] font-bold uppercase tracking-widest text-inherit">
         {label}
       </label>
-      <div className="flex items-center bg-slate-950 border border-slate-800 rounded-sm px-2 py-1.5 focus-within:border-emerald-500/50 transition-colors">
+      <div className={cn(
+        "flex items-center bg-slate-950 border border-slate-800 rounded-sm px-2 py-1.5 focus-within:border-emerald-500/50 transition-colors",
+        className
+      )}>
         <input
           type="number"
           value={localValue}

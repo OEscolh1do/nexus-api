@@ -97,6 +97,7 @@ export const ComposerBlockInverter: React.FC = () => {
     const focusedBlock = useUIStore(s => s.activeFocusedBlock);
     const setFocusedBlock = useUIStore(s => s.setFocusedBlock);
     const restoreMap = usePanelStore(s => s.restoreMap);
+    const modules = useSolarStore(selectModules);
 
     const isFocused = focusedBlock === 'inverter';
 
@@ -160,7 +161,6 @@ export const ComposerBlockInverter: React.FC = () => {
     const displayPower = projectInv.nominalPower || 0;
     const maxEfficiency = projectInv.maxEfficiency || 0;
 
-    const modules = useSolarStore(selectModules);
     let totalDcKwp = 0;
     modules.forEach(m => {
         totalDcKwp += (m.power || 0) / 1000;

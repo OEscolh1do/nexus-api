@@ -1,4 +1,5 @@
 import React from 'react';
+import { cn } from '@/lib/utils';
 
 export interface MpptThermalProfile {
   mpptId: string | number;
@@ -31,9 +32,85 @@ export const VoltageRangeChart: React.FC<VoltageRangeChartProps> = ({
   const maxAxis = Math.max(limitInversorVMax * 1.15, overallVocMax * 1.05, 100);
   const getPercent = (value: number) => `${Math.min(100, Math.max(0, (value / maxAxis) * 100))}%`;
 
+  // KPIs derivados dos perfis
+  const configuredProfiles = mpptProfiles.filter(p => p.vmpMin > 0 || p.vocMax > 0);
+  const globalVocMax = configuredProfiles.reduce((max, p) => Math.max(max, p.vocMax), 0);
+  const globalVmpCalor = configuredProfiles.reduce((min, p) => {
+    if (p.vmpCalor && p.vmpCalor > 0) return min === 0 ? p.vmpCalor : Math.min(min, p.vmpCalor);
+    return min;
+  }, 0);
+  const vocMarginPct = globalVocMax > 0 ? ((globalVocMax / limitInversorVMax) * 100) : 0;
+  const configuredCount = configuredProfiles.length;
+  const totalCount = mpptProfiles.length;
+
   return (
-    <div className="bg-slate-900 rounded-lg border border-slate-800 p-4 relative flex flex-col gap-4">
-      <div className="flex items-center justify-between mb-2">
+    <div className="bg-slate-900 rounded-sm border border-slate-800 p-4 relative flex flex-col gap-3">
+
+      {/* KPI Row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-slate-800/40 border border-slate-800/60 rounded-sm overflow-hidden shrink-0">
+        {/* Voc Máx */}
+        <div className="flex items-center gap-2 px-3 py-2 bg-slate-900/60">
+          <div className="flex flex-col">
+            <span className="text-[7px] text-slate-600 font-black uppercase tracking-[0.15em]">Voc Máx (Frio)</span>
+            <div className="flex items-baseline gap-1">
+              <span className={cn(
+                'text-[12px] font-mono font-black tabular-nums leading-none',
+                globalVocMax > limitInversorVMax ? 'text-rose-400' :
+                globalVocMax > limitInversorVMax * 0.95 ? 'text-amber-400' : 'text-sky-400'
+              )}>
+                {globalVocMax > 0 ? globalVocMax.toFixed(0) : '—'}
+              </span>
+              {globalVocMax > 0 && <span className="text-[8px] text-slate-600 font-bold">V</span>}
+            </div>
+          </div>
+        </div>
+        {/* Vmp Calor */}
+        <div className="flex items-center gap-2 px-3 py-2 bg-slate-900/60">
+          <div className="flex flex-col">
+            <span className="text-[7px] text-slate-600 font-black uppercase tracking-[0.15em]">Vmp (Calor)</span>
+            <div className="flex items-baseline gap-1">
+              <span className={cn(
+                'text-[12px] font-mono font-black tabular-nums leading-none',
+                globalVmpCalor > 0 && globalVmpCalor < limitMpptVMin ? 'text-rose-400' : 'text-emerald-400'
+              )}>
+                {globalVmpCalor > 0 ? globalVmpCalor.toFixed(0) : '—'}
+              </span>
+              {globalVmpCalor > 0 && <span className="text-[8px] text-slate-600 font-bold">V</span>}
+            </div>
+          </div>
+        </div>
+        {/* Margem Voc */}
+        <div className="flex items-center gap-2 px-3 py-2 bg-slate-900/60">
+          <div className="flex flex-col">
+            <span className="text-[7px] text-slate-600 font-black uppercase tracking-[0.15em]">Uso do Limite</span>
+            <div className="flex items-baseline gap-1">
+              <span className={cn(
+                'text-[12px] font-mono font-black tabular-nums leading-none',
+                vocMarginPct > 100 ? 'text-rose-400' : vocMarginPct > 95 ? 'text-amber-400' : 'text-slate-300'
+              )}>
+                {vocMarginPct > 0 ? vocMarginPct.toFixed(1) : '—'}
+              </span>
+              {vocMarginPct > 0 && <span className="text-[8px] text-slate-600 font-bold">%</span>}
+            </div>
+          </div>
+        </div>
+        {/* MPPTs conf. */}
+        <div className="flex items-center gap-2 px-3 py-2 bg-slate-900/60">
+          <div className="flex flex-col">
+            <span className="text-[7px] text-slate-600 font-black uppercase tracking-[0.15em]">MPPTs Conf.</span>
+            <div className="flex items-baseline gap-1">
+              <span className={cn(
+                'text-[12px] font-mono font-black tabular-nums leading-none',
+                configuredCount === 0 ? 'text-slate-600' : 'text-slate-300'
+              )}>
+                {totalCount > 0 ? `${configuredCount}/${totalCount}` : '—'}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between">
         <span className="text-[11px] text-slate-400 uppercase tracking-widest font-bold">
           Análise Termodinâmica Multi-MPPT
         </span>
