@@ -77,6 +77,19 @@ const IamService = {
       { expiresIn: "8h" }
     );
 
+    // 🛡️ Persistence Phase: Registrar sessão no banco para permitir revogação
+    try {
+      await prisma.session.create({
+        data: {
+          userId: user.id,
+          token: token, // Armazenamos o token inteiro (ou hash, mas para MVP o token resolve)
+          expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000) // 8h
+        }
+      });
+    } catch (sessionError) {
+      console.error("[IAM] Failed to persist session, but issuing token anyway:", sessionError.message);
+    }
+
     return {
       token,
       user: userWithoutPassword
@@ -92,9 +105,16 @@ const IamService = {
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
 
+      // 🛡️ Persistence Phase Check: Validar se a sessão ainda existe no banco (suporte a revogação)
+      const session = await prisma.session.findUnique({
+        where: { token: token }
+      });
+
+      if (!session) {
+        throw new AppError("Sessão revogada ou inexistente", 401);
+      }
+
       // Opcional: Verificar se o usuário ainda existe no banco
-      // ⚠️ CRÍTICO: orgUnitId é OBRIGATÓRIO para resolução do contexto de Tenant.
-      // Sem ele, endpoints como /api/v2/navigation/:module retornarão 403.
       const user = await prisma.user.findUnique({
         where: { id: decoded.id },
         select: {

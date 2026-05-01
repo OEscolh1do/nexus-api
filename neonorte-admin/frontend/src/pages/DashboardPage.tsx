@@ -95,8 +95,8 @@ export default function DashboardPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-lg font-semibold text-slate-200">Visão Geral da Plataforma</h1>
-        <p className="text-xs text-slate-500">Métricas consolidadas de todos os serviços</p>
+        <h1 className="text-lg font-semibold text-slate-200">Visão Geral — Plataforma Kurupira-Iaçã</h1>
+        <p className="text-xs text-slate-500">Métricas consolidadas da plataforma gerenciada</p>
       </div>
 
       {/* KPI Grid */}
@@ -137,12 +137,44 @@ export default function DashboardPage() {
 
       {/* Placeholder for future widgets */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="flex h-64 items-center justify-center rounded-sm border border-dashed border-slate-800 bg-slate-900/50">
-          <p className="text-xs text-slate-600">Atividade Recente — em breve</p>
+        <div className="rounded-sm border border-dashed border-slate-800 bg-slate-900/50 p-4">
+        <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-600">Atividade Recente — Últimas 24h</p>
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-slate-400">Logs de auditoria</span>
+            <span className="font-mono font-bold text-amber-400">{data.activity.logsLast24h.toLocaleString('pt-BR')}</span>
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-slate-400">Novos usuários (mês)</span>
+            <span className="font-mono font-bold text-sky-400">+{data.users.thisMonth.toLocaleString('pt-BR')}</span>
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-slate-400">Módulos FV ativos</span>
+            <span className="font-mono font-bold text-emerald-400">{data.catalog.modules.toLocaleString('pt-BR')}</span>
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-slate-400">Inversores ativos</span>
+            <span className="font-mono font-bold text-emerald-400">{data.catalog.inverters.toLocaleString('pt-BR')}</span>
+          </div>
         </div>
-        <div className="flex h-64 items-center justify-center rounded-sm border border-dashed border-slate-800 bg-slate-900/50">
-          <p className="text-xs text-slate-600">Saúde dos Serviços — em breve</p>
+      </div>
+      <div className="rounded-sm border border-dashed border-slate-800 bg-slate-900/50 p-4">
+        <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-600">Cobertura da Plataforma</p>
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-slate-400">Organizações (Tenants)</span>
+            <span className="font-mono font-bold text-violet-400">{data.tenants.total.toLocaleString('pt-BR')}</span>
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-slate-400">Total de Usuários</span>
+            <span className="font-mono font-bold text-sky-400">{data.users.total.toLocaleString('pt-BR')}</span>
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-slate-400">Projetos Cadastrados</span>
+            <span className="font-mono font-bold text-emerald-400">{data.projects.total.toLocaleString('pt-BR')}</span>
+          </div>
         </div>
+      </div>
       </div>
     </div>
   );

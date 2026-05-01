@@ -4,17 +4,59 @@ const { iacaClient } = require('../lib/m2mClient');
 
 const router = express.Router();
 
+// ─── Helper: guard MASTER tenant ────────────────────────────────────────────
+async function assertNotMaster(id, res) {
+  const tenant = await prismaIaca.tenant.findUnique({
+    where: { id },
+    select: { type: true, name: true, _count: { select: { users: true } } },
+  });
+  if (!tenant) {
+    res.status(404).json({ error: 'Organização não encontrada' });
+    return null;
+  }
+  if (tenant.type === 'MASTER') {
+    res.status(403).json({ error: 'O tenant MASTER não pode ser modificado' });
+    return null;
+  }
+  return tenant;
+}
+
+// ============================================
+// POST /admin/tenants — Criar organização
+// Fonte: M2M → Iaçã API
+// ============================================
+router.post('/', async (req, res) => {
+  try {
+    const { name, apiPlan, apiMonthlyQuota } = req.body;
+    if (!name || typeof name !== 'string' || name.trim().length < 2) {
+      return res.status(400).json({ error: 'Nome da organização é obrigatório (mínimo 2 caracteres)' });
+    }
+
+    const response = await iacaClient.post('/internal/tenants', {
+      name: name.trim(),
+      apiPlan: apiPlan || 'FREE',
+      apiMonthlyQuota: Number(apiMonthlyQuota) || 1000,
+    });
+    res.status(201).json({ data: response.data.data, message: 'Organização criada com sucesso' });
+  } catch (error) {
+    const status = error.response?.status || 500;
+    const message = error.response?.data?.error || 'Falha ao criar organização';
+    console.error('[Tenants] Erro M2M (POST):', message);
+    res.status(status).json({ error: message });
+  }
+});
+
 // ============================================
 // GET /admin/tenants — Listar organizações
 // Fonte: Prisma READ-ONLY → db_iaca
 // ============================================
 router.get('/', async (req, res) => {
   try {
-    const { page = 1, limit = 50, status, plan, type, q } = req.query;
-    const skip = (Number(page) - 1) * Number(limit);
+    const { page = 1, limit = 20, plan, type, q } = req.query;
+    const take = Math.min(Number(limit), 100);
+    const skip = (Number(page) - 1) * take;
 
     const where = {};
-    if (status) where.type = status; // TODO: Add status field when Iaçã supports it
     if (plan) where.apiPlan = plan;
     if (type) where.type = type;
     if (q) where.name = { contains: q };
@@ -23,7 +65,7 @@ router.get('/', async (req, res) => {
       prismaIaca.tenant.findMany({
         where,
         skip,
-        take: Number(limit),
+        take,
         include: {
           _count: { select: { users: true, auditLogs: true } },
         },
@@ -36,9 +78,9 @@ router.get('/', async (req, res) => {
       data: tenants,
       pagination: {
         page: Number(page),
-        limit: Number(limit),
+        limit: take,
         total,
-        totalPages: Math.ceil(total / Number(limit)),
+        totalPages: Math.ceil(total / take),
       },
     });
   } catch (error) {
@@ -48,8 +90,25 @@ router.get('/', async (req, res) => {
 });
 
 // ============================================
-// GET /admin/tenants/:id — Detalhar organização
+// GET /admin/tenants/options — Dropdown options
 // Fonte: Prisma READ-ONLY → db_iaca
+// ============================================
+router.get('/options', async (req, res) => {
+  try {
+    const tenants = await prismaIaca.tenant.findMany({
+      where: { type: { not: 'MASTER' } },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+    res.json({ data: tenants });
+  } catch (error) {
+    console.error('[Tenants] Erro ao listar options:', error.message);
+    res.status(500).json({ error: 'Falha ao listar opções de organizações' });
+  }
+});
+
+// ============================================
+// GET /admin/tenants/:id — Detalhar organização
 // ============================================
 router.get('/:id', async (req, res) => {
   try {
@@ -58,6 +117,8 @@ router.get('/:id', async (req, res) => {
       include: {
         users: {
           select: { id: true, username: true, fullName: true, role: true, createdAt: true },
+          take: 100,
+          orderBy: { createdAt: 'desc' },
         },
         _count: { select: { users: true, auditLogs: true } },
       },
@@ -75,33 +136,84 @@ router.get('/:id', async (req, res) => {
 });
 
 // ============================================
-// PUT /admin/tenants/:id — Editar organização
-// Fonte: M2M → Iaçã API
+// PATCH /admin/tenants/:id — Mutação genérica
+// Payloads: { apiPlan, apiMonthlyQuota }, { apiCurrentUsage: 0 }
+// ============================================
+router.patch('/:id', async (req, res) => {
+  try {
+    const tenant = await assertNotMaster(req.params.id, res);
+    if (!tenant) return;
+
+    const response = await iacaClient.patch(`/internal/tenants/${req.params.id}`, req.body);
+    res.json({ data: response.data, message: 'Organização atualizada com sucesso' });
+  } catch (error) {
+    const status = error.response?.status || 500;
+    const message = error.response?.data?.error || 'Falha ao atualizar organização';
+    console.error('[Tenants] Erro M2M (PATCH):', message);
+    res.status(status).json({ error: message });
+  }
+});
+
+// ============================================
+// POST /admin/tenants/:id/block — Bloquear tenant (cascata)
+// ============================================
+router.post('/:id/block', async (req, res) => {
+  try {
+    const tenant = await assertNotMaster(req.params.id, res);
+    if (!tenant) return;
+
+    const response = await iacaClient.patch(`/internal/tenants/${req.params.id}`, {
+      status: 'BLOCKED',
+    });
+    res.json({
+      data: response.data,
+      message: `Tenant bloqueado. ${tenant._count.users} usuário(s) afetados.`,
+    });
+  } catch (error) {
+    const status = error.response?.status || 500;
+    const message = error.response?.data?.error || 'Falha ao bloquear organização';
+    console.error('[Tenants] Erro M2M (block):', message);
+    res.status(status).json({ error: message });
+  }
+});
+
+// ============================================
+// POST /admin/tenants/:id/unblock — Desbloquear tenant
+// ============================================
+router.post('/:id/unblock', async (req, res) => {
+  try {
+    const tenant = await assertNotMaster(req.params.id, res);
+    if (!tenant) return;
+
+    const response = await iacaClient.patch(`/internal/tenants/${req.params.id}`, {
+      status: 'ACTIVE',
+    });
+    res.json({ data: response.data, message: 'Tenant desbloqueado com sucesso' });
+  } catch (error) {
+    const status = error.response?.status || 500;
+    const message = error.response?.data?.error || 'Falha ao desbloquear organização';
+    console.error('[Tenants] Erro M2M (unblock):', message);
+    res.status(status).json({ error: message });
+  }
+});
+
+// ============================================
+// PUT /admin/tenants/:id — Retrocompat
 // ============================================
 router.put('/:id', async (req, res) => {
   try {
-    // Verificar se não é o tenant MASTER
-    const tenant = await prismaIaca.tenant.findUnique({
-      where: { id: req.params.id },
-      select: { type: true, name: true },
-    });
-
-    if (!tenant) {
-      return res.status(404).json({ error: 'Organização não encontrada' });
-    }
-
-    if (tenant.type === 'MASTER') {
-      return res.status(403).json({ error: 'O tenant MASTER não pode ser modificado' });
-    }
+    const tenant = await assertNotMaster(req.params.id, res);
+    if (!tenant) return;
 
     const response = await iacaClient.put(`/internal/tenants/${req.params.id}`, req.body);
     res.json({ data: response.data, message: 'Organização atualizada com sucesso' });
   } catch (error) {
     const status = error.response?.status || 500;
     const message = error.response?.data?.error || 'Falha ao atualizar organização';
-    console.error('[Tenants] Erro M2M:', message);
+    console.error('[Tenants] Erro M2M (PUT):', message);
     res.status(status).json({ error: message });
   }
 });
+
 
 module.exports = router;

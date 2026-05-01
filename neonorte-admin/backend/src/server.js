@@ -197,7 +197,8 @@ app.use((err, req, res, _next) => {
 app.listen(PORT, () => {
   console.log('');
   console.log('╔══════════════════════════════════════════════════╗');
-  console.log('║  NEONORTE ADMIN — Backoffice do Operador        ║');
+  console.log('║  NEONORTE ADMIN — Painel de Operações            ║');
+  console.log('║  Gerenciando: Kurupira · Iaçã Platform          ║');
   console.log(`║  Porta: ${PORT}                                    ║`);
   console.log(`║  Ambiente: ${(process.env.NODE_ENV || 'development').padEnd(37)}║`);
   console.log('║  Iaçã:     ' + (process.env.IACA_INTERNAL_URL || 'N/A').padEnd(37) + '║');

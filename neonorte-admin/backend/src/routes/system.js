@@ -2,51 +2,54 @@ const express = require('express');
 const axios = require('axios');
 const prismaIaca = require('../lib/prismaIaca');
 const prismaKurupira = require('../lib/prismaKurupira');
+const { iacaClient } = require('../lib/m2mClient');
 
 const router = express.Router();
 
 // ============================================
 // GET /admin/system/health — Status dos serviços
-// Fonte: HTTP probes + DB probes
 // ============================================
 router.get('/health', async (req, res) => {
-  const results = {
-    iaca: { status: 'unknown', latencyMs: null },
-    kurupira: { status: 'unknown', latencyMs: null },
-    dbIaca: { status: 'unknown' },
-    dbKurupira: { status: 'unknown' },
-  };
-
   const probeService = async (name, url) => {
     const start = Date.now();
     try {
-      const resp = await axios.get(`${url}/health`, { timeout: 5000 });
-      results[name] = {
+      // Timeout estrito de 3s conforme spec
+      const resp = await axios.get(`${url}/health`, { timeout: 3000 });
+      return {
+        name,
         status: resp.status === 200 ? 'healthy' : 'degraded',
         latencyMs: Date.now() - start,
       };
-    } catch {
-      results[name] = { status: 'down', latencyMs: Date.now() - start };
+    } catch (err) {
+      return { 
+        name, 
+        status: 'down', 
+        latencyMs: Date.now() - start,
+        error: err.message 
+      };
     }
   };
 
   const probeDb = async (name, prismaClient) => {
+    const start = Date.now();
     try {
       await prismaClient.$queryRaw`SELECT 1`;
-      results[name] = { status: 'healthy' };
-    } catch {
-      results[name] = { status: 'down' };
+      return { name, status: 'healthy', latencyMs: Date.now() - start };
+    } catch (err) {
+      return { name, status: 'down', latencyMs: Date.now() - start, error: err.message };
     }
   };
 
-  await Promise.all([
-    probeService('iaca', process.env.IACA_INTERNAL_URL),
-    probeService('kurupira', process.env.KURUPIRA_INTERNAL_URL),
-    probeDb('dbIaca', prismaIaca),
-    probeDb('dbKurupira', prismaKurupira),
+  // Promise.allSettled para garantir que probes lentas não bloqueiem o resto
+  const probes = await Promise.allSettled([
+    probeService('Iaçã', process.env.IACA_INTERNAL_URL),
+    probeService('Kurupira', process.env.KURUPIRA_INTERNAL_URL),
+    probeDb('MySQL (Iaçã)', prismaIaca),
+    probeDb('MySQL (Kurupira)', prismaKurupira),
   ]);
 
-  const allHealthy = Object.values(results).every((r) => r.status === 'healthy');
+  const results = probes.map(p => p.status === 'fulfilled' ? p.value : { status: 'error' });
+  const allHealthy = results.every(r => r.status === 'healthy');
 
   res.status(allHealthy ? 200 : 503).json({
     status: allHealthy ? 'healthy' : 'degraded',
@@ -56,83 +59,97 @@ router.get('/health', async (req, res) => {
 });
 
 // ============================================
-// GET /admin/system/jobs — Status dos CronLocks
-// Fonte: Prisma READ-ONLY → db_iaca
+// GET /admin/system/info — Informações de Ambiente
 // ============================================
-router.get('/jobs', async (req, res) => {
-  try {
-    const locks = await prismaIaca.cronLock.findMany();
+router.get('/info', (req, res) => {
+  const envVars = [
+    'JWT_SECRET',
+    'M2M_SERVICE_TOKEN',
+    'DATABASE_URL_IACA_RO',
+    'DATABASE_URL_KURUPIRA_RO',
+    'IACA_INTERNAL_URL',
+    'KURUPIRA_INTERNAL_URL'
+  ];
 
-    const jobs = locks.map((lock) => ({
-      id: lock.id,
-      lastRun: lock.lockedAt,
-      expiresAt: lock.expiresAt,
-      isExpired: new Date() > lock.expiresAt,
-    }));
+  const envStatus = envVars.map(name => ({
+    name,
+    present: !!process.env[name]
+  }));
 
-    res.json({ data: jobs });
-  } catch (error) {
-    console.error('[System] Erro ao buscar jobs:', error.message);
-    res.status(500).json({ error: 'Falha ao buscar status dos jobs' });
-  }
+  res.json({
+    version: require('../../package.json').version,
+    nodeVersion: process.version,
+    platform: process.platform,
+    uptimeSeconds: Math.floor(process.uptime()),
+    envStatus
+  });
 });
 
 // ============================================
 // GET /admin/system/sessions — Sessões ativas
-// Fonte: Prisma READ-ONLY → db_iaca
 // ============================================
 router.get('/sessions', async (req, res) => {
   try {
     const now = new Date();
-
-    const [active, expired] = await Promise.all([
-      prismaIaca.session.count({ where: { expiresAt: { gt: now } } }),
-      prismaIaca.session.count({ where: { expiresAt: { lte: now } } }),
-    ]);
-
-    res.json({
-      data: {
-        active,
-        expired,
-        total: active + expired,
-      },
+    
+    // Lista detalhada das últimas 100 sessões ativas
+    const sessions = await prismaIaca.session.findMany({
+      where: { expiresAt: { gt: now } },
+      take: 100,
+      orderBy: { createdAt: 'desc' },
+      // Nota: Como não temos relação direta no Prisma RO do Admin, 
+      // fazemos uma query manual para buscar nomes se necessário ou retornamos o ID
     });
+
+    // Enriquecer com dados de usuário (busca em lote)
+    const userIds = [...new Set(sessions.map(s => s.userId))];
+    const users = await prismaIaca.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, username: true, fullName: true, tenantId: true }
+    });
+
+    const tenants = await prismaIaca.tenant.findMany({
+      where: { id: { in: users.map(u => u.tenantId) } },
+      select: { id: true, name: true }
+    });
+
+    const enriched = sessions.map(session => {
+      const user = users.find(u => u.id === session.userId);
+      const tenant = tenants.find(t => t.id === user?.tenantId);
+      return {
+        ...session,
+        user: user ? { username: user.username, fullName: user.fullName } : null,
+        tenant: tenant ? { name: tenant.name } : null
+      };
+    });
+
+    res.json({ data: enriched });
   } catch (error) {
-    console.error('[System] Erro ao buscar sessões:', error.message);
-    res.status(500).json({ error: 'Falha ao buscar sessões' });
+    res.status(500).json({ error: error.message });
   }
 });
 
 // ============================================
-// GET /admin/system/api-usage — Uso de API por tenant
-// Fonte: Prisma READ-ONLY → db_iaca
+// DELETE /admin/system/sessions/:id — Revogar
 // ============================================
-router.get('/api-usage', async (req, res) => {
+router.delete('/sessions/:id', async (req, res) => {
   try {
-    const tenants = await prismaIaca.tenant.findMany({
-      where: { apiPlan: { not: 'FREE' } },
-      select: {
-        id: true,
-        name: true,
-        apiPlan: true,
-        apiMonthlyQuota: true,
-        apiCurrentUsage: true,
-      },
-      orderBy: { apiCurrentUsage: 'desc' },
-    });
-
-    const data = tenants.map((t) => ({
-      ...t,
-      usagePercent: t.apiMonthlyQuota > 0
-        ? Math.round((t.apiCurrentUsage / t.apiMonthlyQuota) * 100)
-        : 0,
-      isNearLimit: t.apiMonthlyQuota > 0 && (t.apiCurrentUsage / t.apiMonthlyQuota) >= 0.8,
-    }));
-
-    res.json({ data });
+    await iacaClient.delete(`/internal/sessions/${req.params.id}`);
+    res.json({ success: true });
   } catch (error) {
-    console.error('[System] Erro ao buscar uso de API:', error.message);
-    res.status(500).json({ error: 'Falha ao buscar uso de API' });
+    res.status(error.response?.status || 500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// DELETE /admin/system/users/:id/sessions — Flush
+// ============================================
+router.delete('/users/:id/sessions', async (req, res) => {
+  try {
+    await iacaClient.delete(`/internal/users/${req.params.id}/sessions`);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(error.response?.status || 500).json({ error: error.message });
   }
 });
 

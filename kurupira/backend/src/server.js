@@ -11,6 +11,8 @@ const { PrismaClient } = require("@prisma/client");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
+const validateM2M = require("./middleware/validateM2M");
+const catalogService = require("./services/catalogService");
 
 const app = express();
 const prisma = new PrismaClient();
@@ -530,6 +532,76 @@ app.get("/api/v1/catalog/inverters", authenticateToken, async (req, res) => {
     });
     res.json({ success: true, data: inverters });
   } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// =============================================================
+// ROUTES: INTERNAL M2M API (Usado pelo Admin BFF)
+// =============================================================
+
+// --- MÓDULOS M2M ---
+app.post("/internal/catalog/modules", validateM2M, async (req, res) => {
+  try {
+    const { filename, content } = req.body;
+    
+    if (content && filename) {
+      // É um upload de arquivo .PAN
+      const module = await catalogService.processPanUpload(filename, content);
+      return res.status(201).json({ success: true, data: module });
+    }
+
+    // É uma criação manual
+    const module = await prisma.moduleCatalog.create({ data: req.body });
+    res.status(201).json({ success: true, data: module });
+  } catch (error) {
+    console.error('[M2M Catalog]', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.patch("/internal/catalog/modules/:id", validateM2M, async (req, res) => {
+  try {
+    const module = await prisma.moduleCatalog.update({
+      where: { id: req.params.id },
+      data: req.body
+    });
+    res.json({ success: true, data: module });
+  } catch (error) {
+    console.error('[M2M Catalog]', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// --- INVERSORES M2M ---
+app.post("/internal/catalog/inverters", validateM2M, async (req, res) => {
+  try {
+    const { filename, content } = req.body;
+    
+    if (content && filename) {
+      // É um upload de arquivo .OND
+      const inverter = await catalogService.processOndUpload(filename, content);
+      return res.status(201).json({ success: true, data: inverter });
+    }
+
+    // É uma criação manual
+    const inverter = await prisma.inverterCatalog.create({ data: req.body });
+    res.status(201).json({ success: true, data: inverter });
+  } catch (error) {
+    console.error('[M2M Catalog]', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.patch("/internal/catalog/inverters/:id", validateM2M, async (req, res) => {
+  try {
+    const inverter = await prisma.inverterCatalog.update({
+      where: { id: req.params.id },
+      data: req.body
+    });
+    res.json({ success: true, data: inverter });
+  } catch (error) {
+    console.error('[M2M Catalog]', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

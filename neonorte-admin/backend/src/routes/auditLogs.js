@@ -119,4 +119,56 @@ router.get('/stats/summary', async (req, res) => {
   }
 });
 
+// ============================================
+// GET /admin/audit-logs/export — Exportar CSV
+// Fonte: Prisma READ-ONLY → db_iaca
+// ============================================
+router.get('/export', async (req, res) => {
+  try {
+    const { tenantId, userId, action, entity, dateFrom, dateTo, q } = req.query;
+
+    const where = {};
+    if (tenantId) where.tenantId = tenantId;
+    if (userId) where.userId = userId;
+    if (action) where.action = { contains: action };
+    if (entity) where.entity = entity;
+    if (q) where.details = { contains: q };
+
+    if (dateFrom || dateTo) {
+      where.timestamp = {};
+      if (dateFrom) where.timestamp.gte = new Date(dateFrom);
+      if (dateTo) where.timestamp.lte = new Date(dateTo);
+    }
+
+    const logs = await prismaIaca.auditLog.findMany({
+      where,
+      take: 5000,
+      include: {
+        user: { select: { username: true } },
+        tenant: { select: { name: true } },
+      },
+      orderBy: { timestamp: 'desc' },
+    });
+
+    let csv = 'Timestamp,Usuario,Tenant,Acao,Entidade,IP,Detalhes\n';
+    logs.forEach((log) => {
+      const ts = new Date(log.timestamp).toISOString();
+      const user = log.user?.username || 'N/A';
+      const tenant = log.tenant?.name || 'N/A';
+      const act = log.action;
+      const ent = log.entity || 'N/A';
+      const ip = log.ipAddress || 'N/A';
+      const det = (log.details || '').replace(/,/g, ';').replace(/\n/g, ' ');
+      csv += `${ts},${user},${tenant},${act},${ent},${ip},${det}\n`;
+    });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=audit-logs.csv');
+    res.status(200).send(csv);
+  } catch (error) {
+    console.error('[AuditLogs] Erro ao exportar CSV:', error.message);
+    res.status(500).json({ error: 'Falha ao exportar logs' });
+  }
+});
+
 module.exports = router;

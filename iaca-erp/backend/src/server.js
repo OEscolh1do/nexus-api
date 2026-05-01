@@ -201,7 +201,173 @@ app.post("/internal/audit", validateM2M, express.json(), async (req, res) => {
   }
 });
 
-// --- UNIVERSAL CRUD CONTROLLER ---
+// Session Revocation (Admin BFF → Iaçã)
+app.delete("/internal/sessions/:id", validateM2M, async (req, res) => {
+  try {
+    await prisma.session.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.delete("/internal/users/:id/sessions", validateM2M, async (req, res) => {
+  try {
+    await prisma.session.deleteMany({ where: { userId: req.params.id } });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Criar Tenant (Admin BFF → Iaçã)
+app.post("/internal/tenants", validateM2M, async (req, res) => {
+  try {
+    const { name, apiPlan = 'FREE', apiMonthlyQuota = 1000 } = req.body;
+    if (!name || typeof name !== 'string' || name.trim().length < 2) {
+      return res.status(400).json({ success: false, error: 'Nome da organização inválido (mínimo 2 caracteres)' });
+    }
+
+    // Verificar unicidade (case-insensitive)
+    const existing = await prisma.tenant.findFirst({
+      where: { name: { equals: name.trim(), mode: 'insensitive' } },
+    });
+    if (existing) {
+      return res.status(409).json({ success: false, error: `Já existe uma organização com o nome "${name.trim()}"` });
+    }
+
+    const tenant = await prisma.tenant.create({
+      data: {
+        name: name.trim(),
+        type: 'SUB_TENANT',
+        apiPlan,
+        apiMonthlyQuota: Number(apiMonthlyQuota) || 1000,
+      },
+    });
+
+    // Criar OrgUnit raiz padrão para o tenant (sem tenantId — OrgUnit não tem esse campo)
+    await prisma.orgUnit.create({
+      data: { name: tenant.name, type: 'ROOT' },
+    });
+
+    // AuditLog
+    await prisma.auditLog.create({
+      data: {
+        tenantId: tenant.id,
+        action: 'ADMIN_CREATE_TENANT',
+        entity: 'Tenant',
+        resourceId: tenant.id,
+        details: JSON.stringify({ name: tenant.name, apiPlan: tenant.apiPlan, source: 'admin-bff' }),
+      },
+    }).catch(() => {}); // non-blocking
+
+    res.status(201).json({ success: true, data: { id: tenant.id, name: tenant.name } });
+  } catch (error) {
+    console.error('[M2M] Erro ao criar tenant:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Editar Tenant (Admin BFF → Iaçã)
+app.patch("/internal/tenants/:id", validateM2M, async (req, res) => {
+  try {
+    const allowed = ['name', 'apiPlan', 'apiMonthlyQuota', 'apiCurrentUsage', 'status', 'ssoProvider', 'ssoDomain', 'ssoEnforced'];
+    const data = Object.fromEntries(
+      Object.entries(req.body).filter(([k]) => allowed.includes(k))
+    );
+
+    const tenant = await prisma.tenant.update({ where: { id: req.params.id }, data });
+    res.json({ success: true, data: tenant });
+  } catch (error) {
+    if (error.code === 'P2025') {
+      return res.status(404).json({ success: false, error: 'Organização não encontrada' });
+    }
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Criar Usuário (Admin BFF → Iaçã) — Opção D: senha temporária + mustChangePassword
+app.post("/internal/users", validateM2M, async (req, res) => {
+  try {
+    const bcrypt = require('bcryptjs');
+    const { username, password, fullName, role, tenantId, jobTitle } = req.body;
+
+    if (!username || !password || !fullName || !role || !tenantId) {
+      return res.status(400).json({ success: false, error: 'Campos obrigatórios: username, password, fullName, role, tenantId' });
+    }
+
+    // Verificar unicidade do username
+    const existingUser = await prisma.user.findUnique({ where: { username: username.trim() } });
+    if (existingUser) {
+      return res.status(409).json({ success: false, error: `Username "${username.trim()}" já está em uso` });
+    }
+
+    // Verificar que tenant existe e não está bloqueado
+    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+    if (!tenant) {
+      return res.status(404).json({ success: false, error: 'Organização não encontrada' });
+    }
+    if (tenant.status === 'BLOCKED') {
+      return res.status(403).json({ success: false, error: 'Não é possível adicionar usuários a uma organização bloqueada' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    const user = await prisma.user.create({
+      data: {
+        username: username.trim(),
+        password: hashedPassword,
+        fullName: fullName.trim(),
+        role,
+        tenantId,
+        jobTitle: jobTitle?.trim() || null,
+        // mustChangePassword não existe no schema atual — roadmap: migração futura
+      },
+      select: { id: true, username: true, fullName: true, role: true, tenantId: true, createdAt: true },
+    });
+
+    // AuditLog
+    await prisma.auditLog.create({
+      data: {
+        tenantId,
+        userId: null,
+        action: 'ADMIN_CREATE_USER',
+        entity: 'User',
+        resourceId: user.id,
+        details: JSON.stringify({ username: user.username, role: user.role, source: 'admin-bff' }),
+      },
+    }).catch(() => {});
+
+    res.status(201).json({ success: true, data: user });
+  } catch (error) {
+    console.error('[M2M] Erro ao criar usuário:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Editar Usuário (Admin BFF → Iaçã)
+app.patch("/internal/users/:id", validateM2M, async (req, res) => {
+  try {
+    const allowed = ['fullName', 'role', 'jobTitle', 'status'];
+    const data = Object.fromEntries(
+      Object.entries(req.body).filter(([k]) => allowed.includes(k))
+    );
+
+    const user = await prisma.user.update({
+      where: { id: req.params.id },
+      data,
+      select: { id: true, username: true, fullName: true, role: true, status: true },
+    });
+    res.json({ success: true, data: user });
+  } catch (error) {
+    if (error.code === 'P2025') {
+      return res.status(404).json({ success: false, error: 'Usuário não encontrado' });
+    }
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+
 // Maps /api/:resource to Prisma Models (e.g. /api/users -> prisma.user)
 
 // Helper to get model dynamically (Case insensitive)
