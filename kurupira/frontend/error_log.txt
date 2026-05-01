@@ -1,2 +1,0 @@
-src/modules/engineering/ui/panels/TopRibbon.tsx(272,27): error TS6133: 'electrical' is declared but its value is never read.
-src/modules/engineering/ui/panels/TopRibbon.tsx(272,39): error TS6133: 'inventory' is declared but its value is never read.

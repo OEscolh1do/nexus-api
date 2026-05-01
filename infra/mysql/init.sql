@@ -22,7 +22,13 @@ CREATE USER IF NOT EXISTS 'user_kurupira'@'%' IDENTIFIED BY 'kuru_S3cur3_2026!';
 GRANT ALL PRIVILEGES ON db_kurupira.* TO 'user_kurupira'@'%';
 
 -- Revogar acesso cruzado (defesa em profundidade)
-REVOKE ALL PRIVILEGES ON db_kurupira.* FROM 'user_iaca'@'%';
-REVOKE ALL PRIVILEGES ON db_iaca.* FROM 'user_kurupira'@'%';
+-- (Removido: No MySQL 8, dá erro revogar privilégios que não foram explicitamente concedidos)
+-- REVOKE ALL PRIVILEGES ON db_kurupira.* FROM 'user_iaca'@'%';
+-- REVOKE ALL PRIVILEGES ON db_iaca.* FROM 'user_kurupira'@'%';
+
+-- User READ-ONLY para o Admin BFF (neonorte-admin)
+CREATE USER IF NOT EXISTS 'user_admin'@'%' IDENTIFIED BY 'admin_S3cur3_2026!';
+GRANT SELECT ON db_iaca.* TO 'user_admin'@'%';
+GRANT SELECT ON db_kurupira.* TO 'user_admin'@'%';
 
 FLUSH PRIVILEGES;

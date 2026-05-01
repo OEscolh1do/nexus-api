@@ -1,0 +1,30 @@
+{
+  "name": "neonorte-admin-backend",
+  "version": "1.0.0",
+  "description": "BFF (Backend for Frontend) do painel administrativo Neonorte",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "prisma:generate:iaca": "prisma generate --schema=prisma/schema-iaca.prisma",
+    "prisma:generate:kurupira": "prisma generate --schema=prisma/schema-kurupira.prisma",
+    "prisma:generate": "npm run prisma:generate:iaca && npm run prisma:generate:kurupira"
+  },
+  "type": "commonjs",
+  "dependencies": {
+    "@prisma/client": "5.10.2",
+    "axios": "^1.13.2",
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11",
+    "prisma": "5.10.2"
+  }
+}

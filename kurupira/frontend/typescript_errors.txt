@@ -1,4 +1,0 @@
-src/modules/engineering/ui/panels/properties/RoofProperties.tsx(11,50): error TS2339: Property 'roofAreas' does not exist on type 'ProjectData'.
-src/modules/engineering/ui/panels/properties/RoofProperties.tsx(12,47): error TS2551: Property 'updateRoofArea' does not exist on type 'SolarState'. Did you mean 'updateArea'?
-src/modules/engineering/ui/panels/properties/RoofProperties.tsx(13,47): error TS2339: Property 'autoLayoutRoof' does not exist on type 'SolarState'.
-src/modules/engineering/ui/panels/properties/RoofProperties.tsx(15,31): error TS7006: Parameter 'r' implicitly has an 'any' type.
