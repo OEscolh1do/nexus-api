@@ -1,6 +1,7 @@
 # =============================================================
 # Neonorte Workspace — Docker Compose (Operação Guardiões)
 # 4 Contentores: API Gateway, Iaçã, Kurupira, MySQL
+# Otimizado para VPS 2GB (Logto Hybrid Cloud)
 # =============================================================
 
 services:
@@ -21,16 +22,19 @@ services:
         condition: service_healthy
       kurupira-backend:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 64M
     networks:
       - neonorte_net
 
   # ==========================================================
   # IAÇÃ — O Cérebro de Gestão (I/O-Bound)
-  # CRM, Finanças, Ops, Strategy, IAM
   # ==========================================================
   iaca-backend:
     build:
-      context: ./iaca-erp/backend
+      context: ./iaca/backend
       dockerfile: Dockerfile
     container_name: neonorte_iaca
     restart: unless-stopped
@@ -39,26 +43,26 @@ services:
       JWT_SECRET: "nexus_dev_secret_2026"
       M2M_SERVICE_TOKEN: "m2m_guardioes_secret_2026!"
       PORT: 3001
-      NODE_ENV: development
+      NODE_ENV: production
+      LOGTO_ENDPOINT: "https://214fzz.logto.app"
+      LOGTO_JWKS_URI: "https://214fzz.logto.app/oidc/jwks"
     depends_on:
       nexus-db:
         condition: service_healthy
     deploy:
       resources:
         limits:
-          memory: 1G
+          memory: 256M
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
-      interval: 15s
-      timeout: 5s
+      interval: 30s
+      timeout: 10s
       retries: 3
-      start_period: 30s
     networks:
       - neonorte_net
 
   # ==========================================================
   # KURUPIRA — O Músculo de Engenharia (CPU/Memory-Bound)
-  # Simulação solar, GIS, PDFs, dimensionamento elétrico
   # ==========================================================
   kurupira-backend:
     build:
@@ -72,43 +76,48 @@ services:
       M2M_SERVICE_TOKEN: "m2m_guardioes_secret_2026!"
       IACA_INTERNAL_URL: "http://iaca-backend:3001"
       PORT: 3002
-      NODE_ENV: development
+      NODE_ENV: production
+      LOGTO_ENDPOINT: "https://214fzz.logto.app"
+      LOGTO_JWKS_URI: "https://214fzz.logto.app/oidc/jwks"
     depends_on:
       nexus-db:
         condition: service_healthy
     deploy:
       resources:
         limits:
-          memory: 4G
+          memory: 512M
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3002/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
-      interval: 15s
-      timeout: 5s
+      interval: 30s
+      timeout: 10s
       retries: 3
-      start_period: 30s
     networks:
       - neonorte_net
 
   # ==========================================================
-  # NEONORTE ADMIN — Backoffice do Operador (BFF)
-  # Gestão, Auditoria, Catálogos, Supervisão
+  # NEONORTE ADMIN — Backoffice do Operador (BFF Sumaúma)
   # ==========================================================
   neonorte-admin-backend:
     build:
-      context: ./neonorte-admin/backend
+      context: ./sumauma/backend
       dockerfile: Dockerfile
     container_name: neonorte_admin
     restart: unless-stopped
     environment:
+      DATABASE_URL: "mysql://user_sumauma:sumauma_S3cur3_2026!@nexus-db:3306/db_sumauma"
       DATABASE_URL_IACA_RO: "mysql://user_admin:admin_S3cur3_2026!@nexus-db:3306/db_iaca"
       DATABASE_URL_KURUPIRA_RO: "mysql://user_admin:admin_S3cur3_2026!@nexus-db:3306/db_kurupira"
       JWT_SECRET: "nexus_dev_secret_2026"
       M2M_SERVICE_TOKEN: "m2m_guardioes_secret_2026!"
       IACA_INTERNAL_URL: "http://iaca-backend:3001"
       KURUPIRA_INTERNAL_URL: "http://kurupira-backend:3002"
-      ADMIN_FRONTEND_URL: "http://localhost:5175"
+      ADMIN_FRONTEND_URL: "https://admin.seu-dominio.com"
+      LOGTO_ENDPOINT: "https://214fzz.logto.app"
+      LOGTO_JWKS_URI: "https://214fzz.logto.app/oidc/jwks"
+      LOGTO_M2M_CLIENT_ID: "78gi2h4gwsbnncyc10769"
+      LOGTO_M2M_CLIENT_SECRET: "6nKfrtSNMOqBwbUt2aOMMkVPZ8dKHusC"
       PORT: 3003
-      NODE_ENV: development
+      NODE_ENV: production
     depends_on:
       nexus-db:
         condition: service_healthy
@@ -119,19 +128,17 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 256M
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3003/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
-      interval: 15s
-      timeout: 5s
+      interval: 30s
+      timeout: 10s
       retries: 3
-      start_period: 20s
     networks:
       - neonorte_net
 
   # ==========================================================
   # NEXUS-DB — Fortaleza de Dados (MySQL 8.0)
-  # Schemas lógicos: db_iaca + db_kurupira
   # ==========================================================
   nexus-db:
     image: mysql:8.0
@@ -144,21 +151,21 @@ services:
     volumes:
       - nexus_mysql_data:/var/lib/mysql
       - ./infra/mysql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./infra/mysql/my.cnf:/etc/mysql/conf.d/my.cnf:ro
     deploy:
       resources:
         limits:
-          memory: 1G
+          memory: 512M
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pneonorte_root_2026!"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s
     networks:
       - neonorte_net
 
 # ==========================================================
-# REDE PRIVADA — Nenhuma porta interna exposta ao host
+# REDE PRIVADA
 # ==========================================================
 networks:
   neonorte_net:

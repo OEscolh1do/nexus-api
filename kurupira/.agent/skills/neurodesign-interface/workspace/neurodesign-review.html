@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eval Review</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" integrity="sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT" crossorigin="anonymous"></script>
+  <style>
+    :root {
+      --bg: #faf9f5;
+      --surface: #ffffff;
+      --border: #e8e6dc;
+      --text: #141413;
+      --text-muted: #b0aea5;
+      --accent: #d97757;
+      --accent-hover: #c4613f;
+      --green: #788c5d;
+      --green-bg: #eef2e8;
+      --red: #c44;
+      --red-bg: #fceaea;
+      --header-bg: #141413;
+      --header-text: #faf9f5;
+      --radius: 6px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Lora', Georgia, serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ---- Header ---- */
+    .header {
+      background: var(--header-bg);
+      color: var(--header-text);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .header h1 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+    .header .instructions {
+      font-size: 0.8rem;
+      opacity: 0.7;
+      margin-top: 0.25rem;
+    }
+    .header .progress {
+      font-size: 0.875rem;
+      opacity: 0.8;
+      text-align: right;
+    }
+
+    /* ---- Main content ---- */
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    /* ---- Sections ---- */
+    .section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      flex-shrink: 0;
+    }
+    .section-header {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.75rem 1rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .section-body {
+      padding: 1rem;
+    }
+
+    /* ---- Config badge ---- */
+    .config-badge {
+      display: inline-block;
+      padding: 0.2rem 0.625rem;
+      border-radius: 9999px;
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      margin-left: 0.75rem;
+      vertical-align: middle;
+    }
+    .config-badge.config-primary {
+      background: rgba(33, 150, 243, 0.12);
+      color: #1976d2;
+    }
+    .config-badge.config-baseline {
+      background: rgba(255, 193, 7, 0.15);
+      color: #f57f17;
+    }
+
+    /* ---- Prompt ---- */
+    .prompt-text {
+      white-space: pre-wrap;
+      font-size: 0.9375rem;
+      line-height: 1.6;
+    }
+
+    /* ---- Outputs ---- */
+    .output-file {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .output-file + .output-file {
+      margin-top: 1rem;
+    }
+    .output-file-header {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .output-file-header .dl-btn {
+      font-size: 0.7rem;
+      color: var(--accent);
+      text-decoration: none;
+      cursor: pointer;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-weight: 500;
+      opacity: 0.8;
+    }
+    .output-file-header .dl-btn:hover {
+      opacity: 1;
+      text-decoration: underline;
+    }
+    .output-file-content {
+      padding: 0.75rem;
+      overflow-x: auto;
+    }
+    .output-file-content pre {
+      font-size: 0.8125rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+    }
+    .output-file-content img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 4px;
+    }
+    .output-file-content iframe {
+      width: 100%;
+      height: 600px;
+      border: none;
+    }
+    .output-file-content table {
+      border-collapse: collapse;
+      font-size: 0.8125rem;
+      width: 100%;
+    }
+    .output-file-content table td,
+    .output-file-content table th {
+      border: 1px solid var(--border);
+      padding: 0.375rem 0.5rem;
+      text-align: left;
+    }
+    .output-file-content table th {
+      background: var(--bg);
+      font-weight: 600;
+    }
+    .output-file-content .download-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.875rem;
+      cursor: pointer;
+    }
+    .output-file-content .download-link:hover {
+      background: var(--border);
+    }
+    .empty-state {
+      color: var(--text-muted);
+      font-style: italic;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    /* ---- Feedback ---- */
+    .prev-feedback {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.625rem 0.75rem;
+      margin-top: 0.75rem;
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .prev-feedback-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 0.25rem;
+      color: var(--text-muted);
+    }
+    .feedback-textarea {
+      width: 100%;
+      min-height: 100px;
+      padding: 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 0.9375rem;
+      line-height: 1.5;
+      resize: vertical;
+      color: var(--text);
+    }
+    .feedback-textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    .feedback-status {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+      min-height: 1.1em;
+    }
+
+    /* ---- Grades (collapsible) ---- */
+    .grades-toggle {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+    .grades-toggle:hover {
+      color: var(--accent);
+    }
+    .grades-toggle .arrow {
+      margin-right: 0.5rem;
+      transition: transform 0.15s;
+      font-size: 0.75rem;
+    }
+    .grades-toggle .arrow.open {
+      transform: rotate(90deg);
+    }
+    .grades-content {
+      display: none;
+      margin-top: 0.75rem;
+    }
+    .grades-content.open {
+      display: block;
+    }
+    .grades-summary {
+      font-size: 0.875rem;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .grade-badge {
+      display: inline-block;
+      padding: 0.125rem 0.5rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .grade-pass { background: var(--green-bg); color: var(--green); }
+    .grade-fail { background: var(--red-bg); color: var(--red); }
+    .assertion-list {
+      list-style: none;
+    }
+    .assertion-item {
+      padding: 0.625rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8125rem;
+    }
+    .assertion-item:last-child { border-bottom: none; }
+    .assertion-status {
+      font-weight: 600;
+      margin-right: 0.5rem;
+    }
+    .assertion-status.pass { color: var(--green); }
+    .assertion-status.fail { color: var(--red); }
+    .assertion-evidence {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      margin-top: 0.25rem;
+      padding-left: 1.5rem;
+    }
+
+    /* ---- View tabs ---- */
+    .view-tabs {
+      display: flex;
+      gap: 0;
+      padding: 0 2rem;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .view-tab {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.625rem 1.25rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: var(--text-muted);
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+    }
+    .view-tab:hover { color: var(--text); }
+    .view-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    .view-panel { display: none; }
+    .view-panel.active { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+    /* ---- Benchmark view ---- */
+    .benchmark-view {
+      padding: 1.5rem 2rem;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .benchmark-table {
+      border-collapse: collapse;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 0.8125rem;
+      width: 100%;
+      margin-bottom: 1.5rem;
+    }
+    .benchmark-table th, .benchmark-table td {
+      padding: 0.625rem 0.75rem;
+      text-align: left;
+      border: 1px solid var(--border);
+    }
+    .benchmark-table th {
+      font-family: 'Poppins', sans-serif;
+      background: var(--header-bg);
+      color: var(--header-text);
+      font-weight: 500;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .benchmark-table tr:hover { background: var(--bg); }
+    .benchmark-table tr.benchmark-row-with { background: rgba(33, 150, 243, 0.06); }
+    .benchmark-table tr.benchmark-row-without { background: rgba(255, 193, 7, 0.06); }
+    .benchmark-table tr.benchmark-row-with:hover { background: rgba(33, 150, 243, 0.12); }
+    .benchmark-table tr.benchmark-row-without:hover { background: rgba(255, 193, 7, 0.12); }
+    .benchmark-table tr.benchmark-row-avg { font-weight: 600; border-top: 2px solid var(--border); }
+    .benchmark-table tr.benchmark-row-avg.benchmark-row-with { background: rgba(33, 150, 243, 0.12); }
+    .benchmark-table tr.benchmark-row-avg.benchmark-row-without { background: rgba(255, 193, 7, 0.12); }
+    .benchmark-delta-positive { color: var(--green); font-weight: 600; }
+    .benchmark-delta-negative { color: var(--red); font-weight: 600; }
+    .benchmark-notes {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+    }
+    .benchmark-notes h3 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.875rem;
+      margin-bottom: 0.75rem;
+    }
+    .benchmark-notes ul {
+      list-style: disc;
+      padding-left: 1.25rem;
+    }
+    .benchmark-notes li {
+      font-size: 0.8125rem;
+      line-height: 1.6;
+      margin-bottom: 0.375rem;
+    }
+    .benchmark-empty {
+      color: var(--text-muted);
+      font-style: italic;
+      text-align: center;
+      padding: 3rem;
+    }
+
+    /* ---- Navigation ---- */
+    .nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 2rem;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+    .nav-btn {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.5rem 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text);
+      transition: all 0.15s;
+    }
+    .nav-btn:hover:not(:disabled) {
+      background: var(--bg);
+      border-color: var(--text-muted);
+    }
+    .nav-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .done-btn {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.5rem 1.5rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    .done-btn:hover {
+      background: var(--bg);
+      border-color: var(--text-muted);
+    }
+    .done-btn.ready {
+      border: none;
+      background: var(--accent);
+      color: white;
+      font-weight: 600;
+    }
+    .done-btn.ready:hover {
+      background: var(--accent-hover);
+    }
+    /* ---- Done overlay ---- */
+    .done-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+    }
+    .done-overlay.visible {
+      display: flex;
+    }
+    .done-card {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 2rem 3rem;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 500px;
+    }
+    .done-card h2 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .done-card p {
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+    .done-card .btn-row {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+    }
+    .done-card button {
+      padding: 0.5rem 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 0.875rem;
+    }
+    .done-card button:hover {
+      background: var(--bg);
+    }
+    /* ---- Toast ---- */
+    .toast {
+      position: fixed;
+      bottom: 5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--header-bg);
+      color: var(--header-text);
+      padding: 0.625rem 1.25rem;
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      z-index: 200;
+    }
+    .toast.visible {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" style="height:100vh; display:flex; flex-direction:column;">
+    <div class="header">
+      <div>
+        <h1>Eval Review: <span id="skill-name"></span></h1>
+        <div class="instructions">Review each output and leave feedback below. Navigate with arrow keys or buttons. When done, copy feedback and paste into Claude Code.</div>
+      </div>
+      <div class="progress" id="progress"></div>
+    </div>
+
+    <!-- View tabs (only shown when benchmark data exists) -->
+    <div class="view-tabs" id="view-tabs" style="display:none;">
+      <button class="view-tab active" onclick="switchView('outputs')">Outputs</button>
+      <button class="view-tab" onclick="switchView('benchmark')">Benchmark</button>
+    </div>
+
+    <!-- Outputs panel (qualitative review) -->
+    <div class="view-panel active" id="panel-outputs">
+    <div class="main">
+      <!-- Prompt -->
+      <div class="section">
+        <div class="section-header">Prompt <span class="config-badge" id="config-badge" style="display:none;"></span></div>
+        <div class="section-body">
+          <div class="prompt-text" id="prompt-text"></div>
+        </div>
+      </div>
+
+      <!-- Outputs -->
+      <div class="section">
+        <div class="section-header">Output</div>
+        <div class="section-body" id="outputs-body">
+          <div class="empty-state">No output files found</div>
+        </div>
+      </div>
+
+      <!-- Previous Output (collapsible) -->
+      <div class="section" id="prev-outputs-section" style="display:none;">
+        <div class="section-header">
+          <div class="grades-toggle" onclick="togglePrevOutputs()">
+            <span class="arrow" id="prev-outputs-arrow">&#9654;</span>
+            Previous Output
+          </div>
+        </div>
+        <div class="grades-content" id="prev-outputs-content"></div>
+      </div>
+
+      <!-- Grades (collapsible) -->
+      <div class="section" id="grades-section" style="display:none;">
+        <div class="section-header">
+          <div class="grades-toggle" onclick="toggleGrades()">
+            <span class="arrow" id="grades-arrow">&#9654;</span>
+            Formal Grades
+          </div>
+        </div>
+        <div class="grades-content" id="grades-content"></div>
+      </div>
+
+      <!-- Feedback -->
+      <div class="section">
+        <div class="section-header">Your Feedback</div>
+        <div class="section-body">
+          <textarea
+            class="feedback-textarea"
+            id="feedback"
+            placeholder="What do you think of this output? Any issues, suggestions, or things that look great?"
+          ></textarea>
+          <div class="feedback-status" id="feedback-status"></div>
+          <div class="prev-feedback" id="prev-feedback" style="display:none;">
+            <div class="prev-feedback-label">Previous feedback</div>
+            <div id="prev-feedback-text"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav" id="outputs-nav">
+      <button class="nav-btn" id="prev-btn" onclick="navigate(-1)">&#8592; Previous</button>
+      <button class="done-btn" id="done-btn" onclick="showDoneDialog()">Submit All Reviews</button>
+      <button class="nav-btn" id="next-btn" onclick="navigate(1)">Next &#8594;</button>
+    </div>
+    </div><!-- end panel-outputs -->
+
+    <!-- Benchmark panel (quantitative stats) -->
+    <div class="view-panel" id="panel-benchmark">
+      <div class="benchmark-view" id="benchmark-content">
+        <div class="benchmark-empty">No benchmark data available. Run a benchmark to see quantitative results here.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Done overlay -->
+  <div class="done-overlay" id="done-overlay">
+    <div class="done-card">
+      <h2>Review Complete</h2>
+      <p>Your feedback has been saved. Go back to your Claude Code session and tell Claude you're done reviewing.</p>
+      <div class="btn-row">
+        <button onclick="closeDoneDialog()">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ---- Embedded data (injected by generate_review.py) ----
+    const EMBEDDED_DATA = {"skill_name": "neurodesign-interface", "runs": [{"id": "eval-proposta-solar-with_skill", "prompt": "Preciso revisar a proposta comercial de sistema fotovoltaico que estamos usando. A taxa de convers\u00c3\u00a3o est\u00c3\u00a1 baixa. O documento mostra: capa, especifica\u00c3\u00a7\u00c3\u00b5es t\u00c3\u00a9cnicas dos pain\u00c3\u00a9is (marca, efici\u00c3\u00aancia, pot\u00c3\u00aancia), tabela de consumo do cliente, gr\u00c3\u00a1fico de gera\u00c3\u00a7\u00c3\u00a3o mensal, valor total do sistema e parcelas. O que est\u00c3\u00a1 errado do ponto de vista de quem vai ler isso?", "eval_id": 1, "outputs": [{"name": "response.md", "type": "text", "content": "# Auditoria Neurodesign: Proposta Comercial de Sistema Fotovoltaico\n\n**Contexto inferido:** Proposta B2B/B2C de alto valor, p\u00c3\u00bablico tomador de decis\u00c3\u00a3o (propriet\u00c3\u00a1rio, s\u00c3\u00b3cio ou respons\u00c3\u00a1vel financeiro), objetivo de convers\u00c3\u00a3o (fechar venda). Conte\u00c3\u00bado atual: capa, especifica\u00c3\u00a7\u00c3\u00b5es t\u00c3\u00a9cnicas dos pain\u00c3\u00a9is, tabela de consumo do cliente, gr\u00c3\u00a1fico de gera\u00c3\u00a7\u00c3\u00a3o mensal, valor total e parcelas.\n\n---\n\n## O que est\u00c3\u00a1 errado \u00e2\u20ac\u201d an\u00c3\u00a1lise por camada\n\n---\n\n### Camada 1: ATEN\u00c3\u2021\u00c3\u0192O \u00e2\u20ac\u201d O documento n\u00c3\u00a3o tem gancho\n\n**Problemas cr\u00c3\u00adticos:**\n\n1. **A capa n\u00c3\u00a3o entrega nenhum benef\u00c3\u00adcio.** Uma capa com logotipo, nome da empresa e \"Proposta Comercial\" \u00c3\u00a9 tinta desperdi\u00c3\u00a7ada. O c\u00c3\u00a9rebro do leitor leva menos de 3 segundos para decidir se vale a pena continuar. Nenhuma proposta com capa gen\u00c3\u00a9rica passa nesse teste. O \"im\u00c3\u00b3vel de luxo\" da aten\u00c3\u00a7\u00c3\u00a3o \u00e2\u20ac\u201d topo central da primeira p\u00c3\u00a1gina \u00e2\u20ac\u201d est\u00c3\u00a1 sendo ocupado pela marca do fornecedor, e n\u00c3\u00a3o pelo maior benef\u00c3\u00adcio do cliente.\n\n2. **O t\u00c3\u00adtulo do gr\u00c3\u00a1fico de gera\u00c3\u00a7\u00c3\u00a3o mensal provavelmente diz \"Gera\u00c3\u00a7\u00c3\u00a3o Mensal Estimada (kWh)\".** Esse t\u00c3\u00adtulo \u00c3\u00a9 um r\u00c3\u00b3tulo, n\u00c3\u00a3o uma conclus\u00c3\u00a3o. O c\u00c3\u00a9rebro no padr\u00c3\u00a3o layer-cake varre t\u00c3\u00adtulos em busca de sentido \u00e2\u20ac\u201d ele n\u00c3\u00a3o vai parar para fazer a conta. O t\u00c3\u00adtulo deveria entregar o insight: \"Seu sistema gera energia suficiente para zerar a conta de luz de novembro a mar\u00c3\u00a7o.\"\n\n3. **KPIs prim\u00c3\u00a1rios n\u00c3\u00a3o sobrevivem ao Squint Test.** Com especifica\u00c3\u00a7\u00c3\u00b5es t\u00c3\u00a9cnicas, tabela de consumo e valor na mesma sequ\u00c3\u00aancia linear, nada domina. Olhos semicerrados n\u00c3\u00a3o encontram um \u00c3\u00banico n\u00c3\u00bamero que domine a p\u00c3\u00a1gina.\n\n**O que falta:** Um gancho visual de alto contraste na abertura \u00e2\u20ac\u201d preferencialmente o n\u00c3\u00bamero de economia acumulada em 25 anos ou o tempo de payback em destaque prim\u00c3\u00a1rio.\n\n---\n\n### Camada 2: COGNI\u00c3\u2021\u00c3\u0192O \u00e2\u20ac\u201d A ordem dos elementos trabalha contra o leitor\n\n**Problemas cr\u00c3\u00adticos:**\n\n1. **Especifica\u00c3\u00a7\u00c3\u00b5es t\u00c3\u00a9cnicas est\u00c3\u00a3o na ordem errada para o tomador de decis\u00c3\u00a3o.** Marca do painel, efici\u00c3\u00aancia percentual e pot\u00c3\u00aancia de pico s\u00c3\u00a3o dados para o instalador, n\u00c3\u00a3o para quem assina o contrato. Apresentar isso antes dos benef\u00c3\u00adcios financeiros ativa o \"modo analista\" no c\u00c3\u00a9rebro de algu\u00c3\u00a9m que veio para tomar uma decis\u00c3\u00a3o comercial. O resultado \u00c3\u00a9 que o leitor se sente sobrecarregado com informa\u00c3\u00a7\u00c3\u00a3o irrelevante para ele antes mesmo de ver o valor.\n\n2. **A tabela de consumo est\u00c3\u00a1 no formato errado para gerar insight.** Uma tabela de kWh por m\u00c3\u00aas exige que o leitor fa\u00c3\u00a7a a compara\u00c3\u00a7\u00c3\u00a3o mentalmente. Segundo a hierarquia Cleveland-McGill, posi\u00c3\u00a7\u00c3\u00a3o em escala comum bate tabela num\u00c3\u00a9rica. Um gr\u00c3\u00a1fico de barras com duas s\u00c3\u00a9ries \u00e2\u20ac\u201d consumo atual vs. o que o sistema cobre \u00e2\u20ac\u201d comunica o mesmo dado com zero carga cognitiva extra.\n\n3. **R\u00c3\u00b3tulos provavelmente est\u00c3\u00a3o em legendas separadas, n\u00c3\u00a3o nas s\u00c3\u00a9ries do gr\u00c3\u00a1fico.** Cada movimento ocular entre a barra e a legenda consome mem\u00c3\u00b3ria de trabalho. Se o leitor precisa reler a legenda para entender o que \u00c3\u00a9 a barra laranja, voc\u00c3\u00aa perdeu aten\u00c3\u00a7\u00c3\u00a3o valiosa.\n\n4. **O valor total aparece no final, sem contexto pr\u00c3\u00a9vio.** O n\u00c3\u00bamero chega ao c\u00c3\u00a9rebro sem \u00c3\u00a2ncora. Ver R$ 38.000 sem contexto ativa o c\u00c3\u00b3rtex pr\u00c3\u00a9-frontal ventromedial em modo de \"erro sem\u00c3\u00a2ntico\" \u00e2\u20ac\u201d o pre\u00c3\u00a7o parece grande demais porque n\u00c3\u00a3o h\u00c3\u00a1 refer\u00c3\u00aancia anterior para calibr\u00c3\u00a1-lo.\n\n**O que remover imediatamente:** Decimais desnecess\u00c3\u00a1rios em kWh e R$ (R$ 38.247,83 vs. R$ 38.000), bordas internas da tabela de consumo, qualquer gr\u00c3\u00a1fico em 3D ou com gradiente decorativo.\n\n---\n\n### Camada 3: EMO\u00c3\u2021\u00c3\u0192O \u00e2\u20ac\u201d A proposta n\u00c3\u00a3o tem personagem nem hist\u00c3\u00b3ria\n\n**Problemas cr\u00c3\u00adticos:**\n\n1. **O protagonista da proposta \u00c3\u00a9 a empresa, n\u00c3\u00a3o o cliente.** A estrutura atual apresenta o produto (pain\u00c3\u00a9is, efici\u00c3\u00aancia, gera\u00c3\u00a7\u00c3\u00a3o) e depois o pre\u00c3\u00a7o. N\u00c3\u00a3o h\u00c3\u00a1 conflito, n\u00c3\u00a3o h\u00c3\u00a1 resolu\u00c3\u00a7\u00c3\u00a3o. Neuroci\u00c3\u00aancias de narrativa mostram que dados brutos ativam apenas as \u00c3\u00a1reas de linguagem do c\u00c3\u00a9rebro \u00e2\u20ac\u201d sem emo\u00c3\u00a7\u00c3\u00a3o, sem oxitocina, sem memorabilidade. Uma narrativa de 5 atos transformaria completamente a percep\u00c3\u00a7\u00c3\u00a3o:\n   - **Contexto:** \"Voc\u00c3\u00aa est\u00c3\u00a1 pagando R$ X por m\u00c3\u00aas \u00c3\u00a0 distribuidora.\"\n   - **Conflito:** \"Nos pr\u00c3\u00b3ximos 25 anos, esse valor vai crescer com a infla\u00c3\u00a7\u00c3\u00a3o tarif\u00c3\u00a1ria hist\u00c3\u00b3rica de 8% a.a. \u00e2\u20ac\u201d totalizando R$ Y de transfer\u00c3\u00aancia de patrim\u00c3\u00b4nio para a concession\u00c3\u00a1ria.\"\n   - **Insight:** \"Seu telhado j\u00c3\u00a1 recebe energia solar suficiente. Voc\u00c3\u00aa s\u00c3\u00b3 ainda n\u00c3\u00a3o capturou isso.\"\n   - **Solu\u00c3\u00a7\u00c3\u00a3o:** \"O sistema X converte essa energia em economia imediata, sem obras invasivas, com garantia de 25 anos.\"\n   - **Resolu\u00c3\u00a7\u00c3\u00a3o:** \"Daqui a 5 anos, cada R$ 1 investido hoje ter\u00c3\u00a1 gerado R$ 1,80 em retorno.\"\n\n2. **N\u00c3\u00a3o h\u00c3\u00a1 nenhum elemento de prova social.** Sem depoimentos, sem fotos de instala\u00c3\u00a7\u00c3\u00b5es reais, sem \"X clientes atendidos na sua regi\u00c3\u00a3o\", o c\u00c3\u00a9rebro do comprador n\u00c3\u00a3o tem como ativar a heur\u00c3\u00adstica de disponibilidade \u00e2\u20ac\u201d a atalho mental que diz \"se funcionou para algu\u00c3\u00a9m parecido comigo, funciona para mim.\"\n\n3. **A paleta de cores provavelmente \u00c3\u00a9 neutra ou corporativa gen\u00c3\u00a9rica.** Para energia solar \u00e2\u20ac\u201d um tema de crescimento financeiro e sustentabilidade \u00e2\u20ac\u201d verde (crescimento, ganho) e azul (confian\u00c3\u00a7a, profissionalismo) deveriam dominar os elementos positivos. Qualquer dado de \"economia\" ou \"gera\u00c3\u00a7\u00c3\u00a3o\" em verde cria uma associa\u00c3\u00a7\u00c3\u00a3o subconsciente de recompensa antes mesmo da leitura consciente.\n\n---\n\n### Camada 4: DECIS\u00c3\u0192O \u00e2\u20ac\u201d O pre\u00c3\u00a7o chega sem ancoragem e o CTA n\u00c3\u00a3o existe\n\n**Problemas cr\u00c3\u00adticos:**\n\n1. **O pre\u00c3\u00a7o \u00c3\u00a9 apresentado no enquadramento errado.** \"Valor total do sistema: R$ 38.000\" coloca o investimento na conta mental de \"custo\" \u00e2\u20ac\u201d o c\u00c3\u00a9rebro compara com outras despesas (reforma, carro, viagem). A ancoragem correta seria apresentar primeiro: \"Voc\u00c3\u00aa pagar\u00c3\u00a1 R$ 142.000 \u00c3\u00a0 concession\u00c3\u00a1ria nos pr\u00c3\u00b3ximos 25 anos assumindo infla\u00c3\u00a7\u00c3\u00a3o tarif\u00c3\u00a1ria m\u00c3\u00a9dia de 8% a.a.\" Depois: \"O sistema custa R$ 38.000 e se paga em 5,5 anos.\" O investimento parece 3,7x menor do que o custo da ina\u00c3\u00a7\u00c3\u00a3o.\n\n2. **As parcelas est\u00c3\u00a3o apresentadas sem compara\u00c3\u00a7\u00c3\u00a3o com a conta atual.** \"12x de R$ 3.166\" n\u00c3\u00a3o significa nada. \"Parcela mensal R$ 3.166 vs. sua conta atual de R$ 2.800 \u00e2\u20ac\u201d com retorno j\u00c3\u00a1 no 7\u00c2\u00ba m\u00c3\u00aas ap\u00c3\u00b3s quita\u00c3\u00a7\u00c3\u00a3o\" \u00e2\u20ac\u201d agora o n\u00c3\u00bamero tem contexto e consequ\u00c3\u00aancia temporal.\n\n3. **N\u00c3\u00a3o h\u00c3\u00a1 CTA.** Uma proposta impressa ou em PDF que termina com o valor e as parcelas n\u00c3\u00a3o pede nada. O leitor fecha o documento sem saber qual \u00c3\u00a9 o pr\u00c3\u00b3ximo passo. Um CTA bem posicionado (\"Aprovar este projeto e agendar a vistoria t\u00c3\u00a9cnica \u00e2\u20ac\u201d responda este e-mail ou acesse o link\") elimina a fric\u00c3\u00a7\u00c3\u00a3o entre inten\u00c3\u00a7\u00c3\u00a3o e a\u00c3\u00a7\u00c3\u00a3o.\n\n4. **N\u00c3\u00a3o existe redu\u00c3\u00a7\u00c3\u00a3o de fadiga de decis\u00c3\u00a3o.** O leitor precisa decidir se confia na marca, se os pain\u00c3\u00a9is s\u00c3\u00a3o bons, se o valor faz sentido, se as parcelas cabem no or\u00c3\u00a7amento \u00e2\u20ac\u201d tudo ao mesmo tempo, na mesma leitura. Progressive disclosure resolveria: a proposta principal mostra os 3 n\u00c3\u00bameros que importam (economia em 25 anos, payback, parcela mensal); os detalhes t\u00c3\u00a9cnicos ficam em um anexo ou se\u00c3\u00a7\u00c3\u00a3o secund\u00c3\u00a1ria.\n\n---\n\n## Diagn\u00c3\u00b3stico consolidado\n\n| Camada | Nota | Principal falha |\n|---|---|---|\n| Aten\u00c3\u00a7\u00c3\u00a3o | Fraca | Capa sem gancho; t\u00c3\u00adtulos de gr\u00c3\u00a1fico s\u00c3\u00a3o r\u00c3\u00b3tulos, n\u00c3\u00a3o conclus\u00c3\u00b5es |\n| Cogni\u00c3\u00a7\u00c3\u00a3o | Fraca | Especifica\u00c3\u00a7\u00c3\u00b5es t\u00c3\u00a9cnicas antes dos benef\u00c3\u00adcios financeiros; tabela sem compara\u00c3\u00a7\u00c3\u00a3o visual |\n| Emo\u00c3\u00a7\u00c3\u00a3o | Ausente | Sem narrativa, sem prova social, sem arco conflito/resolu\u00c3\u00a7\u00c3\u00a3o |\n| Decis\u00c3\u00a3o | Ausente | Pre\u00c3\u00a7o sem ancoragem, parcelas sem contexto, sem CTA |\n\nA taxa de convers\u00c3\u00a3o baixa tem causa estrutural: **a proposta est\u00c3\u00a1 organizada para o instalador, n\u00c3\u00a3o para o comprador.** Ela apresenta o produto antes de criar o problema, entrega especifica\u00c3\u00a7\u00c3\u00b5es antes de emocionar, e mostra o pre\u00c3\u00a7o antes de justific\u00c3\u00a1-lo.\n\n---\n\n## Estrutura recomendada (sequ\u00c3\u00aancia neurol\u00c3\u00b3gica)\n\n1. **Capa** \u00e2\u20ac\u201d Nome do cliente + frase de impacto com o n\u00c3\u00bamero de economia estimada em 25 anos (n\u00c3\u00a3o o nome da empresa fornecedora)\n2. **Diagn\u00c3\u00b3stico do cliente** \u00e2\u20ac\u201d Consumo atual, custo projetado sem a\u00c3\u00a7\u00c3\u00a3o, \"quanto voc\u00c3\u00aa vai pagar \u00c3\u00a0 concession\u00c3\u00a1ria at\u00c3\u00a9 2050\"\n3. **A solu\u00c3\u00a7\u00c3\u00a3o em 3 KPIs** \u00e2\u20ac\u201d Economia mensal / Payback / Economia total \u00e2\u20ac\u201d em destaque prim\u00c3\u00a1rio, sem tabela, com cor verde\n4. **Por que este sistema** \u00e2\u20ac\u201d Especifica\u00c3\u00a7\u00c3\u00b5es t\u00c3\u00a9cnicas resumidas, garantias, marca dos pain\u00c3\u00a9is \u00e2\u20ac\u201d 1 p\u00c3\u00a1gina, detalhes em anexo\n5. **Gera\u00c3\u00a7\u00c3\u00a3o vs. consumo** \u00e2\u20ac\u201d Gr\u00c3\u00a1fico de barras duplas com r\u00c3\u00b3tulos diretamente nas s\u00c3\u00a9ries, t\u00c3\u00adtulo com conclus\u00c3\u00a3o\n6. **Investimento** \u00e2\u20ac\u201d \u00c3\u201ancora negativa (custo da ina\u00c3\u00a7\u00c3\u00a3o) \u00e2\u2020\u2019 valor do sistema \u00e2\u2020\u2019 parcela mensal vs. conta atual \u00e2\u2020\u2019 data de payback\n7. **Prova social** \u00e2\u20ac\u201d 1 caso de cliente similar (cidade, perfil de consumo, resultado real)\n8. **CTA** \u00e2\u20ac\u201d \u00c3\u0161nico, claro, sem competi\u00c3\u00a7\u00c3\u00a3o: pr\u00c3\u00b3ximo passo com canal e prazo\n\n---\n\n**Proximo passo recomendado:** Reescreva apenas o slide/p\u00c3\u00a1gina de investimento aplicando a ancoragem reversa \u00e2\u20ac\u201d apresente primeiro o custo acumulado da conta de luz em 25 anos (calcule com infla\u00c3\u00a7\u00c3\u00a3o tarif\u00c3\u00a1ria de 8% a.a. sobre a conta m\u00c3\u00a9dia atual do cliente), depois o valor do sistema, depois a parcela mensal. Isso sozinho, sem mudar nada mais, tende a mudar a percep\u00c3\u00a7\u00c3\u00a3o de pre\u00c3\u00a7o na primeira leitura e \u00c3\u00a9 a interven\u00c3\u00a7\u00c3\u00a3o com maior ROI imediato sobre a taxa de convers\u00c3\u00a3o.\n"}], "grading": null}, {"id": "eval-proposta-solar-without_skill", "prompt": "Preciso revisar a proposta comercial de sistema fotovoltaico que estamos usando. A taxa de convers\u00c3\u00a3o est\u00c3\u00a1 baixa. O documento mostra: capa, especifica\u00c3\u00a7\u00c3\u00b5es t\u00c3\u00a9cnicas dos pain\u00c3\u00a9is (marca, efici\u00c3\u00aancia, pot\u00c3\u00aancia), tabela de consumo do cliente, gr\u00c3\u00a1fico de gera\u00c3\u00a7\u00c3\u00a3o mensal, valor total do sistema e parcelas. O que est\u00c3\u00a1 errado do ponto de vista de quem vai ler isso?", "eval_id": 1, "outputs": [{"name": "response.md", "type": "text", "content": "# An\u00c3\u00a1lise da Proposta Comercial de Sistema Fotovoltaico\n\n## O problema central: a proposta est\u00c3\u00a1 falando para o engenheiro, n\u00c3\u00a3o para o comprador\n\nA estrutura que voc\u00c3\u00aa descreveu \u00e2\u20ac\u201d capa, especifica\u00c3\u00a7\u00c3\u00b5es t\u00c3\u00a9cnicas, tabela de consumo, gr\u00c3\u00a1fico de gera\u00c3\u00a7\u00c3\u00a3o, valor e parcelas \u00e2\u20ac\u201d segue uma l\u00c3\u00b3gica de apresenta\u00c3\u00a7\u00c3\u00a3o t\u00c3\u00a9cnica, n\u00c3\u00a3o de decis\u00c3\u00a3o de compra. Quem vai ler \u00c3\u00a9 um dono de casa ou empres\u00c3\u00a1rio que n\u00c3\u00a3o entende (e n\u00c3\u00a3o precisa entender) de efici\u00c3\u00aancia de m\u00c3\u00b3dulo ou pot\u00c3\u00aancia de painel. O documento est\u00c3\u00a1 respondendo perguntas que o cliente n\u00c3\u00a3o fez.\n\n---\n\n## O que est\u00c3\u00a1 errado, ponto a ponto\n\n### 1. A ordem da informa\u00c3\u00a7\u00c3\u00a3o ignora como o c\u00c3\u00a9rebro toma decis\u00c3\u00b5es\n\nO leitor chega na proposta com uma d\u00c3\u00bavida central: \"vale a pena pra mim?\". Antes de responder isso, a proposta apresenta especifica\u00c3\u00a7\u00c3\u00b5es t\u00c3\u00a9cnicas. Ele ainda n\u00c3\u00a3o tem contexto para avaliar se aquele painel \u00c3\u00a9 bom ou ruim, se a efici\u00c3\u00aancia de 21% \u00c3\u00a9 \u00c3\u00b3tima ou razo\u00c3\u00a1vel. A informa\u00c3\u00a7\u00c3\u00a3o t\u00c3\u00a9cnica chega antes de o leitor ter motiva\u00c3\u00a7\u00c3\u00a3o para process\u00c3\u00a1-la.\n\n**O que falta antes das especifica\u00c3\u00a7\u00c3\u00b5es:** uma afirma\u00c3\u00a7\u00c3\u00a3o clara de economia. Algo como \"com base no seu consumo, voc\u00c3\u00aa vai economizar R$ X por m\u00c3\u00aas e pagar o sistema em Y anos\". Isso cria o contexto emocional que faz o restante do documento fazer sentido.\n\n### 2. A tabela de consumo do cliente est\u00c3\u00a1 no lugar errado \u00e2\u20ac\u201d e provavelmente no formato errado\n\nMostrar os dados de consumo do cliente numa tabela t\u00c3\u00a9cnica parece auditoria, n\u00c3\u00a3o diagn\u00c3\u00b3stico. O cliente n\u00c3\u00a3o quer ver os pr\u00c3\u00b3prios n\u00c3\u00bameros brutos \u00e2\u20ac\u201d ele quer ver o que esses n\u00c3\u00bameros significam para o bolso dele. A tabela de consumo deveria estar integrada a uma narrativa: \"voc\u00c3\u00aa consome X kWh por m\u00c3\u00aas, o que representa R$ Y de gasto anual com energia\".\n\n### 3. O gr\u00c3\u00a1fico de gera\u00c3\u00a7\u00c3\u00a3o mensal n\u00c3\u00a3o conecta com o que o cliente sente\n\nUm gr\u00c3\u00a1fico de barras mostrando gera\u00c3\u00a7\u00c3\u00a3o em kWh por m\u00c3\u00aas \u00c3\u00a9 \u00c3\u00batil para um engenheiro validar o dimensionamento. Para o cliente, \u00c3\u00a9 dado sem significado. O que ele quer saber \u00c3\u00a9: \"em dezembro, quando gero menos, ainda vou pagar alguma conta?\" ou \"em julho vou ter cr\u00c3\u00a9dito sobrando?\". O gr\u00c3\u00a1fico precisa de tradu\u00c3\u00a7\u00c3\u00a3o \u00e2\u20ac\u201d ou precisa ser substitu\u00c3\u00addo por uma visualiza\u00c3\u00a7\u00c3\u00a3o que mostre saldo de cr\u00c3\u00a9ditos e economia m\u00c3\u00aas a m\u00c3\u00aas em reais.\n\n### 4. O valor do sistema aparece sem ancoragem\n\nMostrar \"R$ 45.000\" (ou qualquer que seja o valor) sem contexto pr\u00c3\u00a9vio de retorno cria choque de pre\u00c3\u00a7o. O c\u00c3\u00a9rebro humano avalia custo de forma relativa, n\u00c3\u00a3o absoluta. Se antes do valor o leitor j\u00c3\u00a1 sabe que vai economizar R$ 800/m\u00c3\u00aas, o sistema se paga em 56 meses e ele vai usar por 25 anos \u00e2\u20ac\u201d o valor n\u00c3\u00a3o \u00c3\u00a9 gasto, \u00c3\u00a9 investimento com retorno calculado. Sem essa ancoragem, o n\u00c3\u00bamero parece grande.\n\n### 5. As parcelas est\u00c3\u00a3o l\u00c3\u00a1, mas o racioc\u00c3\u00adnio de troca n\u00c3\u00a3o est\u00c3\u00a1 expl\u00c3\u00adcito\n\n\"12x de R$ X\" ou \"60x de R$ Y\" precisam ser comparados diretamente com a conta de luz atual. Se a parcela do financiamento \u00c3\u00a9 R$ 700 e a conta de luz hoje \u00c3\u00a9 R$ 900, o argumento se vende sozinho. Se esse contraste n\u00c3\u00a3o est\u00c3\u00a1 expl\u00c3\u00adcito e lado a lado, o leitor faz a conta errado ou n\u00c3\u00a3o faz.\n\n### 6. Marca e especifica\u00c3\u00a7\u00c3\u00b5es t\u00c3\u00a9cnicas dos pain\u00c3\u00a9is \u00e2\u20ac\u201d o cliente n\u00c3\u00a3o tem refer\u00c3\u00aancia para avaliar isso\n\nDizer que o painel \u00c3\u00a9 da marca X com efici\u00c3\u00aancia de 22,3% e pot\u00c3\u00aancia de 550 Wp n\u00c3\u00a3o significa nada para quem n\u00c3\u00a3o \u00c3\u00a9 do setor. Isso n\u00c3\u00a3o \u00c3\u00a9 argumento de venda \u00e2\u20ac\u201d \u00c3\u00a9 dado t\u00c3\u00a9cnico que gera inseguran\u00c3\u00a7a (\"por que me mandam tanta informa\u00c3\u00a7\u00c3\u00a3o que n\u00c3\u00a3o entendo?\"). Se o objetivo \u00c3\u00a9 transmitir qualidade, use proxy: \"pain\u00c3\u00a9is com 12 anos de garantia de produto e 25 anos de garantia de desempenho, fabricante com presen\u00c3\u00a7a em 150 pa\u00c3\u00adses\". Isso o cliente entende e valoriza.\n\n### 7. N\u00c3\u00a3o h\u00c3\u00a1 chamada para a\u00c3\u00a7\u00c3\u00a3o clara\n\nDepois de ler tudo isso, o que o cliente deve fazer? Ligar? Responder um email? Assinar? Uma proposta sem pr\u00c3\u00b3ximo passo claro gera procrastina\u00c3\u00a7\u00c3\u00a3o, que na pr\u00c3\u00a1tica vira n\u00c3\u00a3o-resposta.\n\n---\n\n## O que est\u00c3\u00a1 faltando completamente\n\n- **Prazo de validade da proposta.** Sem urg\u00c3\u00aancia, a decis\u00c3\u00a3o fica para depois \u00e2\u20ac\u201d e \"depois\" raramente acontece.\n- **Depoimento ou caso de refer\u00c3\u00aancia.** Clientes tomam decis\u00c3\u00b5es por prova social. Uma foto de uma instala\u00c3\u00a7\u00c3\u00a3o similar com um dado de economia real de outro cliente vale mais que qualquer especifica\u00c3\u00a7\u00c3\u00a3o t\u00c3\u00a9cnica.\n- **Resumo executivo no in\u00c3\u00adcio.** Uma p\u00c3\u00a1gina com os n\u00c3\u00bameros que importam: economia mensal, payback, garantias, pr\u00c3\u00b3ximo passo. Para quem n\u00c3\u00a3o vai ler o documento inteiro \u00e2\u20ac\u201d e a maioria n\u00c3\u00a3o vai \u00e2\u20ac\u201d esse resumo \u00c3\u00a9 a proposta.\n- **Clareza sobre o que est\u00c3\u00a1 incluso.** O cliente tem medo do que n\u00c3\u00a3o est\u00c3\u00a1 no pre\u00c3\u00a7o. Homologa\u00c3\u00a7\u00c3\u00a3o est\u00c3\u00a1 inclusa? Projeto el\u00c3\u00a9trico? Instala\u00c3\u00a7\u00c3\u00a3o? Manuten\u00c3\u00a7\u00c3\u00a3o no primeiro ano? A omiss\u00c3\u00a3o dessas informa\u00c3\u00a7\u00c3\u00b5es cria desconfian\u00c3\u00a7a.\n\n---\n\n## Diagn\u00c3\u00b3stico resumido\n\nA proposta est\u00c3\u00a1 estruturada para provar compet\u00c3\u00aancia t\u00c3\u00a9cnica, n\u00c3\u00a3o para facilitar a decis\u00c3\u00a3o de compra. Ela responde \"o que vamos instalar\" quando o cliente est\u00c3\u00a1 perguntando \"por que devo contratar isso agora\". A baixa taxa de convers\u00c3\u00a3o \u00c3\u00a9 o resultado esperado: o documento n\u00c3\u00a3o conduz o leitor a uma decis\u00c3\u00a3o, deixa ele fazendo isso sozinho com informa\u00c3\u00a7\u00c3\u00a3o incompleta sobre o que realmente importa para ele.\n"}], "grading": null}, {"id": "eval-dashboard-ceo-with_skill", "prompt": "Estou montando um dashboard para apresentar ao CEO da empresa todo m\u00c3\u00aas. Ele tem 12 KPIs espalhados pela tela, 3 gr\u00c3\u00a1ficos de pizza, tabelas com dados dos \u00c3\u00baltimos 24 meses e filtros na lateral. Quero que ele consiga tomar decis\u00c3\u00b5es r\u00c3\u00a1pido. Como fa\u00c3\u00a7o isso funcionar melhor?", "eval_id": 2, "outputs": [{"name": "response.md", "type": "text", "content": "# Neurodesign para Dashboard de CEO \u00e2\u20ac\u201d An\u00c3\u00a1lise em 4 Camadas\n\n## Contexto Inferido\n\n- **Tipo de interface:** Dashboard anal\u00c3\u00adtico mensal\n- **P\u00c3\u00bablico-alvo:** CEO \u00e2\u20ac\u201d tomador de decis\u00c3\u00a3o executivo, alto valor de tempo, baixa toler\u00c3\u00a2ncia a ru\u00c3\u00addo cognitivo\n- **Objetivo principal:** Compreens\u00c3\u00a3o r\u00c3\u00a1pida + tomada de decis\u00c3\u00a3o (n\u00c3\u00a3o an\u00c3\u00a1lise profunda)\n- **Dados dispon\u00c3\u00adveis:** 12 KPIs, 3 gr\u00c3\u00a1ficos de pizza, tabelas com 24 meses de dados, filtros laterais\n- **Contexto emocional:** Executivo sob press\u00c3\u00a3o de tempo \u00e2\u20ac\u201d provavelmente um pouco sobrecarregado, buscando clareza e controle, n\u00c3\u00a3o an\u00c3\u00a1lise explorat\u00c3\u00b3ria\n\n**Diagn\u00c3\u00b3stico inicial:** O layout atual est\u00c3\u00a1 otimizado para o analista que construiu o dashboard, n\u00c3\u00a3o para o CEO que precisa decidir. Cada um dos problemas abaixo tem uma causa neurocient\u00c3\u00adfica espec\u00c3\u00adfica.\n\n---\n\n## Camada 1: ATEN\u00c3\u2021\u00c3\u0192O \u00e2\u20ac\u201d O que o CEO v\u00c3\u00aa nos primeiros 3 segundos?\n\n### Problema central: 12 KPIs disputam a mesma aten\u00c3\u00a7\u00c3\u00a3o\n\nO c\u00c3\u00a9rebro processa atributos visuais pr\u00c3\u00a9-atentivos (cor, contraste, tamanho, posi\u00c3\u00a7\u00c3\u00a3o) antes da leitura consciente. Com 12 KPIs de peso visual igual, o sistema visual faz uma varredura completa antes de \"decidir\" onde fixar o olhar \u00e2\u20ac\u201d um processo que consome de 3 a 8 segundos e aumenta a carga cognitiva imediatamente.\n\n**O que o eye-tracking mostraria:** Uma nuvem de fixa\u00c3\u00a7\u00c3\u00b5es dispersas no topo da tela, sem um ponto de entrada dominante. O CEO \"l\u00c3\u00aa\" o dashboard inteiro antes de entender o que importa.\n\n### Recomenda\u00c3\u00a7\u00c3\u00b5es\n\n**1. Crie uma hierarquia de 3 n\u00c3\u00adveis \u00e2\u20ac\u201d n\u00c3\u00a3o 12 iguais**\n\nSelecione 1 KPI prim\u00c3\u00a1rio (o n\u00c3\u00bamero que mais define o sucesso ou risco do m\u00c3\u00aas \u00e2\u20ac\u201d ex: receita total, margem l\u00c3\u00adquida ou NPS), 2\u00e2\u20ac\u201c3 KPIs secund\u00c3\u00a1rios e deixe o restante como terci\u00c3\u00a1rio, em tipografia menor e sem destaque de cor.\n\n- KPI prim\u00c3\u00a1rio: fonte 48\u00e2\u20ac\u201c64px, cor de a\u00c3\u00a7\u00c3\u00a3o (azul ou verde), posi\u00c3\u00a7\u00c3\u00a3o topo esquerdo\n- KPIs secund\u00c3\u00a1rios: fonte 28\u00e2\u20ac\u201c36px, posi\u00c3\u00a7\u00c3\u00a3o vis\u00c3\u00advel no ter\u00c3\u00a7o superior\n- KPIs terci\u00c3\u00a1rios: fonte 16\u00e2\u20ac\u201c20px, cinza escuro, sem cor de destaque\n\n**Justificativa neurocient\u00c3\u00adfica:** Atributos pr\u00c3\u00a9-atentivos s\u00c3\u00a3o processados em paralelo pelo c\u00c3\u00b3rtex visual prim\u00c3\u00a1rio antes da aten\u00c3\u00a7\u00c3\u00a3o serial. Um elemento que domina tamanho + cor \u00c3\u00a9 identificado em menos de 150ms. Quando todos os 12 KPIs t\u00c3\u00aam o mesmo peso visual, o c\u00c3\u00a9rebro ativa o processamento serial (lento, consciente, fatigante).\n\n**2. Squint Test \u00e2\u20ac\u201d aplique agora**\n\nSemicerre os olhos at\u00c3\u00a9 a tela ficar desfocada. O que voc\u00c3\u00aa consegue ver? Se a resposta for \"muita coisa igual\", o dashboard falha no teste. Ap\u00c3\u00b3s a reestrutura\u00c3\u00a7\u00c3\u00a3o, apenas os 3 KPIs prim\u00c3\u00a1rios devem ser leg\u00c3\u00adveis no modo desfocado.\n\n**3. Aplique o padr\u00c3\u00a3o de leitura correto: Layer-cake + Spotted**\n\nCEOs em dashboards executivos usam dois padr\u00c3\u00b5es simult\u00c3\u00a2neos:\n- **Layer-cake:** varredura r\u00c3\u00a1pida de t\u00c3\u00adtulos e r\u00c3\u00b3tulos em negrito \u00e2\u20ac\u201d sem ler o corpo\n- **Spotted:** busca por n\u00c3\u00bameros grandes em cor contrastante\n\nIsso significa: os t\u00c3\u00adtulos dos gr\u00c3\u00a1ficos devem entregar a conclus\u00c3\u00a3o, n\u00c3\u00a3o o r\u00c3\u00b3tulo. N\u00c3\u00a3o escreva \"Receita por Regi\u00c3\u00a3o\" \u00e2\u20ac\u201d escreva \"Sul cresceu 23% acima da meta\". O CEO l\u00c3\u00aa o t\u00c3\u00adtulo, decide se precisa do gr\u00c3\u00a1fico.\n\n---\n\n## Camada 2: COGNI\u00c3\u2021\u00c3\u0192O \u00e2\u20ac\u201d Reduzindo a carga mental para zero atrito\n\n### Problema 1: 3 gr\u00c3\u00a1ficos de pizza \u00e2\u20ac\u201d o pior tipo para compara\u00c3\u00a7\u00c3\u00a3o\n\nSegundo a hierarquia de precis\u00c3\u00a3o de Cleveland-McGill (validada por estudos de percep\u00c3\u00a7\u00c3\u00a3o visual), a capacidade humana de comparar valores cai drasticamente com pizzas:\n\n| Tipo de gr\u00c3\u00a1fico | Precis\u00c3\u00a3o de compara\u00c3\u00a7\u00c3\u00a3o |\n|---|---|\n| Barras (posi\u00c3\u00a7\u00c3\u00a3o em escala comum) | Muito alta |\n| Barras empilhadas (comprimento) | Alta |\n| Gr\u00c3\u00a1fico de linha (posi\u00c3\u00a7\u00c3\u00a3o) | Alta |\n| Gr\u00c3\u00a1fico de pizza (\u00c3\u00a1rea/\u00c3\u00a2ngulo) | Baixa |\n| Gr\u00c3\u00a1fico de rosca 3D | Muito baixa |\n\n**O que fazer:** Substitua os 3 gr\u00c3\u00a1ficos de pizza por gr\u00c3\u00a1ficos de barras horizontais com r\u00c3\u00b3tulos diretos. O CEO compara fatias de pizza ativando julgamento de \u00c3\u00a2ngulo \u00e2\u20ac\u201d um dos processos visuais mais imprecisos do c\u00c3\u00a9rebro humano. Barras horizontais com comprimento diferente s\u00c3\u00a3o comparadas em 40\u00e2\u20ac\u201c60ms com alta precis\u00c3\u00a3o.\n\n**Exce\u00c3\u00a7\u00c3\u00a3o permitida:** Se o objetivo da pizza for mostrar \"este item domina tudo\" (ex: um produto que representa 80% da receita), a pizza funciona bem \u00e2\u20ac\u201d porque n\u00c3\u00a3o h\u00c3\u00a1 compara\u00c3\u00a7\u00c3\u00a3o, h\u00c3\u00a1 domin\u00c3\u00a2ncia visual \u00c3\u00b3bvia. Nesse caso, destaque o segmento dominante com cor e deixe o restante em cinza.\n\n### Problema 2: Tabelas com 24 meses exibidas ao mesmo tempo\n\nA mem\u00c3\u00b3ria de trabalho humana comporta 5\u00e2\u20ac\u201c9 \"chunks\" simult\u00c3\u00a2neos. Uma tabela de 24 meses com m\u00c3\u00baltiplas colunas cria dezenas de unidades de informa\u00c3\u00a7\u00c3\u00a3o \u00e2\u20ac\u201d muito al\u00c3\u00a9m da capacidade de processamento eficiente.\n\n**O que fazer: Progressive Disclosure em 3 n\u00c3\u00adveis**\n\n- **N\u00c3\u00advel 1 (padr\u00c3\u00a3o):** Exibe os \u00c3\u00baltimos 3 meses + linha de varia\u00c3\u00a7\u00c3\u00a3o vs. meta. \u00c3\u2030 o que o CEO v\u00c3\u00aa sempre.\n- **N\u00c3\u00advel 2 (clique em \"ver hist\u00c3\u00b3rico\"):** Exibe os \u00c3\u00baltimos 12 meses com mini-sparklines por linha para mostrar tend\u00c3\u00aancia sem n\u00c3\u00bameros redundantes.\n- **N\u00c3\u00advel 3 (exportar/drill-down):** Os 24 meses completos para o analista.\n\n**Justificativa:** Ocultar n\u00c3\u00a3o \u00c3\u00a9 esconder \u00e2\u20ac\u201d \u00c3\u00a9 respeitar o custo cognitivo. O CEO que quer os 24 meses consegue; o CEO que quer decidir em 90 segundos n\u00c3\u00a3o \u00c3\u00a9 for\u00c3\u00a7ado a processar o que n\u00c3\u00a3o precisa.\n\n### Problema 3: Filtros na lateral \u00e2\u20ac\u201d acess\u00c3\u00adveis mas invis\u00c3\u00adveis para decis\u00c3\u00a3o\n\nFiltros sempre dispon\u00c3\u00adveis aumentam a \"carga extr\u00c3\u00adnseca\" \u00e2\u20ac\u201d ru\u00c3\u00addo de design que consome mem\u00c3\u00b3ria de trabalho sem gerar insight. O CEO v\u00c3\u00aa 15 op\u00c3\u00a7\u00c3\u00b5es de filtro e inconscientemente avalia se precisa us\u00c3\u00a1-las antes de ler os dados.\n\n**O que fazer:**\n- Reduza os filtros a 3 dimens\u00c3\u00b5es m\u00c3\u00a1ximas vis\u00c3\u00adveis (ex: Per\u00c3\u00adodo, Regi\u00c3\u00a3o, Unidade de Neg\u00c3\u00b3cio)\n- Agrupe filtros secund\u00c3\u00a1rios em um painel recolh\u00c3\u00advel \"Filtros avan\u00c3\u00a7ados\"\n- Aplique smart defaults: pr\u00c3\u00a9-selecione \"M\u00c3\u00aas atual, Todas as regi\u00c3\u00b5es, Vis\u00c3\u00a3o consolidada\" \u00e2\u20ac\u201d o CEO n\u00c3\u00a3o deve ter que configurar para chegar ao estado \u00c3\u00batil\n\n### Problema 4: Remo\u00c3\u00a7\u00c3\u00a3o de ru\u00c3\u00addo visual\n\nChecklist de elementos a eliminar imediatamente:\n\n- [ ] Bordas em todos os cards/tabelas (substitua por espa\u00c3\u00a7o em branco e agrupamento por proximidade)\n- [ ] Grades de fundo em gr\u00c3\u00a1ficos (use grades suaves cinza-claro, ou remova)\n- [ ] Efeitos 3D em qualquer gr\u00c3\u00a1fico\n- [ ] Legendas separadas dos dados (mova r\u00c3\u00b3tulos para dentro ou ao lado das s\u00c3\u00a9ries)\n- [ ] M\u00c3\u00baltiplas fam\u00c3\u00adlias tipogr\u00c3\u00a1ficas\n- [ ] \u00c3\ufffdcones decorativos sem fun\u00c3\u00a7\u00c3\u00a3o informativa\n\n**Refer\u00c3\u00aancia:** Data-ink ratio de Tufte \u00e2\u20ac\u201d cada pixel da interface deve representar dados ou estrutura funcional. Pixels decorativos s\u00c3\u00a3o custos cognitivos sem retorno.\n\n---\n\n## Camada 3: EMO\u00c3\u2021\u00c3\u0192O \u00e2\u20ac\u201d O dashboard deve fazer o CEO sentir controle, n\u00c3\u00a3o ansiedade\n\n### O estado emocional do CEO ao abrir o dashboard\n\nUm CEO abrindo um relat\u00c3\u00b3rio mensal est\u00c3\u00a1 em estado de \"vigil\u00c3\u00a2ncia executiva\": buscando confirmar que tudo est\u00c3\u00a1 dentro do esperado (al\u00c3\u00advio/controle) ou identificar amea\u00c3\u00a7as rapidamente (alarme/a\u00c3\u00a7\u00c3\u00a3o). O design deve servir a esse estado \u00e2\u20ac\u201d n\u00c3\u00a3o dificultar.\n\n**Problema atual:** 12 KPIs com a mesma cor/peso criam ambiguidade emocional. O c\u00c3\u00a9rebro n\u00c3\u00a3o sabe se deve relaxar ou se alarmar. Essa ambiguidade ativa o c\u00c3\u00b3rtex cingulado anterior (monitoramento de conflito), gerando uma leve mas real sensa\u00c3\u00a7\u00c3\u00a3o de desconforto \u00e2\u20ac\u201d que o CEO interpretar\u00c3\u00a1 como \"esse dashboard \u00c3\u00a9 dif\u00c3\u00adcil de ler\".\n\n### Sistema de cores com justificativa neurocient\u00c3\u00adfica\n\n| Elemento | Cor recomendada | Por qu\u00c3\u00aa |\n|---|---|---|\n| KPI no caminho ou acima da meta | Verde (#27AE60) | Ativa associa\u00c3\u00a7\u00c3\u00b5es de crescimento e seguran\u00c3\u00a7a no sistema l\u00c3\u00admbico \u00e2\u20ac\u201d o CEO relaxa instantaneamente |\n| KPI abaixo da meta (aten\u00c3\u00a7\u00c3\u00a3o necess\u00c3\u00a1ria) | \u00c3\u201ambar (#F59E0B) | Alerta moderado \u00e2\u20ac\u201d ativa vigil\u00c3\u00a2ncia sem disparar resposta de amea\u00c3\u00a7a |\n| KPI cr\u00c3\u00adtico (a\u00c3\u00a7\u00c3\u00a3o imediata) | Vermelho (#E53935) | Urg\u00c3\u00aancia neurol\u00c3\u00b3gica \u00e2\u20ac\u201d use com extrema parcim\u00c3\u00b4nia (1\u00e2\u20ac\u201c2 KPIs no m\u00c3\u00a1ximo por dashboard) |\n| KPI neutro/informativo | Azul (#1E6FFF) ou cinza escuro | Informa\u00c3\u00a7\u00c3\u00a3o sem carga emocional |\n| Fundo de cards | Branco/cinza muito claro (#F8F9FA) | Reduz carga cognitiva \u00e2\u20ac\u201d o olho descansa no fundo neutro |\n\n**Regra cr\u00c3\u00adtica:** Se tudo for vermelho, nada \u00c3\u00a9 urgente. O vermelho perde seu poder neurocient\u00c3\u00adfico quando usado em mais de 15\u00e2\u20ac\u201c20% dos elementos. Use como recurso escasso.\n\n### Construa uma micro-narrativa \u00e2\u20ac\u201d mesmo num dashboard\n\nDados brutos ativam apenas as \u00c3\u00a1reas de linguagem do c\u00c3\u00a9rebro (Broca/Wernicke). Quando voc\u00c3\u00aa adiciona contexto narrativo, ativa tamb\u00c3\u00a9m o c\u00c3\u00b3rtex motor e sensorial \u00e2\u20ac\u201d aumentando memorabilidade e engajamento.\n\n**Como aplicar:** Adicione uma \"linha editorial\" no topo do dashboard \u00e2\u20ac\u201d um par\u00c3\u00a1grafo de 2\u00e2\u20ac\u201c3 frases que contextualiza o m\u00c3\u00aas. Exemplo:\n\n> \"Mar\u00c3\u00a7o/2026: Receita 8% acima da meta impulsionada pelo Sul. Custo operacional cresceu 3% acima do planejado \u00e2\u20ac\u201d foco necess\u00c3\u00a1rio. Pr\u00c3\u00b3xima revis\u00c3\u00a3o: forecast Q2.\"\n\nEsse resumo narrativo \u00c3\u00a9 processado em 15\u00e2\u20ac\u201c20 segundos e d\u00c3\u00a1 ao CEO o \"mapa mental\" para interpretar tudo que vem depois.\n\n---\n\n## Camada 4: DECIS\u00c3\u0192O \u00e2\u20ac\u201d Do entendimento \u00c3\u00a0 a\u00c3\u00a7\u00c3\u00a3o em segundos\n\n### O problema da fadiga de decis\u00c3\u00a3o no dashboard atual\n\nCada elemento amb\u00c3\u00adguo obriga o CEO a tomar micro-decis\u00c3\u00b5es: \"Devo olhar esse n\u00c3\u00bamero agora?\", \"Este filtro \u00c3\u00a9 relevante?\", \"O que esse gr\u00c3\u00a1fico est\u00c3\u00a1 me dizendo?\". Ap\u00c3\u00b3s 8\u00e2\u20ac\u201c12 micro-decis\u00c3\u00b5es, a qualidade da aten\u00c3\u00a7\u00c3\u00a3o executiva cai mensuravelmente.\n\n### Recomenda\u00c3\u00a7\u00c3\u00a3o principal: Se\u00c3\u00a7\u00c3\u00a3o \"Decis\u00c3\u00b5es Pendentes\" com CTA claro\n\nAdicione ao final do dashboard (ou em destaque lateral) um bloco chamado \"Requer aten\u00c3\u00a7\u00c3\u00a3o\" ou \"Para decidir hoje\" com 2\u00e2\u20ac\u201c3 itens m\u00c3\u00a1ximos, cada um com:\n\n- O dado relevante (1 n\u00c3\u00bamero)\n- O contexto (1 frase)\n- A a\u00c3\u00a7\u00c3\u00a3o recomendada ou pergunta (1 frase)\n- Um bot\u00c3\u00a3o/link para o detalhe (se necess\u00c3\u00a1rio)\n\n**Justificativa:** O CEO n\u00c3\u00a3o precisa descobrir o que fazer \u00e2\u20ac\u201d precisa confirmar ou redirecionar. Entregar as decis\u00c3\u00b5es pr\u00c3\u00a9-formatadas reduz o \"custo de oportunidade\" que o c\u00c3\u00a9rebro calcula ao processar m\u00c3\u00baltiplas op\u00c3\u00a7\u00c3\u00b5es simultaneamente.\n\n### Reenquadramento de m\u00c3\u00a9tricas negativas\n\nQuando um KPI est\u00c3\u00a1 no vermelho, o framing importa. Compare:\n\n- Framing neutro: \"Margem bruta: 34% (meta: 38%)\"\n- Framing de a\u00c3\u00a7\u00c3\u00a3o: \"Margem bruta 4pp abaixo da meta \u00e2\u20ac\u201d recupera\u00c3\u00a7\u00c3\u00a3o poss\u00c3\u00advel revertendo X\"\n\nO segundo formato ativa o c\u00c3\u00b3rtex pr\u00c3\u00a9-frontal (planejamento) em vez do am\u00c3\u00adgdala (amea\u00c3\u00a7a). O CEO sai da \"leitura de problema\" para a \"leitura de solu\u00c3\u00a7\u00c3\u00a3o\" \u00e2\u20ac\u201d mudan\u00c3\u00a7a de estado cognitivo que aumenta a qualidade da decis\u00c3\u00a3o.\n\n### Smart defaults e percep\u00c3\u00a7\u00c3\u00a3o de controle\n\nInterfaces que permitem ao usu\u00c3\u00a1rio \"brincar\" com cen\u00c3\u00a1rios aumentam o \"Perceived Behavioral Control\" \u00e2\u20ac\u201d fator determinante na inten\u00c3\u00a7\u00c3\u00a3o de agir. Para o CEO:\n\n- Bot\u00c3\u00a3o de toggle \"Ver vs. m\u00c3\u00aas anterior / Ver vs. meta / Ver vs. mesmo m\u00c3\u00aas ano passado\" \u00e2\u20ac\u201d 3 contextos de compara\u00c3\u00a7\u00c3\u00a3o com 1 clique\n- Slider ou toggle \"Vis\u00c3\u00a3o consolidada / Por unidade\" \u00e2\u20ac\u201d permite que o CEO personalize sem sair da tela principal\n\nEsse n\u00c3\u00advel de controle aparente reduz ansiedade e aumenta confian\u00c3\u00a7a no instrumento.\n\n---\n\n## S\u00c3\u00adntese: Plano de A\u00c3\u00a7\u00c3\u00a3o Priorizado\n\n### Prioridade 1 \u00e2\u20ac\u201d Alto impacto, baixo esfor\u00c3\u00a7o (implementar esta semana)\n\n1. **Eleja 1 KPI prim\u00c3\u00a1rio** e amplie seu tamanho para 3x os demais. Adicione cor verde/vermelho dependendo do status.\n2. **Reescreva os t\u00c3\u00adtulos dos 3 gr\u00c3\u00a1ficos** para entregar a conclus\u00c3\u00a3o (\"Vendas do Sul superam meta pelo 3\u00c2\u00ba m\u00c3\u00aas\" em vez de \"Vendas por Regi\u00c3\u00a3o\").\n3. **Adicione a linha editorial** \u00e2\u20ac\u201d 2\u00e2\u20ac\u201c3 frases no topo contextualizando o m\u00c3\u00aas.\n4. **Configure smart default** para filtros: \"M\u00c3\u00aas atual, Consolidado\" como estado padr\u00c3\u00a3o ao abrir.\n\n### Prioridade 2 \u00e2\u20ac\u201d Alto impacto, esfor\u00c3\u00a7o m\u00c3\u00a9dio (pr\u00c3\u00b3ximas 2 semanas)\n\n5. **Substitua os 3 gr\u00c3\u00a1ficos de pizza** por gr\u00c3\u00a1ficos de barras horizontais com r\u00c3\u00b3tulos diretos nas barras.\n6. **Implemente progressive disclosure** nas tabelas: exibir 3 meses por padr\u00c3\u00a3o, 12 ou 24 com clique.\n7. **Agrupe os 12 KPIs em 3\u00e2\u20ac\u201c4 blocos sem\u00c3\u00a2nticos** (ex: Financeiro, Operacional, Cliente, Pessoas) com t\u00c3\u00adtulos de bloco que resumem o status do grupo.\n8. **Reduza os filtros laterais** a 3 vis\u00c3\u00adveis + painel recolh\u00c3\u00advel para filtros avan\u00c3\u00a7ados.\n\n### Prioridade 3 \u00e2\u20ac\u201d Refinamento (pr\u00c3\u00b3ximo m\u00c3\u00aas)\n\n9. **Adicione o bloco \"Para decidir hoje\"** com 2\u00e2\u20ac\u201c3 itens de a\u00c3\u00a7\u00c3\u00a3o pr\u00c3\u00a9-formatados.\n10. **Implemente o toggle de contexto** (vs. meta / vs. m\u00c3\u00aas anterior / vs. ano anterior).\n11. **Aplique o Squint Test** na vers\u00c3\u00a3o final \u00e2\u20ac\u201d semicerre os olhos e confirme que apenas os 3 KPIs prim\u00c3\u00a1rios s\u00c3\u00a3o leg\u00c3\u00adveis.\n\n---\n\n## Checklists de Revis\u00c3\u00a3o\n\n### Aten\u00c3\u00a7\u00c3\u00a3o\n- [ ] O KPI mais importante domina tamanho + cor na tela?\n- [ ] Os t\u00c3\u00adtulos dos gr\u00c3\u00a1ficos entregam a conclus\u00c3\u00a3o (n\u00c3\u00a3o o r\u00c3\u00b3tulo)?\n- [ ] O Squint Test mostra apenas 3 elementos dominantes?\n- [ ] Existe um ponto de entrada visual claro no canto superior esquerdo?\n\n### Cogni\u00c3\u00a7\u00c3\u00a3o\n- [ ] Cada elemento tem uma fun\u00c3\u00a7\u00c3\u00a3o declar\u00c3\u00a1vel?\n- [ ] As tabelas usam progressive disclosure (n\u00c3\u00a3o exibem 24 meses por padr\u00c3\u00a3o)?\n- [ ] As legendas foram movidas para dentro dos gr\u00c3\u00a1ficos?\n- [ ] Os 12 KPIs est\u00c3\u00a3o agrupados em blocos sem\u00c3\u00a2nticos de 3\u00e2\u20ac\u201c4?\n- [ ] Bordas decorativas, gradientes e efeitos 3D foram removidos?\n\n### Emo\u00c3\u00a7\u00c3\u00a3o\n- [ ] Verde/\u00c3\u00a2mbar/vermelho s\u00c3\u00a3o usados com base em status, n\u00c3\u00a3o decora\u00c3\u00a7\u00c3\u00a3o?\n- [ ] Existe uma linha editorial narrativa no topo?\n- [ ] O vermelho \u00c3\u00a9 usado em no m\u00c3\u00a1ximo 1\u00e2\u20ac\u201c2 elementos?\n\n### Decis\u00c3\u00a3o\n- [ ] Existe um bloco \"Para decidir\" com a\u00c3\u00a7\u00c3\u00b5es pr\u00c3\u00a9-formatadas?\n- [ ] Os filtros t\u00c3\u00aam smart defaults configurados?\n- [ ] O CEO consegue tomar a decis\u00c3\u00a3o principal sem alterar nenhum filtro?\n- [ ] As m\u00c3\u00a9tricas negativas t\u00c3\u00aam framing de a\u00c3\u00a7\u00c3\u00a3o (n\u00c3\u00a3o apenas de problema)?\n\n---\n\n**Proximo passo recomendado:** Abra o dashboard atual, aplique o Squint Test agora e anote quais KPIs sobrevivem visualmente. Se mais de 3 forem leg\u00c3\u00adveis, voc\u00c3\u00aa identificou exatamente onde a hierarquia visual precisa ser corrigida \u00e2\u20ac\u201d esse \u00c3\u00a9 o ponto de entrada de menor esfor\u00c3\u00a7o e maior retorno para o CEO.\n"}], "grading": null}, {"id": "eval-dashboard-ceo-without_skill", "prompt": "Estou montando um dashboard para apresentar ao CEO da empresa todo m\u00c3\u00aas. Ele tem 12 KPIs espalhados pela tela, 3 gr\u00c3\u00a1ficos de pizza, tabelas com dados dos \u00c3\u00baltimos 24 meses e filtros na lateral. Quero que ele consiga tomar decis\u00c3\u00b5es r\u00c3\u00a1pido. Como fa\u00c3\u00a7o isso funcionar melhor?", "eval_id": 2, "outputs": [{"name": "response.md", "type": "text", "content": "# Como tornar um dashboard para CEO mais eficiente para tomada de decis\u00c3\u00a3o\n\n## Diagn\u00c3\u00b3stico do problema atual\n\nO dashboard descrito tem v\u00c3\u00a1rios sinais cl\u00c3\u00a1ssicos de um painel sobrecarregado:\n\n- **12 KPIs espalhados pela tela** \u00e2\u20ac\u201d sem hierarquia visual, o olho n\u00c3\u00a3o sabe por onde come\u00c3\u00a7ar\n- **3 gr\u00c3\u00a1ficos de pizza** \u00e2\u20ac\u201d tipo de gr\u00c3\u00a1fico que exige esfor\u00c3\u00a7o cognitivo alto para comparar propor\u00c3\u00a7\u00c3\u00b5es\n- **Tabelas com 24 meses de dados** \u00e2\u20ac\u201d volume de dados brutos sem s\u00c3\u00adntese pr\u00c3\u00a9via\n- **Filtros na lateral** \u00e2\u20ac\u201d interface voltada para an\u00c3\u00a1lise explorat\u00c3\u00b3ria, n\u00c3\u00a3o para leitura executiva\n\nO resultado: o CEO precisa \"trabalhar\" para encontrar a informa\u00c3\u00a7\u00c3\u00a3o em vez de absorv\u00c3\u00aa-la imediatamente.\n\n---\n\n## Princ\u00c3\u00adpios fundamentais para dashboards executivos\n\n### 1. Hierarquia de aten\u00c3\u00a7\u00c3\u00a3o (F-pattern e Z-pattern)\n\nO olho humano em dashboards segue padr\u00c3\u00b5es previs\u00c3\u00adveis. Coloque as informa\u00c3\u00a7\u00c3\u00b5es mais cr\u00c3\u00adticas:\n- **Canto superior esquerdo**: o n\u00c3\u00bamero mais importante do neg\u00c3\u00b3cio\n- **Linha superior**: os 3\u00e2\u20ac\u201c5 KPIs de decis\u00c3\u00a3o priorit\u00c3\u00a1ria\n- **Miolo**: contexto e tend\u00c3\u00aancia\n- **Rodap\u00c3\u00a9 ou lateral**: detalhes e drill-down\n\nEspalhar 12 KPIs com peso visual igual for\u00c3\u00a7a o CEO a varrer a tela inteira antes de saber se h\u00c3\u00a1 um problema \u00e2\u20ac\u201d isso mata a velocidade de decis\u00c3\u00a3o.\n\n### 2. Reduzir de 12 para 3\u00e2\u20ac\u201c5 KPIs principais\n\nN\u00c3\u00a3o elimine os dados \u00e2\u20ac\u201d reorganize-os em camadas:\n\n**Camada 1 (vis\u00c3\u00advel imediatamente):** 3 a 5 KPIs que respondem \"o neg\u00c3\u00b3cio est\u00c3\u00a1 indo bem ou mal este m\u00c3\u00aas?\"\n- Exemplos: Receita realizada vs. meta, Margem operacional, NPS ou indicador de satisfa\u00c3\u00a7\u00c3\u00a3o, CAC ou Churn\n\n**Camada 2 (um clique ou scroll):** os demais 7\u00e2\u20ac\u201c9 KPIs de contexto e suporte\n\n**Camada 3 (sob demanda):** tabelas detalhadas, hist\u00c3\u00b3rico de 24 meses\n\nIsso n\u00c3\u00a3o esconde informa\u00c3\u00a7\u00c3\u00a3o \u00e2\u20ac\u201d cria uma narrativa sequencial que respeita o tempo do CEO.\n\n### 3. Substituir os gr\u00c3\u00a1ficos de pizza\n\nGr\u00c3\u00a1ficos de pizza s\u00c3\u00a3o dos piores para compara\u00c3\u00a7\u00c3\u00a3o quantitativa. O c\u00c3\u00a9rebro humano compara comprimentos lineares com muito mais precis\u00c3\u00a3o do que \u00c3\u00a2ngulos ou \u00c3\u00a1reas.\n\n**Substitui\u00c3\u00a7\u00c3\u00b5es recomendadas:**\n- Pizza mostrando participa\u00c3\u00a7\u00c3\u00a3o de categorias \u00e2\u2020\u2019 **Barra horizontal empilhada** ou **barra simples ranqueada**\n- Pizza mostrando % de uma meta atingida \u00e2\u2020\u2019 **Gauge/medidor** ou **n\u00c3\u00bamero grande com barra de progresso**\n- Pizza de distribui\u00c3\u00a7\u00c3\u00a3o ao longo do tempo \u00e2\u2020\u2019 **Linha de tend\u00c3\u00aancia** ou **\u00c3\u00a1rea empilhada**\n\n### 4. Transformar as tabelas de 24 meses\n\nTabelas cruas de 24 meses s\u00c3\u00a3o para analistas, n\u00c3\u00a3o para CEOs. Transforme-as em:\n\n- **Sparklines**: mini-gr\u00c3\u00a1ficos de linha embutidos ao lado de cada KPI, mostrando a tend\u00c3\u00aancia dos \u00c3\u00baltimos 24 meses em 1 cm de largura\n- **Heatmap temporal**: uma grade onde a cor indica intensidade, permitindo ver sazonalidade e anomalias instantaneamente\n- **Comparativo YoY**: mostre s\u00c3\u00b3 os n\u00c3\u00bameros relevantes \u00e2\u20ac\u201d m\u00c3\u00aas atual vs. mesmo m\u00c3\u00aas do ano anterior, com delta em % e cor (verde/vermelho)\n\nO hist\u00c3\u00b3rico completo fica dispon\u00c3\u00advel ao clicar, mas n\u00c3\u00a3o ocupa espa\u00c3\u00a7o prim\u00c3\u00a1rio.\n\n### 5. Repensar os filtros laterais\n\nFiltros na lateral s\u00c3\u00a3o paradigma de BI explorat\u00c3\u00b3rio (Tableau, Power BI no modo analista). Para um CEO em reuni\u00c3\u00a3o mensal, o fluxo \u00c3\u00a9 diferente:\n\n**Op\u00c3\u00a7\u00c3\u00a3o A \u00e2\u20ac\u201d Contexto fixo pr\u00c3\u00a9-configurado:**\nO dashboard j\u00c3\u00a1 carrega com o filtro do m\u00c3\u00aas atual e da compara\u00c3\u00a7\u00c3\u00a3o padr\u00c3\u00a3o. O CEO n\u00c3\u00a3o precisa mexer em nada para ver o estado do neg\u00c3\u00b3cio.\n\n**Op\u00c3\u00a7\u00c3\u00a3o B \u00e2\u20ac\u201d Filtros como perguntas predefinidas:**\nEm vez de combos gen\u00c3\u00a9ricos, ofere\u00c3\u00a7a bot\u00c3\u00b5es de cen\u00c3\u00a1rio:\n- \"Este m\u00c3\u00aas vs. m\u00c3\u00aas anterior\"\n- \"Este m\u00c3\u00aas vs. meta anual\"\n- \"\u00c3\u0161ltimo trimestre\"\n\nIsso reduz fric\u00c3\u00a7\u00c3\u00a3o e elimina erros de configura\u00c3\u00a7\u00c3\u00a3o (CEO selecionando filtro errado sem perceber).\n\n---\n\n## Layout sugerido (estrutura em 3 zonas)\n\n```\n\u00e2\u201d\u0152\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\ufffd\n\u00e2\u201d\u201a  ZONA 1 \u00e2\u20ac\u201d STATUS EXECUTIVO (topo, ~25% da tela)     \u00e2\u201d\u201a\n\u00e2\u201d\u201a  [KPI 1: Receita]  [KPI 2: Margem]  [KPI 3: NPS]   \u00e2\u201d\u201a\n\u00e2\u201d\u201a  N\u00c3\u00bamero grande + varia\u00c3\u00a7\u00c3\u00a3o vs. m\u00c3\u00aas anterior + cor    \u00e2\u201d\u201a\n\u00e2\u201d\u0153\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u00a4\n\u00e2\u201d\u201a  ZONA 2 \u00e2\u20ac\u201d TEND\u00c3\u0160NCIAS (meio, ~50% da tela)           \u00e2\u201d\u201a\n\u00e2\u201d\u201a  [Gr\u00c3\u00a1fico de linha: Receita 12 meses]               \u00e2\u201d\u201a\n\u00e2\u201d\u201a  [Gr\u00c3\u00a1fico de barras: Top 5 produtos/regi\u00c3\u00b5es]        \u00e2\u201d\u201a\n\u00e2\u201d\u201a  [Comparativo YoY: tabela sint\u00c3\u00a9tica]                \u00e2\u201d\u201a\n\u00e2\u201d\u0153\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u00a4\n\u00e2\u201d\u201a  ZONA 3 \u00e2\u20ac\u201d DETALHE ACESS\u00c3\ufffdVEL (base, ~25% da tela)   \u00e2\u201d\u201a\n\u00e2\u201d\u201a  [KPIs secund\u00c3\u00a1rios 4\u00e2\u20ac\u201c12, tamanho menor]             \u00e2\u201d\u201a\n\u00e2\u201d\u201a  [Link/expans\u00c3\u00a3o para hist\u00c3\u00b3rico de 24 meses]         \u00e2\u201d\u201a\n\u00e2\u201d\u201d\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u02dc\n```\n\n---\n\n## Uso de cor como linguagem de decis\u00c3\u00a3o\n\nA cor n\u00c3\u00a3o deve ser decorativa \u00e2\u20ac\u201d deve ser um sinal imediato de a\u00c3\u00a7\u00c3\u00a3o:\n\n| Situa\u00c3\u00a7\u00c3\u00a3o | Cor | Significado |\n|---|---|---|\n| KPI acima da meta | Verde | Nenhuma a\u00c3\u00a7\u00c3\u00a3o necess\u00c3\u00a1ria |\n| KPI dentro de toler\u00c3\u00a2ncia (\u00c2\u00b15%) | Amarelo/\u00c3\u00a2mbar | Monitorar |\n| KPI abaixo da meta | Vermelho | Requer decis\u00c3\u00a3o |\n| KPI sem meta definida | Cinza neutro | Informativo |\n\n**Aten\u00c3\u00a7\u00c3\u00a3o:** N\u00c3\u00a3o use verde/vermelho em gr\u00c3\u00a1ficos est\u00c3\u00a9ticos (barras de categorias, por exemplo) \u00e2\u20ac\u201d reserve essas cores para sinais de alerta. Quando tudo \u00c3\u00a9 colorido, nada chama aten\u00c3\u00a7\u00c3\u00a3o.\n\n---\n\n## Tipografia e densidade visual\n\n- **KPIs principais**: n\u00c3\u00bamero com fonte \u00e2\u2030\u00a5 32px, sem decimais desnecess\u00c3\u00a1rios (R$ 1,4M, n\u00c3\u00a3o R$ 1.423.847,32)\n- **Varia\u00c3\u00a7\u00c3\u00a3o**: seta + percentual em fonte secund\u00c3\u00a1ria, menor\n- **R\u00c3\u00b3tulos de gr\u00c3\u00a1fico**: apenas os valores essenciais \u00e2\u20ac\u201d remova grade excessiva, eixos redundantes e legendas que podem virar t\u00c3\u00adtulo\n- **Espa\u00c3\u00a7o em branco**: \u00c3\u00a9 funcional, n\u00c3\u00a3o desperd\u00c3\u00adcio \u00e2\u20ac\u201d separa grupos de informa\u00c3\u00a7\u00c3\u00a3o e reduz fadiga visual\n\n---\n\n## Checklist de valida\u00c3\u00a7\u00c3\u00a3o antes de apresentar\n\nAntes de levar o dashboard ao CEO, aplique estes testes:\n\n1. **Teste dos 5 segundos**: mostre o dashboard por 5 segundos e pergunte \"o que voc\u00c3\u00aa aprendeu?\" \u00e2\u20ac\u201d se a resposta for vaga, a hierarquia est\u00c3\u00a1 errada\n2. **Teste da pergunta de decis\u00c3\u00a3o**: o CEO consegue responder \"preciso agir em alguma coisa este m\u00c3\u00aas?\" sem clicar em nada?\n3. **Teste do dalt\u00c3\u00b4nico**: o dashboard comunica algo mesmo sem cor? (use padr\u00c3\u00b5es ou \u00c3\u00adcones como refor\u00c3\u00a7o)\n4. **Teste da impress\u00c3\u00a3o**: se impresso em preto e branco para uma reuni\u00c3\u00a3o presencial, ainda funciona?\n\n---\n\n## Resumo das mudan\u00c3\u00a7as priorit\u00c3\u00a1rias (por impacto)\n\n| Prioridade | Mudan\u00c3\u00a7a | Impacto |\n|---|---|---|\n| 1 | Reduzir KPIs vis\u00c3\u00adveis para 3\u00e2\u20ac\u201c5 no topo | Alto \u00e2\u20ac\u201d elimina sobrecarga imediata |\n| 2 | Substituir pizzas por barras ou gauges | Alto \u00e2\u20ac\u201d leitura 3x mais r\u00c3\u00a1pida |\n| 3 | Transformar tabelas em sparklines + YoY | Alto \u00e2\u20ac\u201d contexto sem ru\u00c3\u00addo |\n| 4 | Pr\u00c3\u00a9-configurar filtros como cen\u00c3\u00a1rios fixos | M\u00c3\u00a9dio \u00e2\u20ac\u201d elimina fric\u00c3\u00a7\u00c3\u00a3o operacional |\n| 5 | Aplicar sistema de cores semaf\u00c3\u00b3rico | M\u00c3\u00a9dio \u00e2\u20ac\u201d decis\u00c3\u00a3o em 1 olhar |\n| 6 | Reorganizar layout em 3 zonas hier\u00c3\u00a1rquicas | M\u00c3\u00a9dio \u00e2\u20ac\u201d fluxo de leitura natural |\n\n---\n\n*Resposta gerada sem uso de skill especializada \u00e2\u20ac\u201d conhecimento geral de UX, design de informa\u00c3\u00a7\u00c3\u00a3o e psicologia cognitiva aplicada a interfaces executivas.*\n"}], "grading": null}, {"id": "eval-landing-b2b-with_skill", "prompt": "Nossa landing page de software B2B (ticket m\u00c3\u00a9dio R$ 8.000/m\u00c3\u00aas) tem uma taxa de convers\u00c3\u00a3o de 0,8%. A p\u00c3\u00a1gina mostra: logo, lista de funcionalidades, depoimentos, tabela de pre\u00c3\u00a7os com 3 planos e formul\u00c3\u00a1rio de contato. Me diz o que consertar come\u00c3\u00a7ando pelo que tem mais impacto.", "eval_id": 3, "outputs": [{"name": "response.md", "type": "text", "content": "# Auditoria Neurodesign \u00e2\u20ac\u201d Landing Page B2B (Ticket R$ 8.000/m\u00c3\u00aas)\n\n**Contexto inferido:**\n- Tipo: Landing page B2B SaaS\n- P\u00c3\u00bablico: Tomador de decis\u00c3\u00a3o executivo (C-level, VP, Diretor)\n- Objetivo: Convers\u00c3\u00a3o \u00e2\u20ac\u201d gera\u00c3\u00a7\u00c3\u00a3o de lead qualificado ou inicio de trial/contato comercial\n- Ticket m\u00c3\u00a9dio: R$ 8.000/m\u00c3\u00aas (R$ 96.000/ano) \u00e2\u20ac\u201d decis\u00c3\u00a3o de alto envolvimento, ciclo longo\n- Situa\u00c3\u00a7\u00c3\u00a3o atual: Taxa de convers\u00c3\u00a3o 0,8% \u00e2\u20ac\u201d criticamente abaixo da m\u00c3\u00a9dia B2B SaaS (2\u00e2\u20ac\u201c5%)\n- Estrutura atual: logo \u00e2\u2020\u2019 lista de funcionalidades \u00e2\u2020\u2019 depoimentos \u00e2\u2020\u2019 tabela de pre\u00c3\u00a7os (3 planos) \u00e2\u2020\u2019 formul\u00c3\u00a1rio de contato\n\n---\n\n## Diagn\u00c3\u00b3stico R\u00c3\u00a1pido\n\nA estrutura atual comete o erro central do design B2B de alto ticket: **apresenta o produto antes de criar o problema**. O executivo que chega na p\u00c3\u00a1gina n\u00c3\u00a3o sabe por que deveria continuar lendo. A lista de funcionalidades ativa o sistema racional (Sistema 2 de Kahneman) antes que o sistema emocional (Sistema 1) tenha criado urg\u00c3\u00aancia. O resultado \u00c3\u00a9 avalia\u00c3\u00a7\u00c3\u00a3o fria, obje\u00c3\u00a7\u00c3\u00a3o antecipada e abandono.\n\n**0,8% de convers\u00c3\u00a3o traduz o seguinte:** de cada 125 visitantes qualificados, 124 saem sem se identificar. Com ticket de R$ 8.000/m\u00c3\u00aas, cada lead perdido representa em m\u00c3\u00a9dia R$ 96.000 em LTV potencial. Este n\u00c3\u00a3o \u00c3\u00a9 um problema de copy \u00e2\u20ac\u201d \u00c3\u00a9 um problema de arquitetura narrativa e decisional.\n\n---\n\n## Ranking por Impacto: O Que Consertar Primeiro\n\n### PRIORIDADE 1 \u00e2\u20ac\u201d Aus\u00c3\u00aancia de Hero Section com Gancho de Valor Espec\u00c3\u00adfico\n**Impacto estimado: +60\u00e2\u20ac\u201c120% na taxa de convers\u00c3\u00a3o**\n\n**O problema (Camada 1: Aten\u00c3\u00a7\u00c3\u00a3o + Camada 3: Emo\u00c3\u00a7\u00c3\u00a3o)**\n\nA p\u00c3\u00a1gina come\u00c3\u00a7a com logo \u00e2\u20ac\u201d o elemento de menor valor cognitivo para o visitante. Nos primeiros 3 segundos (janela do Sistema 1), o c\u00c3\u00a9rebro est\u00c3\u00a1 buscando resposta para uma \u00c3\u00banica pergunta: *\"Isso \u00c3\u00a9 pra mim e resolve meu problema?\"*\n\nUma lista de funcionalidades n\u00c3\u00a3o responde isso. Ela transfere o trabalho de interpreta\u00c3\u00a7\u00c3\u00a3o para o visitante, que precisa deduzir qual benef\u00c3\u00adcio cada feature entrega \u00e2\u20ac\u201d isso \u00c3\u00a9 carga cognitiva extr\u00c3\u00adnseca pura (Sweller). Para um executivo que decide onde alocar R$ 96.000/ano, o custo cognitivo de \"decodificar\" uma feature list \u00c3\u00a9 suficiente para abandonar.\n\n**O que fazer:**\n\nSubstitua a abertura por uma Hero Section com a seguinte estrutura (padr\u00c3\u00a3o Z \u00e2\u20ac\u201d o olhar inicia no topo esquerdo e flui at\u00c3\u00a9 o CTA no lado direito/inferior):\n\n```\n[POSI\u00c3\u2021\u00c3\u0192O DE ATEN\u00c3\u2021\u00c3\u0192O M\u00c3\ufffdXIMA \u00e2\u20ac\u201d TOPO ESQUERDO]\n\nHEADLINE (H1): Resultado espec\u00c3\u00adfico em linguagem de neg\u00c3\u00b3cio\nExemplo: \"Reduza em 40% o tempo de [processo cr\u00c3\u00adtico do cliente] sem adicionar headcount\"\n\u00e2\u20ac\u201d n\u00c3\u00a3o: \"A plataforma mais completa de [categoria]\"\n\nSUB-HEADLINE (H2): Para quem + o mecanismo\nExemplo: \"Para gestores de [\u00c3\u00a1rea] em empresas de [segmento] que ainda gerenciam [processo] em planilhas\"\n\nPROVA IMEDIATA (1 linha): \"Usado por [N] empresas como [nome de cliente reconhec\u00c3\u00advel]\"\n\n[CTA \u00c3\u0161NICO \u00e2\u20ac\u201d BOT\u00c3\u0192O AZUL DOMINANTE]: \"Ver demonstra\u00c3\u00a7\u00c3\u00a3o de 15 minutos\"\n\u00e2\u20ac\u201d n\u00c3\u00a3o: \"Saiba mais\" / \"Entre em contato\"\n\n[ELEMENTO VISUAL]: Imagem do produto em uso ou rosto de cliente satisfeito orientado para o CTA\n```\n\n**Justificativa neurocient\u00c3\u00adfica:** A headline em linguagem de resultado (n\u00c3\u00a3o de feature) ativa o c\u00c3\u00b3rtex pr\u00c3\u00a9-frontal ventromedial \u00e2\u20ac\u201d a regi\u00c3\u00a3o associada \u00c3\u00a0 avalia\u00c3\u00a7\u00c3\u00a3o de recompensa. \"Reduzir 40% do tempo\" \u00c3\u00a9 processado como ganho pessoal pelo executivo, liberando dopamina antecipat\u00c3\u00b3ria. \"Plataforma completa\" n\u00c3\u00a3o ativa nenhuma regi\u00c3\u00a3o de recompensa \u00e2\u20ac\u201d \u00c3\u00a9 informa\u00c3\u00a7\u00c3\u00a3o sem\u00c3\u00a2ntica neutra.\n\nO rosto humano na imagem cria um \"halo de aten\u00c3\u00a7\u00c3\u00a3o\" que guia o olhar do visitante para o CTA \u00e2\u20ac\u201d validado por estudos de eye-tracking.\n\n---\n\n### PRIORIDADE 2 \u00e2\u20ac\u201d Substituir Lista de Funcionalidades por Arco Narrativo Problema \u00e2\u2020\u2019 Solu\u00c3\u00a7\u00c3\u00a3o\n**Impacto estimado: +40\u00e2\u20ac\u201c80% no tempo de perman\u00c3\u00aancia e qualidade do lead**\n\n**O problema (Camada 2: Cogni\u00c3\u00a7\u00c3\u00a3o + Camada 3: Emo\u00c3\u00a7\u00c3\u00a3o)**\n\nFeature lists ativam apenas as \u00c3\u00a1reas de linguagem do c\u00c3\u00a9rebro (Broca/Wernicke). Narrativas estruturadas como conflito \u00e2\u2020\u2019 resolu\u00c3\u00a7\u00c3\u00a3o ativam adicionalmente o c\u00c3\u00b3rtex motor, o insular e o sensorial \u00e2\u20ac\u201d liberando oxitocina (confian\u00c3\u00a7a) e dopamina (memorabilidade). Dados brutos s\u00c3\u00a3o esquecidos em horas; hist\u00c3\u00b3rias permanecem por dias.\n\nAl\u00c3\u00a9m disso, uma lista com 8\u00e2\u20ac\u201c15 funcionalidades excede a mem\u00c3\u00b3ria de trabalho (capacidade: 5\u00e2\u20ac\u201c9 blocos). O visitante n\u00c3\u00a3o ret\u00c3\u00a9m nada de espec\u00c3\u00adfico \u00e2\u20ac\u201d e sem reten\u00c3\u00a7\u00c3\u00a3o n\u00c3\u00a3o h\u00c3\u00a1 urg\u00c3\u00aancia para agir.\n\n**O que fazer:**\n\nEstruture a se\u00c3\u00a7\u00c3\u00a3o como 3 blocos de \"dor \u00e2\u2020\u2019 resultado\":\n\n```\nBLOCO 1 \u00e2\u20ac\u201d CONFLITO (o vil\u00c3\u00a3o):\nT\u00c3\u00adtulo: \"Cada [processo manual] custa [R$ X ou X horas] por m\u00c3\u00aas sem que voc\u00c3\u00aa perceba\"\nCorpo: 2 linhas descrevendo o custo da ina\u00c3\u00a7\u00c3\u00a3o com dado real ou estimativa conservadora\nVisual: \u00c3\u00adcone vermelho ou dado em vermelho (cor que aumenta percep\u00c3\u00a7\u00c3\u00a3o de risco)\n\nBLOCO 2 \u00e2\u20ac\u201d INSIGHT (o dado revelador):\nT\u00c3\u00adtulo: \"Empresas como [segmento] recuperam esse custo em [N meses]\"\nCorpo: mecanismo simplificado \u00e2\u20ac\u201d como o software resolve, em benef\u00c3\u00adcio, n\u00c3\u00a3o em feature\nVisual: seta ou compara\u00c3\u00a7\u00c3\u00a3o Antes/Depois\n\nBLOCO 3 \u00e2\u20ac\u201d RESOLU\u00c3\u2021\u00c3\u0192O:\nT\u00c3\u00adtulo: \"O que muda no dia a dia do seu time\"\nCorpo: 3 bullets de resultado mensur\u00c3\u00a1vel (n\u00c3\u00a3o funcionalidade)\n\u00e2\u20ac\u201d n\u00c3\u00a3o: \"Relat\u00c3\u00b3rios autom\u00c3\u00a1ticos\" \u00e2\u2020\u2019 sim: \"Seu time para de fazer relat\u00c3\u00b3rios manuais e ganha 6h/semana\"\n```\n\n**Justificativa:** A lei da Continuidade (Gestalt) aplicada \u00c3\u00a0 narrativa: o c\u00c3\u00a9rebro espera que uma sequ\u00c3\u00aancia conflito \u00e2\u2020\u2019 resolu\u00c3\u00a7\u00c3\u00a3o se complete. Essa expectativa cria tens\u00c3\u00a3o cognitiva que mant\u00c3\u00a9m o leitor na p\u00c3\u00a1gina at\u00c3\u00a9 a resolu\u00c3\u00a7\u00c3\u00a3o. Feature lists n\u00c3\u00a3o criam essa tens\u00c3\u00a3o \u00e2\u20ac\u201d n\u00c3\u00a3o h\u00c3\u00a1 raz\u00c3\u00a3o para continuar lendo ap\u00c3\u00b3s o primeiro bullet.\n\n---\n\n### PRIORIDADE 3 \u00e2\u20ac\u201d Reestruturar a Tabela de Pre\u00c3\u00a7os com Ancoragem e Reenquadramento\n**Impacto estimado: +30\u00e2\u20ac\u201c60% na convers\u00c3\u00a3o de visitantes que chegam at\u00c3\u00a9 o pricing**\n\n**O problema (Camada 4: Decis\u00c3\u00a3o)**\n\nApresentar 3 planos sem ancoragem de valor pr\u00c3\u00a9via for\u00c3\u00a7a o executivo a avaliar R$ 8.000/m\u00c3\u00aas no v\u00c3\u00a1cuo. O sinal N400 (erro sem\u00c3\u00a2ntico) \u00c3\u00a9 ativado 400ms ap\u00c3\u00b3s o pre\u00c3\u00a7o: o c\u00c3\u00a9rebro detecta que o n\u00c3\u00bamero desvie de suas expectativas sem contexto \u00e2\u20ac\u201d e o c\u00c3\u00b3rtex pr\u00c3\u00a9-frontal assume modo de avers\u00c3\u00a3o a risco.\n\nErros adicionais comuns em tabelas de 3 planos:\n- Plano \"recomendado\" no centro sem justificativa de por que \u00c3\u00a9 melhor para o visitante espec\u00c3\u00adfico\n- Pre\u00c3\u00a7o exibido como custo, n\u00c3\u00a3o como investimento com retorno\n- Tr\u00c3\u00aas CTAs id\u00c3\u00aanticos (\"Contratar\", \"Contratar\", \"Contratar\") \u00e2\u20ac\u201d fadiga de decis\u00c3\u00a3o sem dire\u00c3\u00a7\u00c3\u00a3o\n\n**O que fazer:**\n\n**Antes da tabela \u00e2\u20ac\u201d Se\u00c3\u00a7\u00c3\u00a3o de Ancoragem (2\u00e2\u20ac\u201c3 linhas acima do pricing):**\n```\n\"Empresas de [segmento] com [N] usu\u00c3\u00a1rios gastam em m\u00c3\u00a9dia R$ [X] por m\u00c3\u00aas com [custo evit\u00c3\u00a1vel que o software elimina].\nO [Nome do Software] elimina esse custo em [N semanas].\nVeja os planos:\"\n```\n\n**Dentro da tabela:**\n\n1. **Posicione o plano mais caro \u00c3\u00a0 esquerda** \u00e2\u20ac\u201d os planos menores parecer\u00c3\u00a3o barganhas por contraste (ancoragem \u00c3\u00a0 esquerda). Alternativa: posicione no centro com badge \"Mais escolhido\" e borda colorida dominante.\n\n2. **Reformule cada linha de compara\u00c3\u00a7\u00c3\u00a3o para benef\u00c3\u00adcio:**\n   - N\u00c3\u00a3o: \"At\u00c3\u00a9 50 usu\u00c3\u00a1rios\" \u00e2\u2020\u2019 Sim: \"Equipes de at\u00c3\u00a9 50 pessoas\"\n   - N\u00c3\u00a3o: \"API dispon\u00c3\u00advel\" \u00e2\u2020\u2019 Sim: \"Integra com seus sistemas em 1 dia\"\n   - N\u00c3\u00a3o: \"Suporte por email\" \u00e2\u2020\u2019 Sim: \"Resposta em at\u00c3\u00a9 4h \u00c3\u00bateis\"\n\n3. **Adicione contexto de ROI abaixo do pre\u00c3\u00a7o:**\n   ```\n   R$ 8.000/m\u00c3\u00aas\n   \u00e2\u2020\u00b3 Equivale a R$ 267/dia\n   \u00e2\u2020\u00b3 Clientes recuperam em m\u00c3\u00a9dia em 4,2 meses\n   ```\n\n4. **Diferencie os CTAs por persona:**\n   - Plano b\u00c3\u00a1sico: \"Come\u00c3\u00a7ar agora\"\n   - Plano recomendado: \"Falar com consultor\" (reduz risco percebido para ticket alto)\n   - Plano enterprise: \"Solicitar proposta personalizada\"\n\n**Justificativa:** A neuroci\u00c3\u00aancia do pre\u00c3\u00a7o mostra que o custo da ina\u00c3\u00a7\u00c3\u00a3o pr\u00c3\u00a9-enquadrado muda a \"conta mental\" do decisor: R$ 8.000/m\u00c3\u00aas deixa de ser uma despesa nova e passa a ser a substitui\u00c3\u00a7\u00c3\u00a3o de um custo j\u00c3\u00a1 existente (reenquadramento). O c\u00c3\u00b3rtex anterior cingulado \u00e2\u20ac\u201d respons\u00c3\u00a1vel pela \"dor do pagamento\" \u00e2\u20ac\u201d \u00c3\u00a9 menos ativado quando o pre\u00c3\u00a7o est\u00c3\u00a1 contextualizado em ROI.\n\n---\n\n### PRIORIDADE 4 \u00e2\u20ac\u201d Reposicionar e Qualificar os Depoimentos\n**Impacto estimado: +20\u00e2\u20ac\u201c35% na confian\u00c3\u00a7a percebida**\n\n**O problema (Camada 3: Emo\u00c3\u00a7\u00c3\u00a3o)**\n\nDepoimentos posicionados depois da lista de funcionalidades chegam tarde \u00e2\u20ac\u201d o visitante j\u00c3\u00a1 formou uma impress\u00c3\u00a3o (ou j\u00c3\u00a1 foi embora). Al\u00c3\u00a9m disso, depoimentos gen\u00c3\u00a9ricos (\"Excelente sistema, muito bom mesmo\") n\u00c3\u00a3o ativam a heur\u00c3\u00adstica da disponibilidade. O c\u00c3\u00a9rebro precisa de especificidade para criar uma imagem mental v\u00c3\u00advida.\n\n**O que fazer:**\n\n1. **Mova pelo menos 1 depoimento para imediatamente abaixo do Hero** \u00e2\u20ac\u201d logo ap\u00c3\u00b3s o primeiro gancho. Isso funciona como \"prova instant\u00c3\u00a2nea\" antes que o ceticismo se instale.\n\n2. **Estruture os depoimentos no formato resultado quantificado:**\n   ```\n   \"Antes: [descreve a dor em 1 frase]\n    Depois: [resultado com n\u00c3\u00bamero e prazo]\"\n   \n   \u00e2\u20ac\u201d [Nome completo], [Cargo], [Empresa do mesmo segmento do visitante]\n   ```\n\n3. **Use foto real + cargo espec\u00c3\u00adfico** \u00e2\u20ac\u201d o rosto humano \u00c3\u00a9 processado pela am\u00c3\u00adgdala como sinal de autenticidade. \"Diretor de Opera\u00c3\u00a7\u00c3\u00b5es\" converte mais que \"Cliente satisfeito\" porque ativa identifica\u00c3\u00a7\u00c3\u00a3o por semelhan\u00c3\u00a7a.\n\n4. **Priorize depoimentos de empresas similares ao ICP** \u00e2\u20ac\u201d prova social localizada (empresas da mesma regi\u00c3\u00a3o, mesmo segmento, mesmo porte) ativa a heur\u00c3\u00adstica da disponibilidade com intensidade 3x maior que depoimentos gen\u00c3\u00a9ricos.\n\n**Justificativa:** Narrativas de outras pessoas ativam o c\u00c3\u00b3rtex insular (empatia) e o sistema mirror neurons \u00e2\u20ac\u201d o visitante simula mentalmente vivenciar o mesmo resultado. Isso \u00c3\u00a9 neurologicamente mais poderoso que qualquer argumento racional de feature.\n\n---\n\n### PRIORIDADE 5 \u00e2\u20ac\u201d Reformular o Formul\u00c3\u00a1rio de Contato para Reduzir Atrito\n**Impacto estimado: +15\u00e2\u20ac\u201c25% na taxa de preenchimento**\n\n**O problema (Camada 4: Decis\u00c3\u00a3o)**\n\nUm formul\u00c3\u00a1rio de contato gen\u00c3\u00a9rico ao final da p\u00c3\u00a1gina tem dois problemas cr\u00c3\u00adticos: chega depois de toda a carga cognitiva acumulada (fadiga de decis\u00c3\u00a3o) e n\u00c3\u00a3o oferece uma raz\u00c3\u00a3o espec\u00c3\u00adfica para preencher neste momento.\n\n**O que fazer:**\n\n1. **Reduza os campos ao m\u00c3\u00adnimo vi\u00c3\u00a1vel para qualifica\u00c3\u00a7\u00c3\u00a3o:**\n   - Nome, email corporativo, telefone (WhatsApp), empresa, n\u00c3\u00bamero de funcion\u00c3\u00a1rios\n   - Remova: cargo, como nos conheceu, mensagem livre \u00e2\u20ac\u201d podem ser coletados na call\n   - Cada campo adicional reduz em ~11% a taxa de preenchimento (dado Hubspot)\n\n2. **Substitua o t\u00c3\u00adtulo do formul\u00c3\u00a1rio:**\n   - N\u00c3\u00a3o: \"Entre em contato\" / \"Fale conosco\"\n   - Sim: \"Veja como o [Nome] funciona para empresas como a sua \u00e2\u20ac\u201d demonstra\u00c3\u00a7\u00c3\u00a3o de 20 min\"\n\n3. **Adicione \u00c3\u00a2ncoras de seguran\u00c3\u00a7a psicol\u00c3\u00b3gica abaixo do bot\u00c3\u00a3o:**\n   ```\n   Sem compromisso. Sem cart\u00c3\u00a3o de cr\u00c3\u00a9dito.\n   Resposta em at\u00c3\u00a9 2h \u00c3\u00bateis.\n   ```\n\n4. **Torne o CTA espec\u00c3\u00adfico e orientado a benef\u00c3\u00adcio:**\n   - N\u00c3\u00a3o: \"Enviar\" / \"Solicitar contato\"\n   - Sim: \"Quero ver a demonstra\u00c3\u00a7\u00c3\u00a3o\" \u00e2\u20ac\u201d o visitante est\u00c3\u00a1 comprando uma demo, n\u00c3\u00a3o \"enviando formul\u00c3\u00a1rio\"\n\n5. **Considere oferecer uma isca digital de alto valor** para visitantes n\u00c3\u00a3o prontos para demo:\n   ```\n   N\u00c3\u00a3o est\u00c3\u00a1 pronto para uma demo agora?\n   [Baixar: Calculadora de ROI para [segmento]] \u00e2\u2020\ufffd coleta email e aquece o lead\n   ```\n\n**Justificativa:** O Perceived Behavioral Control (teoria do comportamento planejado) \u00c3\u00a9 maximizado quando o visitante sente que est\u00c3\u00a1 tomando uma micro-decis\u00c3\u00a3o de baixo risco. \"Quero ver a demonstra\u00c3\u00a7\u00c3\u00a3o\" enquadra a a\u00c3\u00a7\u00c3\u00a3o como ganho de informa\u00c3\u00a7\u00c3\u00a3o, n\u00c3\u00a3o como compromisso de compra \u00e2\u20ac\u201d o c\u00c3\u00b3rtex pr\u00c3\u00a9-frontal ventromedial registra isso como decis\u00c3\u00a3o segura.\n\n---\n\n## Checklist de Revis\u00c3\u00a3o \u00e2\u20ac\u201d Estado Atual\n\n### Camada 1: Aten\u00c3\u00a7\u00c3\u00a3o\n- [x] O elemento mais importante domina pelo menos um atributo pr\u00c3\u00a9-atentivo?\n  **FALHA** \u00e2\u20ac\u201d logo domina a aten\u00c3\u00a7\u00c3\u00a3o no topo, mas n\u00c3\u00a3o carrega valor para o visitante\n- [ ] O t\u00c3\u00adtulo principal entrega a conclus\u00c3\u00a3o/resultado?\n  **FALHA** \u00e2\u20ac\u201d lista de funcionalidades n\u00c3\u00a3o \u00c3\u00a9 conclus\u00c3\u00a3o, \u00c3\u00a9 invent\u00c3\u00a1rio\n- [ ] Padr\u00c3\u00a3o Z aplicado com CTA no canto inferior direito do hero?\n  **FALHA** \u00e2\u20ac\u201d sem hero section definida\n- [ ] Regra 3-30-3 atendida?\n  **FALHA** \u00e2\u20ac\u201d sem gancho nos primeiros 3 segundos\n\n### Camada 2: Cogni\u00c3\u00a7\u00c3\u00a3o\n- [ ] Cada elemento tem prop\u00c3\u00b3sito declar\u00c3\u00a1vel?\n  **PARCIAL** \u00e2\u20ac\u201d conte\u00c3\u00bado relevante, mas sem hierarquia clara\n- [ ] Progressive disclosure implementada?\n  **FALHA** \u00e2\u20ac\u201d toda informa\u00c3\u00a7\u00c3\u00a3o t\u00c3\u00a9cnica exposta de uma vez\n- [ ] Carga extr\u00c3\u00adnseca minimizada?\n  **FALHA** \u00e2\u20ac\u201d feature list cria trabalho de interpreta\u00c3\u00a7\u00c3\u00a3o para o visitante\n\n### Camada 3: Emo\u00c3\u00a7\u00c3\u00a3o\n- [ ] Existe arco narrativo conflito \u00e2\u2020\u2019 resolu\u00c3\u00a7\u00c3\u00a3o?\n  **FALHA** \u00e2\u20ac\u201d n\u00c3\u00a3o h\u00c3\u00a1 men\u00c3\u00a7\u00c3\u00a3o ao problema do cliente antes da solu\u00c3\u00a7\u00c3\u00a3o\n- [ ] Prova social localizada e espec\u00c3\u00adfica?\n  **PARCIAL** \u00e2\u20ac\u201d depoimentos existem mas posi\u00c3\u00a7\u00c3\u00a3o e formato comprometem o impacto\n- [ ] Paleta de cores alinhada com confian\u00c3\u00a7a B2B?\n  **DESCONHECIDO** \u00e2\u20ac\u201d n\u00c3\u00a3o descrita, mas mereceria auditoria\n\n### Camada 4: Decis\u00c3\u00a3o\n- [ ] Ancoragem de valor antes do pricing?\n  **FALHA** \u00e2\u20ac\u201d tabela de pre\u00c3\u00a7os apresentada sem contexto de ROI\n- [ ] N\u00c3\u00bamero de decis\u00c3\u00b5es pr\u00c3\u00a9-CTA minimizado?\n  **FALHA** \u00e2\u20ac\u201d visitante precisa processar todo conte\u00c3\u00bado antes de encontrar CTA claro\n- [ ] CTA \u00c3\u00banico e livre de competi\u00c3\u00a7\u00c3\u00a3o na zona de decis\u00c3\u00a3o?\n  **FALHA** \u00e2\u20ac\u201d 3 CTAs na tabela + formul\u00c3\u00a1rio + poss\u00c3\u00adveis links no rodap\u00c3\u00a9 criam competi\u00c3\u00a7\u00c3\u00a3o\n\n---\n\n## Ordem de Implementa\u00c3\u00a7\u00c3\u00a3o Recomendada\n\n| # | Mudan\u00c3\u00a7a | Esfor\u00c3\u00a7o | Impacto | Implementar em |\n|---|---------|---------|---------|----------------|\n| 1 | Hero section com headline de resultado + CTA \u00c3\u00banico | M\u00c3\u00a9dio | Muito alto | Sprint 1 |\n| 2 | Substituir feature list por blocos Problema \u00e2\u2020\u2019 Resultado | M\u00c3\u00a9dio | Alto | Sprint 1 |\n| 3 | Ancoragem + reenquadramento na tabela de pre\u00c3\u00a7os | Baixo | Alto | Sprint 1 |\n| 4 | Reposicionar 1 depoimento para abaixo do hero | Baixo | M\u00c3\u00a9dio | Sprint 1 |\n| 5 | Reformular formul\u00c3\u00a1rio (menos campos + CTA espec\u00c3\u00adfico) | Baixo | M\u00c3\u00a9dio | Sprint 1 |\n| 6 | Adicionar isca digital (calculadora de ROI ou guia) | Alto | M\u00c3\u00a9dio-longo | Sprint 2 |\n| 7 | Auditoria e ajuste da paleta de cores (B2B trust palette) | Baixo | Baixo-m\u00c3\u00a9dio | Sprint 2 |\n\n---\n\n## Meta Realista P\u00c3\u00b3s-Implementa\u00c3\u00a7\u00c3\u00a3o\n\nCom as mudan\u00c3\u00a7as de Sprint 1 implementadas corretamente:\n- Convers\u00c3\u00a3o esperada: 2,0\u00e2\u20ac\u201c3,5% (melhoria de 2,5x a 4x sobre 0,8%)\n- No contexto de R$ 8.000/m\u00c3\u00aas de ticket m\u00c3\u00a9dio, cada +1% de convers\u00c3\u00a3o em 1.000 visitantes/m\u00c3\u00aas representa 10 leads adicionais = at\u00c3\u00a9 R$ 960.000/ano em MRR potencial\n\n---\n\n**Proximo passo recomendado:**\n\nReescreva a headline do topo da p\u00c3\u00a1gina hoje. \u00c3\u2030 a mudan\u00c3\u00a7a de menor esfor\u00c3\u00a7o e maior impacto imediato. Use o template: *\"[Verbo de resultado] [m\u00c3\u00a9trica espec\u00c3\u00adfica] em [prazo] \u00e2\u20ac\u201d sem [objecao principal do ICP]\"*. Teste com 2 variantes via A/B (Google Optimize ou VWO) por 2 semanas antes de implementar as demais mudan\u00c3\u00a7as, para ter dados reais da sua audi\u00c3\u00aancia antes de alterar a arquitetura completa da p\u00c3\u00a1gina.\n"}], "grading": null}, {"id": "eval-landing-b2b-without_skill", "prompt": "Nossa landing page de software B2B (ticket m\u00c3\u00a9dio R$ 8.000/m\u00c3\u00aas) tem uma taxa de convers\u00c3\u00a3o de 0,8%. A p\u00c3\u00a1gina mostra: logo, lista de funcionalidades, depoimentos, tabela de pre\u00c3\u00a7os com 3 planos e formul\u00c3\u00a1rio de contato. Me diz o que consertar come\u00c3\u00a7ando pelo que tem mais impacto.", "eval_id": 3, "outputs": [{"name": "response.md", "type": "text", "content": "# Diagn\u00c3\u00b3stico e Plano de Otimiza\u00c3\u00a7\u00c3\u00a3o: Landing Page B2B (Ticket R$ 8.000/m\u00c3\u00aas)\n\n**Contexto:** Taxa de convers\u00c3\u00a3o atual de 0,8% em produto B2B com ticket m\u00c3\u00a9dio de R$ 8.000/m\u00c3\u00aas. Estrutura atual: logo, lista de funcionalidades, depoimentos, tabela de pre\u00c3\u00a7os com 3 planos e formul\u00c3\u00a1rio de contato.\n\n---\n\n## Diagn\u00c3\u00b3stico R\u00c3\u00a1pido\n\nUma taxa de 0,8% para um produto B2B de alto ticket \u00c3\u00a9 abaixo do esperado. O benchmark para SaaS B2B com ticket acima de R$ 5.000/m\u00c3\u00aas gira em torno de 2% a 5% para visitantes qualificados. O problema quase certamente n\u00c3\u00a3o \u00c3\u00a9 \"falta de informa\u00c3\u00a7\u00c3\u00a3o\" \u00e2\u20ac\u201d \u00c3\u00a9 falta de confian\u00c3\u00a7a, clareza de valor e fric\u00c3\u00a7\u00c3\u00a3o no caminho at\u00c3\u00a9 a convers\u00c3\u00a3o.\n\nA estrutura descrita \u00c3\u00a9 uma p\u00c3\u00a1gina de \"cat\u00c3\u00a1logo de produto\", n\u00c3\u00a3o uma p\u00c3\u00a1gina de \"solu\u00c3\u00a7\u00c3\u00a3o de problema\". Essa distin\u00c3\u00a7\u00c3\u00a3o \u00c3\u00a9 o cora\u00c3\u00a7\u00c3\u00a3o do problema.\n\n---\n\n## Prioriza\u00c3\u00a7\u00c3\u00a3o por Impacto (do maior para o menor)\n\n---\n\n### 1. HERO SECTION \u00e2\u20ac\u201d AUSENTE OU FRACO (Impacto: Cr\u00c3\u00adtico)\n\n**O problema:** A p\u00c3\u00a1gina come\u00c3\u00a7a com logo e lista de funcionalidades. Isso significa que n\u00c3\u00a3o h\u00c3\u00a1 uma proposi\u00c3\u00a7\u00c3\u00a3o de valor clara acima da dobra. O visitante chega e n\u00c3\u00a3o entende em 5 segundos \"o que isso resolve para mim\" e \"por que devo continuar lendo\".\n\n**Por que \u00c3\u00a9 o maior impacto:** Estudos de eye-tracking e heatmaps consistentemente mostram que 70\u00e2\u20ac\u201c80% dos visitantes decidem se continuam ou saem nos primeiros 10 segundos. Se o hero n\u00c3\u00a3o converte aten\u00c3\u00a7\u00c3\u00a3o em interesse, o resto da p\u00c3\u00a1gina n\u00c3\u00a3o importa.\n\n**O que fazer:**\n- Substitua o logo + lista por um hero com: **headline focada no resultado do cliente** (n\u00c3\u00a3o no produto), subheadline que qualifica quem \u00c3\u00a9 o p\u00c3\u00bablico e qual dor resolve, e um CTA prim\u00c3\u00a1rio claro.\n- Formato recomendado da headline: \"Verbo + resultado espec\u00c3\u00adfico + para quem\" \u00e2\u20ac\u201d exemplo de estrutura: \"Reduza em X horas o tempo de [tarefa cr\u00c3\u00adtica] da sua opera\u00c3\u00a7\u00c3\u00a3o de [segmento]\".\n- Inclua um elemento visual que mostre o produto em uso (screenshot, v\u00c3\u00addeo curto, mockup) \u00e2\u20ac\u201d n\u00c3\u00a3o uma ilustra\u00c3\u00a7\u00c3\u00a3o gen\u00c3\u00a9rica.\n\n---\n\n### 2. LISTA DE FUNCIONALIDADES NO LUGAR DE BENEF\u00c3\ufffdCIOS (Impacto: Alto)\n\n**O problema:** Listas de features (\"relat\u00c3\u00b3rios em tempo real\", \"integra\u00c3\u00a7\u00c3\u00a3o com ERP\", \"dashboard centralizado\") comunicam capacidade, n\u00c3\u00a3o valor. O comprador B2B n\u00c3\u00a3o compra features \u00e2\u20ac\u201d ele aprova investimentos baseado em ROI, redu\u00c3\u00a7\u00c3\u00a3o de risco e resultado de neg\u00c3\u00b3cio.\n\n**Por que \u00c3\u00a9 alto impacto:** Em vendas B2B de alto ticket, m\u00c3\u00baltiplas pessoas influenciam a decis\u00c3\u00a3o (usu\u00c3\u00a1rio final, gestor, financeiro, TI). A p\u00c3\u00a1gina precisa falar com cada perfil. Features falam com o t\u00c3\u00a9cnico; benef\u00c3\u00adcios e outcomes falam com o decisor.\n\n**O que fazer:**\n- Reescreva cada feature como um benef\u00c3\u00adcio com resultado mensur\u00c3\u00a1vel: ao inv\u00c3\u00a9s de \"relat\u00c3\u00b3rios em tempo real\", use \"Identifique gargalos operacionais antes que virem preju\u00c3\u00adzo \u00e2\u20ac\u201d com dados atualizados ao minuto\".\n- Agrupe os benef\u00c3\u00adcios em 3 pilares que mapeiem as dores do ICP (cliente ideal). Isso tamb\u00c3\u00a9m melhora escaneabilidade.\n- Adicione provas espec\u00c3\u00adficas junto a cada benef\u00c3\u00adcio quando poss\u00c3\u00advel (ex: \"clientes economizam em m\u00c3\u00a9dia X horas/semana nessa etapa\").\n\n---\n\n### 3. DEPOIMENTOS GEN\u00c3\u2030RICOS SEM ESPECIFICIDADE (Impacto: Alto)\n\n**O problema:** \"\u00c3\u201ctimo sistema, muito intuitivo!\" n\u00c3\u00a3o converte. Depoimentos vagos n\u00c3\u00a3o reduzem o risco percebido \u00e2\u20ac\u201d o principal bloqueio em compras B2B de alto ticket.\n\n**Por que \u00c3\u00a9 alto impacto:** Prova social \u00c3\u00a9 o gatilho de confian\u00c3\u00a7a mais poderoso em B2B, mas s\u00c3\u00b3 funciona quando \u00c3\u00a9 espec\u00c3\u00adfica e cred\u00c3\u00advel. Um depoimento ruim pode at\u00c3\u00a9 prejudicar a convers\u00c3\u00a3o ao sinalizar que a empresa n\u00c3\u00a3o tem casos de sucesso reais para mostrar.\n\n**O que fazer:**\n- Substitua por **casos de sucesso estruturados**: Problema antes \u00e2\u2020\u2019 Solu\u00c3\u00a7\u00c3\u00a3o usada \u00e2\u2020\u2019 Resultado concreto (n\u00c3\u00bamero, percentual, tempo). Exemplo: \"Antes, lev\u00c3\u00a1vamos 3 dias para fechar o faturamento mensal. Com [produto], fechamos em 4 horas.\"\n- Inclua: nome completo, cargo, empresa e segmento. Logo da empresa sempre que poss\u00c3\u00advel.\n- Priorize depoimentos de empresas reconhec\u00c3\u00adveis no segmento-alvo ou de perfis que o visitante se identifica.\n- M\u00c3\u00adnimo 3, ideal 5\u00e2\u20ac\u201c6 depoimentos. Considere um case de destaque com mais profundidade (mini case study) pr\u00c3\u00b3ximo ao CTA final.\n\n---\n\n### 4. TABELA DE PRE\u00c3\u2021OS \u00e2\u20ac\u201d ESTRUTURA SABOTA A DECIS\u00c3\u0192O (Impacto: M\u00c3\u00a9dio-Alto)\n\n**O problema:** Mostrar 3 planos com pre\u00c3\u00a7os sem primeiro ter estabelecido valor percebido faz o visitante comparar pelo pre\u00c3\u00a7o, n\u00c3\u00a3o pelo resultado. A tabela de pre\u00c3\u00a7os no formato \"check list de features por plano\" tamb\u00c3\u00a9m for\u00c3\u00a7a o visitante a fazer um trabalho cognitivo que ele n\u00c3\u00a3o quer fazer.\n\n**Por que \u00c3\u00a9 m\u00c3\u00a9dio-alto:** A tabela n\u00c3\u00a3o \u00c3\u00a9 o vil\u00c3\u00a3o em si \u00e2\u20ac\u201d o problema \u00c3\u00a9 o contexto em que ela aparece. Chegando a ela sem valor estabelecido, o visitante v\u00c3\u00aa R$ 8.000/m\u00c3\u00aas como custo, n\u00c3\u00a3o como investimento.\n\n**O que fazer:**\n- Posicione a tabela de pre\u00c3\u00a7os **depois** de se\u00c3\u00a7\u00c3\u00a3o de benef\u00c3\u00adcios, prova social e (idealmente) uma se\u00c3\u00a7\u00c3\u00a3o de ROI/calculadora de impacto.\n- Nomeie os planos por perfil de cliente ou maturidade, n\u00c3\u00a3o por tamanho gen\u00c3\u00a9rico (B\u00c3\u00a1sico/Pro/Enterprise). Exemplo: \"Para equipes em expans\u00c3\u00a3o / Para opera\u00c3\u00a7\u00c3\u00b5es consolidadas / Para grandes corpora\u00c3\u00a7\u00c3\u00b5es\".\n- Destaque o plano recomendado visualmente (\u00c3\u00a2ncora de pre\u00c3\u00a7o). Isso \u00c3\u00a9 psicologia de ancoragem b\u00c3\u00a1sica mas funciona consistentemente.\n- Adicione uma linha de \"Para quem \u00c3\u00a9 esse plano\" no topo de cada coluna, antes da lista de features.\n- Considere remover o plano mais barato se ele n\u00c3\u00a3o representa o cliente ideal \u00e2\u20ac\u201d a presen\u00c3\u00a7a de op\u00c3\u00a7\u00c3\u00a3o barata pode diminuir o ticket m\u00c3\u00a9dio sem aumentar convers\u00c3\u00a3o qualificada.\n\n---\n\n### 5. FORMUL\u00c3\ufffdRIO DE CONTATO COMO CTA PRINCIPAL (Impacto: M\u00c3\u00a9dio)\n\n**O problema:** \"Formul\u00c3\u00a1rio de contato\" \u00c3\u00a9 um CTA de baixo comprometimento percebido que, paradoxalmente, gera baixa convers\u00c3\u00a3o em B2B de alto ticket porque n\u00c3\u00a3o comunica o que acontece depois. O visitante n\u00c3\u00a3o sabe se vai receber uma proposta, um spam, uma liga\u00c3\u00a7\u00c3\u00a3o em 5 minutos ou nada.\n\n**Por que \u00c3\u00a9 m\u00c3\u00a9dio:** \u00c3\u2030 um problema real, mas secund\u00c3\u00a1rio aos problemas de proposta de valor e confian\u00c3\u00a7a acima.\n\n**O que fazer:**\n- Troque o nome para um CTA orientado \u00c3\u00a0 pr\u00c3\u00b3xima a\u00c3\u00a7\u00c3\u00a3o espec\u00c3\u00adfica: \"Agendar demonstra\u00c3\u00a7\u00c3\u00a3o de 30 minutos\", \"Ver demonstra\u00c3\u00a7\u00c3\u00a3o personalizada\", \"Falar com especialista\".\n- Reduza os campos ao m\u00c3\u00adnimo necess\u00c3\u00a1rio para qualifica\u00c3\u00a7\u00c3\u00a3o: nome, email corporativo, empresa e (opcionalmente) n\u00c3\u00bamero de funcion\u00c3\u00a1rios ou segmento. Cada campo adicional reduz convers\u00c3\u00a3o entre 10\u00e2\u20ac\u201c20%.\n- Adicione microcopy abaixo do bot\u00c3\u00a3o que reduza obje\u00c3\u00a7\u00c3\u00b5es: \"Sem compromisso. Resposta em at\u00c3\u00a9 1 dia \u00c3\u00batil.\" ou \"Apenas 30 minutos. Voc\u00c3\u00aa decide se faz sentido avan\u00c3\u00a7ar.\"\n- Considere oferecer duas op\u00c3\u00a7\u00c3\u00b5es de CTA: prim\u00c3\u00a1rio (agendar demo) e secund\u00c3\u00a1rio (baixar material/case), capturando leads em diferentes est\u00c3\u00a1gios do funil.\n\n---\n\n### 6. AUS\u00c3\u0160NCIA DE SE\u00c3\u2021\u00c3\u0192O DE OBJE\u00c3\u2021\u00c3\u2022ES / FAQ ESTRAT\u00c3\u2030GICO (Impacto: M\u00c3\u00a9dio)\n\n**O problema:** Compradores B2B chegam \u00c3\u00a0 p\u00c3\u00a1gina com obje\u00c3\u00a7\u00c3\u00b5es concretas que nunca s\u00c3\u00a3o respondidas: \"Vai integrar com meu sistema atual?\", \"Quanto tempo leva para implementar?\", \"E se eu quiser cancelar?\", \"Qual \u00c3\u00a9 o suporte inclu\u00c3\u00addo?\".\n\n**O que fazer:**\n- Adicione um FAQ com 6\u00e2\u20ac\u201c8 perguntas que respondam as obje\u00c3\u00a7\u00c3\u00b5es reais do seu processo de vendas (pe\u00c3\u00a7a para o time comercial listar as 10 perguntas mais frequentes antes da compra).\n- Posicione pr\u00c3\u00b3ximo ao CTA final ou \u00c3\u00a0 tabela de pre\u00c3\u00a7os.\n\n---\n\n### 7. AUS\u00c3\u0160NCIA DE SINAIS DE CREDIBILIDADE INSTITUCIONAL (Impacto: M\u00c3\u00a9dio)\n\n**O problema:** Para um produto de R$ 8.000/m\u00c3\u00aas, o visitante precisa confiar na empresa, n\u00c3\u00a3o apenas no produto. Logos de clientes, certifica\u00c3\u00a7\u00c3\u00b5es, anos de mercado, n\u00c3\u00bamero de clientes ativos e men\u00c3\u00a7\u00c3\u00b5es na m\u00c3\u00addia s\u00c3\u00a3o sinais que reduzem risco percebido.\n\n**O que fazer:**\n- Adicione uma barra de logos de clientes logo abaixo do hero (antes de qualquer outra se\u00c3\u00a7\u00c3\u00a3o) \u00e2\u20ac\u201d isso \u00c3\u00a9 o sinal de prova social de maior impacto por menor esfor\u00c3\u00a7o.\n- Se tiver certifica\u00c3\u00a7\u00c3\u00b5es relevantes (ISO, LGPD, SOC 2, etc.), destaque-as \u00e2\u20ac\u201d especialmente se o produto lida com dados.\n- N\u00c3\u00bamero de clientes ou volume processado (\"Mais de X empresas confiam\" ou \"R$ X bilh\u00c3\u00b5es processados\") funcionam como prova de escala.\n\n---\n\n## Sequ\u00c3\u00aancia de Implementa\u00c3\u00a7\u00c3\u00a3o Recomendada\n\n| Semana | A\u00c3\u00a7\u00c3\u00a3o | Esfor\u00c3\u00a7o | Impacto Esperado |\n|--------|------|---------|-----------------|\n| 1 | Reescrever hero section com proposta de valor clara e CTA espec\u00c3\u00adfico | Baixo | Alto |\n| 1 | Adicionar barra de logos de clientes abaixo do hero | Baixo | Alto |\n| 2 | Reescrever depoimentos com estrutura antes/depois/resultado | M\u00c3\u00a9dio | Alto |\n| 2 | Converter lista de features em benef\u00c3\u00adcios com outcomes | M\u00c3\u00a9dio | M\u00c3\u00a9dio-Alto |\n| 3 | Reformular CTA do formul\u00c3\u00a1rio com microcopy e menos campos | Baixo | M\u00c3\u00a9dio |\n| 3 | Reestruturar tabela de pre\u00c3\u00a7os com nomes por perfil e \u00c3\u00a2ncora visual | M\u00c3\u00a9dio | M\u00c3\u00a9dio |\n| 4 | Adicionar FAQ estrat\u00c3\u00a9gico com obje\u00c3\u00a7\u00c3\u00b5es reais | Baixo | M\u00c3\u00a9dio |\n| 4 | Testar variantes com A/B test nas mudan\u00c3\u00a7as do hero | Cont\u00c3\u00adnuo | Valida\u00c3\u00a7\u00c3\u00a3o |\n\n---\n\n## Resultado Esperado\n\nImplementando as 3 primeiras prioridades (hero, logos, depoimentos), \u00c3\u00a9 razo\u00c3\u00a1vel esperar um salto de 0,8% para 1,5%\u00e2\u20ac\u201c2% em 30\u00e2\u20ac\u201c60 dias, dependendo da qualidade do tr\u00c3\u00a1fego atual. A partir da\u00c3\u00ad, otimiza\u00c3\u00a7\u00c3\u00b5es incrementais via A/B test podem levar a 3%\u00e2\u20ac\u201c4% para tr\u00c3\u00a1fego qualificado.\n\n**Nota importante:** Se o tr\u00c3\u00a1fego atual \u00c3\u00a9 de baixa qualidade (fontes gen\u00c3\u00a9ricas, sem segmenta\u00c3\u00a7\u00c3\u00a3o), nenhuma melhoria de p\u00c3\u00a1gina vai resolver a convers\u00c3\u00a3o de forma sustent\u00c3\u00a1vel. Verifique a fonte do tr\u00c3\u00a1fego antes de atribuir toda a responsabilidade \u00c3\u00a0 p\u00c3\u00a1gina.\n\n---\n\n*Diagn\u00c3\u00b3stico elaborado com base em princ\u00c3\u00adpios de CRO (Conversion Rate Optimization), psicologia de decis\u00c3\u00a3o B2B e boas pr\u00c3\u00a1ticas de landing pages de alto ticket. Data: 2026-04-24.*\n"}], "grading": null}], "previous_feedback": {}, "previous_outputs": {}, "benchmark": {"metadata": {"skill_name": "neurodesign-interface", "skill_path": "<path/to/skill>", "executor_model": "<model-name>", "analyzer_model": "<model-name>", "timestamp": "2026-04-24T19:28:36Z", "evals_run": [1, 2, 3], "runs_per_configuration": 3}, "runs": [{"eval_id": 2, "configuration": "with_skill", "run_number": 1, "result": {"pass_rate": 1.0, "passed": 0, "failed": 0, "total": 0, "time_seconds": 106.6, "tokens": 106621, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "critica-pizza", "passed": true, "evidence": "Full section on pizza charts with Cleveland-McGill table. Angle judgment is most imprecise visual process."}, {"text": "reduz-kpis", "passed": true, "evidence": "1 primary + 2-3 secondary KPIs with font-size hierarchy. Groups 12 into 3-4 semantic blocks."}, {"text": "modo-executivo", "passed": true, "evidence": "Progressive Disclosure in 3 explicit levels: CEO (3 months), click (12 months sparklines), analyst (24 months)."}, {"text": "tem-proximo-passo", "passed": true, "evidence": "Ends with: open dashboard now, apply Squint Test, note which KPIs survive. Immediate specific action."}], "notes": []}, {"eval_id": 3, "configuration": "with_skill", "run_number": 1, "result": {"pass_rate": 1.0, "passed": 0, "failed": 0, "total": 0, "time_seconds": 111.8, "tokens": 111822, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "prioriza-impacto", "passed": true, "evidence": "PRIORIDADE 1-5 each with estimated impact percentages. Final table with Sprint 1/2, effort and impact per item."}, {"text": "aborda-tabela-precos", "passed": true, "evidence": "Full PRIORIDADE 3: pre-table anchoring section, premium left, ROI below price, persona CTAs. Cites N400 and anterior cingulate cortex."}, {"text": "menciona-cta-posicao", "passed": true, "evidence": "Z-pattern with text diagram. Single dominant blue CTA. CTAs differentiated by plan. No competing links in decision zone."}, {"text": "critica-lista-funcionalidades", "passed": true, "evidence": "PRIORIDADE 2: feature lists activate only Broca/Wernicke. Replaced by Conflict-Insight-Resolution blocks with rewriting examples."}], "notes": []}, {"eval_id": 1, "configuration": "with_skill", "run_number": 1, "result": {"pass_rate": 1.0, "passed": 0, "failed": 0, "total": 0, "time_seconds": 81.9, "tokens": 81903, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "cobre-4-camadas", "passed": true, "evidence": "Explicitly structured as 4 layers with dense content in each."}, {"text": "menciona-ancoragem", "passed": true, "evidence": "Dedicated anchoring section with reverse anchoring, mental reframing vs CDI/SP500."}, {"text": "menciona-narrativa", "passed": true, "evidence": "5-act narrative arc table. Diagnosis: proposal has no character or story. Broca/Wernicke vs motor cortex."}, {"text": "tem-proximo-passo", "passed": true, "evidence": "Explicit Proximo passo recomendado section with actionable instruction."}], "notes": []}, {"eval_id": 2, "configuration": "without_skill", "run_number": 1, "result": {"pass_rate": 0.75, "passed": 0, "failed": 0, "total": 0, "time_seconds": 58.8, "tokens": 16635, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "critica-pizza", "passed": true, "evidence": "Replace pizza with horizontal bars. Justification present without Cleveland-McGill reference."}, {"text": "reduz-kpis", "passed": true, "evidence": "Reduce to 3-5 visible KPIs with secondary layers. Clear recommendation within expected range."}, {"text": "modo-executivo", "passed": true, "evidence": "3 hierarchical zones and 5-second test. Progressive disclosure implicitly present, not named."}, {"text": "tem-proximo-passo", "passed": false, "evidence": "Ends with prioritization table - useful but not an immediately actionable next step."}], "notes": []}, {"eval_id": 3, "configuration": "without_skill", "run_number": 1, "result": {"pass_rate": 1.0, "passed": 0, "failed": 0, "total": 0, "time_seconds": 63.9, "tokens": 63938, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "prioriza-impacto", "passed": true, "evidence": "7 numbered sections Impact Critical to Medium. Implementation Sequence table with weeks and effort."}, {"text": "aborda-tabela-precos", "passed": true, "evidence": "Section 4: name plans by profile, highlight recommended plan as anchor. Anchoring mentioned without neuroscientific depth."}, {"text": "menciona-cta-posicao", "passed": true, "evidence": "Section 5: schedule demo vs generic contact form, fewer fields, microcopy. No Z-pattern spatial reference."}, {"text": "critica-lista-funcionalidades", "passed": true, "evidence": "Section 2: B2B buyer approves investments based on ROI not features. Good CRO analysis without neuroscience."}], "notes": []}, {"eval_id": 1, "configuration": "without_skill", "run_number": 1, "result": {"pass_rate": 0.75, "passed": 0, "failed": 0, "total": 0, "time_seconds": 54.9, "tokens": 15899, "tool_calls": 0, "errors": 0}, "expectations": [{"text": "cobre-4-camadas", "passed": true, "evidence": "Covers all 4 conceptual areas without explicit layer labels."}, {"text": "menciona-ancoragem", "passed": true, "evidence": "Mentions price without context; recommends monthly savings before cost. Less specific than with_skill."}, {"text": "menciona-narrativa", "passed": true, "evidence": "States proposal protagonist is company not client; 5-act narrative structure described."}, {"text": "tem-proximo-passo", "passed": false, "evidence": "Ends with consolidated Diagnosis, no explicit actionable next step."}], "notes": []}], "run_summary": {"with_skill": {"pass_rate": {"mean": 1.0, "stddev": 0.0, "min": 1.0, "max": 1.0}, "time_seconds": {"mean": 100.1, "stddev": 15.9747, "min": 81.9, "max": 111.8}, "tokens": {"mean": 100115.3333, "stddev": 15985.2874, "min": 81903, "max": 111822}}, "without_skill": {"pass_rate": {"mean": 0.8333, "stddev": 0.1443, "min": 0.75, "max": 1.0}, "time_seconds": {"mean": 59.2, "stddev": 4.5133, "min": 54.9, "max": 63.9}, "tokens": {"mean": 32157.3333, "stddev": 27525.3248, "min": 15899, "max": 63938}}, "delta": {"pass_rate": "+0.17", "time_seconds": "+40.9", "tokens": "+67958"}}, "notes": []}};
+
+    // ---- State ----
+    let feedbackMap = {};  // run_id -> feedback text
+    let currentIndex = 0;
+    let visitedRuns = new Set();
+
+    // ---- Init ----
+    async function init() {
+      // Load saved feedback from server — but only if this isn't a fresh
+      // iteration (indicated by previous_feedback being present). When
+      // previous feedback exists, the feedback.json on disk is stale from
+      // the prior iteration and should not pre-fill the textareas.
+      const hasPrevious = Object.keys(EMBEDDED_DATA.previous_feedback || {}).length > 0
+        || Object.keys(EMBEDDED_DATA.previous_outputs || {}).length > 0;
+      if (!hasPrevious) {
+        try {
+          const resp = await fetch("/api/feedback");
+          const data = await resp.json();
+          if (data.reviews) {
+            for (const r of data.reviews) feedbackMap[r.run_id] = r.feedback;
+          }
+        } catch { /* first run, no feedback yet */ }
+      }
+
+      document.getElementById("skill-name").textContent = EMBEDDED_DATA.skill_name;
+      showRun(0);
+
+      // Wire up feedback auto-save
+      const textarea = document.getElementById("feedback");
+      let saveTimeout = null;
+      textarea.addEventListener("input", () => {
+        clearTimeout(saveTimeout);
+        document.getElementById("feedback-status").textContent = "";
+        saveTimeout = setTimeout(() => saveCurrentFeedback(), 800);
+      });
+    }
+
+    // ---- Navigation ----
+    function navigate(delta) {
+      const newIndex = currentIndex + delta;
+      if (newIndex >= 0 && newIndex < EMBEDDED_DATA.runs.length) {
+        saveCurrentFeedback();
+        showRun(newIndex);
+      }
+    }
+
+    function updateNavButtons() {
+      document.getElementById("prev-btn").disabled = currentIndex === 0;
+      document.getElementById("next-btn").disabled =
+        currentIndex === EMBEDDED_DATA.runs.length - 1;
+    }
+
+    // ---- Show a run ----
+    function showRun(index) {
+      currentIndex = index;
+      const run = EMBEDDED_DATA.runs[index];
+
+      // Progress
+      document.getElementById("progress").textContent =
+        `${index + 1} of ${EMBEDDED_DATA.runs.length}`;
+
+      // Prompt
+      document.getElementById("prompt-text").textContent = run.prompt;
+
+      // Config badge
+      const badge = document.getElementById("config-badge");
+      const configMatch = run.id.match(/(with_skill|without_skill|new_skill|old_skill)/);
+      if (configMatch) {
+        const config = configMatch[1];
+        const isBaseline = config === "without_skill" || config === "old_skill";
+        badge.textContent = config.replace(/_/g, " ");
+        badge.className = "config-badge " + (isBaseline ? "config-baseline" : "config-primary");
+        badge.style.display = "inline-block";
+      } else {
+        badge.style.display = "none";
+      }
+
+      // Outputs
+      renderOutputs(run);
+
+      // Previous outputs
+      renderPrevOutputs(run);
+
+      // Grades
+      renderGrades(run);
+
+      // Previous feedback
+      const prevFb = (EMBEDDED_DATA.previous_feedback || {})[run.id];
+      const prevEl = document.getElementById("prev-feedback");
+      if (prevFb) {
+        document.getElementById("prev-feedback-text").textContent = prevFb;
+        prevEl.style.display = "block";
+      } else {
+        prevEl.style.display = "none";
+      }
+
+      // Feedback
+      document.getElementById("feedback").value = feedbackMap[run.id] || "";
+      document.getElementById("feedback-status").textContent = "";
+
+      updateNavButtons();
+
+      // Track visited runs and promote done button when all visited
+      visitedRuns.add(index);
+      const doneBtn = document.getElementById("done-btn");
+      if (visitedRuns.size >= EMBEDDED_DATA.runs.length) {
+        doneBtn.classList.add("ready");
+      }
+
+      // Scroll main content to top
+      document.querySelector(".main").scrollTop = 0;
+    }
+
+    // ---- Render outputs ----
+    function renderOutputs(run) {
+      const container = document.getElementById("outputs-body");
+      container.innerHTML = "";
+
+      const outputs = run.outputs || [];
+      if (outputs.length === 0) {
+        container.innerHTML = '<div class="empty-state">No output files</div>';
+        return;
+      }
+
+      for (const file of outputs) {
+        const fileDiv = document.createElement("div");
+        fileDiv.className = "output-file";
+
+        // Always show file header with download link
+        const header = document.createElement("div");
+        header.className = "output-file-header";
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = file.name;
+        header.appendChild(nameSpan);
+        const dlBtn = document.createElement("a");
+        dlBtn.className = "dl-btn";
+        dlBtn.textContent = "Download";
+        dlBtn.download = file.name;
+        dlBtn.href = getDownloadUri(file);
+        header.appendChild(dlBtn);
+        fileDiv.appendChild(header);
+
+        const content = document.createElement("div");
+        content.className = "output-file-content";
+
+        if (file.type === "text") {
+          const pre = document.createElement("pre");
+          pre.textContent = file.content;
+          content.appendChild(pre);
+        } else if (file.type === "image") {
+          const img = document.createElement("img");
+          img.src = file.data_uri;
+          img.alt = file.name;
+          content.appendChild(img);
+        } else if (file.type === "pdf") {
+          const iframe = document.createElement("iframe");
+          iframe.src = file.data_uri;
+          content.appendChild(iframe);
+        } else if (file.type === "xlsx") {
+          renderXlsx(content, file.data_b64);
+        } else if (file.type === "binary") {
+          const a = document.createElement("a");
+          a.className = "download-link";
+          a.href = file.data_uri;
+          a.download = file.name;
+          a.textContent = "Download " + file.name;
+          content.appendChild(a);
+        } else if (file.type === "error") {
+          const pre = document.createElement("pre");
+          pre.textContent = file.content;
+          pre.style.color = "var(--red)";
+          content.appendChild(pre);
+        }
+
+        fileDiv.appendChild(content);
+        container.appendChild(fileDiv);
+      }
+    }
+
+    // ---- XLSX rendering via SheetJS ----
+    function renderXlsx(container, b64Data) {
+      try {
+        const raw = Uint8Array.from(atob(b64Data), c => c.charCodeAt(0));
+        const wb = XLSX.read(raw, { type: "array" });
+
+        for (let i = 0; i < wb.SheetNames.length; i++) {
+          const sheetName = wb.SheetNames[i];
+          const ws = wb.Sheets[sheetName];
+
+          if (wb.SheetNames.length > 1) {
+            const sheetLabel = document.createElement("div");
+            sheetLabel.style.cssText =
+              "font-weight:600; font-size:0.8rem; color:#b0aea5; margin-top:0.5rem; margin-bottom:0.25rem;";
+            sheetLabel.textContent = "Sheet: " + sheetName;
+            container.appendChild(sheetLabel);
+          }
+
+          const htmlStr = XLSX.utils.sheet_to_html(ws, { editable: false });
+          const wrapper = document.createElement("div");
+          wrapper.innerHTML = htmlStr;
+          container.appendChild(wrapper);
+        }
+      } catch (err) {
+        container.textContent = "Error rendering spreadsheet: " + err.message;
+      }
+    }
+
+    // ---- Grades ----
+    function renderGrades(run) {
+      const section = document.getElementById("grades-section");
+      const content = document.getElementById("grades-content");
+
+      if (!run.grading) {
+        section.style.display = "none";
+        return;
+      }
+
+      const grading = run.grading;
+      section.style.display = "block";
+      // Reset to collapsed
+      content.classList.remove("open");
+      document.getElementById("grades-arrow").classList.remove("open");
+
+      const summary = grading.summary || {};
+      const expectations = grading.expectations || [];
+
+      let html = '<div style="padding: 1rem;">';
+
+      // Summary line
+      const passRate = summary.pass_rate != null
+        ? Math.round(summary.pass_rate * 100) + "%"
+        : "?";
+      const badgeClass = summary.pass_rate >= 0.8 ? "grade-pass" : summary.pass_rate >= 0.5 ? "" : "grade-fail";
+      html += '<div class="grades-summary">';
+      html += '<span class="grade-badge ' + badgeClass + '">' + passRate + '</span>';
+      html += '<span>' + (summary.passed || 0) + ' passed, ' + (summary.failed || 0) + ' failed of ' + (summary.total || 0) + '</span>';
+      html += '</div>';
+
+      // Assertions list
+      html += '<ul class="assertion-list">';
+      for (const exp of expectations) {
+        const statusClass = exp.passed ? "pass" : "fail";
+        const statusIcon = exp.passed ? "\u2713" : "\u2717";
+        html += '<li class="assertion-item">';
+        html += '<span class="assertion-status ' + statusClass + '">' + statusIcon + '</span>';
+        html += '<span>' + escapeHtml(exp.text) + '</span>';
+        if (exp.evidence) {
+          html += '<div class="assertion-evidence">' + escapeHtml(exp.evidence) + '</div>';
+        }
+        html += '</li>';
+      }
+      html += '</ul>';
+
+      html += '</div>';
+      content.innerHTML = html;
+    }
+
+    function toggleGrades() {
+      const content = document.getElementById("grades-content");
+      const arrow = document.getElementById("grades-arrow");
+      content.classList.toggle("open");
+      arrow.classList.toggle("open");
+    }
+
+    // ---- Previous outputs (collapsible) ----
+    function renderPrevOutputs(run) {
+      const section = document.getElementById("prev-outputs-section");
+      const content = document.getElementById("prev-outputs-content");
+      const prevOutputs = (EMBEDDED_DATA.previous_outputs || {})[run.id];
+
+      if (!prevOutputs || prevOutputs.length === 0) {
+        section.style.display = "none";
+        return;
+      }
+
+      section.style.display = "block";
+      // Reset to collapsed
+      content.classList.remove("open");
+      document.getElementById("prev-outputs-arrow").classList.remove("open");
+
+      // Render the files into the content area
+      content.innerHTML = "";
+      const wrapper = document.createElement("div");
+      wrapper.style.padding = "1rem";
+
+      for (const file of prevOutputs) {
+        const fileDiv = document.createElement("div");
+        fileDiv.className = "output-file";
+
+        const header = document.createElement("div");
+        header.className = "output-file-header";
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = file.name;
+        header.appendChild(nameSpan);
+        const dlBtn = document.createElement("a");
+        dlBtn.className = "dl-btn";
+        dlBtn.textContent = "Download";
+        dlBtn.download = file.name;
+        dlBtn.href = getDownloadUri(file);
+        header.appendChild(dlBtn);
+        fileDiv.appendChild(header);
+
+        const fc = document.createElement("div");
+        fc.className = "output-file-content";
+
+        if (file.type === "text") {
+          const pre = document.createElement("pre");
+          pre.textContent = file.content;
+          fc.appendChild(pre);
+        } else if (file.type === "image") {
+          const img = document.createElement("img");
+          img.src = file.data_uri;
+          img.alt = file.name;
+          fc.appendChild(img);
+        } else if (file.type === "pdf") {
+          const iframe = document.createElement("iframe");
+          iframe.src = file.data_uri;
+          fc.appendChild(iframe);
+        } else if (file.type === "xlsx") {
+          renderXlsx(fc, file.data_b64);
+        } else if (file.type === "binary") {
+          const a = document.createElement("a");
+          a.className = "download-link";
+          a.href = file.data_uri;
+          a.download = file.name;
+          a.textContent = "Download " + file.name;
+          fc.appendChild(a);
+        }
+
+        fileDiv.appendChild(fc);
+        wrapper.appendChild(fileDiv);
+      }
+
+      content.appendChild(wrapper);
+    }
+
+    function togglePrevOutputs() {
+      const content = document.getElementById("prev-outputs-content");
+      const arrow = document.getElementById("prev-outputs-arrow");
+      content.classList.toggle("open");
+      arrow.classList.toggle("open");
+    }
+
+    // ---- Feedback (saved to server -> feedback.json) ----
+    function saveCurrentFeedback() {
+      const run = EMBEDDED_DATA.runs[currentIndex];
+      const text = document.getElementById("feedback").value;
+
+      if (text.trim() === "") {
+        delete feedbackMap[run.id];
+      } else {
+        feedbackMap[run.id] = text;
+      }
+
+      // Build reviews array from map
+      const reviews = [];
+      for (const [run_id, feedback] of Object.entries(feedbackMap)) {
+        if (feedback.trim()) {
+          reviews.push({ run_id, feedback, timestamp: new Date().toISOString() });
+        }
+      }
+
+      fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reviews, status: "in_progress" }),
+      }).then(() => {
+        document.getElementById("feedback-status").textContent = "Saved";
+      }).catch(() => {
+        // Static mode or server unavailable — no-op on auto-save,
+        // feedback will be downloaded on final submit
+        document.getElementById("feedback-status").textContent = "Will download on submit";
+      });
+    }
+
+    // ---- Done ----
+    function showDoneDialog() {
+      // Save current textarea to feedbackMap (but don't POST yet)
+      const run = EMBEDDED_DATA.runs[currentIndex];
+      const text = document.getElementById("feedback").value;
+      if (text.trim() === "") {
+        delete feedbackMap[run.id];
+      } else {
+        feedbackMap[run.id] = text;
+      }
+
+      // POST once with status: complete — include ALL runs so the model
+      // can distinguish "no feedback" (looks good) from "not reviewed"
+      const reviews = [];
+      const ts = new Date().toISOString();
+      for (const r of EMBEDDED_DATA.runs) {
+        reviews.push({ run_id: r.id, feedback: feedbackMap[r.id] || "", timestamp: ts });
+      }
+      const payload = JSON.stringify({ reviews, status: "complete" }, null, 2);
+      fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+      }).then(() => {
+        document.getElementById("done-overlay").classList.add("visible");
+      }).catch(() => {
+        // Server not available (static mode) — download as file
+        const blob = new Blob([payload], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "feedback.json";
+        a.click();
+        URL.revokeObjectURL(url);
+        document.getElementById("done-overlay").classList.add("visible");
+      });
+    }
+
+    function closeDoneDialog() {
+      // Reset status back to in_progress
+      saveCurrentFeedback();
+      document.getElementById("done-overlay").classList.remove("visible");
+    }
+
+    // ---- Toast ----
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.add("visible");
+      setTimeout(() => toast.classList.remove("visible"), 2000);
+    }
+
+    // ---- Keyboard nav ----
+    document.addEventListener("keydown", (e) => {
+      // Don't capture when typing in textarea
+      if (e.target.tagName === "TEXTAREA") return;
+
+      if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        e.preventDefault();
+        navigate(-1);
+      } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        e.preventDefault();
+        navigate(1);
+      }
+    });
+
+    // ---- Util ----
+    function getDownloadUri(file) {
+      if (file.data_uri) return file.data_uri;
+      if (file.data_b64) return "data:application/octet-stream;base64," + file.data_b64;
+      if (file.type === "text") return "data:text/plain;charset=utf-8," + encodeURIComponent(file.content);
+      return "#";
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement("div");
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // ---- View switching ----
+    function switchView(view) {
+      document.querySelectorAll(".view-tab").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".view-panel").forEach(p => p.classList.remove("active"));
+      document.querySelector(`[onclick="switchView('${view}')"]`).classList.add("active");
+      document.getElementById("panel-" + view).classList.add("active");
+    }
+
+    // ---- Benchmark rendering ----
+    function renderBenchmark() {
+      const data = EMBEDDED_DATA.benchmark;
+      if (!data) return;
+
+      // Show the tabs
+      document.getElementById("view-tabs").style.display = "flex";
+
+      const container = document.getElementById("benchmark-content");
+      const summary = data.run_summary || {};
+      const metadata = data.metadata || {};
+      const notes = data.notes || [];
+
+      let html = "";
+
+      // Header
+      html += "<h2 style='font-family: Poppins, sans-serif; margin-bottom: 0.5rem;'>Benchmark Results</h2>";
+      html += "<p style='color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1.25rem;'>";
+      if (metadata.skill_name) html += "<strong>" + escapeHtml(metadata.skill_name) + "</strong> &mdash; ";
+      if (metadata.timestamp) html += metadata.timestamp + " &mdash; ";
+      if (metadata.evals_run) html += "Evals: " + metadata.evals_run.join(", ") + " &mdash; ";
+      html += (metadata.runs_per_configuration || "?") + " runs per configuration";
+      html += "</p>";
+
+      // Summary table
+      html += '<table class="benchmark-table">';
+
+      function fmtStat(stat, pct) {
+        if (!stat) return "—";
+        const suffix = pct ? "%" : "";
+        const m = pct ? (stat.mean * 100).toFixed(0) : stat.mean.toFixed(1);
+        const s = pct ? (stat.stddev * 100).toFixed(0) : stat.stddev.toFixed(1);
+        return m + suffix + " ± " + s + suffix;
+      }
+
+      function deltaClass(val) {
+        if (!val) return "";
+        const n = parseFloat(val);
+        if (n > 0) return "benchmark-delta-positive";
+        if (n < 0) return "benchmark-delta-negative";
+        return "";
+      }
+
+      // Discover config names dynamically (everything except "delta")
+      const configs = Object.keys(summary).filter(k => k !== "delta");
+      const configA = configs[0] || "config_a";
+      const configB = configs[1] || "config_b";
+      const labelA = configA.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      const labelB = configB.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      const a = summary[configA] || {};
+      const b = summary[configB] || {};
+      const delta = summary.delta || {};
+
+      html += "<thead><tr><th>Metric</th><th>" + escapeHtml(labelA) + "</th><th>" + escapeHtml(labelB) + "</th><th>Delta</th></tr></thead>";
+      html += "<tbody>";
+
+      html += "<tr><td><strong>Pass Rate</strong></td>";
+      html += "<td>" + fmtStat(a.pass_rate, true) + "</td>";
+      html += "<td>" + fmtStat(b.pass_rate, true) + "</td>";
+      html += '<td class="' + deltaClass(delta.pass_rate) + '">' + (delta.pass_rate || "—") + "</td></tr>";
+
+      // Time (only show row if data exists)
+      if (a.time_seconds || b.time_seconds) {
+        html += "<tr><td><strong>Time (s)</strong></td>";
+        html += "<td>" + fmtStat(a.time_seconds, false) + "</td>";
+        html += "<td>" + fmtStat(b.time_seconds, false) + "</td>";
+        html += '<td class="' + deltaClass(delta.time_seconds) + '">' + (delta.time_seconds ? delta.time_seconds + "s" : "—") + "</td></tr>";
+      }
+
+      // Tokens (only show row if data exists)
+      if (a.tokens || b.tokens) {
+        html += "<tr><td><strong>Tokens</strong></td>";
+        html += "<td>" + fmtStat(a.tokens, false) + "</td>";
+        html += "<td>" + fmtStat(b.tokens, false) + "</td>";
+        html += '<td class="' + deltaClass(delta.tokens) + '">' + (delta.tokens || "—") + "</td></tr>";
+      }
+
+      html += "</tbody></table>";
+
+      // Per-eval breakdown (if runs data available)
+      const runs = data.runs || [];
+      if (runs.length > 0) {
+        const evalIds = [...new Set(runs.map(r => r.eval_id))].sort((a, b) => a - b);
+
+        html += "<h3 style='font-family: Poppins, sans-serif; margin-bottom: 0.75rem;'>Per-Eval Breakdown</h3>";
+
+        const hasTime = runs.some(r => r.result && r.result.time_seconds != null);
+        const hasErrors = runs.some(r => r.result && r.result.errors > 0);
+
+        for (const evalId of evalIds) {
+          const evalRuns = runs.filter(r => r.eval_id === evalId);
+          const evalName = evalRuns[0] && evalRuns[0].eval_name ? evalRuns[0].eval_name : "Eval " + evalId;
+
+          html += "<h4 style='font-family: Poppins, sans-serif; margin: 1rem 0 0.5rem; color: var(--text);'>" + escapeHtml(evalName) + "</h4>";
+          html += '<table class="benchmark-table">';
+          html += "<thead><tr><th>Config</th><th>Run</th><th>Pass Rate</th>";
+          if (hasTime) html += "<th>Time (s)</th>";
+          if (hasErrors) html += "<th>Crashes During Execution</th>";
+          html += "</tr></thead>";
+          html += "<tbody>";
+
+          // Group by config and render with average rows
+          const configGroups = [...new Set(evalRuns.map(r => r.configuration))];
+          for (let ci = 0; ci < configGroups.length; ci++) {
+            const config = configGroups[ci];
+            const configRuns = evalRuns.filter(r => r.configuration === config);
+            if (configRuns.length === 0) continue;
+
+            const rowClass = ci === 0 ? "benchmark-row-with" : "benchmark-row-without";
+            const configLabel = config.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+
+            for (const run of configRuns) {
+              const r = run.result || {};
+              const prClass = r.pass_rate >= 0.8 ? "benchmark-delta-positive" : r.pass_rate < 0.5 ? "benchmark-delta-negative" : "";
+              html += '<tr class="' + rowClass + '">';
+              html += "<td>" + configLabel + "</td>";
+              html += "<td>" + run.run_number + "</td>";
+              html += '<td class="' + prClass + '">' + ((r.pass_rate || 0) * 100).toFixed(0) + "% (" + (r.passed || 0) + "/" + (r.total || 0) + ")</td>";
+              if (hasTime) html += "<td>" + (r.time_seconds != null ? r.time_seconds.toFixed(1) : "—") + "</td>";
+              if (hasErrors) html += "<td>" + (r.errors || 0) + "</td>";
+              html += "</tr>";
+            }
+
+            // Average row
+            const rates = configRuns.map(r => (r.result || {}).pass_rate || 0);
+            const avgRate = rates.reduce((a, b) => a + b, 0) / rates.length;
+            const avgPrClass = avgRate >= 0.8 ? "benchmark-delta-positive" : avgRate < 0.5 ? "benchmark-delta-negative" : "";
+            html += '<tr class="benchmark-row-avg ' + rowClass + '">';
+            html += "<td>" + configLabel + "</td>";
+            html += "<td>Avg</td>";
+            html += '<td class="' + avgPrClass + '">' + (avgRate * 100).toFixed(0) + "%</td>";
+            if (hasTime) {
+              const times = configRuns.map(r => (r.result || {}).time_seconds).filter(t => t != null);
+              html += "<td>" + (times.length ? (times.reduce((a, b) => a + b, 0) / times.length).toFixed(1) : "—") + "</td>";
+            }
+            if (hasErrors) html += "<td></td>";
+            html += "</tr>";
+          }
+          html += "</tbody></table>";
+
+          // Per-assertion detail for this eval
+          const runsWithExpectations = {};
+          for (const config of configGroups) {
+            runsWithExpectations[config] = evalRuns.filter(r => r.configuration === config && r.expectations && r.expectations.length > 0);
+          }
+          const hasAnyExpectations = Object.values(runsWithExpectations).some(runs => runs.length > 0);
+          if (hasAnyExpectations) {
+            // Collect all unique assertion texts across all configs
+            const allAssertions = [];
+            const seen = new Set();
+            for (const config of configGroups) {
+              for (const run of runsWithExpectations[config]) {
+                for (const exp of (run.expectations || [])) {
+                  if (!seen.has(exp.text)) {
+                    seen.add(exp.text);
+                    allAssertions.push(exp.text);
+                  }
+                }
+              }
+            }
+
+            html += '<table class="benchmark-table" style="margin-top: 0.5rem;">';
+            html += "<thead><tr><th>Assertion</th>";
+            for (const config of configGroups) {
+              const label = config.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+              html += "<th>" + escapeHtml(label) + "</th>";
+            }
+            html += "</tr></thead><tbody>";
+
+            for (const assertionText of allAssertions) {
+              html += "<tr><td>" + escapeHtml(assertionText) + "</td>";
+
+              for (const config of configGroups) {
+                html += "<td>";
+                for (const run of runsWithExpectations[config]) {
+                  const exp = (run.expectations || []).find(e => e.text === assertionText);
+                  if (exp) {
+                    const cls = exp.passed ? "benchmark-delta-positive" : "benchmark-delta-negative";
+                    const icon = exp.passed ? "\u2713" : "\u2717";
+                    html += '<span class="' + cls + '" title="Run ' + run.run_number + ': ' + escapeHtml(exp.evidence || "") + '">' + icon + "</span> ";
+                  } else {
+                    html += "— ";
+                  }
+                }
+                html += "</td>";
+              }
+              html += "</tr>";
+            }
+            html += "</tbody></table>";
+          }
+        }
+      }
+
+      // Notes
+      if (notes.length > 0) {
+        html += '<div class="benchmark-notes">';
+        html += "<h3>Analysis Notes</h3>";
+        html += "<ul>";
+        for (const note of notes) {
+          html += "<li>" + escapeHtml(note) + "</li>";
+        }
+        html += "</ul></div>";
+      }
+
+      container.innerHTML = html;
+    }
+
+    // ---- Start ----
+    init();
+    renderBenchmark();
+  </script>
+</body>
+</html>

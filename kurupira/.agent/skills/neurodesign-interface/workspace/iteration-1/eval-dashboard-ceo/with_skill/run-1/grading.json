@@ -1,0 +1,30 @@
+{
+  "eval_id": 2,
+  "config": "with_skill",
+  "expectations": [
+    {
+      "text": "critica-pizza",
+      "passed": true,
+      "evidence": "Full section on pizza charts with Cleveland-McGill table. Angle judgment is most imprecise visual process."
+    },
+    {
+      "text": "reduz-kpis",
+      "passed": true,
+      "evidence": "1 primary + 2-3 secondary KPIs with font-size hierarchy. Groups 12 into 3-4 semantic blocks."
+    },
+    {
+      "text": "modo-executivo",
+      "passed": true,
+      "evidence": "Progressive Disclosure in 3 explicit levels: CEO (3 months), click (12 months sparklines), analyst (24 months)."
+    },
+    {
+      "text": "tem-proximo-passo",
+      "passed": true,
+      "evidence": "Ends with: open dashboard now, apply Squint Test, note which KPIs survive. Immediate specific action."
+    }
+  ],
+  "summary": {
+    "pass_rate": 1.0
+  },
+  "notes": "100% pass rate. Excellent prioritized 3-sprint plan with review checklists."
+}

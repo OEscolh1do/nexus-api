@@ -31,4 +31,14 @@ CREATE USER IF NOT EXISTS 'user_admin'@'%' IDENTIFIED BY 'admin_S3cur3_2026!';
 GRANT SELECT ON db_iaca.* TO 'user_admin'@'%';
 GRANT SELECT ON db_kurupira.* TO 'user_admin'@'%';
 
+-- Sumaúma (Ywara Core Admin) - O NOVO MESTRE
+CREATE DATABASE IF NOT EXISTS db_sumauma
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+
+CREATE USER IF NOT EXISTS 'user_sumauma'@'%' IDENTIFIED BY 'sumauma_S3cur3_2026!';
+GRANT ALL PRIVILEGES ON db_sumauma.* TO 'user_sumauma'@'%';
+GRANT SELECT ON db_iaca.* TO 'user_sumauma'@'%';
+GRANT SELECT ON db_kurupira.* TO 'user_sumauma'@'%';
+
 FLUSH PRIVILEGES;

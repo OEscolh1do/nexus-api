@@ -1,0 +1,30 @@
+{
+  "eval_id": 2,
+  "config": "without_skill",
+  "expectations": [
+    {
+      "text": "critica-pizza",
+      "passed": true,
+      "evidence": "Replace pizza with horizontal bars. Justification present without Cleveland-McGill reference."
+    },
+    {
+      "text": "reduz-kpis",
+      "passed": true,
+      "evidence": "Reduce to 3-5 visible KPIs with secondary layers. Clear recommendation within expected range."
+    },
+    {
+      "text": "modo-executivo",
+      "passed": true,
+      "evidence": "3 hierarchical zones and 5-second test. Progressive disclosure implicitly present, not named."
+    },
+    {
+      "text": "tem-proximo-passo",
+      "passed": false,
+      "evidence": "Ends with prioritization table - useful but not an immediately actionable next step."
+    }
+  ],
+  "summary": {
+    "pass_rate": 0.75
+  },
+  "notes": "Solid UX baseline. Missing neuroscientific depth and immediate next step."
+}

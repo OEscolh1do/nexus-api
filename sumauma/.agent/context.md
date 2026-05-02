@@ -20,7 +20,7 @@ Este módulo é **separado** dos sistemas de produto (Iaçã e Kurupira) e se co
 | **Usuários** | Equipe interna Neonorte (role: `PLATFORM_ADMIN`) |
 | **Porta Backend** | 3003 |
 | **Porta Frontend** | 5175 (dev) |
-| **IAM (Auth)** | Logto Self-Hosted (Portas: 3001-Auth / 3002-Admin) |
+| **IAM (Auth)** | Logto Cloud (SaaS) |
 
 ---
 
@@ -64,8 +64,8 @@ Este módulo é **separado** dos sistemas de produto (Iaçã e Kurupira) e se co
 
 | Variável | Valor (Dev) |
 |----------|------------|
-| `LOGTO_ENDPOINT` | `http://localhost:3001` |
-| `LOGTO_JWKS_URI` | `http://localhost:3001/oidc/jwks` |
+| `LOGTO_ENDPOINT` | `https://214fzz.logto.app` |
+| `LOGTO_JWKS_URI` | `https://214fzz.logto.app/oidc/jwks` |
 | `DATABASE_URL_IACA_RO` | `mysql://user_admin:admin_S3cur3_2026!@localhost:3306/db_iaca` |
 | `DATABASE_URL_KURUPIRA_RO` | `mysql://user_admin:admin_S3cur3_2026!@localhost:3306/db_kurupira` |
 | `M2M_SERVICE_TOKEN` | `m2m_guardioes_secret_2026!` |
@@ -75,7 +75,7 @@ Este módulo é **separado** dos sistemas de produto (Iaçã e Kurupira) e se co
 
 ## 🔐 AUTENTICAÇÃO (LOGTO)
 
-1. O operador clica em "Entrar com Logto" e é redirecionado para o SSO local (`3001`).
+1. O operador clica em "Entrar" e é redirecionado para o Logto Cloud (`214fzz.logto.app`).
 2. Após o login, o frontend recebe um **ID Token (JWT)** assinado pelo Logto.
 3. O frontend armazena este JWT e o envia em todas as requisições via header `Authorization: Bearer <JWT>`.
 4. O Backend (`platformAuth.js`) valida a assinatura do JWT usando as chaves públicas (JWKS) do Logto.

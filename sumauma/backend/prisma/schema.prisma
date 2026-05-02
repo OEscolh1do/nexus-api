@@ -62,7 +62,7 @@ model User {
   tenantId       String
   jobTitle       String?
   mustChangePassword Boolean @default(false)
-  authProviderId String?   @unique // ZITADEL Subject ID
+  authProviderId String?   @unique // Logto Subject ID
   status         String    @default("ACTIVE") // ACTIVE, BLOCKED, PENDING_VERIFICATION
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt

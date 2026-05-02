@@ -1,170 +1,104 @@
-# CONTEXT.md — Sistema NEONORTE
+# CONTEXT.md — Ecossistema YWARA (Visão Global)
 
-> **Última Atualização:** 2026-04-16
+> **Última Atualização:** 2026-05-01
 > **Arquiteto:** Antigravity AI
-> **Versão do Sistema:** 3.8.0 (Jornada do Integrador — Dashboard de Rigor Elétrico + MapCore Multi-Modo)
+> **Versão do Ecossistema:** 4.0.0 (Era Ywara)
 
 ---
 
-## 📋 VISÃO GERAL
+## 📋 VISÃO GERAL (O CONCEITO YWARA)
 
-**Neonorte** é um ecossistema **multi-serviço** para o setor de energia solar. O antigo monólito "Nexus" foi cisado em dois domínios autônomos, cada um com frontend + backend + schema MySQL dedicado, orquestrados por Docker Compose.
+O ecossistema **Ywara** (Andar Superior na cosmologia Tupi) representa a infraestrutura celeste da Neonorte. É o hub de orquestração onde residem os heróis culturais (Sol/Guaraci) e onde são decididos os ciclos climáticos (regras de negócio e lógica de plataforma).
 
-| Domínio | Codinome | Responsabilidade |
-|---------|----------|-----------------| 
-| **Gestão & CRM** | **Iaçã** | ERP, Leads, Pipeline, Finanças, Strategy, Operations, IAM |
-| **Engenharia Solar** | **Kurupira** | Dimensionamento, Elétrico, Documentação, Proposta, Simulação |
+Este hub orquestra domínios autônomos, cada um com frontend + backend + schema MySQL dedicado:
 
----
-
-## 🏗️ ARQUITETURA DE UI (v3.8.0)
-
-O Kurupira opera como um **Dashboard de Engenharia de Alta Densidade**, onde cada aba da Jornada do Integrador exibe uma canvas view especializada sobreposta ao motor de mapas (Leaflet + WebGL).
-
-### Paradigma Visual: Ferramenta de Engenharia ("Engineering Tool Aesthetic")
-- **Geometria Reta**: Uso exclusivo de `rounded-sm`. Abolição total de `rounded-xl/2xl/3xl` em painéis.
-- **Tipografia de Dados**: `font-mono` + `tabular-nums` em todos os valores elétricos e de consumo.
-- **Gráficos Industriais**: Barras com `radius={0}` em todos os charts (Recharts), eixos em `font-mono`.
-### Matriz de Cores Semântica (v3.8.1)
-Para garantir contraste (WCAG AA) em Dark Mode (`slate-950`), utilizamos o sistema **10-20-400**:
-
-| Família | Uso | Surface (10%) | Border (20%) | Text (400) |
-|:---|:---|:---|:---|:---|
-| 🔵 **Sky** | Consumo/Carga | `sky-900/10` | `sky-500/20` | `sky-400` |
-| 🟠 **Amber** | Geração/Módulos | `amber-900/10` | `amber-500/20` | `amber-400` |
-| 🟢 **Emerald** | Eficiência/OK | `emerald-900/10` | `emerald-500/20` | `emerald-400` |
-| 🌡️ **Rose** | Temperatura | `rose-900/10` | `rose-500/20` | `rose-400` |
-| 🟣 **Violet** | Drawing/Arranjo | `violet-900/10` | `violet-500/20` | `violet-400` |
-| ☀️ **Yellow** | Irradiância (HSP) | `yellow-900/10` | `yellow-500/20` | `yellow-400` |
-| 🔴 **Red** | Erros/Críticos | `red-900/20` | `red-500/30` | `red-400` |
-
-### Jornada do Integrador: Canvas Views sobrepostas ao MapCore
-
-| FocusedBlock | Canvas View Ativa | Modo do MapCore |
-|---|---|---|
-| `null` / `map` | Mapa livre | `neutral` |
-| `consumption` | `ConsumptionCanvasView` | — (overlay opaco) |
-| `module` | Mapa + HUD placement | `placement` |
-| `inverter` | `ElectricalCanvasView` | — (overlay opaco) |
-| `simulation` | `SimulationCanvasView` | — (overlay opaco) |
-
-### MapCore: Modos de Operação (v3.8.0)
-O `MapCanvasView` wrapper gerencia 3 modos contextuais derivados do `activeFocusedBlock`:
-- **`placement`** (`module`): Ferramentas SELECT, PLACE_MODULE, MEASURE. Barra sky com contagem de módulos.
-- **`drawing`** (`arrangement`): Ferramentas SELECT, POLYGON, MEASURE. Barra indigo + FDI. Auto-ativa POLYGON.
-- **`neutral`** (default): Ferramentas SELECT, MEASURE. Barra slate com coordenadas.
-
-### Workspace Tabs (Ordem na UI)
-`Consumo → Módulos → Elétrica → Simulação → Mapa`
-
----
-
-## 📍 MARCADOR PADRONIZADO (Neonorte Standard Marker)
-
-O Pin de localização é o elemento central de ancoragem visual e interatividade espacial do ecossistema.
-
-- **Componente Visual**: `NeonorteMarkerUI.tsx` (CSS Puro + Anéis de Radar).
-- **Wrapper Leaflet**: `ProjectSiteMarker.tsx` (Integração com `solarStore` e `uiStore`).
-- **Comportamento**:
-  - **Hub/Explorer**: Renderizado como overlay estático (`size="sm"`, pulse desativado).
-  - **Workspace/Maps**: Atua como gatilho de foco. Ao clicar, executa `selectEntity('site', ...)` e `setFocusedBlock('site')`.
-  - **Tooltip**: Estética Industrial (Slate 950, 95% opacidade, font-mono, border semântica Emerald).
+| Módulo | Codinome | Papel | Porta BE | Porta FE |
+|--------|----------|-------|----------|----------|
+| **Hub / Root** | **Ywara** | Infraestrutura e orquestração celeste | - | - |
+| **Admin** | **Sumaúma** | Backoffice (O pilar central que conecta e sustenta o ecossistema) | 3003 | 5175 |
+| **Engenharia** | **Kurupira** | Motor Solar (O protetor técnico da floresta) | 3002 | 5173 |
+| **ERP** | **Iaçã** | Gestão e Prosperidade (O fruto que alimenta o negócio) | 3001 | 5174 |
 
 ---
 
 ## 🏗️ INFRAESTRUTURA & STACK
-[Mantido v3.5.0]
+
+| Camada | Tecnologia |
+|--------|-----------|
+| **Orquestração** | Docker Compose (Otimizado para VPS 2GB) |
+| **Banco de Dados** | MySQL 8 (Tuning: 256MB Buffer) — schemas: `db_iaca`, `db_kurupira`, `db_sumauma` |
+| **ORM** | Prisma 5.10 (um client por serviço) |
+| **Auth** | Logto (Hybrid Cloud: Cloud IAM + Local Apps) |
+| **Backend Pattern** | Node.js (CommonJS) + Express |
+| **Frontend Pattern** | Vite + React + TypeScript + Tailwind CSS (dark-mode only) |
+| **Ícones** | Lucide React |
 
 ---
 
-## 🧩 MÓDULOS POR DOMÍNIO
+## 📡 ARQUITETURA DE COMUNICAÇÃO ENTRE SERVIÇOS
 
-### Kurupira (Engenharia Solar) — `kurupira/`
+```
+Sumaúma (BFF / Admin)
+    │
+    ├── Leitura direta → Prisma read-only → db_iaca / db_kurupira
+    │
+    └── Mutações → M2M HTTP (Axios + X-Service-Token) → Iaçã API / Kurupira API
+```
 
-| Módulo | Localização | Status |
-|--------|------------|--------|
-| Compositor Lego (UI/UX) | `frontend/src/modules/engineering/ui/panels/` | ✅ Operacional (v3.8) |
-| MapCore Multi-Modo | `canvas-views/MapCanvasView.tsx` | ✅ v3.8.0 |
-| Barra Contextual MapCore | `canvas-views/map/MapContextBar.tsx` | ✅ v3.8.0 |
-| Dimensionamento (Elétrico) | `canvas-views/electrical/` | ✅ v3.7.0 |
-| VoltageRangeChart (Multi-MPPT) | `canvas-views/electrical/VoltageRangeChart.tsx` | ✅ v3.7.0 |
-| ConsumptionCanvasView | `canvas-views/ConsumptionCanvasView.tsx` | ✅ Engineering Aesthetic (v3.8) |
-| Simulação Analítica | `frontend/src/modules/simulation/` | ✅ TRL 8 |
-| Documentação (Memorial, ART) | `frontend/src/modules/documentation/` | 🚧 Refatorando |
-| Proposta (Pricing, PDF) | `frontend/src/modules/proposal/` | ✅ Operacional |
+**Regra de ouro:** O `Sumaúma` **nunca** faz INSERT/UPDATE/DELETE direto nos bancos irmãos. Toda mutação passa pelo serviço dono do dado.
 
----
+### Variáveis de Ambiente (Dev)
 
-## 🔄 CHANGELOG
-
-### v3.8.1 (2026-04-18) — Refatoração Radical de Consumo + UI Ghost Scrollbars
-
-- ✅ **Consumo Full-Width**: Remoção da sidebar 75/25 na view de consumo. HUD de kWp Alvo movido para o header.
-- ✅ **Premises Bar**: Centralização de todas as variáveis de estudo (Ligação, Tarifa, Média, Crescimento) em uma única barra horizontal.
-- ✅ **Ghost Scrollbars**: Implementação global de barras de rolagem minimalistas (6px, slate-800) para redução de ruído visual.
-- ✅ **Cleanup**: Remoção do componente redundante `ClimateCorrelationChart.tsx`.
-- ⏳ **Arranjo Físico Deferido**: Módulo de desenho de arranjo físico ocultado da UI e removido como gate de progressão; será reativado em fase posterior.
-
-### v3.8.0 (2026-04-16) — Jornada do Integrador: MapCore Multi-Modo + Consumption Refactor
-
-- ✅ **MapCore Multi-Modo**: Criação do `MapCanvasView` wrapper com 3 modos (`placement`, `drawing`, `neutral`) derivados do `activeFocusedBlock`. Filtragem de HUD de ferramentas por modo, auto-ativação do POLYGON no modo drawing.
-- ✅ **MapContextBar**: Nova barra de status contextual `h-8` inferior com métricas reativas por modo.
-- ✅ **FocusedBlock `'arrangement'`**: Adicionado ao tipo `FocusedBlock` em `uiStore.ts`.
-- ✅ **Aba "Arranjo"**: Adicionada ao `WorkspaceTabs` com ícone `Layers`.
-- ✅ **CenterCanvas simplificado**: `MapPayload` inline substituído por `<MapCanvasView />`.
-- ✅ **ConsumptionCanvasView Engineering Aesthetic**: Grid 75/25, rodapé com `tabular-nums`, `rounded-sm` global, CTA industrial.
-- ✅ **ConsumptionChart**: Barras `radius={0}`, Tooltip industrial em `font-mono`, input `rounded-sm`.
-- ✅ **ClimateCorrelationChart**: Fontes `font-mono` nos eixos; legendas column-style ao invés de pills.
-- ✅ **SimulatedLoadsPanel**: Badges de perfil `rounded-sm` com borda semântica; form inline `grid-cols-12`; `tabular-nums` na coluna kWh.
-
-### v3.7.0 (2026-04-15) — Rigor Paramétrico Elétrico + Multi-MPPT Termodinâmico
-
-- ✅ **InverterState.snapshot**: Expandido com `maxInputVoltage`, `min/maxMpptVoltage`, `maxCurrentPerMPPT`.
-- ✅ **useElectricalValidation**: Limites do snapshot do inversor; fallback `minHistoricalTemp` → `-5°C` (NEC 690.7).
-- ✅ **ElectricalCanvasView**: Abolição de constantes hardcoded.
-- ✅ **VoltageRangeChart Multi-MPPT**: Gantt Chart termodinâmico por MPPT. Tick de Voc vermelho ao ultrapassar limite.
-
-### v3.6.0 (2026-04-14) — Operação Lego-Scratch (Interface Tátil)
-[Mantido para histórico]
-
-### v3.5.0 (2026-04-14) — Workspace TRL 7-8 & Advanced Simulation
-[Mantido para histórico]
+| Variável | Valor |
+|----------|-------|
+| `IACA_INTERNAL_URL` | `http://localhost:3001` |
+| `KURUPIRA_INTERNAL_URL` | `http://localhost:3002` |
+| `DATABASE_URL_IACA_RO` | `mysql://user_admin:admin_S3cur3_2026!@localhost:3306/db_iaca` |
+| `DATABASE_URL_KURUPIRA_RO` | `mysql://user_admin:admin_S3cur3_2026!@localhost:3306/db_kurupira` |
+| `M2M_SERVICE_TOKEN` | `m2m_guardioes_secret_2026!` |
 
 ---
 
-## 🔑 PADRÕES INEGOCIÁVEIS (Engineering Aesthetic Rules)
+## 🧩 ESTRUTURA DE AGENTE (`.agent` Hierárquico)
 
-1. **Sem `rounded-xl/2xl/3xl`** em painéis estruturais. Apenas `rounded-sm` ou no máximo `rounded-md`.
-2. **Todos os valores numéricos elétricos**: `font-mono tabular-nums`.
-3. **Gráficos Recharts**: `radius={0}` em todas as barras. Grid `strokeDasharray="2 2"` em `#1e293b`.
-4. **Tooltips**: `bg-slate-900 border border-slate-700 rounded-sm`, uppercase tracking-widest, mono font.
-5. **Badges de status**: `border` semântica explícita (ex: `border-amber-500/20`) ao invés de `bg-opacity` isolado.
-6. **MapCore**: NUNCA desmonta. Usa camadas de overlay (FrozenViewContainer) — jamais unmount/remount.
-7. **Rigor Decimal**: Todos os valores numéricos técnicos (kWp, kWh, V, A, W, R$) apresentados em blocos, painéis HUD e tabelas **devem ter exatamente 2 casas decimais** (`.toFixed(2)`), garantindo a estética de precisão. Valores de porcentagem podem ser inteiros se a variância for baixa.
-8. **Scrollbars Ghost**: Devem ter largura de **6px**, acabamento em **slate-800** sobre fundo transparente. Tornam-se visíveis apenas quando necessário para reduzir ruído visual. O utilitário `.scrollbar-hide` deve ser usado para ocultar a barra mantendo a funcionalidade de scroll quando o design exigir.
-9. **Rigor de Tipografia e Acessibilidade**:
-   - **Micro (`text-[11px]`)**: Limite mínimo absoluto. Uso restrito a badges, unidades (W, V, A) e legendas de gráficos.
-   - **Small (`text-xs` / 12px)**: Padrão para labels de formulário, títulos de mini-cards e metadados secundários.
-   - **Base (`text-sm` / 14px)**: Padrão para dados de engenharia principais, valores numéricos em HUDs e corpo de texto.
-   - **Contraste**: Labels secundárias sobre `bg-slate-950` devem usar no mínimo `text-slate-400`. Nunca usar `slate-500/600` para textos informativos essenciais.
-10. **Escalas Climáticas Adaptativas (Amplitude Mínima)**: Para evitar gráficos "tendenciosos" e manter a honestidade de engenharia em diferentes latitudes (ex: Norte vs Sul do Brasil), eixos de clima devem impor uma amplitude mínima:
-    - **Temperatura**: Span mínimo de **15°C**.
-    - **HSP**: Span mínimo de **3.0**.
-    - Se a variação real for menor que o span mínimo, os dados devem ser centralizados no eixo, garantindo que pequenas flutuações não pareçam mudanças drásticas.
-11. **Caixas de Diálogo e Intertravamentos (Engineering Modals)**: Abandono de pop-ups centrais B2C flutuantes (Portals).
-    - **Contexto**: Alertas críticos devem ser `In-Canvas Overlays` (`absolute inset-0` dentro do painel que sofre a alteração), mantendo o foco do usuário no módulo afetado.
-    - **Visual Sóbrio e Glassmorphism**: Caixa de aviso centralizada com fundo escuro (`bg-slate-900`), `backdrop-blur-md`, e borda de precisão (`ring-1 ring-white/10`). Abolição de efeitos "gamer" ou cores super-saturadas globais.
-    - **Mini-Diff (Visual Impact Indicator)**: Substituir parágrafos longos por comparativos visuais rápidos (ex: Mini-Histogramas/Sparklines mostrando "Antes vs Depois") para acelerar a decisão do engenheiro.
-    - **Comandos**: Botões com estética utilitária. O botão de ação primária (override) deve ter fundo/borda sutis indicando a intenção técnica (ex: `bg-sky-500/5 border-sky-500/30`).
+Este ecossistema usa uma estratégia **Híbrida em 3 Camadas** para maximizar a precisão do Antigravity:
 
-## 9. PADRÕES DE IDIOMA E LOCALIZAÇÃO
+/.agent/           ← CAMADA 1: Ywara (workflows, skills transversais)
+kurupira/.agent/   ← CAMADA 2: Kurupira (Motor PV, canvas, cálculo elétrico)
+sumauma/.agent/    ← CAMADA 3: Sumaúma (Backoffice, BFF, Tenants)
+iaca/.agent/       ← CAMADA 3: Iaçã (ERP, CRM)
 
-1. **Prioridade PT-BR**: Todo o texto visível ao usuário final (títulos, labels, tooltips, placeholders, alertas) deve estar em **Português do Brasil**.
-2. **Exceções (Siglas Técnicas)**: O uso de termos em inglês é permitido APENAS quando for o padrão de mercado ou sigla técnica universal, tais como:
-   - Unidades: `kWp`, `kWh`, `V`, `A`, `W`.
-   - Abreviações de Engenharia: `ID`, `MOD` (Módulos), `INV` (Inversores), `MPPT`, `HSP`.
-   - Termos Técnicos Consolidados: `Snapshot`, `Payload`, `Webhook` (apenas em contextos específicos de desenvolvedor).
-3. **Consistência de Tradução**:
-   - `Update` / `Updated At` → `Atualizado em` ou `ATU` (sigla).
-   - `Project Explorer` → `Explorador de Projetos`.
-   - `Empty State` → Mensagens em PT-BR (ex: "Nenhum dado encontrado").
+**Regra:** Skills de domínio específico **não** ficam na raiz global. A raiz contém apenas skills transversais (segurança, orquestração, arquitetura).
+
+---
+
+## 🔑 PADRÕES CROSS-CUTTING
+
+### Idioma e Localização
+1. **Prioridade PT-BR**: Todo texto visível ao usuário final em **Português do Brasil**.
+2. **Exceções (Siglas Técnicas)**: Permitido apenas quando padrão de mercado — `kWp`, `kWh`, `V`, `A`, `MPPT`, `HSP`, `M2M`, `Webhook`.
+3. **Consistência de Tradução**: `Updated At` → `Atualizado em`; `Empty State` → mensagens em PT-BR.
+
+### Código
+- **Backend**: CommonJS (`require`/`module.exports`) em todos os serviços.
+- **Frontend**: ESM (`import`/`export`) + TypeScript strict.
+- **Naming**: camelCase (variáveis/funções), PascalCase (componentes React), kebab-case (arquivos CSS/rotas).
+
+### Design (Dark-Mode Only)
+- `rounded-sm` (4px) é o máximo em painéis estruturais.
+- `font-mono tabular-nums` em todos os valores numéricos técnicos.
+- Datas em `dd/MM/yyyy HH:mm` (PT-BR).
+- Sem animações de entrada desnecessárias — dados aparecem instantaneamente.
+
+---
+
+## 🔄 CHANGELOG DO ECOSSISTEMA
+
+| v4.1.0 | 2026-05-02 | **Infra Otimizada**: Migração para Logto Cloud, Tuning de MySQL (256MB) e suporte a VPS 2GB |
+| v4.0.0 | 2026-05-01 | **A Era Ywara**: Rebranding completo e renomeação de pastas (Hub -> Ywara, Admin -> Sumaúma) |
+| v3.8.1 | 2026-04-18 | Kurupira: Refatoração Consumo + Ghost Scrollbars |
+| v3.8.0 | 2026-04-16 | Kurupira: MapCore Multi-Modo + Jornada do Integrador |
+| v3.7.0 | 2026-04-15 | Kurupira: Rigor Elétrico + Multi-MPPT |
+| v1.0.0 | 2026-04-30 | Sumaúma: Bootstrap do Backoffice |
+
+> Para o changelog detalhado de cada serviço, consulte o `context.md` local do respectivo módulo.
