@@ -152,3 +152,31 @@ export function useToggleEquipment(endpointBase: string, onSuccess?: () => void)
 
   return { toggle, loadingId };
 }
+
+// ─── Exclusão (M2M) ──────────────────────────────────────────────────────────
+
+export function useDeleteEquipment(endpointBase: string, onSuccess?: () => void) {
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const remove = useCallback(
+    (id: string) => {
+      if (!window.confirm('Tem certeza que deseja excluir este equipamento permanentemente?')) {
+        return;
+      }
+
+      setDeletingId(id);
+      return api
+        .delete(`${endpointBase}/${id}`)
+        .then(() => onSuccess?.())
+        .catch((err) => {
+          console.error('Falha ao excluir equipamento:', err);
+          alert(err.response?.data?.error || 'Falha ao excluir equipamento');
+          throw err;
+        })
+        .finally(() => setDeletingId(null));
+    },
+    [endpointBase, onSuccess]
+  );
+
+  return { remove, deletingId };
+}

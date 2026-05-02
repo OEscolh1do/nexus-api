@@ -163,10 +163,12 @@ export default function TenantDrawer({ tenantId, onClose, onMutated }: TenantDra
   const isBlocked = tenant?.status === 'BLOCKED';
 
   function handleBlock() {
+    if (!tenantId) return;
     block(tenantId).then(() => setShowBlock(false)).catch(() => {});
   }
 
   function handleResetQuota() {
+    if (!tenantId) return;
     patch(tenantId, { apiCurrentUsage: 0 });
   }
 

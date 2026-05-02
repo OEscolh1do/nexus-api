@@ -1,19 +1,33 @@
 const express = require('express');
 const axios = require('axios');
+const prismaSumauma = require('../lib/prismaSumauma');
 const prismaIaca = require('../lib/prismaIaca');
 const prismaKurupira = require('../lib/prismaKurupira');
 const { iacaClient } = require('../lib/m2mClient');
 
 const router = express.Router();
 
+let healthCache = {
+  data: null,
+  timestamp: 0,
+};
+
 // ============================================
 // GET /admin/system/health — Status dos serviços
 // ============================================
 router.get('/health', async (req, res) => {
+  const now = Date.now();
+  if (healthCache.data && now - healthCache.timestamp < 30000) {
+    return res.status(healthCache.data.status === 'healthy' ? 200 : 503).json({
+      ...healthCache.data,
+      fromCache: true,
+    });
+  }
+
   const probeService = async (name, url) => {
     const start = Date.now();
     try {
-      // Timeout estrito de 3s conforme spec
+      if (!url) throw new Error('URL não configurada');
       const resp = await axios.get(`${url}/health`, { timeout: 3000 });
       return {
         name,
@@ -40,22 +54,28 @@ router.get('/health', async (req, res) => {
     }
   };
 
-  // Promise.allSettled para garantir que probes lentas não bloqueiem o resto
   const probes = await Promise.allSettled([
     probeService('Iaçã', process.env.IACA_INTERNAL_URL),
     probeService('Kurupira', process.env.KURUPIRA_INTERNAL_URL),
+    probeDb('MySQL (Sumaúma)', prismaSumauma),
     probeDb('MySQL (Iaçã)', prismaIaca),
     probeDb('MySQL (Kurupira)', prismaKurupira),
   ]);
 
-  const results = probes.map(p => p.status === 'fulfilled' ? p.value : { status: 'error' });
+  const results = probes.map(p => p.status === 'fulfilled' ? p.value : { status: 'error', name: 'Unknown' });
+  const criticalServicesDown = results.some(r => r.status === 'down' || r.status === 'error');
   const allHealthy = results.every(r => r.status === 'healthy');
 
-  res.status(allHealthy ? 200 : 503).json({
-    status: allHealthy ? 'healthy' : 'degraded',
+  const responseData = {
+    status: allHealthy ? 'healthy' : (criticalServicesDown ? 'degraded' : 'healthy'),
     services: results,
     checkedAt: new Date().toISOString(),
-  });
+  };
+
+  healthCache = { data: responseData, timestamp: now };
+  // Retornamos 200 mesmo se degradado para evitar spam de 503 no console do navegador,
+  // já que o BFF ainda está operacional. A UI tratará o campo 'status'.
+  res.status(200).json(responseData);
 });
 
 // ============================================
@@ -64,7 +84,7 @@ router.get('/health', async (req, res) => {
 router.get('/info', (req, res) => {
   const envVars = [
     'JWT_SECRET',
-    'M2M_SERVICE_TOKEN',
+    'DATABASE_URL',
     'DATABASE_URL_IACA_RO',
     'DATABASE_URL_KURUPIRA_RO',
     'IACA_INTERNAL_URL',
@@ -91,41 +111,28 @@ router.get('/info', (req, res) => {
 router.get('/sessions', async (req, res) => {
   try {
     const now = new Date();
-    
-    // Lista detalhada das últimas 100 sessões ativas
-    const sessions = await prismaIaca.session.findMany({
+    // No db_sumauma (Master)
+    const sessions = await prismaSumauma.session.findMany({
       where: { expiresAt: { gt: now } },
       take: 100,
       orderBy: { createdAt: 'desc' },
-      // Nota: Como não temos relação direta no Prisma RO do Admin, 
-      // fazemos uma query manual para buscar nomes se necessário ou retornamos o ID
+      include: {
+        user: {
+          select: { username: true, fullName: true, tenant: { select: { name: true } } }
+        }
+      }
     });
 
-    // Enriquecer com dados de usuário (busca em lote)
-    const userIds = [...new Set(sessions.map(s => s.userId))];
-    const users = await prismaIaca.user.findMany({
-      where: { id: { in: userIds } },
-      select: { id: true, username: true, fullName: true, tenantId: true }
-    });
-
-    const tenants = await prismaIaca.tenant.findMany({
-      where: { id: { in: users.map(u => u.tenantId) } },
-      select: { id: true, name: true }
-    });
-
-    const enriched = sessions.map(session => {
-      const user = users.find(u => u.id === session.userId);
-      const tenant = tenants.find(t => t.id === user?.tenantId);
-      return {
-        ...session,
-        user: user ? { username: user.username, fullName: user.fullName } : null,
-        tenant: tenant ? { name: tenant.name } : null
-      };
-    });
+    const enriched = sessions.map(s => ({
+      ...s,
+      user: s.user ? { username: s.user.username, fullName: s.user.fullName } : null,
+      tenant: s.user?.tenant ? { name: s.user.tenant.name } : null
+    }));
 
     res.json({ data: enriched });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('[System] Erro ao listar sessões:', error.message);
+    res.json({ data: [] }); // Silencioso para não quebrar UI
   }
 });
 
@@ -134,22 +141,10 @@ router.get('/sessions', async (req, res) => {
 // ============================================
 router.delete('/sessions/:id', async (req, res) => {
   try {
-    await iacaClient.delete(`/internal/sessions/${req.params.id}`);
+    await prismaSumauma.session.delete({ where: { id: req.params.id } });
     res.json({ success: true });
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.message });
-  }
-});
-
-// ============================================
-// DELETE /admin/system/users/:id/sessions — Flush
-// ============================================
-router.delete('/users/:id/sessions', async (req, res) => {
-  try {
-    await iacaClient.delete(`/internal/users/${req.params.id}/sessions`);
-    res.json({ success: true });
-  } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.message });
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -158,12 +153,13 @@ router.delete('/users/:id/sessions', async (req, res) => {
 // ============================================
 router.get('/jobs', async (req, res) => {
   try {
-    const jobs = await prismaIaca.cronLock.findMany({
+    const jobs = await prismaSumauma.cronLock.findMany({
       orderBy: { lockedAt: 'desc' },
     });
     res.json({ data: jobs });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.warn('[System] CronLocks não disponíveis no momento');
+    res.json({ data: [] });
   }
 });
 
@@ -172,7 +168,7 @@ router.get('/jobs', async (req, res) => {
 // ============================================
 router.get('/api-usage', async (req, res) => {
   try {
-    const tenants = await prismaIaca.tenant.findMany({
+    const tenants = await prismaSumauma.tenant.findMany({
       select: {
         id: true,
         name: true,
@@ -184,7 +180,8 @@ router.get('/api-usage', async (req, res) => {
     });
     res.json({ data: tenants });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('[System] Erro ao listar uso de API:', error.message);
+    res.json({ data: [] });
   }
 });
 

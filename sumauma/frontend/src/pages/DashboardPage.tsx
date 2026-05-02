@@ -73,11 +73,17 @@ export default function DashboardPage() {
   const { health } = useSystemHealth();
 
   useEffect(() => {
-    api
-      .get('/dashboard')
-      .then((res) => setData(res.data.data))
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    const fetchData = () => {
+      api
+        .get('/dashboard')
+        .then((res) => setData(res.data.data))
+        .catch(console.error)
+        .finally(() => setLoading(false));
+    };
+
+    fetchData();
+    const interval = setInterval(fetchData, 60000); // Polling 60s
+    return () => clearInterval(interval);
   }, []);
 
   if (loading) {
@@ -100,8 +106,8 @@ export default function DashboardPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-lg font-semibold text-slate-200">Visão Geral — Plataforma Kurupira-Iaçã</h1>
-        <p className="text-xs text-slate-500">Métricas consolidadas da plataforma gerenciada</p>
+        <h1 className="text-lg font-semibold text-slate-200">Sumaúma — Gestão Ywara Hub</h1>
+        <p className="text-xs text-slate-500">Métricas consolidadas da infraestrutura e serviços gerenciados</p>
       </div>
 
       {/* KPI Grid */}

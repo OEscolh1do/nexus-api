@@ -8,6 +8,7 @@ import UsersPage from '@/pages/UsersPage';
 import CatalogPage from '@/pages/CatalogPage';
 import AuditPage from '@/pages/AuditPage';
 import SystemPage from '@/pages/SystemPage';
+import OperatorsPage from '@/pages/OperatorsPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="/catalog" element={<CatalogPage />} />
         <Route path="/audit" element={<AuditPage />} />
         <Route path="/system" element={<SystemPage />} />
+        <Route path="/operators" element={<OperatorsPage />} />
       </Route>
 
       {/* Catch-all */}

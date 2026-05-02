@@ -9,6 +9,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Zap,
+  Shield,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -94,6 +95,28 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             {!collapsed && <span>{item.label}</span>}
           </NavLink>
         ))}
+
+        {/* Seção: Segurança */}
+        {!collapsed && (
+          <p className="mb-1 mt-4 px-3 text-[9px] font-bold uppercase tracking-widest text-slate-600">
+            Segurança
+          </p>
+        )}
+        {collapsed && <div className="my-2 border-t border-slate-800/80" />}
+        <NavLink
+          to="/operators"
+          className={({ isActive }) =>
+            `flex items-center gap-3 rounded-sm px-3 py-2 text-sm transition-colors ${
+              isActive
+                ? 'bg-violet-500/10 text-violet-300 border border-violet-500/20'
+                : 'text-slate-500 hover:bg-violet-500/5 hover:text-violet-300'
+            } ${collapsed ? 'justify-center' : ''}`
+          }
+          title={collapsed ? 'Operadores' : undefined}
+        >
+          <Shield className="h-4 w-4 shrink-0" />
+          {!collapsed && <span>Operadores</span>}
+        </NavLink>
       </nav>
 
       {/* Collapse Toggle */}

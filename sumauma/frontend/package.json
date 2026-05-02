@@ -1,5 +1,5 @@
 {
-  "name": "neonorte-admin-frontend",
+  "name": "sumauma-frontend",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -25,6 +25,7 @@
     "@logto/react": "^3.0.0",
     "react-router-dom": "^7.13.0",
     "tailwind-merge": "^3.4.0",
+    "swr": "^2.3.2",
     "zustand": "^5.0.6"
   },
   "devDependencies": {

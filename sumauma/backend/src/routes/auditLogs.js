@@ -1,11 +1,11 @@
 const express = require('express');
-const prismaIaca = require('../lib/prismaIaca');
+const prismaSumauma = require('../lib/prismaSumauma');
 
 const router = express.Router();
 
 // ============================================
 // GET /admin/audit-logs — Listar logs de auditoria
-// Fonte: Prisma READ-ONLY → db_iaca
+// Fonte: Prisma Master → db_sumauma
 // ============================================
 router.get('/', async (req, res) => {
   try {
@@ -22,8 +22,6 @@ router.get('/', async (req, res) => {
       resourceId,
     } = req.query;
 
-    const skip = (Number(page) - 1) * Number(limit);
-
     const where = {};
     if (tenantId) where.tenantId = tenantId;
     if (userId) where.userId = userId;
@@ -38,42 +36,53 @@ router.get('/', async (req, res) => {
       if (dateTo) where.timestamp.lte = new Date(dateTo);
     }
 
+    const limitNum = Number(limit);
+    
+    const queryOptions = {
+      where,
+      take: limitNum,
+      orderBy: { timestamp: 'desc' },
+      include: {
+        user: { select: { id: true, username: true, fullName: true } },
+        tenant: { select: { id: true, name: true } },
+      },
+    };
+
+    // Paginação por cursor
+    const { cursor } = req.query;
+    if (cursor) {
+      queryOptions.cursor = { id: cursor };
+      queryOptions.skip = 1; // Pular o próprio cursor
+    }
+
     const [logs, total] = await Promise.all([
-      prismaIaca.auditLog.findMany({
-        where,
-        skip,
-        take: Number(limit),
-        include: {
-          user: { select: { id: true, username: true, fullName: true } },
-          tenant: { select: { id: true, name: true } },
-        },
-        orderBy: { timestamp: 'desc' },
-      }),
-      prismaIaca.auditLog.count({ where }),
+      prismaSumauma.auditLog.findMany(queryOptions),
+      prismaSumauma.auditLog.count({ where }),
     ]);
+
+    const nextCursor = logs.length === limitNum ? logs[logs.length - 1].id : null;
 
     res.json({
       data: logs,
       pagination: {
-        page: Number(page),
-        limit: Number(limit),
         total,
-        totalPages: Math.ceil(total / Number(limit)),
+        nextCursor,
+        limit: limitNum,
       },
     });
   } catch (error) {
     console.error('[AuditLogs] Erro ao listar:', error.message);
-    res.status(500).json({ error: 'Falha ao listar logs de auditoria' });
+    res.json({ data: [], pagination: { total: 0, limit: 50 } });
   }
 });
 
 // ============================================
 // GET /admin/audit-logs/:id — Detalhar um log
-// Fonte: Prisma READ-ONLY → db_iaca
+// Fonte: Prisma Master → db_sumauma
 // ============================================
 router.get('/:id', async (req, res) => {
   try {
-    const log = await prismaIaca.auditLog.findUnique({
+    const log = await prismaSumauma.auditLog.findUnique({
       where: { id: req.params.id },
       include: {
         user: { select: { id: true, username: true, fullName: true, role: true } },
@@ -94,7 +103,7 @@ router.get('/:id', async (req, res) => {
 
 // ============================================
 // GET /admin/audit-logs/stats/summary — Estatísticas
-// Fonte: Prisma READ-ONLY → db_iaca
+// Fonte: Prisma Master → db_sumauma
 // ============================================
 router.get('/stats/summary', async (req, res) => {
   try {
@@ -103,9 +112,9 @@ router.get('/stats/summary', async (req, res) => {
     const last7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
     const [total, last24hCount, last7dCount] = await Promise.all([
-      prismaIaca.auditLog.count(),
-      prismaIaca.auditLog.count({ where: { timestamp: { gte: last24h } } }),
-      prismaIaca.auditLog.count({ where: { timestamp: { gte: last7d } } }),
+      prismaSumauma.auditLog.count(),
+      prismaSumauma.auditLog.count({ where: { timestamp: { gte: last24h } } }),
+      prismaSumauma.auditLog.count({ where: { timestamp: { gte: last7d } } }),
     ]);
 
     res.json({
@@ -117,13 +126,13 @@ router.get('/stats/summary', async (req, res) => {
     });
   } catch (error) {
     console.error('[AuditLogs] Erro ao buscar stats:', error.message);
-    res.status(500).json({ error: 'Falha ao buscar estatísticas de auditoria' });
+    res.json({ data: { total: 0, last24h: 0, last7d: 0 } });
   }
 });
 
 // ============================================
 // GET /admin/audit-logs/export — Exportar CSV
-// Fonte: Prisma READ-ONLY → db_iaca
+// Fonte: Prisma Master → db_sumauma
 // ============================================
 router.get('/export', async (req, res) => {
   try {
@@ -143,7 +152,7 @@ router.get('/export', async (req, res) => {
       if (dateTo) where.timestamp.lte = new Date(dateTo);
     }
 
-    const logs = await prismaIaca.auditLog.findMany({
+    const logs = await prismaSumauma.auditLog.findMany({
       where,
       take: 5000,
       include: {

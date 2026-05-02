@@ -17,8 +17,8 @@ export interface AuditLog {
 }
 
 export interface AuditLogsParams {
-  page?: number;
   limit?: number;
+  cursor?: string | null;
   tenantId?: string;
   userId?: string;
   action?: string;
@@ -29,10 +29,9 @@ export interface AuditLogsParams {
 }
 
 export interface Pagination {
-  page: number;
-  limit: number;
   total: number;
-  totalPages: number;
+  nextCursor: string | null;
+  limit: number;
 }
 
 export function useAuditLogs(params: AuditLogsParams) {

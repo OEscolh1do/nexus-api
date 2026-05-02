@@ -1,14 +1,15 @@
 {
-  "name": "neonorte-admin-backend",
+  "name": "sumauma-backend",
   "version": "1.0.0",
-  "description": "BFF (Backend for Frontend) do painel administrativo Neonorte",
+  "description": "BFF do Sumaúma — Painel de Gestão da Infraestrutura Ywara",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "prisma:generate:iaca": "prisma generate --schema=prisma/schema-iaca.prisma",
     "prisma:generate:kurupira": "prisma generate --schema=prisma/schema-kurupira.prisma",
-    "prisma:generate": "npm run prisma:generate:iaca && npm run prisma:generate:kurupira"
+    "prisma:generate:sumauma": "prisma generate --schema=prisma/schema.prisma",
+    "prisma:generate": "npm run prisma:generate:iaca && npm run prisma:generate:kurupira && npm run prisma:generate:sumauma"
   },
   "type": "commonjs",
   "dependencies": {

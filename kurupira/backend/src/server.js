@@ -606,6 +606,28 @@ app.patch("/internal/catalog/inverters/:id", validateM2M, async (req, res) => {
   }
 });
 
+// --- EXCLUSÃO M2M ---
+
+app.delete("/internal/catalog/modules/:id", validateM2M, async (req, res) => {
+  try {
+    await prisma.moduleCatalog.delete({ where: { id: req.params.id } });
+    res.json({ success: true, message: 'Módulo excluído' });
+  } catch (error) {
+    console.error('[M2M Catalog Delete]', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.delete("/internal/catalog/inverters/:id", validateM2M, async (req, res) => {
+  try {
+    await prisma.inverterCatalog.delete({ where: { id: req.params.id } });
+    res.json({ success: true, message: 'Inversor excluído' });
+  } catch (error) {
+    console.error('[M2M Catalog Delete]', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // =============================================================
 // ROUTES: User Settings (persisted via TechnicalDesign como registro especial)
 // =============================================================

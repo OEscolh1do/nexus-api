@@ -6,22 +6,42 @@ import AuditLogRow from '@/components/audit/AuditLogRow';
 
 export default function AuditPage() {
   const [params, setParams] = useState<AuditLogsParams>({
-    page: 1,
     limit: 50,
   });
+  const [cursorStack, setCursorStack] = useState<(string | null)[]>([null]);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const { logs, pagination, loading, error, exportLogs } = useAuditLogs(params);
 
-  const handlePageChange = (newPage: number) => {
-    setParams(prev => ({ ...prev, page: newPage }));
+  const handleNextPage = () => {
+    if (pagination?.nextCursor) {
+      setCursorStack(prev => [...prev, pagination.nextCursor]);
+      setParams(prev => ({ ...prev, cursor: pagination.nextCursor }));
+      setCurrentPage(prev => prev + 1);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (cursorStack.length > 1) {
+      const newStack = [...cursorStack];
+      newStack.pop(); // Remove current cursor
+      const prevCursor = newStack[newStack.length - 1];
+      setCursorStack(newStack);
+      setParams(prev => ({ ...prev, cursor: prevCursor }));
+      setCurrentPage(prev => prev - 1);
+    }
   };
 
   const handleFiltersChange = (newFilters: any) => {
-    setParams(prev => ({ ...prev, ...newFilters, page: 1 }));
+    setParams({ ...params, ...newFilters, cursor: null });
+    setCursorStack([null]);
+    setCurrentPage(1);
   };
 
   const handleClearFilters = () => {
-    setParams({ page: 1, limit: 50 });
+    setParams({ limit: 50 });
+    setCursorStack([null]);
+    setCurrentPage(1);
   };
 
   return (
@@ -33,7 +53,7 @@ export default function AuditPage() {
             Logs de Auditoria
           </h1>
           <p className="text-xs text-slate-500">
-            Rastreabilidade total de ações na plataforma Neonorte
+            Rastreabilidade total de ações na infraestrutura Ywara
           </p>
         </div>
 
@@ -89,20 +109,20 @@ export default function AuditPage() {
             
             <div className="flex items-center gap-2">
               <button
-                disabled={params.page === 1}
-                onClick={() => handlePageChange((params.page || 1) - 1)}
+                disabled={currentPage === 1 || loading}
+                onClick={handlePrevPage}
                 className="p-1.5 rounded-sm border border-slate-700 bg-slate-800 text-slate-400 hover:text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
               
               <span className="text-[11px] font-medium text-slate-400 min-w-[60px] text-center">
-                Página {params.page} / {pagination.totalPages}
+                Página {currentPage}
               </span>
 
               <button
-                disabled={params.page === pagination.totalPages}
-                onClick={() => handlePageChange((params.page || 1) + 1)}
+                disabled={!pagination.nextCursor || loading}
+                onClick={handleNextPage}
                 className="p-1.5 rounded-sm border border-slate-700 bg-slate-800 text-slate-400 hover:text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronRight className="h-4 w-4" />

@@ -15,10 +15,12 @@ export default defineConfig({
       '/admin': {
         target: 'http://localhost:3003',
         changeOrigin: true,
+        secure: false,
       },
       '/health': {
         target: 'http://localhost:3003',
         changeOrigin: true,
+        secure: false,
       },
     },
   },

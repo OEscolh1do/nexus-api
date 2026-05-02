@@ -30,6 +30,7 @@ model Tenant {
   auditLogs AuditLog[]
   apiKeys   TenantApiKey[]
   orgUnits  OrgUnit[]
+  roles     Role[]
 
   @@index([parentId])
 }
@@ -40,6 +41,7 @@ model OrgUnit {
   name      String
   type      String   // DEPARTAMENTO, FILIAL, EQUIPE
   parentId  String?
+  path      String?  // Path de hierarquia (ex: /1/5/12)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -57,7 +59,8 @@ model User {
   username       String    @unique
   password       String
   fullName       String
-  role           String    // PLATFORM_ADMIN, TENANT_ADMIN, ENGINEER, VIEWER
+  role           String    // PLATFORM_ADMIN, TENANT_ADMIN, ENGINEER, VIEWER (Legacy)
+  roleId         String?
   orgUnitId      String?
   tenantId       String
   jobTitle       String?
@@ -69,9 +72,11 @@ model User {
 
   tenant    Tenant     @relation(fields: [tenantId], references: [id])
   orgUnit   OrgUnit?   @relation(fields: [orgUnitId], references: [id])
+  roleRef   Role?      @relation(fields: [roleId], references: [id])
   auditLogs AuditLog[]
 
   @@index([tenantId])
+  @@index([roleId])
 }
 
 model AuditLog {
@@ -123,4 +128,46 @@ model CronLock {
   id        String   @id
   lockedAt  DateTime
   expiresAt DateTime
+}
+
+// ============================================
+// RBAC (ROLES & PERMISSIONS)
+// ============================================
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   // "Projetista Sênior"
+  level       String   @default("TENANT") // PLATFORM, TENANT
+  tenantId    String?  // Se null, é uma role global (ex: PLATFORM_ADMIN)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  permissions RolePermission[]
+  users       User[]
+
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id])
+  
+  @@index([tenantId])
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  slug        String   @unique // ex: "catalog:write", "users:manage"
+  description String?
+  createdAt   DateTime @default(now())
+  
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  id           String @id @default(cuid())
+  roleId       String
+  permissionId String
+
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
 }

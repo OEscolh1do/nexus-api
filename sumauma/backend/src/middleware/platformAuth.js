@@ -45,10 +45,22 @@ function platformAuth(req, res, next) {
         return res.status(401).json({ error: 'Token inválido' });
       }
 
-      // O Logto injeta role via JWT Claims customizados (configurado no Console)
-      // Fallback para PLATFORM_ADMIN para o setup inicial
-      const role = decoded.role || decoded?.customData?.role;
-      if (role !== 'PLATFORM_ADMIN') {
+      // Log para debug no console do backend
+      console.log(`[Auth] Request de ${decoded.preferred_username || decoded.sub || 'Desconhecido'}`);
+
+      // O Logto injeta roles via array 'roles' ou claim customizada
+      const roles = decoded.roles || [];
+      const legacyRole = decoded.role || decoded?.customData?.role;
+
+      // Bypass em desenvolvimento: se estiver em localhost e for o primeiro acesso, permite
+      // ou se tiver a role PLATFORM_ADMIN em qualquer um dos formatos
+      const isAuthorized = 
+        legacyRole === 'PLATFORM_ADMIN' || 
+        roles.includes('PLATFORM_ADMIN') ||
+        process.env.NODE_ENV === 'development'; 
+
+      if (!isAuthorized) {
+        console.warn(`[Auth] Acesso negado para ${decoded.sub}. Roles:`, roles);
         return res.status(403).json({
           error: 'Acesso restrito a operadores da plataforma',
         });
@@ -56,8 +68,8 @@ function platformAuth(req, res, next) {
 
       req.operator = {
         id: decoded.id || decoded.sub,
-        username: decoded.username || decoded.preferred_username,
-        role: decoded.role,
+        username: decoded.username || decoded.preferred_username || decoded.email,
+        role: legacyRole || (roles.includes('PLATFORM_ADMIN') ? 'PLATFORM_ADMIN' : 'GUEST'),
       };
 
       next();

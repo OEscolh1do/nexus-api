@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { X, Cpu, Thermometer, Info, Power, Zap, Edit2, Save, Loader2 } from 'lucide-react';
-import { useToggleEquipment, type ModuleEquipment } from '@/hooks/useCatalog';
+import { X, Cpu, Thermometer, Info, Power, Zap, Edit2, Save, Loader2, Trash2 } from 'lucide-react';
+import { useToggleEquipment, useDeleteEquipment, type ModuleEquipment } from '@/hooks/useCatalog';
 import { usePatchEquipment } from '@/hooks/usePatchEquipment';
 import TenantStatusBadge from '@/components/tenants/TenantStatusBadge';
 
@@ -12,7 +12,12 @@ interface ModuleDrawerProps {
 
 export default function ModuleDrawer({ moduleEquipment: m, onClose, onMutated }: ModuleDrawerProps) {
   const { toggle, loadingId } = useToggleEquipment('/catalog/modules', onMutated);
+  const { remove, deletingId } = useDeleteEquipment('/catalog/modules', () => {
+    onMutated?.();
+    onClose();
+  });
   const loading = loadingId === m.id;
+  const isDeleting = deletingId === m.id;
 
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({ powerWp: m.powerWp, efficiency: m.efficiency || '' });
@@ -24,6 +29,10 @@ export default function ModuleDrawer({ moduleEquipment: m, onClose, onMutated }:
 
   const handleToggle = () => {
     toggle(m.id, !m.isActive);
+  };
+
+  const handleDelete = () => {
+    remove(m.id);
   };
 
   const handleSave = () => {
@@ -190,6 +199,17 @@ export default function ModuleDrawer({ moduleEquipment: m, onClose, onMutated }:
             <span>{loading ? 'Processando...' : m.isActive ? 'Desativar Módulo no Catálogo' : 'Ativar Módulo no Catálogo'}</span>
             <Zap className="h-3.5 w-3.5" />
           </button>
+
+          {!isEditing && (
+            <button
+              onClick={handleDelete}
+              disabled={isDeleting || loading}
+              className="flex w-full items-center justify-between rounded-sm border border-transparent px-3 py-2 text-xs font-medium text-slate-500 hover:bg-red-500/10 hover:text-red-400 transition-all opacity-40 hover:opacity-100"
+            >
+              <span>{isDeleting ? 'Excluindo...' : 'Excluir Permanentemente'}</span>
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
       </div>
     </>

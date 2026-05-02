@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import api from '@/lib/api';
 
 export interface ServiceStatus {
   name: string;
@@ -46,7 +46,7 @@ export function useSystemHealth() {
 
   const fetchHealth = useCallback(async () => {
     try {
-      const response = await axios.get('/admin/system/health');
+      const response = await api.get('/system/health');
       setHealth(response.data);
       setError(null);
     } catch (err: any) {
@@ -60,7 +60,7 @@ export function useSystemHealth() {
 
   const fetchInfo = useCallback(async () => {
     try {
-      const response = await axios.get('/admin/system/info');
+      const response = await api.get('/system/info');
       setInfo(response.data);
     } catch (err) {
       console.error('Falha ao obter informações do sistema');
@@ -69,7 +69,7 @@ export function useSystemHealth() {
 
   const fetchJobs = useCallback(async () => {
     try {
-      const response = await axios.get('/admin/system/jobs');
+      const response = await api.get('/system/jobs');
       setJobs(response.data.data);
     } catch (err) {
       console.error('Falha ao obter jobs');
@@ -78,24 +78,24 @@ export function useSystemHealth() {
 
   const fetchApiUsage = useCallback(async () => {
     try {
-      const response = await axios.get('/admin/system/api-usage');
+      const response = await api.get('/system/api-usage');
       setApiUsage(response.data.data);
     } catch (err) {
       console.error('Falha ao obter api usage');
     }
   }, []);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     setLoading(true);
     await Promise.all([fetchHealth(), fetchInfo(), fetchJobs(), fetchApiUsage()]);
     setLoading(false);
-  };
+  }, [fetchHealth, fetchInfo, fetchJobs, fetchApiUsage]);
 
   useEffect(() => {
     refresh();
-    const interval = setInterval(fetchHealth, 60000); // Auto-refresh 60s
+    const interval = setInterval(refresh, 60000); // Auto-refresh everything 60s
     return () => clearInterval(interval);
-  }, [fetchHealth, fetchInfo, fetchJobs, fetchApiUsage]);
+  }, [refresh]);
 
   return { health, info, jobs, apiUsage, loading, error, refresh };
 }

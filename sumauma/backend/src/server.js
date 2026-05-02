@@ -22,6 +22,10 @@ const usersRouter = require('./routes/users');
 const catalogRouter = require('./routes/catalog');
 const auditLogsRouter = require('./routes/auditLogs');
 const systemRouter = require('./routes/system');
+const orgUnitsRouter = require('./routes/orgUnits');
+const rolesRouter = require('./routes/roles');
+const permissionsRouter = require('./routes/permissions');
+const operatorsRouter = require('./routes/operators');
 
 const app = express();
 const PORT = process.env.PORT || 3003;
@@ -40,13 +44,14 @@ app.use(cookieParser());
 
 // Rate limiting: 100 req/min por IP
 const limiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 100,
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: process.env.NODE_ENV === 'development' ? 5000 : 100, // 5000 em dev, 100 em prod
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Limite de requisições excedido. Tente novamente em 1 minuto.' },
+  message: { error: 'Muitas requisições vindas deste IP, tente novamente após 15 minutos.' }
 });
 app.use(limiter);
+
 
 // =============================================================
 // HEALTH CHECK (público — sem auth)
@@ -125,6 +130,10 @@ app.use('/admin/users', platformAuth, usersRouter);
 app.use('/admin/catalog', platformAuth, catalogRouter);
 app.use('/admin/audit-logs', platformAuth, auditLogsRouter);
 app.use('/admin/system', platformAuth, systemRouter);
+app.use('/admin/org-units', platformAuth, orgUnitsRouter);
+app.use('/admin/roles', platformAuth, rolesRouter);
+app.use('/admin/permissions', platformAuth, permissionsRouter);
+app.use('/admin/operators', platformAuth, operatorsRouter);
 
 // =============================================================
 // DASHBOARD — KPIs agregados
@@ -132,11 +141,22 @@ app.use('/admin/system', platformAuth, systemRouter);
 
 app.get('/admin/dashboard', platformAuth, async (req, res) => {
   try {
+    const prismaSumauma = require('./lib/prismaSumauma');
     const prismaIaca = require('./lib/prismaIaca');
     const prismaKurupira = require('./lib/prismaKurupira');
 
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    // Função auxiliar para contar com segurança (retorna 0 se a tabela não existir)
+    const safeCount = async (prismaModel, where = {}) => {
+      try {
+        return await prismaModel.count({ where });
+      } catch (err) {
+        console.warn(`[Dashboard] Falha ao contar em ${prismaModel.name}:`, err.message);
+        return 0;
+      }
+    };
 
     const [
       tenantsTotal,
@@ -148,16 +168,16 @@ app.get('/admin/dashboard', platformAuth, async (req, res) => {
       logsLast24h,
       apiUsageAggr,
     ] = await Promise.all([
-      prismaIaca.tenant.count(),
-      prismaIaca.user.count(),
-      prismaIaca.user.count({ where: { createdAt: { gte: startOfMonth } } }),
-      prismaKurupira.technicalDesign.count(),
-      prismaKurupira.moduleCatalog.count({ where: { isActive: true } }),
-      prismaKurupira.inverterCatalog.count({ where: { isActive: true } }),
-      prismaIaca.auditLog.count({
+      safeCount(prismaSumauma.tenant),
+      safeCount(prismaSumauma.user),
+      safeCount(prismaSumauma.user, { createdAt: { gte: startOfMonth } }),
+      safeCount(prismaKurupira.technicalDesign),
+      safeCount(prismaKurupira.moduleCatalog, { isActive: true }),
+      safeCount(prismaKurupira.inverterCatalog, { isActive: true }),
+      safeCount(prismaSumauma.auditLog, {
         where: { timestamp: { gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) } },
       }),
-      prismaIaca.tenant.aggregate({
+      prismaSumauma.tenant.aggregate({
         _sum: { apiCurrentUsage: true },
       }),
     ]);
@@ -173,7 +193,7 @@ app.get('/admin/dashboard', platformAuth, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('[Dashboard] Erro ao agregar KPIs:', error.message);
+    console.error('[Dashboard] Erro fatal ao agregar KPIs:', error.message);
     res.status(500).json({ error: 'Falha ao carregar dashboard' });
   }
 });

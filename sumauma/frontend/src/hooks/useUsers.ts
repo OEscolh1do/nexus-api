@@ -28,6 +28,7 @@ export interface User {
   orgUnitId?: string | null;
   createdAt: string;
   updatedAt: string;
+  status: string;
   tenant: UserTenant;
 }
 

@@ -7,7 +7,7 @@ import { useLogto, useHandleSignInCallback } from '@logto/react';
 export default function LoginPage() {
   const navigate = useNavigate();
   const logto = useLogto();
-  const { signIn, isAuthenticated, isLoading, error, getIdTokenClaims } = logto;
+  const { signIn, isAuthenticated, isLoading, error } = logto;
   const loginStore = useAuthStore((s) => s.login);
 
   // Hook específico para processar o callback do Logto

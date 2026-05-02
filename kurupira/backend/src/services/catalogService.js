@@ -4,57 +4,55 @@ const { parsePanOnd } = require("./panOndParser");
 const prisma = new PrismaClient();
 
 function extractModuleData(parsed, filename) {
-  const comm = parsed.PVObject_Commercial || {};
+  // O PVSyst aninha tudo dentro de um PVObject_ principal. 
+  // Vamos pegar o conteúdo desse objeto se ele existir, ou usar a raiz.
+  const core = parsed.PVObject_ || parsed;
+  const comm = core.PVObject_Commercial || core; // Tenta comercial, se não existir usa o core
   
   const manufacturer = comm.Manufacturer || "Desconhecido";
   const model = comm.Model || filename.replace('.pan', '');
   
-  // Potência STC
-  const powerWp = Number(parsed.Pnom) || 550;
+  // Potência STC (Pnom está no core)
+  const powerWp = Number(core.Pnom) || 550;
   
-  // Eficiência pode vir de diferentes campos ou pode ser calculada. Vamos salvar null se não houver
-  // (O PVSyst não costuma exportar a eficiência explicitamente em %, mas Area está em m²)
-  const efficiency = null; 
-
-  const width = comm.Width || parsed.Width || 0;
-  const height = comm.Height || parsed.Height || 0;
+  // Eficiência e dimensões
+  const width = Number(comm.Width || core.Width) || 0;
+  const height = Number(comm.Height || core.Height) || 0;
   const dimensions = (width > 0 && height > 0) ? `${width} x ${height} m` : null;
-  const weight = parsed.Weight || null;
+  const weight = Number(core.Weight) || null;
 
   return {
     manufacturer,
     model,
     powerWp,
-    efficiency,
+    efficiency: Number(core.EffMax) || null,
     dimensions,
     weight,
     datasheet: null,
     isActive: true,
     unifilarSymbolRef: "solar-panel-default",
-    electricalData: parsed, // Salva tudo para futuras consultas elétricas e referências
+    electricalData: core, // Salva o bloco técnico completo
+    // Mapeamento direto de coeficientes para o schema (Regra 5 do validador)
+    tempCoeffPmax: Number(core.TempCoeffPmax) || null,
+    tempCoeffVoc: Number(core.TempCoeffVoc) || null,
   };
 }
 
 function extractInverterData(parsed, filename) {
-  const comm = parsed.PVObject_Commercial || {};
+  const core = parsed.PVObject_ || parsed;
+  const comm = core.PVObject_Commercial || core;
   
   const manufacturer = comm.Manufacturer || "Desconhecido";
   const model = comm.Model || filename.replace('.ond', '');
   
-  const nominalPowerW = Number(parsed.Pnom) ? Number(parsed.Pnom) * 1000 : 0; // PVSyst costuma exportar Pnom em kW para inversores
-  const maxInputV = Number(parsed.Vabsmax) || null;
+  const nominalPowerW = Number(core.Pnom) ? Number(core.Pnom) * 1000 : 0; 
+  const maxInputV = Number(core.Vabsmax) || null;
   
-  // MPPT count (Em arquivos PVSyst, isso fica na seção de inputs ou multi-MPPT)
   let mpptCount = 1;
-  if (parsed.NbInputs) {
-    mpptCount = Number(parsed.NbInputs);
-  }
+  if (core.NbInputs) mpptCount = Number(core.NbInputs);
 
-  // Fases (Vac) -> se não tiver Phase, tenta deduzir
   let phase = "Trifásico";
-  if (parsed.Vac === 220 || parsed.Vac === 127) {
-    phase = "Monofásico";
-  }
+  if (core.Vac === 220 || core.Vac === 127) phase = "Monofásico";
 
   return {
     manufacturer,
@@ -62,14 +60,14 @@ function extractInverterData(parsed, filename) {
     nominalPowerW,
     maxInputV,
     mpptCount,
-    efficiency: Number(parsed.Eff_Max) || null,
+    efficiency: Number(core.Eff_Max || core.EffMax) || null,
     datasheet: null,
     isActive: true,
     unifilarSymbolRef: "inverter-default",
     electricalData: {
-      ...parsed,
-      phase, // Injeta a fase deduzida para o frontend ler
-      minInputV: Number(parsed.Vmin) || null,
+      ...core,
+      phase,
+      minInputV: Number(core.Vmin) || null,
     },
   };
 }

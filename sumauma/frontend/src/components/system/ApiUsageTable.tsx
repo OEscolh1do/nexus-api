@@ -34,26 +34,39 @@ export default function ApiUsageTable({ apiUsage }: { apiUsage: ApiUsageInfo[] }
                   ? (tenant.apiCurrentUsage / tenant.apiMonthlyQuota) * 100 
                   : 0;
                 
-                let usageColor = 'text-emerald-400';
-                if (percentage > 95) usageColor = 'text-rose-400';
-                else if (percentage > 80) usageColor = 'text-amber-400';
+                let usageBadgeClass = 'badge-active';
+                if (percentage > 95) usageBadgeClass = 'badge-blocked';
+                else if (percentage > 80) usageBadgeClass = 'badge-pending';
 
                 return (
                   <tr key={tenant.id} className="hover:bg-slate-800/20 transition-colors">
-                    <td className="px-4 py-2 text-[11px] text-slate-300">
+                    <td className="px-4 py-3 text-[11px] text-slate-300 font-medium">
                       {tenant.name}
                     </td>
-                    <td className="px-4 py-2 text-[11px] font-mono text-slate-400">
+                    <td className="px-4 py-3 text-[11px] font-mono text-slate-400">
                       {tenant.apiPlan}
                     </td>
-                    <td className="px-4 py-2 text-[11px] font-mono text-right text-slate-300">
+                    <td className="px-4 py-3 text-[11px] font-mono text-right text-slate-200">
                       {tenant.apiCurrentUsage.toLocaleString('pt-BR')}
                     </td>
-                    <td className="px-4 py-2 text-[11px] font-mono text-right text-slate-400">
+                    <td className="px-4 py-3 text-[11px] font-mono text-right text-slate-500">
                       {tenant.apiMonthlyQuota.toLocaleString('pt-BR')}
                     </td>
-                    <td className={`px-4 py-2 text-[11px] font-mono font-bold text-right ${usageColor}`}>
-                      {percentage.toFixed(1)}%
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex flex-col items-end gap-1.5">
+                        <span className={`badge ${usageBadgeClass} tabular-nums text-[10px]`}>
+                          {percentage.toFixed(1)}%
+                        </span>
+                        <div className="w-16 h-1 bg-slate-800 rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full transition-all duration-500 ${
+                              percentage > 95 ? 'bg-rose-500' : 
+                              percentage > 80 ? 'bg-amber-500' : 'bg-emerald-500'
+                            }`}
+                            style={{ width: `${Math.min(percentage, 100)}%` }}
+                          />
+                        </div>
+                      </div>
                     </td>
                   </tr>
                 );

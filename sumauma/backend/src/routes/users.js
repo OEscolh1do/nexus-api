@@ -15,13 +15,21 @@ function isSelf(req, targetUserId) {
 // ============================================
 router.post('/', async (req, res) => {
   try {
-    const { username, password, fullName, role, tenantId, jobTitle, orgUnitId } = req.body;
+    const { username, password, fullName, role, roleId, tenantId, jobTitle, orgUnitId } = req.body;
 
-    if (!username || !password || !fullName || !role || !tenantId) {
-      return res.status(400).json({ error: 'Campos obrigatórios: username, senha, nome completo, role, organização' });
+    if (!username || !password || !fullName || !tenantId) {
+      return res.status(400).json({ error: 'Campos obrigatórios: username, senha, nome completo, organização' });
     }
     if (password.length < 8) {
       return res.status(400).json({ error: 'A senha deve ter no mínimo 8 caracteres' });
+    }
+
+    // ── POKA-YOKE: Operadores de plataforma jamais podem ser criados via HTTP ──
+    if (role === 'PLATFORM_ADMIN') {
+      return res.status(403).json({
+        error: 'Acesso negado: Operadores de plataforma devem ser criados via script CLI no servidor.',
+        code: 'PLATFORM_ADMIN_CREATION_FORBIDDEN'
+      });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -32,7 +40,8 @@ router.post('/', async (req, res) => {
         username: username.trim(),
         password: hashedPassword,
         fullName: fullName.trim(),
-        role,
+        role: role || 'ENGINEER', // Mantido para retrocompatibilidade
+        roleId: roleId || undefined,
         tenantId,
         orgUnitId,
         jobTitle: jobTitle?.trim() || undefined,
@@ -94,6 +103,7 @@ router.get('/', async (req, res) => {
           username: true,
           fullName: true,
           role: true,
+          roleRef: { select: { id: true, name: true, level: true } },
           jobTitle: true,
           tenantId: true,
           status: true,
@@ -134,6 +144,7 @@ router.get('/:id', async (req, res) => {
         username: true,
         fullName: true,
         role: true,
+        roleRef: { select: { id: true, name: true, level: true, permissions: { select: { permission: { select: { slug: true } } } } } },
         jobTitle: true,
         tenantId: true,
         orgUnitId: true,
@@ -165,9 +176,21 @@ router.patch('/:id', async (req, res) => {
       return res.status(403).json({ error: 'Você não pode alterar seu próprio nível de acesso' });
     }
 
+    // ── POKA-YOKE: Impedir promoção para PLATFORM_ADMIN via API ──
+    if (req.body.role === 'PLATFORM_ADMIN') {
+      return res.status(403).json({
+        error: 'Acesso negado: Não é permitido promover usuários para Operador de Plataforma via interface.',
+        code: 'PLATFORM_ADMIN_PROMOTION_FORBIDDEN'
+      });
+    }
+
+    // Remover campos protegidos do payload para evitar injeção
+    const { role, ...safeData } = req.body;
+    const allowedRole = role && role !== 'PLATFORM_ADMIN' ? role : undefined;
+
     const updated = await prismaSumauma.user.update({
       where: { id: req.params.id },
-      data: req.body
+      data: { ...safeData, ...(allowedRole ? { role: allowedRole } : {}) }
     });
     res.json({ data: updated, message: 'Usuário atualizado com sucesso' });
   } catch (error) {

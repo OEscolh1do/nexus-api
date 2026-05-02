@@ -28,7 +28,9 @@ import CreateUserForm from './CreateUserForm';
 
 // ─── Role edit sub-panel ──────────────────────────────────────────────────────
 
-const ROLE_OPTIONS = ['PLATFORM_ADMIN', 'ADMIN', 'ENGINEER', 'VIEWER'];
+// POKA-YOKE: PLATFORM_ADMIN deliberadamente ausente.
+// Operadores de plataforma só podem ser criados via script CLI no servidor.
+const ROLE_OPTIONS = ['ADMIN', 'MANAGER', 'ENGINEER', 'VIEWER'];
 
 function EditRolePanel({
   user,
@@ -130,10 +132,12 @@ export default function UserDrawer({ userId, onClose, onMutated }: UserDrawerPro
   const isBlocked = user?.status === 'BLOCKED';
 
   function handleBlock() {
+    if (!userId) return;
     block(userId).then(() => setShowBlock(false)).catch(() => {});
   }
 
   function handleResetPassword() {
+    if (!userId) return;
     resetPassword(userId);
   }
 

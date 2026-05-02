@@ -25,7 +25,7 @@ export default function SystemPage() {
             Saúde do Sistema
           </h1>
           <p className="text-xs text-slate-500">
-            Monitoramento de serviços, infraestrutura e sessões ativas
+            Monitoramento de serviços, infraestrutura Ywara e sessões
           </p>
         </div>
 
