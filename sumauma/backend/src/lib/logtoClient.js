@@ -1,0 +1,100 @@
+const axios = require('axios');
+
+/**
+ * Cliente M2M para a Management API do Logto Self-Hosted.
+ * Logto usa Client Credentials Grant para M2M.
+ * O token é cacheado localmente e renovado antes do vencimento.
+ */
+
+let _cachedToken = null;
+let _tokenExpiry = 0;
+
+async function getM2MToken() {
+  if (_cachedToken && Date.now() < _tokenExpiry) return _cachedToken;
+
+  const endpoint = process.env.LOGTO_ENDPOINT || 'http://localhost:3301';
+  const clientId = process.env.LOGTO_M2M_CLIENT_ID;
+  const clientSecret = process.env.LOGTO_M2M_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    throw new Error('[Logto] LOGTO_M2M_CLIENT_ID e LOGTO_M2M_CLIENT_SECRET são obrigatórios.');
+  }
+
+  const response = await axios.post(
+    `${endpoint}/oidc/token`,
+    new URLSearchParams({
+      grant_type: 'client_credentials',
+      client_id: clientId,
+      client_secret: clientSecret,
+      scope: 'all',
+      resource: `${endpoint}/api`,
+    }),
+    { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+  );
+
+  _cachedToken = response.data.access_token;
+  // Expira 60s antes do vencimento real para evitar uso de token expirado
+  _tokenExpiry = Date.now() + (response.data.expires_in - 60) * 1000;
+  return _cachedToken;
+}
+
+async function logtoRequest(method, path, data) {
+  const endpoint = process.env.LOGTO_ENDPOINT || 'http://localhost:3301';
+  const token = await getM2MToken();
+  return axios({
+    method,
+    url: `${endpoint}/api${path}`,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    data,
+  });
+}
+
+/**
+ * Cria uma Organização no Logto (equivalente ao Tenant).
+ * @param {string} name - Nome da organização
+ * @returns {Promise<string>} ID da organização criada
+ */
+async function createLogtoOrg(name) {
+  try {
+    const res = await logtoRequest('post', '/organizations', {
+      name: name.trim(),
+      description: `Organização Ywara: ${name.trim()}`,
+    });
+    console.log(`[Logto] Org criada: ${res.data.id} (${name})`);
+    return res.data.id;
+  } catch (error) {
+    console.error('[Logto] createOrg falhou:', error.response?.data || error.message);
+    throw new Error('Falha na integração com Logto (createOrg)');
+  }
+}
+
+/**
+ * Cria um usuário no Logto.
+ * @param {string} tenantId - ID do tenant (salvo em customData)
+ * @param {object} userObj - Dados do usuário
+ * @returns {Promise<string>} ID do usuário criado no Logto
+ */
+async function createLogtoUser(tenantId, userObj) {
+  try {
+    const res = await logtoRequest('post', '/users', {
+      primaryEmail: userObj.email || `${userObj.username}@neonorte.local`,
+      username: userObj.username,
+      password: userObj.password,
+      name: `${userObj.firstName} ${userObj.lastName}`.trim(),
+      customData: {
+        tenantId,
+        role: 'USER',
+      },
+    });
+    console.log(`[Logto] User criado: ${res.data.id} (${userObj.username})`);
+    return res.data.id;
+  } catch (error) {
+    console.error('[Logto] createUser falhou:', error.response?.data || error.message);
+    throw new Error('Falha na integração com Logto (createUser)');
+  }
+}
+
+module.exports = { createLogtoOrg, createLogtoUser };

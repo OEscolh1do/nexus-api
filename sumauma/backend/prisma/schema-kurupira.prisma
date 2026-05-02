@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client-kurupira"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL_KURUPIRA_RO")
+}
+
+// ============================================
+// Modelos READ-ONLY do db_kurupira
+// Apenas os modelos que o Admin BFF precisa ler
+// ============================================
+
+model ModuleCatalog {
+  id                String  @id @default(cuid())
+  manufacturer      String
+  model             String  @unique
+  powerWp           Float
+  efficiency        Float?
+  dimensions        String?
+  weight            Float?
+  datasheet         String?
+  imageUrl          String?
+  isActive          Boolean @default(true)
+  bifacial          Boolean @default(false)
+  bifacialityFactor Float?
+  noct              Float?
+  tempCoeffVoc      Float?
+  tempCoeffPmax     Float?
+  cellSizeClass     String?
+  degradacaoAnual   Decimal @default(0.005) @db.Decimal(5,4)
+  electricalData    Json?
+
+  @@index([manufacturer])
+}
+
+model InverterCatalog {
+  id                   String  @id @default(cuid())
+  manufacturer         String
+  model                String  @unique
+  nominalPowerW        Float
+  maxInputV            Float?
+  mpptCount            Int?
+  efficiency           Float?
+  datasheet            String?
+  imageUrl             String?
+  isActive             Boolean @default(true)
+  Voc_max_hardware     Float?
+  Isc_max_hardware     Float?
+  coolingType          String? @default("passive")
+  afci                 Boolean @default(true)
+  rsd                  Boolean @default(false)
+  portaria515Compliant Boolean @default(false)
+  electricalData       Json?
+
+  @@index([manufacturer])
+}
+
+model TechnicalDesign {
+  id           String   @id @default(cuid())
+  tenantId     String   @default("default-tenant-001")
+  name         String
+  status       String   @default("DRAFT")
+  createdBy    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([status])
+}

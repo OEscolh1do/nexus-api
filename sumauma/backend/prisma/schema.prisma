@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// DOMÍNIO DE FUNDAÇÃO (YWARA CORE)
+// ============================================
+
+model Tenant {
+  id              String     @id @default(cuid())
+  name            String
+  type            String     @default("SUB_TENANT") // MASTER, SUB_TENANT
+  parentId        String?
+  apiPlan         String     @default("FREE")
+  apiMonthlyQuota Int        @default(1000)
+  apiCurrentUsage Int        @default(0)
+  ssoProvider     String?
+  ssoDomain       String?
+  ssoEnforced     Boolean    @default(false)
+  status          String     @default("ACTIVE") // ACTIVE, BLOCKED, TRIAL_EXPIRED
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  users     User[]
+  auditLogs AuditLog[]
+  apiKeys   TenantApiKey[]
+  orgUnits  OrgUnit[]
+
+  @@index([parentId])
+}
+
+model OrgUnit {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  type      String   // DEPARTAMENTO, FILIAL, EQUIPE
+  parentId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  parent   OrgUnit?  @relation("OrgHierarchy", fields: [parentId], references: [id])
+  children OrgUnit[] @relation("OrgHierarchy")
+  users    User[]
+
+  @@index([tenantId])
+  @@index([parentId])
+}
+
+model User {
+  id             String    @id @default(cuid())
+  username       String    @unique
+  password       String
+  fullName       String
+  role           String    // PLATFORM_ADMIN, TENANT_ADMIN, ENGINEER, VIEWER
+  orgUnitId      String?
+  tenantId       String
+  jobTitle       String?
+  mustChangePassword Boolean @default(false)
+  authProviderId String?   @unique // ZITADEL Subject ID
+  status         String    @default("ACTIVE") // ACTIVE, BLOCKED, PENDING_VERIFICATION
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  orgUnit   OrgUnit?   @relation(fields: [orgUnitId], references: [id])
+  auditLogs AuditLog[]
+
+  @@index([tenantId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  tenantId   String
+  userId     String
+  action     String   // CREATE, UPDATE, DELETE, LOGIN, EXPORT
+  entity     String?  // User, Tenant, Project, etc.
+  resourceId String
+  details    String?  @db.Text
+  before     Json?
+  after      Json?
+  ipAddress  String?
+  userAgent  String?
+  timestamp  DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([resourceId, timestamp])
+}
+
+model TenantApiKey {
+  id        String    @id @default(cuid())
+  tenantId  String
+  keyHash   String    @unique
+  name      String
+  lastUsed  DateTime?
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model CronLock {
+  id        String   @id
+  lockedAt  DateTime
+  expiresAt DateTime
+}
