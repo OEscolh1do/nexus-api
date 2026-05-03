@@ -2,7 +2,7 @@
 
 > **Última Atualização:** 2026-05-03 (sessão cbc99bf1)
 > **Arquiteto:** Antigravity AI
-> **Versão do Sistema:** 1.4.0 (Era Ywara — Sprint Governance & Metrics)
+> **Versão do Sistema:** 1.5.0 (Era Ywara — Sprint Governance & Hard Delete)
 
 ---
 
@@ -155,6 +155,7 @@ Referência completa em `.env.example`. Variáveis **obrigatórias** validadas n
 10. **Env validada no startup**. `validateEnv()` é chamado antes de qualquer import de rota — processo termina com mensagem clara se variável crítica ausente.
  11. **Governança de Assentos (Seats)**. Nenhum usuário pode ser criado acima do limite do plano; nenhum plano pode ser rebaixado se a contagem atual de usuários exceder o novo limite.
  12. **DRY nas Constantes de Tenant**. Usar obrigatoriamente `src/lib/tenantUtils.ts` no frontend para labels e limites.
+ 13. **Exclusão Definitiva (Hard Delete)**. A exclusão de tenants e usuários no Sumaúma deve ser síncrona com o Logto e gerar registros `ADMIN_DELETE_*` na auditoria. Operações críticas de tenant exigem confirmação via digitação do nome.
 
 ---
 
@@ -218,6 +219,32 @@ Implementação do motor de limites híbrido (Assentos + Uso de Simulação) par
 
 #### Centralização de Constantes
  - `src/lib/tenantUtils.ts`: Fonte única da verdade para `PLAN_SEATS`, `ACCOUNT_TYPE_LABEL` e Badges.
+
+---
+
+### Exclusão Definitiva e Sincronização de Identidade
+
+**Data**: 2026-05-03 | **Status**: ✅ Concluído e Implementado
+
+#### Contexto
+A exclusão de tenants e usuários era apenas lógica (soft delete) ou inexistente. Isso gerava inconsistência com o Logto Cloud (usuários fantasmas).
+
+#### Implementação
+- **Cascade local**: `DELETE /admin/tenants/:id` limpa AuditLogs, Users e API Keys via transação Prisma.
+- **Logto Sync**: Uso da Management API para remover `logtoOrgId` e `authProviderId` (usuário) em tempo real.
+- **Segurança Crítica**: O componente `ConfirmTenantDeleteModal` exige a digitação do nome da organização para evitar cliques acidentais.
+- **Poka-yoke**: Mantida a proteção contra exclusão do tenant `MASTER`.
+
+---
+
+### Auditoria de Sessão e Login
+
+**Data**: 2026-05-03 | **Status**: ✅ Concluído
+
+#### Implementação
+- **ADMIN_LOGIN**: Registrado tanto no login local quanto no callback de SSO (Logto).
+- **ADMIN_LOGOUT**: Registrado no backend via sinalização do frontend antes do redirecionamento.
+- **UI de Auditoria**: Timeline com timestamp relativo e absoluto, com cores semânticas para identificação rápida de logins (emerald) e logouts (amber).
 
 ---
 
