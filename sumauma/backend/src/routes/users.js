@@ -40,6 +40,31 @@ router.post('/', async (req, res) => {
       });
     }
 
+    const PLAN_SEATS = { FREE: 1, STARTER: 5, PRO: 20, ENTERPRISE: 9999 };
+
+    // Buscar tenant para verificar plano e tipo
+    const tenant = await prismaSumauma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { type: true, apiPlan: true, _count: { select: { users: true } } }
+    });
+    if (!tenant) return res.status(404).json({ error: 'Organização não encontrada' });
+
+    // POKA-YOKE: Verificar limite de seats pelo tipo da conta e plano
+    const maxSeats = tenant.type === 'INDIVIDUAL' ? 1 : (PLAN_SEATS[tenant.apiPlan] ?? 5);
+
+    if (tenant._count.users >= maxSeats) {
+      return res.status(409).json({
+        error: tenant.type === 'INDIVIDUAL'
+          ? 'Contas do tipo Individual permitem apenas 1 usuário na equipe. Mude a organização para Empresarial para adicionar mais membros.'
+          : `Limite de ${maxSeats} usuário(s) atingido para o plano ${tenant.apiPlan}. Faça upgrade para adicionar mais usuários.`,
+        code: 'SEAT_LIMIT_EXCEEDED',
+        current: tenant._count.users,
+        max: maxSeats,
+        plan: tenant.apiPlan,
+        type: tenant.type,
+      });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // 1. Criar no Banco Local (Fundação)

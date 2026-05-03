@@ -14,7 +14,7 @@ export interface TenantUser {
 export interface Tenant {
   id: string;
   name: string;
-  type: 'MASTER' | 'SUB_TENANT';
+  type: 'MASTER' | 'INDIVIDUAL' | 'CORPORATE';
   apiPlan: 'FREE' | 'STARTER' | 'PRO' | 'ENTERPRISE';
   apiMonthlyQuota: number;
   apiCurrentUsage: number;
@@ -199,7 +199,7 @@ export function useCreateTenant(onSuccess?: (id: string, name: string) => void) 
   const [error, setError] = useState<string | null>(null);
 
   const mutate = useCallback(
-    (payload: { name: string; apiPlan?: string; apiMonthlyQuota?: number }) => {
+    (payload: { name: string; apiPlan?: string; apiMonthlyQuota?: number; type?: string }) => {
       setLoading(true);
       setError(null);
       return api

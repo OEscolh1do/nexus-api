@@ -14,6 +14,20 @@ import TenantStatusBadge from '@/components/tenants/TenantStatusBadge';
 import TenantDrawer from '@/components/tenants/TenantDrawer';
 import { useDebounce } from '@/hooks/useDebounce';
 
+// ─── Account Type mapping ─────────────────────────────────────────────────────
+
+const ACCOUNT_TYPE_LABEL: Record<string, string> = {
+  INDIVIDUAL: 'Individual',
+  CORPORATE: 'Empresarial',
+  MASTER: 'Plataforma',
+};
+
+const ACCOUNT_TYPE_BADGE_CLASS: Record<string, string> = {
+  INDIVIDUAL: 'text-sky-400 bg-sky-500/10 border border-sky-500/20',
+  CORPORATE:  'text-violet-400 bg-violet-500/10 border border-violet-500/20',
+  MASTER:     'text-slate-400 bg-slate-500/10 border border-slate-500/20',
+};
+
 // ─── Plan badge ───────────────────────────────────────────────────────────────
 
 const PLAN_COLOR: Record<string, string> = {
@@ -82,7 +96,8 @@ function FilterBar({
         className="h-8 rounded-sm border border-slate-700 bg-slate-800 px-2 text-xs text-slate-300 focus:outline-none focus:border-sky-500/50"
       >
         <option value="">Todos os tipos</option>
-        <option value="SUB_TENANT">SUB_TENANT</option>
+        <option value="INDIVIDUAL">Individual</option>
+        <option value="CORPORATE">Empresarial</option>
       </select>
 
       {/* Plan filter */}
@@ -162,7 +177,9 @@ function TenantRow({ tenant, onClick }: { tenant: Tenant; onClick: () => void })
           )}
           <div>
             <p className="text-xs font-medium text-slate-200">{tenant.name}</p>
-            <p className="text-[10px] text-slate-600">{tenant.type}</p>
+            <span className={`mt-0.5 inline-block rounded-sm px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider ${ACCOUNT_TYPE_BADGE_CLASS[tenant.type] || ''}`}>
+              {ACCOUNT_TYPE_LABEL[tenant.type] || tenant.type}
+            </span>
           </div>
         </div>
       </td>

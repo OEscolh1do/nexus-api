@@ -7,7 +7,7 @@ import { useAuthStore } from '@/stores/authStore';
 export interface UserTenant {
   id: string;
   name: string;
-  type?: string;
+  type?: 'MASTER' | 'INDIVIDUAL' | 'CORPORATE';
   apiPlan?: string;
 }
 

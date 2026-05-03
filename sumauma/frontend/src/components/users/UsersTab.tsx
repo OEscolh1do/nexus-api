@@ -6,12 +6,27 @@ import {
   ChevronRight,
   SlidersHorizontal,
   ArrowUpDown,
+  Plus,
 } from 'lucide-react';
 import { useUsers, type User } from '@/hooks/useUsers';
 import { useDebounce } from '@/hooks/useDebounce';
 import api from '@/lib/api';
 import RoleBadge from '@/components/users/RoleBadge';
 import UserDrawer from '@/components/users/UserDrawer';
+
+// ─── Account Type mapping ─────────────────────────────────────────────────────
+
+const ACCOUNT_TYPE_LABEL: Record<string, string> = {
+  INDIVIDUAL: 'Individual',
+  CORPORATE: 'Empresarial',
+  MASTER: 'Plataforma',
+};
+
+const ACCOUNT_TYPE_BADGE_CLASS: Record<string, string> = {
+  INDIVIDUAL: 'text-sky-400 bg-sky-500/10 border border-sky-500/20',
+  CORPORATE:  'text-violet-400 bg-violet-500/10 border border-violet-500/20',
+  MASTER:     'text-slate-400 bg-slate-500/10 border border-slate-500/20',
+};
 
 // ─── Filter bar ───────────────────────────────────────────────────────────────
 
@@ -158,8 +173,15 @@ function UserRow({
       {/* Tenant */}
       <td className="px-4 py-3">
         <div className="flex flex-col">
-          <p className="text-xs text-slate-300">{user.tenant?.name || '—'}</p>
-          <p className="text-[10px] text-slate-600 font-tabular">{user.tenantId}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-xs text-slate-300">{user.tenant?.name || '—'}</p>
+            {user.tenant?.type && (
+              <span className={`inline-block rounded-[3px] px-1.5 py-[1px] text-[8px] font-medium uppercase tracking-wider ${ACCOUNT_TYPE_BADGE_CLASS[user.tenant.type] || ''}`}>
+                {ACCOUNT_TYPE_LABEL[user.tenant.type] || user.tenant.type}
+              </span>
+            )}
+          </div>
+          <p className="text-[10px] text-slate-600 font-tabular mt-0.5">{user.tenantId}</p>
         </div>
       </td>
 
@@ -224,11 +246,20 @@ export default function UsersTab() {
     <div className="flex h-full flex-col gap-4">
       {/* Header removido, será gerenciado pela UsersPage */}
 
-      {/* Filters */}
-      <FilterBar
-        filters={{ q: rawQ, ...filters }}
-        onChange={handleFilterChange}
-      />
+      {/* Filters & Actions */}
+      <div className="flex items-center justify-between gap-3">
+        <FilterBar
+          filters={{ q: rawQ, ...filters }}
+          onChange={handleFilterChange}
+        />
+        <button
+          onClick={() => setCreateOpen(true)}
+          className="flex shrink-0 items-center gap-1.5 rounded-sm border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-xs font-medium text-sky-400 hover:bg-sky-500/20 transition-colors"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Novo Usuário
+        </button>
+      </div>
 
       {/* DataGrid */}
       <div className="flex flex-1 flex-col overflow-hidden rounded-sm border border-slate-800 bg-slate-900">

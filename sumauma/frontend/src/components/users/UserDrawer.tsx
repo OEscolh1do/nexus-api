@@ -26,6 +26,20 @@ import RoleBadge from './RoleBadge';
 import ConfirmUserBlockModal from './ConfirmUserBlockModal';
 import CreateUserForm from './CreateUserForm';
 
+// ─── Account Type mapping ─────────────────────────────────────────────────────
+
+const ACCOUNT_TYPE_LABEL: Record<string, string> = {
+  INDIVIDUAL: 'Individual',
+  CORPORATE: 'Empresarial',
+  MASTER: 'Plataforma',
+};
+
+const ACCOUNT_TYPE_BADGE_CLASS: Record<string, string> = {
+  INDIVIDUAL: 'text-sky-400 bg-sky-500/10 border border-sky-500/20',
+  CORPORATE:  'text-violet-400 bg-violet-500/10 border border-violet-500/20',
+  MASTER:     'text-slate-400 bg-slate-500/10 border border-slate-500/20',
+};
+
 // ─── Role edit sub-panel ──────────────────────────────────────────────────────
 
 // POKA-YOKE: PLATFORM_ADMIN deliberadamente ausente.
@@ -213,6 +227,11 @@ export default function UserDrawer({ userId, onClose, onMutated }: UserDrawerPro
                   <div className="flex items-center gap-2">
                     <Building2 className="h-4 w-4 text-slate-400" />
                     <span className="text-sm text-slate-200">{user.tenant?.name || 'Sem tenant'}</span>
+                    {user.tenant?.type && (
+                      <span className={`inline-block rounded-sm px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider ${ACCOUNT_TYPE_BADGE_CLASS[user.tenant.type] || ''}`}>
+                        {ACCOUNT_TYPE_LABEL[user.tenant.type] || user.tenant.type}
+                      </span>
+                    )}
                     {user.tenant?.apiPlan && (
                       <span className="badge badge-info ml-auto">{user.tenant.apiPlan}</span>
                     )}

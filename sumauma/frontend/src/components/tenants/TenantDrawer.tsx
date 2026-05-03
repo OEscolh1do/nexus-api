@@ -22,6 +22,20 @@ import TenantStatusBadge from './TenantStatusBadge';
 import ConfirmBlockModal from './ConfirmBlockModal';
 import CreateTenantForm from './CreateTenantForm';
 
+// ─── Account Type mapping ─────────────────────────────────────────────────────
+
+const ACCOUNT_TYPE_LABEL: Record<string, string> = {
+  INDIVIDUAL: 'Individual',
+  CORPORATE: 'Empresarial',
+  MASTER: 'Plataforma',
+};
+
+const ACCOUNT_TYPE_BADGE_CLASS: Record<string, string> = {
+  INDIVIDUAL: 'text-sky-400 bg-sky-500/10 border border-sky-500/20',
+  CORPORATE:  'text-violet-400 bg-violet-500/10 border border-violet-500/20',
+  MASTER:     'text-slate-400 bg-slate-500/10 border border-slate-500/20',
+};
+
 // ─── Plan edit sub-panel ──────────────────────────────────────────────────────
 
 const PLAN_OPTIONS = ['FREE', 'STARTER', 'PRO', 'ENTERPRISE'];
@@ -214,7 +228,12 @@ export default function TenantDrawer({ tenantId, onClose, onMutated }: TenantDra
               <section>
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h2 className="text-base font-semibold text-slate-100">{tenant.name}</h2>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-base font-semibold text-slate-100">{tenant.name}</h2>
+                      <span className={`inline-block rounded-sm px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider ${ACCOUNT_TYPE_BADGE_CLASS[tenant.type] || ''}`}>
+                        {ACCOUNT_TYPE_LABEL[tenant.type] || tenant.type}
+                      </span>
+                    </div>
                     <p className="mt-0.5 font-tabular text-[11px] text-slate-600">{tenant.id}</p>
                   </div>
                   <TenantStatusBadge status={tenant.status} />
@@ -268,11 +287,18 @@ export default function TenantDrawer({ tenantId, onClose, onMutated }: TenantDra
               </section>
 
               {/* Users list */}
-              {tenant.users && tenant.users.length > 0 && (
+              {((tenant.users && tenant.users.length > 0) || tenant.type === 'INDIVIDUAL') && (
                 <section className="space-y-2">
-                  <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
-                    Usuários ({tenant._count.users})
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
+                      Usuários ({tenant._count.users})
+                    </p>
+                    {tenant.type === 'INDIVIDUAL' && (
+                      <span className="text-[10px] text-amber-500/80 font-medium bg-amber-500/10 px-1.5 py-0.5 rounded-sm border border-amber-500/20">
+                        Max: 1
+                      </span>
+                    )}
+                  </div>
                   <div className="rounded-sm border border-slate-800 divide-y divide-slate-800">
                     {tenant.users.slice(0, 10).map((u) => (
                       <div

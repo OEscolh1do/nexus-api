@@ -35,10 +35,14 @@ async function assertNotMaster(id, res) {
 // ============================================
 router.post('/', async (req, res) => {
   try {
-    const { name, apiPlan, apiMonthlyQuota } = req.body;
+    const { name, apiPlan, apiMonthlyQuota, type } = req.body;
     if (!name || typeof name !== 'string' || name.trim().length < 2) {
       return res.status(400).json({ error: 'Nome da organização é obrigatório (mínimo 2 caracteres)' });
     }
+
+    // Validar tipo (poka-yoke)
+    const allowedTypes = ['INDIVIDUAL', 'CORPORATE'];
+    const tenantType = allowedTypes.includes(type) ? type : 'CORPORATE';
 
     // 1. Criar no Banco Local (Fundação)
     const tenant = await prismaSumauma.tenant.create({
@@ -46,7 +50,7 @@ router.post('/', async (req, res) => {
         name: name.trim(),
         apiPlan: apiPlan || 'FREE',
         apiMonthlyQuota: Number(apiMonthlyQuota) || 1000,
-        type: 'SUB_TENANT'
+        type: tenantType // NUNCA aceita 'MASTER' da request
       }
     });
 
@@ -167,9 +171,33 @@ router.patch('/:id', async (req, res) => {
     const tenant = await assertNotMaster(req.params.id, res);
     if (!tenant) return;
 
+    const ALLOWED_PATCH_FIELDS = [
+      'name', 'apiPlan', 'apiMonthlyQuota', 'apiCurrentUsage',
+      'ssoProvider', 'ssoDomain', 'ssoEnforced', 'status', 'type'
+    ];
+    const PROTECTED_TYPE_VALUES = ['MASTER'];
+
+    const rawData = req.body;
+    const safeData = Object.fromEntries(
+      Object.entries(rawData).filter(([key]) => ALLOWED_PATCH_FIELDS.includes(key))
+    );
+
+    // Nunca permitir promoção para MASTER via PATCH
+    if (safeData.type && PROTECTED_TYPE_VALUES.includes(safeData.type)) {
+      return res.status(403).json({
+        error: 'Não é permitido alterar o tipo para MASTER via interface.',
+        code: 'MASTER_PROMOTION_FORBIDDEN'
+      });
+    }
+
+    // Validar valores permitidos de type
+    if (safeData.type && !['INDIVIDUAL', 'CORPORATE'].includes(safeData.type)) {
+      return res.status(400).json({ error: 'Tipo inválido. Use INDIVIDUAL ou CORPORATE.' });
+    }
+
     const updated = await prismaSumauma.tenant.update({
       where: { id: req.params.id },
-      data: req.body
+      data: safeData
     });
 
     await auditLog({ ...ctx(req), action: 'ADMIN_UPDATE_TENANT', entity: 'Tenant', resourceId: req.params.id, details: `Organização atualizada: ${updated.name}`, after: req.body });

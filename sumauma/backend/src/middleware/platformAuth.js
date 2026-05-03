@@ -51,24 +51,48 @@ function platformAuth(req, res, next) {
       const roles = decoded.roles || [];
       const legacyRole = decoded.role || decoded?.customData?.role;
 
-      const isAuthorized =
+      let isAuthorized =
         legacyRole === 'PLATFORM_ADMIN' ||
         roles.includes('PLATFORM_ADMIN');
 
-      if (!isAuthorized) {
-        logger.warn('Acesso negado — role insuficiente', { sub: decoded.sub, roles });
-        return res.status(403).json({
-          error: 'Acesso restrito a operadores da plataforma',
-        });
-      }
-
-      req.operator = {
-        id: decoded.id || decoded.sub,
-        username: decoded.username || decoded.preferred_username || decoded.email,
-        role: legacyRole || (roles.includes('PLATFORM_ADMIN') ? 'PLATFORM_ADMIN' : 'GUEST'),
+      const finalizeAuth = (operatorRole) => {
+        req.operator = {
+          id: decoded.id || decoded.sub,
+          username: decoded.username || decoded.preferred_username || decoded.email,
+          role: operatorRole,
+        };
+        next();
       };
 
-      next();
+      if (!isAuthorized) {
+        // Fallback: verificar a role no banco de dados Master (db_sumauma)
+        const prismaSumauma = require('../lib/prismaSumauma');
+        const userId = decoded.id || decoded.sub;
+        
+        prismaSumauma.user.findFirst({
+          where: {
+            OR: [
+              { id: userId },
+              { authProviderId: userId }
+            ]
+          },
+          select: { role: true }
+        }).then(dbUser => {
+          if (dbUser && dbUser.role === 'PLATFORM_ADMIN') {
+            finalizeAuth('PLATFORM_ADMIN');
+          } else {
+            logger.warn('Acesso negado — role insuficiente no Token e DB', { sub: userId, dbRole: dbUser?.role });
+            return res.status(403).json({
+              error: 'Acesso restrito a operadores da plataforma',
+            });
+          }
+        }).catch(err => {
+          logger.error('Erro ao verificar role no banco', { err: err.message });
+          return res.status(500).json({ error: 'Erro interno na autorização' });
+        });
+      } else {
+        finalizeAuth('PLATFORM_ADMIN');
+      }
     });
   } catch (err) {
     return res.status(500).json({ error: 'Erro interno ao validar token' });

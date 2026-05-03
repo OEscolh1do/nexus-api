@@ -1,6 +1,6 @@
 ---
 name: tenant-backoffice
-description: Especialista em gestão de Tenants (organizações), Usuários e controle de acesso no nível de operador da plataforma. Ative ao implementar CRUD de tenants, gestão de usuários cross-tenant, controle de assinaturas, bloqueio/desbloqueio de contas, reset de senha ou gestão de API Keys. Opera exclusivamente no contexto do neonorte-admin (GOD-MODE do operador).
+description: Especialista em gestão de Tenants (CORPORATE/INDIVIDUAL) e Usuários no Sumaúma. Ative ao implementar CRUD de tenants, gestão de usuários cross-tenant, controle de planos e seat limits, bloqueio/desbloqueio de contas ou sincronização de identidades com Logto. Opera em db_sumauma (escrita direta) com poka-yokes SPEC-005 obrigatórios.
 ---
 
 # Skill: Tenant Backoffice
@@ -8,91 +8,175 @@ description: Especialista em gestão de Tenants (organizações), Usuários e co
 ## Gatilho Semântico
 
 Ativado quando:
-- O agente precisa implementar listagem, criação, edição ou bloqueio de Tenants (organizações)
-- A tarefa envolve gestão de usuários cross-tenant (visualizar todos os users de todas as organizações)
-- É necessário implementar controle de assinaturas, planos ou limites de API
-- O agente precisa criar lógica de bloqueio/desbloqueio de contas ou reset de senha
-- Qualquer menção a: `tenant`, `organização`, `assinatura`, `plano`, `bloquear usuário`, `resetar senha`, `API quota`, `SSO`
-- Alterações em rotas `/admin/tenants` ou `/admin/users` no BFF
+- O agente precisa implementar listagem, criação, edição ou bloqueio de Tenants
+- A tarefa envolve gestão de usuários cross-tenant (visualizar todos os users da plataforma)
+- É necessário implementar controle de planos, seat limits ou sincronização com Logto
+- O agente precisa aplicar as regras poka-yoke do SPEC-005 (assertNotMaster, SEAT_LIMIT_EXCEEDED, whitelist de PATCH)
+- Qualquer menção a: `tenant`, `organização`, `CORPORATE`, `INDIVIDUAL`, `seat limit`, `bloquear usuário`, `SPEC-005`
+- Alterações em `routes/tenants.js` ou `routes/users.js`
 
 ## Protocolo
 
-### 1. Modelo de Dados (Referência — db_iaca)
-
-O Admin BFF **lê** diretamente estes modelos do `db_iaca`:
+### 1. Modelo de Dados (db_sumauma)
 
 ```
 Tenant
-├── id, name, type (MASTER | SUB_TENANT)
-├── apiPlan (FREE | PRO | ENTERPRISE)
-├── apiMonthlyQuota, apiCurrentUsage
-├── ssoProvider, ssoDomain, ssoEnforced
-├── parentId (hierarquia)
-└── → users[], auditLogs[], leads[], ...
+├── id, name
+├── type: MASTER | CORPORATE | INDIVIDUAL   ← SPEC-005 (não usar SUB_TENANT)
+├── plan: FREE | STARTER | PRO | ENTERPRISE
+├── logtoOrgId                              ← ID da org no Logto Cloud
+├── createdAt, updatedAt
+└── → users[]
 
 User
-├── id, username, password (hash), fullName
-├── role, orgUnitId, tenantId
-├── jobTitle, hierarchyLevel, employmentType
-├── supervisorId, vendorId
-└── → leadsOwned[], projectsManaged[], ...
+├── id, email, fullName
+├── tenantId → Tenant
+├── role: PLATFORM_ADMIN | TENANT_ADMIN | MEMBER
+├── logtoUserId                             ← ID do user no Logto Cloud
+├── isActive
+└── createdAt, updatedAt
 ```
 
-### 2. Operações por Tipo
+> Tenants e Users residem em `db_sumauma`. O Sumaúma escreve diretamente neste banco via Prisma — não há M2M para criar tenants/users.
 
-#### Leituras (via Prisma READ-ONLY → db_iaca)
+### 2. Account Types — SPEC-005
 
-| Operação | Endpoint | Query Relevante |
+| Valor | Semântica | Criável via API |
 |:---|:---|:---|
-| Listar todos os tenants | `GET /admin/tenants` | `prismaIaca.tenant.findMany({ include: { _count: { select: { users: true } } } })` |
-| Detalhar tenant | `GET /admin/tenants/:id` | Include: users, apiPlan, ssoConfig |
-| Listar todos os users | `GET /admin/users` | `prismaIaca.user.findMany({ include: { tenant: true } })` |
-| Buscar user por username | `GET /admin/users?q=...` | Filtro WHERE com LIKE |
-| Métricas de uso | `GET /admin/tenants/:id/metrics` | COUNT de leads, projetos, audit logs |
+| `MASTER` | Admin plane da Neonorte (Sumaúma próprio) | ❌ Nunca via API |
+| `CORPORATE` | Empresa integradora (multi-usuário) | ✅ POST /admin/tenants |
+| `INDIVIDUAL` | Engenheiro solo / freelancer (1 user) | ✅ POST /admin/tenants |
 
-#### Escritas (via M2M HTTP → Iaçã API)
+### 3. Seat Limits por Plano (SPEC-005)
 
-| Operação | Endpoint Admin | Rota Iaçã (interna) | Observações |
-|:---|:---|:---|:---|
-| Criar tenant | `POST /admin/tenants` | `POST /internal/tenants` | Iaçã valida unicidade, cria default OrgUnit |
-| Editar tenant | `PUT /admin/tenants/:id` | `PUT /internal/tenants/:id` | Alterar plano, quota, SSO |
-| Bloquear tenant | `PUT /admin/tenants/:id/block` | `PUT /internal/tenants/:id` | `{ status: 'BLOCKED' }` — Iaçã propaga bloqueio para users |
-| Reset de senha | `POST /admin/users/:id/reset-password` | `POST /internal/users/:id/reset-password` | Iaçã gera nova senha hasheada e retorna a temporária |
-| Desativar user | `DELETE /admin/users/:id` | `DELETE /internal/users/:id` | Iaçã faz soft-delete com auditoria |
-| Alterar role | `PUT /admin/users/:id` | `PUT /internal/users/:id` | `{ role: 'NEW_ROLE' }` |
+```javascript
+const PLAN_SEATS = {
+  FREE: 1,
+  STARTER: 5,
+  PRO: 20,
+  ENTERPRISE: 9999,
+};
+```
 
-### 3. Regras de Negócio do Operador
+O endpoint `POST /admin/users` deve verificar antes de criar:
+```javascript
+const count = await prisma.user.count({ where: { tenantId } });
+const limit = PLAN_SEATS[tenant.plan];
+if (count >= limit) {
+  return res.status(409).json({ error: 'SEAT_LIMIT_EXCEEDED', limit, current: count });
+}
+```
+
+### 4. Poka-Yokes Obrigatórios (SPEC-005)
+
+#### assertNotMaster
+```javascript
+function assertNotMaster(tenant) {
+  if (tenant.type === 'MASTER') {
+    const err = new Error('Operações destrutivas no tenant MASTER são proibidas');
+    err.status = 403;
+    throw err;
+  }
+}
+// Chamar antes de qualquer PUT, PATCH, DELETE em /admin/tenants/:id
+```
+
+#### Whitelist no PATCH /admin/tenants/:id
+```javascript
+const ALLOWED_PATCH_FIELDS = ['name', 'plan'];
+// Rejeitar qualquer tentativa de alterar `type`
+if (req.body.type) {
+  return res.status(403).json({ error: 'O campo type não pode ser alterado via API' });
+}
+```
+
+#### POST /admin/tenants — Apenas CORPORATE ou INDIVIDUAL
+```javascript
+const ALLOWED_TYPES = ['CORPORATE', 'INDIVIDUAL'];
+if (!ALLOWED_TYPES.includes(req.body.type)) {
+  return res.status(400).json({ error: 'type deve ser CORPORATE ou INDIVIDUAL' });
+}
+```
+
+### 5. Sincronização com Logto
+
+Toda criação de tenant/user deve sincronizar com Logto Cloud via Management API:
+
+```javascript
+// Criar tenant → criar org no Logto
+async function createTenantWithLogto(data, prisma, logtoMgmt) {
+  const tenant = await prisma.tenant.create({ data });
+
+  try {
+    const { id: logtoOrgId } = await logtoMgmt.post('/api/organizations', {
+      name: tenant.name,
+      customData: { tenantId: tenant.id, type: tenant.type },
+    });
+    await prisma.tenant.update({ where: { id: tenant.id }, data: { logtoOrgId } });
+  } catch (err) {
+    logger.warn('Falha ao criar org no Logto para tenant', { tenantId: tenant.id, err: err.message });
+    // Não rollback — sincronização pode ser retentada via job de reconciliação
+  }
+
+  return tenant;
+}
+```
+
+> Falha no Logto não reverte a criação local. Consistência eventual — job de reconciliação resolve divergências.
+
+### 6. Endpoints
+
+#### Tenants
+
+| Endpoint | Método | Lê de | Escreve em | Observações |
+|:---|:---|:---|:---|:---|
+| `/admin/tenants` | GET | db_sumauma | — | Paginado, filtros por type/plan |
+| `/admin/tenants/:id` | GET | db_sumauma | — | Include: _count users, logtoOrgId |
+| `/admin/tenants` | POST | — | db_sumauma + Logto | type: CORPORATE \| INDIVIDUAL |
+| `/admin/tenants/:id` | PATCH | — | db_sumauma | Whitelist: name, plan. Nunca type |
+| `/admin/tenants/:id/block` | POST | — | db_sumauma | assertNotMaster; bloquear users em cascata |
+
+#### Usuários
+
+| Endpoint | Método | Lê de | Escreve em | Observações |
+|:---|:---|:---|:---|:---|
+| `/admin/users` | GET | db_sumauma | — | Cross-tenant; include: tenant |
+| `/admin/users/:id` | GET | db_sumauma | — | Include: tenant, auditLogs recentes |
+| `/admin/users` | POST | — | db_sumauma + Logto | Verifica SEAT_LIMIT antes |
+| `/admin/users/:id` | PATCH | — | db_sumauma | Campos permitidos: fullName, role, isActive |
+
+### 7. Filtros da Listagem (Frontend → Backend)
+
+| Filtro | Query Param | Tipo |
+|:---|:---|:---|
+| Account Type | `type` | `CORPORATE \| INDIVIDUAL \| MASTER` |
+| Plano | `plan` | `FREE \| STARTER \| PRO \| ENTERPRISE` |
+| Busca livre | `q` | Texto (name do tenant, email/fullName do user) |
+| Ordenação | `orderBy` | `createdAt \| name \| usersCount` |
+| Paginação | `page`, `limit` | Int (máx 100 por página) |
+
+### 8. Regras de Negócio do Operador
 
 | Regra | Descrição |
 |:---|:---|
-| **Bloqueio em cascata** | Bloquear um Tenant deve bloquear o acesso de TODOS os seus Users. A lógica vive no Iaçã, o Admin apenas dispara. |
-| **Proteção do MASTER** | O Tenant com `type: MASTER` nunca pode ser bloqueado ou excluído pelo Admin (é o tenant raiz da Neonorte). |
-| **Auditoria obrigatória** | Toda mutação de tenant/user pelo Admin BFF deve gerar um `AuditLog` com `action: 'ADMIN_*'` (ex: `ADMIN_BLOCK_TENANT`). |
-| **Quota de API** | O operador pode alterar `apiMonthlyQuota` de um Tenant. O reset mensal do `apiCurrentUsage` é responsabilidade de um cron job no Iaçã. |
-| **SSO** | O operador pode configurar `ssoProvider`, `ssoDomain` e `ssoEnforced` de um Tenant Enterprise. A validação do SSO em si vive no Iaçã. |
-
-### 4. Filtros e Buscas (Frontend)
-
-| Filtro | Tipo | Valores |
-|:---|:---|:---|
-| Status do Tenant | Select | `ACTIVE`, `BLOCKED`, `SUSPENDED` |
-| Plano | Select | `FREE`, `PRO`, `ENTERPRISE` |
-| Tipo | Select | `MASTER`, `SUB_TENANT` |
-| Busca | Text | Nome do tenant, username, fullName |
-| Role do User | Select | Dinâmico (extraído dos dados) |
-| Tenant do User | Select | Lista de tenants |
-| Ordenação | Toggle | `createdAt`, `name`, `usersCount` |
+| **MASTER imutável** | Tenant com `type: MASTER` não pode ser bloqueado, alterado ou excluído via API |
+| **Bloqueio em cascata** | Bloquear Tenant desativa todos os seus Users no db_sumauma e revoga sessions no Logto |
+| **PLATFORM_ADMIN via CLI** | Role `PLATFORM_ADMIN` nunca pode ser atribuída via `PATCH /admin/users/:id` — apenas via CLI no servidor |
+| **Auditoria obrigatória** | Toda mutação gera `AuditLog` com `action: ADMIN_*` |
+| **Seat limit** | Enforçado no backend ao criar user — 409 SEAT_LIMIT_EXCEEDED se atingido |
 
 ## Limitações e Boas Práticas
 
 ### Hard Boundaries
-- ❌ Esta skill NÃO implementa autenticação de usuário final (login/signup do cliente) — isso é responsabilidade do Iaçã.
-- ❌ Esta skill NÃO decide como o IAM organizacional funcionará no futuro — isso será definido na refatoração do Iaçã.
-- ❌ Esta skill NÃO cria ou modifica o schema Prisma do Iaçã (`iaca-erp/backend/prisma/schema.prisma`). Ela apenas CONSOME o modelo existente via read-only.
+- ❌ Nunca aceitar `type: 'MASTER'` em POST ou PATCH via API.
+- ❌ Nunca alterar role para `PLATFORM_ADMIN` via API — apenas CLI no servidor.
+- ❌ Nunca usar `SUB_TENANT` — tipo deprecado pelo SPEC-005.
+- ❌ Esta skill NÃO implementa autenticação de usuário final (login do cliente) — isso é responsabilidade do Logto/Iaçã.
 - ❌ Esta skill NÃO define estética de componentes — delegue ao `ui-backoffice`.
 
 ### Boas Práticas
-- ✅ Sempre validar que o Tenant alvo não é `type: MASTER` antes de operações destrutivas.
-- ✅ Incluir `_count` de relacionamentos nas listagens para dar contexto ao operador (ex: "Este tenant tem 15 usuários e 42 projetos").
-- ✅ Paginação obrigatória: `?page=1&limit=50` com máximo de 100 por página.
-- ✅ Ao bloquear um tenant, exibir um resumo do impacto antes da confirmação ("34 usuários serão bloqueados, 12 projetos em andamento").
+- ✅ Sempre verificar `assertNotMaster` antes de operações destrutivas em tenants.
+- ✅ Incluir `_count` de users nas listagens de tenants.
+- ✅ Paginação obrigatória: `page` + `limit` com máximo de 100 por página.
+- ✅ Ao bloquear tenant, exibir resumo de impacto antes da confirmação ("X usuários serão bloqueados").
+- ✅ Falha no Logto ao criar tenant/user não deve bloquear a operação local — logar como warning.

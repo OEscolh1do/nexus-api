@@ -31,6 +31,7 @@ export default function CreateTenantForm({ onClose, onCreated }: CreateTenantFor
   const [name, setName] = useState('');
   const [apiPlan, setApiPlan] = useState('FREE');
   const [apiMonthlyQuota, setApiMonthlyQuota] = useState(QUOTA_BY_PLAN['FREE']);
+  const [type, setType] = useState('CORPORATE');
 
   const { mutate: create, loading, error } = useCreateTenant(onCreated);
 
@@ -42,7 +43,7 @@ export default function CreateTenantForm({ onClose, onCreated }: CreateTenantFor
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
-    create({ name, apiPlan, apiMonthlyQuota }).catch(() => {});
+    create({ name, apiPlan, apiMonthlyQuota, type }).catch(() => {});
   }
 
   return (
@@ -69,6 +70,33 @@ export default function CreateTenantForm({ onClose, onCreated }: CreateTenantFor
             autoFocus
             className="w-full rounded-sm border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:border-sky-500/50 focus:outline-none"
           />
+        </div>
+
+        {/* Tipo de Conta */}
+        <div className="space-y-2">
+          <label className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
+            Tipo de Conta
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { value: 'INDIVIDUAL', label: 'Individual', desc: '1 usuário máximo' },
+              { value: 'CORPORATE', label: 'Empresarial', desc: 'Múltiplos usuários' },
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setType(opt.value)}
+                className={`rounded-sm border px-3 py-2 text-left transition-colors ${
+                  type === opt.value
+                    ? 'border-sky-500/50 bg-sky-500/10 text-sky-300'
+                    : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600 hover:text-slate-300'
+                }`}
+              >
+                <p className="text-xs font-medium">{opt.label}</p>
+                <p className="text-[10px] text-slate-500">{opt.desc}</p>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Plano */}
@@ -116,7 +144,13 @@ export default function CreateTenantForm({ onClose, onCreated }: CreateTenantFor
         {/* Info box */}
         <div className="rounded-sm border border-slate-800 bg-slate-900/50 px-3 py-2.5">
           <p className="text-[11px] text-slate-500">
-            A organização será criada como <strong className="text-slate-400">Sub-Tenant</strong> sem usuários. Adicione usuários após a criação.
+            A organização será criada sem usuários. 
+            {type === 'INDIVIDUAL' && (
+              <strong className="text-amber-400 block mt-1">Conta solo — 1 usuário máximo por plano.</strong>
+            )}
+            {type === 'CORPORATE' && (
+              <span className="block mt-1">Adicione os usuários da equipe após a criação.</span>
+            )}
           </p>
         </div>
 

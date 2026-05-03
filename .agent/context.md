@@ -15,7 +15,7 @@ Este hub orquestra domínios autônomos, cada um com frontend + backend + schema
 | Módulo | Codinome | Papel | Porta BE | Porta FE |
 |--------|----------|-------|----------|----------|
 | **Hub / Root** | **Ywara** | Infraestrutura e orquestração celeste | - | - |
-| **Admin** | **Sumaúma** | Backoffice (O pilar central que conecta e sustenta o ecossistema) | 3003 | 5175 |
+| **Admin** | **Sumaúma** | Backoffice (O pilar central que conecta e sustenta o ecossistema. **Acesso exclusivo para gestão do Ywara. Demais usuários do ecossistema NÃO devem ter acesso.**) | 3003 | 5175 |
 | **Engenharia** | **Kurupira** | Motor Solar (O protetor técnico da floresta) | 3002 | 5173 |
 | **ERP** | **Iaçã** | Gestão e Prosperidade (O fruto que alimenta o negócio) | 3001 | 5174 |
 

@@ -1,14 +1,14 @@
 # CONTEXT.md — Sumaúma (Backoffice do Operador)
 
-> **Última Atualização:** 2026-05-03
+> **Última Atualização:** 2026-05-03 (sessão 9f591218)
 > **Arquiteto:** Antigravity AI
-> **Versão do Sistema:** 1.2.0 (Era Ywara — Sprint de Hardening)
+> **Versão do Sistema:** 1.3.0 (Era Ywara — Sprint Account Type)
 
 ---
 
 ## 📋 VISÃO GERAL
 
-**Sumaúma** é o pilar central do ecossistema Ywara. Atua como o painel de gestão, controle e supervisão exclusivo dos operadores da Neonorte. Opera como **GOD-MODE** — a base estrutural que sustenta e conecta os demais serviços (Iaçã e Kurupira).
+**Sumaúma** é o pilar central do ecossistema Ywara. Atua como o painel de gestão, controle e supervisão exclusivo dos operadores da Neonorte. Opera como **GOD-MODE** — a base estrutural que sustenta e conecta os demais serviços (Iaçã e Kurupira). **O Sumaúma é um sistema exclusivo para gestão do Ywara. Demais usuários do ecossistema Ywara não devem ter acesso ao Sumaúma.**
 
 Este módulo é **separado** dos sistemas de produto (Iaçã e Kurupira) e se comunica com eles via:
 - **Leitura direta** (Prisma read-only) para consultas, relatórios e auditoria.
@@ -156,6 +156,47 @@ Referência completa em `.env.example`. Variáveis **obrigatórias** validadas n
 
 ---
 
+## 🏛️ DECISÕES ARQUITETURAIS
+
+### Tenant Account Type — Migração do campo `type` (SPEC-005)
+
+**Data**: 2026-05-03 | **Status**: Spec aprovada, aguardando implementação
+
+#### Contexto
+O campo `type` do modelo `Tenant` suportava apenas `MASTER` e `SUB_TENANT`. Isso impedia diferenciação visual entre freelancers (solo) e empresas integradores no painel Sumaúma, e não havia nenhum limite de seats por plano.
+
+#### Decisão (Opção B — Migração direta)
+Migrar o campo `type` existente para três valores semânticos:
+
+| Valor | Semântica | Antes |
+|-------|-----------|-------|
+| `MASTER` | Admin plane da Neonorte (Sumaúma) | Mantido |
+| `CORPORATE` | Empresa integradora (multi-usuário) | Era `SUB_TENANT` |
+| `INDIVIDUAL` | Engenheiro solo / freelancer (1 usuário) | Novo |
+
+#### Por que não um campo separado `accountType` (Opção A)?
+- A Opção A (campo adicional) é mais segura porém gera redundância semântica — dois campos descrevendo "o que é este tenant".
+- A Opção B (migração direta) é conceitualmente correta: `MASTER` é só mais um `type`, não uma dimensão diferente.
+- Risco mitigado via: busca global por `'SUB_TENANT'` antes do início + checkpoint git pré-migration.
+
+#### Regras Poka-Yoke Derivadas
+1. **Seat Limit no Backend**: `PLAN_SEATS = { FREE:1, STARTER:5, PRO:20, ENTERPRISE:9999 }`. `POST /admin/users` retorna HTTP 409 (`SEAT_LIMIT_EXCEEDED`) se limite atingido.
+2. **Whitelist no PATCH**: `PATCH /admin/tenants/:id` valida campos permitidos e rejeita `type: 'MASTER'` explicitamente com HTTP 403.
+3. **Guard imutável**: `assertNotMaster()` permanece intacto — verifica `type === 'MASTER'`.
+4. **Criação segura**: `POST /admin/tenants` aceita apenas `INDIVIDUAL` ou `CORPORATE` — nunca `MASTER` via request body.
+
+#### Ranking de Boas Práticas de Mercado (referência desta decisão)
+1. 🥇 **Tenant-per-Billing-Entity** — toda conta tem Tenant, sem exceção (Vercel, Stripe, Clerk) ✅ Ywara já implementa
+2. 🥈 **Account Type como etiqueta, não estrutura** — sem bifurcação de codepath por tipo (Notion, Slack, GitHub) ✅ Esta spec implementa
+3. 🥉 **Seat-based Limits com enforcement em backend** — limite de usuários é propriedade do plano (GitHub, Figma, Linear) ✅ Esta spec implementa
+4. **Admin Plane separado do Data Plane** — Sumaúma vs Iaçã/Kurupira são domínios distintos (AWS, Azure, WorkOS) ✅ Ywara já implementa
+5. **CLI Bootstrap para God-Mode** — PLATFORM_ADMIN nunca criado via UI (Logto, Auth0, Vault) ✅ Ywara já implementa
+
+#### Spec de Referência
+`sumauma/.agent/specs/SPEC-005-tenant-account-type.md`
+
+---
+
 ## 🐛 BUGS CORRIGIDOS (v1.2.0)
 
 | Arquivo | Bug | Fix |
@@ -171,7 +212,9 @@ Referência completa em `.env.example`. Variáveis **obrigatórias** validadas n
 
 | Item | Prioridade | Notas |
 |------|-----------|-------|
+| **Implementar SPEC-005** (Tenant Account Type) | Alta | Spec aprovada. Iniciar por `schema.prisma` + migration. Ver `specs/SPEC-005-tenant-account-type.md` |
 | Remover `M2M_SERVICE_TOKEN` | Alta | Após smoke test confirmar Bearer nos logs de ambos os serviços |
-| Whitelist de campos no `PATCH /admin/tenants/:id` | Alta | `data: req.body` sem filtro — risco de mass assignment (ex: `type: 'MASTER'`) |
 | Testes unitários `catalogService.js` | Média | Parser PAN/OND tem maior complexidade ciclomática do projeto |
 | Secrets manager em produção | Alta | `LOGTO_M2M_CLIENT_SECRET`, `JWT_SECRET` e senhas de DB devem sair do `.env` plano |
+
+> **Nota**: A pendência de whitelist no `PATCH /admin/tenants/:id` foi absorvida pela SPEC-005 (T5 do task checklist).
