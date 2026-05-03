@@ -1,6 +1,7 @@
 import { useLocation } from 'react-router-dom';
 import { LogOut, Shield } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
+import { useLogto } from '@logto/react';
 
 const pageTitles: Record<string, string> = {
   '/': 'Dashboard',
@@ -14,8 +15,22 @@ const pageTitles: Record<string, string> = {
 export default function Header() {
   const location = useLocation();
   const { operator, logout } = useAuthStore();
+  const { signOut, isAuthenticated: isLogtoAuth } = useLogto();
 
   const pageTitle = pageTitles[location.pathname] || 'Admin';
+
+  const handleLogout = async () => {
+    // 1. Limpar estado local e avisar backend
+    await logout();
+    
+    // 2. Se estiver autenticado via Logto, fazer o sign out total no provedor
+    if (isLogtoAuth) {
+      signOut(window.location.origin);
+    } else {
+      // Fallback para login local
+      window.location.href = '/login';
+    }
+  };
 
   return (
     <header className="flex h-12 shrink-0 items-center justify-between border-b border-slate-800 bg-slate-900 px-6">
@@ -36,7 +51,7 @@ export default function Header() {
         </div>
 
         <button
-          onClick={logout}
+          onClick={handleLogout}
           className="flex items-center gap-1.5 rounded-sm px-2 py-1 text-xs text-slate-500 hover:bg-slate-800 hover:text-slate-300"
           title="Sair"
         >

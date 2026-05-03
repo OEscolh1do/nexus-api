@@ -1,16 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Users, Loader2, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useCreateUser } from '@/hooks/useUsers';
 import { useTenantOptions } from '@/hooks/useTenants';
+import { PLAN_SEATS } from '@/lib/tenantUtils';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
-
-const ROLE_OPTIONS = [
-  { value: 'ADMIN', label: 'Admin', desc: 'Acesso total ao tenant' },
-  { value: 'MANAGER', label: 'Gerente', desc: 'Gerencia projetos e equipe' },
-  { value: 'ENGINEER', label: 'Engenheiro', desc: 'Cria e edita projetos' },
-  { value: 'VIEWER', label: 'Visualizador', desc: 'Somente leitura' },
-];
 
 // ─── Props ───────────────────────────────────────────────────────────────────
 
@@ -27,17 +21,23 @@ export default function CreateUserForm({ onClose, onCreated, defaultTenantId }: 
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [showPwd, setShowPwd] = useState(false);
-  const [role, setRole] = useState('ENGINEER');
+  const [showPassword, setShowPassword] = useState(false);
+  const [role] = useState('ADMIN');
   const [tenantId, setTenantId] = useState(defaultTenantId ?? '');
   const [jobTitle, setJobTitle] = useState('');
 
-  const { mutate: create, loading, error } = useCreateUser(onCreated);
+  const { mutate: create, loading, error } = useCreateUser(() => {
+    onCreated();
+    setFullName('');
+    setUsername('');
+    setPassword('');
+    setTenantId(defaultTenantId || '');
+    setJobTitle('');
+  });
   const { data: tenantOptions, loading: loadingTenants } = useTenantOptions();
 
-  // Auto-gerar username a partir do nome completo
-  const handleFullNameBlur = useCallback(() => {
-    if (username) return;
+  useEffect(() => {
+    if (!fullName || username) return;
     const generated = fullName
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
@@ -47,13 +47,17 @@ export default function CreateUserForm({ onClose, onCreated, defaultTenantId }: 
     setUsername(generated);
   }, [fullName, username]);
 
+  const selectedTenant = tenantOptions.find(t => t.id === tenantId);
+  const maxSeats = selectedTenant ? (PLAN_SEATS[selectedTenant.apiPlan] ?? 1) : 0;
+  const isTenantFull = selectedTenant ? selectedTenant._count.users >= maxSeats : false;
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!fullName || !username || !password || !role || !tenantId) return;
+    if (!fullName || !username || !password || !tenantId || isTenantFull) return;
     create({ fullName, username, password, role, tenantId, jobTitle: jobTitle || undefined }).catch(() => {});
   }
 
-  const isValid = fullName.trim() && username.trim() && password.length >= 8 && role && tenantId;
+  const isValid = fullName.trim() && username.trim() && password.length >= 8 && tenantId && !isTenantFull;
 
   return (
     <form onSubmit={handleSubmit} className="flex h-full flex-col">
@@ -64,7 +68,14 @@ export default function CreateUserForm({ onClose, onCreated, defaultTenantId }: 
       </div>
 
       {/* Body */}
-      <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
+      <div className="flex-1 space-y-6 overflow-y-auto p-5">
+        
+        {/* Header descritivo */}
+        <div className="rounded-sm bg-sky-500/5 border border-sky-500/10 p-4">
+          <p className="text-xs text-sky-300/80 leading-relaxed">
+            Ao criar um usuário, ele terá acesso total à organização selecionada para visualizar e editar projetos.
+          </p>
+        </div>
 
         {/* Nome Completo */}
         <div className="space-y-1.5">
@@ -76,7 +87,6 @@ export default function CreateUserForm({ onClose, onCreated, defaultTenantId }: 
             type="text"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
-            onBlur={handleFullNameBlur}
             placeholder="Ex: Carlos Souza"
             autoFocus
             className="w-full rounded-sm border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:border-sky-500/50 focus:outline-none"
@@ -86,7 +96,7 @@ export default function CreateUserForm({ onClose, onCreated, defaultTenantId }: 
         {/* Username */}
         <div className="space-y-1.5">
           <label className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
-            Username <span className="text-red-400">*</span>
+            Identificador de Acesso <span className="text-red-400">*</span>
           </label>
           <input
             id="create-user-username"
@@ -94,9 +104,9 @@ export default function CreateUserForm({ onClose, onCreated, defaultTenantId }: 
             value={username}
             onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
             placeholder="carlos.souza"
-            className="w-full rounded-sm border border-slate-700 bg-slate-800 px-3 py-2 font-mono text-sm text-slate-200 placeholder:text-slate-600 focus:border-sky-500/50 focus:outline-none"
+            className="w-full rounded-sm border border-slate-700 bg-slate-800 px-3 py-2 font-tabular text-sm text-slate-200 placeholder:text-slate-600 focus:border-sky-500/50 focus:outline-none"
           />
-          <p className="text-[10px] text-slate-600">Único na plataforma. Gerado automaticamente ao preencher o nome.</p>
+          <p className="text-[10px] text-slate-600">Este é o nome único que o usuário usará para o login.</p>
         </div>
 
         {/* Senha */}
@@ -107,24 +117,22 @@ export default function CreateUserForm({ onClose, onCreated, defaultTenantId }: 
           <div className="relative">
             <input
               id="create-user-password"
-              type={showPwd ? 'text' : 'password'}
+              type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Mínimo 8 caracteres"
-              className="w-full rounded-sm border border-slate-700 bg-slate-800 px-3 py-2 pr-9 text-sm text-slate-200 placeholder:text-slate-600 focus:border-sky-500/50 focus:outline-none"
+              placeholder="••••••••"
+              className="w-full rounded-sm border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:border-sky-500/50 focus:outline-none"
             />
             <button
               type="button"
-              onClick={() => setShowPwd((v) => !v)}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
               tabIndex={-1}
             >
-              {showPwd ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
-          {password && password.length < 8 && (
-            <p className="text-[10px] text-amber-400">Mínimo de 8 caracteres.</p>
-          )}
+          <p className="text-[10px] text-slate-600">Mínimo 8 caracteres.</p>
         </div>
 
         {/* Organização */}
@@ -137,45 +145,30 @@ export default function CreateUserForm({ onClose, onCreated, defaultTenantId }: 
             value={tenantId}
             onChange={(e) => setTenantId(e.target.value)}
             disabled={loadingTenants || !!defaultTenantId}
-            className="w-full rounded-sm border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 focus:border-sky-500/50 focus:outline-none disabled:opacity-50"
+            className={`w-full rounded-sm border bg-slate-800 px-3 py-2 text-sm text-slate-200 focus:outline-none ${
+              isTenantFull ? 'border-red-500/50' : 'border-slate-700 focus:border-sky-500/50'
+            } disabled:opacity-50`}
           >
             <option value="">— Selecionar organização —</option>
             {tenantOptions.map((t) => (
               <option key={t.id} value={t.id} disabled={t.status === 'BLOCKED'}>
-                {t.name}{t.status === 'BLOCKED' ? ' (bloqueada)' : ''}
+                {t.name}
+                {t.status === 'BLOCKED' ? ' (bloqueada)' : ` (${t._count.users}/${PLAN_SEATS[t.apiPlan] || '?'} usuários)`}
               </option>
             ))}
           </select>
-        </div>
-
-        {/* Role */}
-        <div className="space-y-2">
-          <label className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
-            Perfil de Acesso <span className="text-red-400">*</span>
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            {ROLE_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setRole(opt.value)}
-                className={`rounded-sm border px-3 py-2 text-left transition-colors ${
-                  role === opt.value
-                    ? 'border-sky-500/50 bg-sky-500/10 text-sky-300'
-                    : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600 hover:text-slate-300'
-                }`}
-              >
-                <p className="text-xs font-medium">{opt.label}</p>
-                <p className="text-[10px] text-slate-500">{opt.desc}</p>
-              </button>
-            ))}
-          </div>
+          {isTenantFull && (
+            <p className="text-[10px] text-red-400 mt-1 flex items-center gap-1">
+              <AlertCircle className="h-3 w-3" />
+              Limite de usuários atingido para esta organização ({selectedTenant?.apiPlan}).
+            </p>
+          )}
         </div>
 
         {/* Cargo (opcional) */}
         <div className="space-y-1.5">
           <label className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
-            Cargo <span className="text-slate-700">(opcional)</span>
+            Cargo na Empresa <span className="text-slate-700">(opcional)</span>
           </label>
           <input
             id="create-user-jobtitle"
@@ -190,8 +183,8 @@ export default function CreateUserForm({ onClose, onCreated, defaultTenantId }: 
         {/* Aviso senha temporária */}
         <div className="flex gap-2 rounded-sm border border-amber-500/20 bg-amber-500/5 px-3 py-2.5">
           <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
-          <p className="text-[11px] text-amber-300/80">
-            Compartilhe a senha com o usuário por um canal seguro. Recomenda-se que ele a troque no primeiro acesso.
+          <p className="text-[11px] text-amber-300/80 leading-relaxed">
+            O usuário deverá alterar esta senha no primeiro acesso para garantir a segurança da conta.
           </p>
         </div>
 

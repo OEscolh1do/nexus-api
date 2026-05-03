@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { Building2, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Building2, Loader2, Eye, EyeOff } from 'lucide-react';
 import { useCreateTenant } from '@/hooks/useTenants';
+import { PLAN_SEATS, QUOTA_BY_PLAN } from '@/lib/tenantUtils';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -12,18 +13,13 @@ interface CreateTenantFormProps {
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const PLAN_OPTIONS = [
-  { value: 'FREE', label: 'Free', desc: '1.000 req/mês' },
-  { value: 'STARTER', label: 'Starter', desc: '10.000 req/mês' },
-  { value: 'PRO', label: 'Pro', desc: '100.000 req/mês' },
-  { value: 'ENTERPRISE', label: 'Enterprise', desc: 'Ilimitado' },
+  { value: 'FREE', label: 'Gratuito', desc: '1.000 simulações' },
+  { value: 'STARTER', label: 'Starter', desc: '10.000 simulações' },
+  { value: 'PRO', label: 'Pro', desc: '100.000 simulações' },
+  { value: 'ENTERPRISE', label: 'Corporativo', desc: 'Simulações ilimitadas' },
 ];
 
-const QUOTA_BY_PLAN: Record<string, number> = {
-  FREE: 1000,
-  STARTER: 10000,
-  PRO: 100000,
-  ENTERPRISE: 9999999,
-};
+
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -31,9 +27,25 @@ export default function CreateTenantForm({ onClose, onCreated }: CreateTenantFor
   const [name, setName] = useState('');
   const [apiPlan, setApiPlan] = useState('FREE');
   const [apiMonthlyQuota, setApiMonthlyQuota] = useState(QUOTA_BY_PLAN['FREE']);
-  const [type, setType] = useState('CORPORATE');
+
+  const [ownerFullName, setOwnerFullName] = useState('');
+  const [ownerUsername, setOwnerUsername] = useState('');
+  const [ownerPassword, setOwnerPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const { mutate: create, loading, error } = useCreateTenant(onCreated);
+
+  useEffect(() => {
+    if (!ownerFullName || ownerUsername) return;
+    const generated = ownerFullName
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .split(' ')
+      .slice(0, 2)
+      .join('.');
+    setOwnerUsername(generated);
+  }, [ownerFullName, ownerUsername]);
 
   function handlePlanChange(plan: string) {
     setApiPlan(plan);
@@ -43,7 +55,16 @@ export default function CreateTenantForm({ onClose, onCreated }: CreateTenantFor
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
-    create({ name, apiPlan, apiMonthlyQuota, type }).catch(() => {});
+    if (!ownerFullName || !ownerUsername || ownerPassword.length < 8) return;
+    
+    create({ 
+      name, 
+      apiPlan, 
+      apiMonthlyQuota, 
+      ownerFullName: ownerFullName.trim(),
+      ownerUsername: ownerUsername.trim(),
+      ownerPassword: ownerPassword,
+    }).catch(() => {});
   }
 
   return (
@@ -72,54 +93,35 @@ export default function CreateTenantForm({ onClose, onCreated }: CreateTenantFor
           />
         </div>
 
-        {/* Tipo de Conta */}
-        <div className="space-y-2">
-          <label className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
-            Tipo de Conta
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { value: 'INDIVIDUAL', label: 'Individual', desc: '1 usuário máximo' },
-              { value: 'CORPORATE', label: 'Empresarial', desc: 'Múltiplos usuários' },
-            ].map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setType(opt.value)}
-                className={`rounded-sm border px-3 py-2 text-left transition-colors ${
-                  type === opt.value
-                    ? 'border-sky-500/50 bg-sky-500/10 text-sky-300'
-                    : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600 hover:text-slate-300'
-                }`}
-              >
-                <p className="text-xs font-medium">{opt.label}</p>
-                <p className="text-[10px] text-slate-500">{opt.desc}</p>
-              </button>
-            ))}
-          </div>
-        </div>
+
 
         {/* Plano */}
         <div className="space-y-2">
           <label className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
-            Plano de API
+            Plano de Uso e Acessos
           </label>
           <div className="grid grid-cols-2 gap-2">
-            {PLAN_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => handlePlanChange(opt.value)}
-                className={`rounded-sm border px-3 py-2 text-left transition-colors ${
-                  apiPlan === opt.value
-                    ? 'border-sky-500/50 bg-sky-500/10 text-sky-300'
-                    : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600 hover:text-slate-300'
-                }`}
-              >
-                <p className="text-xs font-medium">{opt.label}</p>
-                <p className="text-[10px] text-slate-500">{opt.desc}</p>
-              </button>
-            ))}
+            {PLAN_OPTIONS.map((opt) => {
+              const maxSeats = PLAN_SEATS[opt.value] ?? 1;
+              const isUnlimited = maxSeats > 1000;
+              const seatsText = isUnlimited ? 'Usuários ilim.' : `${maxSeats} usuário${maxSeats > 1 ? 's' : ''}`;
+              
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => handlePlanChange(opt.value)}
+                  className={`rounded-sm border px-3 py-2 text-left transition-colors ${
+                    apiPlan === opt.value
+                      ? 'border-sky-500/50 bg-sky-500/10 text-sky-300'
+                      : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600 hover:text-slate-300'
+                  }`}
+                >
+                  <p className="text-xs font-medium">{opt.label}</p>
+                  <p className="text-[10px] text-slate-500">{opt.desc} • {seatsText}</p>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -127,7 +129,7 @@ export default function CreateTenantForm({ onClose, onCreated }: CreateTenantFor
         {apiPlan !== 'ENTERPRISE' && (
           <div className="space-y-1.5">
             <label className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
-              Quota Mensal (requisições)
+              Capacidade Mensal de Simulações
             </label>
             <input
               id="create-tenant-quota"
@@ -136,21 +138,82 @@ export default function CreateTenantForm({ onClose, onCreated }: CreateTenantFor
               onChange={(e) => setApiMonthlyQuota(Number(e.target.value))}
               min={0}
               step={1000}
-              className="w-full rounded-sm border border-slate-700 bg-slate-800 px-3 py-2 font-mono text-sm text-slate-200 focus:border-sky-500/50 focus:outline-none"
+              className="w-full rounded-sm border border-slate-700 bg-slate-800 px-3 py-2 font-tabular text-sm text-slate-200 focus:border-sky-500/50 focus:outline-none"
             />
           </div>
         )}
 
+        <div className="h-px bg-slate-800 my-4" />
+
+        {/* Cadastro do Primeiro Usuário */}
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-sm font-medium text-slate-200">Primeiro Usuário (Administrador)</h3>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Cria o acesso principal (Dono/Gestor) obrigatório para a empresa.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
+              Nome Completo <span className="text-red-400">*</span>
+            </label>
+            <input
+              type="text"
+              value={ownerFullName}
+              onChange={(e) => setOwnerFullName(e.target.value)}
+              placeholder="Ex: Carlos Souza"
+              required
+              className="w-full rounded-sm border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:border-sky-500/50 focus:outline-none"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
+              Identificador de Acesso <span className="text-red-400">*</span>
+            </label>
+            <input
+              type="text"
+              value={ownerUsername}
+              onChange={(e) => setOwnerUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
+              placeholder="carlos.souza"
+              required
+              className="w-full rounded-sm border border-slate-700 bg-slate-800 px-3 py-2 font-tabular text-sm text-slate-200 placeholder:text-slate-600 focus:border-sky-500/50 focus:outline-none"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
+              Senha Temporária <span className="text-red-400">*</span>
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={ownerPassword}
+                onChange={(e) => setOwnerPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                className="w-full rounded-sm border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:border-sky-500/50 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+            <p className="text-[10px] text-slate-600">Mínimo 8 caracteres.</p>
+          </div>
+        </div>
+
         {/* Info box */}
         <div className="rounded-sm border border-slate-800 bg-slate-900/50 px-3 py-2.5">
-          <p className="text-[11px] text-slate-500">
-            A organização será criada sem usuários. 
-            {type === 'INDIVIDUAL' && (
-              <strong className="text-amber-400 block mt-1">Conta solo — 1 usuário máximo por plano.</strong>
-            )}
-            {type === 'CORPORATE' && (
-              <span className="block mt-1">Adicione os usuários da equipe após a criação.</span>
-            )}
+          <p className="text-[11px] text-slate-500 leading-relaxed">
+            <span className="block mb-1">
+              O plano <strong className="text-slate-300">{PLAN_OPTIONS.find(p => p.value === apiPlan)?.label}</strong> permite até <strong className="text-slate-300">{PLAN_SEATS[apiPlan] > 1000 ? 'Usuários ilimitados' : `${PLAN_SEATS[apiPlan]} usuários`}</strong> simultâneos na organização.
+            </span>
+            O preenchimento do primeiro usuário já lhe dá acesso imediato como Administrador ao Kurupira.
           </p>
         </div>
 

@@ -26,8 +26,25 @@ export const useAuthStore = create<AuthState>()(
       login: (token, operator) =>
         set({ token, operator, isAuthenticated: true }),
 
-      logout: () =>
-        set({ token: null, operator: null, isAuthenticated: false }),
+      logout: async () => {
+        const token = useAuthStore.getState().token;
+        if (token) {
+          // Tentar avisar o backend (fire and forget) para auditoria
+          try {
+            fetch('/admin/auth/logout', {
+              method: 'POST',
+              headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json' 
+              },
+            });
+          } catch (err) {
+            console.warn('Falha ao notificar logout no backend', err);
+          }
+        }
+
+        set({ token: null, operator: null, isAuthenticated: false });
+      },
     }),
     {
       name: 'neonorte-admin-auth',

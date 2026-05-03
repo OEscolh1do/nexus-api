@@ -98,4 +98,30 @@ async function createLogtoUser(tenantId, userObj) {
   }
 }
 
-module.exports = { createLogtoOrg, createLogtoUser };
+/**
+ * Exclui uma Organização no Logto.
+ * @param {string} orgId - ID da organização no Logto
+ */
+async function deleteLogtoOrg(orgId) {
+  try {
+    await logtoRequest('delete', `/organizations/${orgId}`);
+    logger.info('Logto org excluída', { orgId });
+  } catch (error) {
+    logger.error('Logto deleteOrg falhou', { orgId, err: error.response?.data || error.message });
+  }
+}
+
+/**
+ * Exclui um usuário no Logto.
+ * @param {string} logtoUserId - ID do usuário no Logto
+ */
+async function deleteLogtoUser(logtoUserId) {
+  try {
+    await logtoRequest('delete', `/users/${logtoUserId}`);
+    logger.info('Logto user excluído', { logtoUserId });
+  } catch (error) {
+    logger.error('Logto deleteUser falhou', { logtoUserId, err: error.response?.data || error.message });
+  }
+}
+
+module.exports = { createLogtoOrg, createLogtoUser, deleteLogtoOrg, deleteLogtoUser };

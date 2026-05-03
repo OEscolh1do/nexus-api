@@ -8,95 +8,21 @@ import {
   Lock,
   Unlock,
   KeyRound,
-  ShieldAlert,
-  ChevronRight,
   History,
+  Trash2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
   useUser,
   useBlockUser,
   useUnblockUser,
-  usePatchUser,
   useResetPassword,
   useIsSelf,
-  type UserDetail,
+  useDeleteUser,
 } from '@/hooks/useUsers';
-import RoleBadge from './RoleBadge';
 import ConfirmUserBlockModal from './ConfirmUserBlockModal';
 import CreateUserForm from './CreateUserForm';
 
-// ─── Account Type mapping ─────────────────────────────────────────────────────
-
-const ACCOUNT_TYPE_LABEL: Record<string, string> = {
-  INDIVIDUAL: 'Individual',
-  CORPORATE: 'Empresarial',
-  MASTER: 'Plataforma',
-};
-
-const ACCOUNT_TYPE_BADGE_CLASS: Record<string, string> = {
-  INDIVIDUAL: 'text-sky-400 bg-sky-500/10 border border-sky-500/20',
-  CORPORATE:  'text-violet-400 bg-violet-500/10 border border-violet-500/20',
-  MASTER:     'text-slate-400 bg-slate-500/10 border border-slate-500/20',
-};
-
-// ─── Role edit sub-panel ──────────────────────────────────────────────────────
-
-// POKA-YOKE: PLATFORM_ADMIN deliberadamente ausente.
-// Operadores de plataforma só podem ser criados via script CLI no servidor.
-const ROLE_OPTIONS = ['ADMIN', 'MANAGER', 'ENGINEER', 'VIEWER'];
-
-function EditRolePanel({
-  user,
-  onClose,
-  onSaved,
-}: {
-  user: UserDetail;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const { mutate: patch, loading } = usePatchUser(onSaved);
-  const [role, setRole] = useState(user.role);
-
-  function handleSave() {
-    patch(user.id, { role });
-  }
-
-  return (
-    <div className="mt-4 rounded-sm border border-slate-700 bg-slate-800/60 p-4 space-y-3">
-      <p className="text-xs font-medium text-slate-300 uppercase tracking-wider">Alterar Role</p>
-      <div className="space-y-1">
-        <label className="text-[11px] text-slate-500">Nível de Acesso</label>
-        <select
-          value={role}
-          onChange={(e) => setRole(e.target.value)}
-          className="w-full rounded-sm border border-slate-700 bg-slate-800 px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500/50"
-        >
-          {ROLE_OPTIONS.map((r) => (
-            <option key={r} value={r}>
-              {r}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="flex justify-end gap-2">
-        <button
-          onClick={onClose}
-          className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors"
-        >
-          Cancelar
-        </button>
-        <button
-          onClick={handleSave}
-          disabled={loading || role === user.role}
-          className="rounded-sm border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-xs font-medium text-sky-400 hover:bg-sky-500/20 transition-colors disabled:opacity-50"
-        >
-          {loading ? 'Salvando…' : 'Salvar'}
-        </button>
-      </div>
-    </div>
-  );
-}
 
 // ─── Main Drawer ──────────────────────────────────────────────────────────────
 
@@ -136,11 +62,11 @@ export default function UserDrawer({ userId, onClose, onMutated }: UserDrawerPro
   const { mutate: block, loading: blocking } = useBlockUser(handleSuccess);
   const { mutate: unblock, loading: unblocking } = useUnblockUser(handleSuccess);
   const { mutate: resetPassword, loading: resetting, successMsg: resetMsg } = useResetPassword(handleSuccess);
+  const { mutate: deleteUser, loading: deleting } = useDeleteUser(() => { onMutated?.(); onClose(); });
 
   const navigate = useNavigate();
 
   const [showBlock, setShowBlock] = useState(false);
-  const [showEditRole, setShowEditRole] = useState(false);
 
   const isSelf = useIsSelf(userId);
   const isBlocked = user?.status === 'BLOCKED';
@@ -153,6 +79,13 @@ export default function UserDrawer({ userId, onClose, onMutated }: UserDrawerPro
   function handleResetPassword() {
     if (!userId) return;
     resetPassword(userId);
+  }
+
+  function handleDelete() {
+    if (!userId) return;
+    if (window.confirm(`Tem certeza que deseja excluir permanentemente o usuário "${user?.username}"? Esta ação não pode ser desfeita.`)) {
+      deleteUser(userId);
+    }
   }
 
   return (
@@ -194,57 +127,33 @@ export default function UserDrawer({ userId, onClose, onMutated }: UserDrawerPro
           ) : (
             <>
               {/* Identity */}
-              <section>
+              <section className="space-y-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h2 className="text-base font-semibold text-slate-100">{user.fullName || user.username}</h2>
-                    <p className="mt-0.5 font-tabular text-[11px] text-slate-600">{user.username}</p>
-                  </div>
-                  <span className="badge badge-info">{user.role}</span>
-                </div>
-
-                {isSelf && (
-                  <div className="mt-2 flex items-center gap-1.5 rounded-sm border border-violet-500/20 bg-violet-500/5 px-2.5 py-1.5">
-                    <ShieldAlert className="h-3.5 w-3.5 text-violet-400" />
-                    <span className="text-[11px] text-violet-300">Este é o seu próprio usuário</span>
-                  </div>
-                )}
-              </section>
-
-              {/* Role & Org */}
-              <section className="space-y-3 rounded-sm border border-slate-800 bg-slate-900 p-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
-                    Nível de Acesso
-                  </p>
-                  <RoleBadge role={user.role} />
-                </div>
-
-                <div className="pt-2 border-t border-slate-800/50">
-                  <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500 mb-2">
-                    Organização
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-slate-400" />
-                    <span className="text-sm text-slate-200">{user.tenant?.name || 'Sem tenant'}</span>
-                    {user.tenant?.type && (
-                      <span className={`inline-block rounded-sm px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider ${ACCOUNT_TYPE_BADGE_CLASS[user.tenant.type] || ''}`}>
-                        {ACCOUNT_TYPE_LABEL[user.tenant.type] || user.tenant.type}
-                      </span>
-                    )}
-                    {user.tenant?.apiPlan && (
-                      <span className="badge badge-info ml-auto">{user.tenant.apiPlan}</span>
-                    )}
+                    <p className="text-[11px] text-slate-500 uppercase tracking-wider mt-1">{user.username}</p>
                   </div>
                 </div>
 
-                {showEditRole && !isSelf && (
-                  <EditRolePanel
-                    user={user}
-                    onClose={() => setShowEditRole(false)}
-                    onSaved={() => setShowEditRole(false)}
-                  />
-                )}
+                <div className="rounded-sm border border-slate-800 bg-slate-900 p-4 space-y-4">
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider">Organização</p>
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-3.5 w-3.5 text-slate-400" />
+                      <span className="text-sm font-medium text-slate-200">{user.tenant?.name || 'Sem tenant'}</span>
+                      {user.tenant?.apiPlan && (
+                        <span className="inline-block rounded-sm px-1.5 py-0.5 text-[8px] font-medium uppercase tracking-wider text-slate-400 bg-slate-500/10 border border-slate-500/20">
+                          Plano {user.tenant.apiPlan}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider">E-mail de Login</p>
+                    <p className="text-xs text-slate-400 font-mono">{user.username}@neonorte.local</p>
+                  </div>
+                </div>
               </section>
 
               {/* Info grid */}
@@ -311,16 +220,7 @@ export default function UserDrawer({ userId, onClose, onMutated }: UserDrawerPro
         {/* Footer actions */}
         {user && (
           <div className="border-t border-slate-800 px-5 py-4 space-y-2">
-            {/* Edit role */}
-            {!isSelf && (
-              <button
-                onClick={() => setShowEditRole((v) => !v)}
-                className="flex w-full items-center justify-between rounded-sm border border-slate-700 bg-slate-800/60 px-3 py-2 text-xs text-slate-300 hover:border-slate-600 hover:bg-slate-800 transition-colors"
-              >
-                <span>Alterar Role</span>
-                <ChevronRight className="h-3.5 w-3.5" />
-              </button>
-            )}
+
 
             {/* Reset password */}
             <button
@@ -334,24 +234,36 @@ export default function UserDrawer({ userId, onClose, onMutated }: UserDrawerPro
 
             {/* Block / Unblock */}
             {!isSelf && (
-              isBlocked ? (
+              <>
+                {isBlocked ? (
+                  <button
+                    onClick={() => unblock(userId)}
+                    disabled={unblocking}
+                    className="flex w-full items-center justify-between rounded-sm border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-400 hover:bg-emerald-500/10 transition-colors disabled:opacity-50"
+                  >
+                    <span>{unblocking ? 'Desbloqueando…' : 'Desbloquear Usuário'}</span>
+                    <Unlock className="h-3.5 w-3.5" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setShowBlock(true)}
+                    className="flex w-full items-center justify-between rounded-sm border border-red-500/20 bg-red-500/5 px-3 py-2 text-xs text-red-400 hover:bg-red-500/15 transition-colors"
+                  >
+                    <span>Bloquear Usuário</span>
+                    <Lock className="h-3.5 w-3.5" />
+                  </button>
+                )}
+
+                {/* Delete */}
                 <button
-                  onClick={() => unblock(userId)}
-                  disabled={unblocking}
-                  className="flex w-full items-center justify-between rounded-sm border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-400 hover:bg-emerald-500/10 transition-colors disabled:opacity-50"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="flex w-full items-center justify-between rounded-sm border border-slate-800 bg-slate-900/50 px-3 py-2 text-xs text-slate-500 hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/5 transition-all disabled:opacity-50"
                 >
-                  <span>{unblocking ? 'Desbloqueando…' : 'Desbloquear Usuário'}</span>
-                  <Unlock className="h-3.5 w-3.5" />
+                  <span>{deleting ? 'Excluindo…' : 'Excluir Usuário'}</span>
+                  <Trash2 className="h-3.5 w-3.5" />
                 </button>
-              ) : (
-                <button
-                  onClick={() => setShowBlock(true)}
-                  className="flex w-full items-center justify-between rounded-sm border border-red-500/20 bg-red-500/5 px-3 py-2 text-xs text-red-400 hover:bg-red-500/15 transition-colors"
-                >
-                  <span>Bloquear Usuário</span>
-                  <Lock className="h-3.5 w-3.5" />
-                </button>
-              )
+              </>
             )}
           </div>
         )}

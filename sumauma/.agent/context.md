@@ -1,8 +1,8 @@
 # CONTEXT.md — Sumaúma (Backoffice do Operador)
 
-> **Última Atualização:** 2026-05-03 (sessão 9f591218)
+> **Última Atualização:** 2026-05-03 (sessão cbc99bf1)
 > **Arquiteto:** Antigravity AI
-> **Versão do Sistema:** 1.3.0 (Era Ywara — Sprint Account Type)
+> **Versão do Sistema:** 1.4.0 (Era Ywara — Sprint Governance & Metrics)
 
 ---
 
@@ -153,6 +153,8 @@ Referência completa em `.env.example`. Variáveis **obrigatórias** validadas n
 8. **PLATFORM_ADMIN é imutável via API**. Poka-yoke em criação e promoção de usuários — apenas via CLI no servidor.
 9. **Logger estruturado obrigatório**. Nenhum `console.*` em arquivos de runtime. Usar `lib/logger.js`.
 10. **Env validada no startup**. `validateEnv()` é chamado antes de qualquer import de rota — processo termina com mensagem clara se variável crítica ausente.
+ 11. **Governança de Assentos (Seats)**. Nenhum usuário pode ser criado acima do limite do plano; nenhum plano pode ser rebaixado se a contagem atual de usuários exceder o novo limite.
+ 12. **DRY nas Constantes de Tenant**. Usar obrigatoriamente `src/lib/tenantUtils.ts` no frontend para labels e limites.
 
 ---
 
@@ -160,7 +162,7 @@ Referência completa em `.env.example`. Variáveis **obrigatórias** validadas n
 
 ### Tenant Account Type — Migração do campo `type` (SPEC-005)
 
-**Data**: 2026-05-03 | **Status**: Spec aprovada, aguardando implementação
+**Data**: 2026-05-03 | **Status**: ✅ Concluído e Implementado
 
 #### Contexto
 O campo `type` do modelo `Tenant` suportava apenas `MASTER` e `SUB_TENANT`. Isso impedia diferenciação visual entre freelancers (solo) e empresas integradores no painel Sumaúma, e não havia nenhum limite de seats por plano.
@@ -197,6 +199,28 @@ Migrar o campo `type` existente para três valores semânticos:
 
 ---
 
+### Infraestrutura de Governança (Seats & Quotas)
+
+**Data**: 2026-05-03 | **Status**: ✅ Concluído
+
+#### Visão Técnica
+Implementação do motor de limites híbrido (Assentos + Uso de Simulação) para garantir a saúde financeira e operacional do ecossistema.
+
+| Recurso | Controle | Enforcement |
+|:---|:---|:---|
+| **Vagas de Usuários (Seats)** | Propriedade do Plano e Tipo | Bloqueio no `POST /admin/users` e no `PATCH tenant.apiPlan` (Poka-yoke de downgrade). |
+| **Capacidade de Simulação (Quota)** | Uso variável (`apiMonthlyQuota`) | Monitoramento via `apiCurrentUsage` e injeção de pacotes extras via Painel. |
+
+#### Componentes de UI Refatorados
+ - **TenantsPage**: Progress bars (Gauges) de ocupação de usuários e uso de quota na listagem principal.
+ - **TenantDrawer**: Nova aba "Limites e Quotas" com gestão granular e Painel de Injeção de Quota.
+ - **CreateUserForm / CreateTenantForm**: Linguagem humanizada (Simulações, Acessos) e validação de ocupação em tempo real.
+
+#### Centralização de Constantes
+ - `src/lib/tenantUtils.ts`: Fonte única da verdade para `PLAN_SEATS`, `ACCOUNT_TYPE_LABEL` e Badges.
+
+---
+
 ## 🐛 BUGS CORRIGIDOS (v1.2.0)
 
 | Arquivo | Bug | Fix |
@@ -212,7 +236,7 @@ Migrar o campo `type` existente para três valores semânticos:
 
 | Item | Prioridade | Notas |
 |------|-----------|-------|
-| **Implementar SPEC-005** (Tenant Account Type) | Alta | Spec aprovada. Iniciar por `schema.prisma` + migration. Ver `specs/SPEC-005-tenant-account-type.md` |
+| **Monitoramento de Churn** | Média | Implementar alertas de quota > 95% e auditoria de usuários inativos (Last Login). |
 | Remover `M2M_SERVICE_TOKEN` | Alta | Após smoke test confirmar Bearer nos logs de ambos os serviços |
 | Testes unitários `catalogService.js` | Média | Parser PAN/OND tem maior complexidade ciclomática do projeto |
 | Secrets manager em produção | Alta | `LOGTO_M2M_CLIENT_SECRET`, `JWT_SECRET` e senhas de DB devem sair do `.env` plano |

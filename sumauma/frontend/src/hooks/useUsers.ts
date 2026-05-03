@@ -28,6 +28,7 @@ export interface User {
   orgUnitId?: string | null;
   createdAt: string;
   updatedAt: string;
+  lastLoginAt?: string | null;
   status: string;
   tenant: UserTenant;
 }
@@ -241,4 +242,26 @@ export function useCreateUser(onSuccess?: () => void) {
 export function useIsSelf(targetUserId: string | null | undefined) {
   const authId = useAuthStore((s) => s.operator?.id);
   return targetUserId === authId;
+}
+export function useDeleteUser(onSuccess?: () => void) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const mutate = useCallback(
+    (id: string) => {
+      setLoading(true);
+      setError(null);
+      return api
+        .delete(`/users/${id}`)
+        .then(() => onSuccess?.())
+        .catch((err) => {
+          setError(err.response?.data?.error ?? 'Falha ao excluir usuário');
+          throw err;
+        })
+        .finally(() => setLoading(false));
+    },
+    [onSuccess]
+  );
+
+  return { mutate, loading, error };
 }

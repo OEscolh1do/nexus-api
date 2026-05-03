@@ -11,29 +11,13 @@ import {
 import { useUsers, type User } from '@/hooks/useUsers';
 import { useDebounce } from '@/hooks/useDebounce';
 import api from '@/lib/api';
-import RoleBadge from '@/components/users/RoleBadge';
 import UserDrawer from '@/components/users/UserDrawer';
-
-// ─── Account Type mapping ─────────────────────────────────────────────────────
-
-const ACCOUNT_TYPE_LABEL: Record<string, string> = {
-  INDIVIDUAL: 'Individual',
-  CORPORATE: 'Empresarial',
-  MASTER: 'Plataforma',
-};
-
-const ACCOUNT_TYPE_BADGE_CLASS: Record<string, string> = {
-  INDIVIDUAL: 'text-sky-400 bg-sky-500/10 border border-sky-500/20',
-  CORPORATE:  'text-violet-400 bg-violet-500/10 border border-violet-500/20',
-  MASTER:     'text-slate-400 bg-slate-500/10 border border-slate-500/20',
-};
 
 // ─── Filter bar ───────────────────────────────────────────────────────────────
 
 interface Filters {
   q: string;
   tenantId: string;
-  role: string;
 }
 
 interface TenantOption {
@@ -86,18 +70,7 @@ function FilterBar({
         ))}
       </select>
 
-      {/* Role filter */}
-      <select
-        id="users-filter-role"
-        value={filters.role}
-        onChange={(e) => onChange({ role: e.target.value })}
-        className="h-8 rounded-sm border border-slate-700 bg-slate-800 px-2 text-xs text-slate-300 focus:outline-none focus:border-sky-500/50"
-      >
-        <option value="">Todas as roles</option>
-        <option value="ADMIN">ADMIN</option>
-        <option value="ENGINEER">ENGINEER</option>
-        <option value="VIEWER">VIEWER</option>
-      </select>
+
     </div>
   );
 }
@@ -175,24 +148,28 @@ function UserRow({
         <div className="flex flex-col">
           <div className="flex items-center gap-1.5">
             <p className="text-xs text-slate-300">{user.tenant?.name || '—'}</p>
-            {user.tenant?.type && (
-              <span className={`inline-block rounded-[3px] px-1.5 py-[1px] text-[8px] font-medium uppercase tracking-wider ${ACCOUNT_TYPE_BADGE_CLASS[user.tenant.type] || ''}`}>
-                {ACCOUNT_TYPE_LABEL[user.tenant.type] || user.tenant.type}
-              </span>
-            )}
+
           </div>
           <p className="text-[10px] text-slate-600 font-tabular mt-0.5">{user.tenantId}</p>
         </div>
       </td>
 
-      {/* Role */}
-      <td className="px-4 py-3">
-        <RoleBadge role={user.role} />
-      </td>
+
 
       {/* Cargo */}
       <td className="px-4 py-3">
         <span className="text-xs text-slate-400">{user.jobTitle || '—'}</span>
+      </td>
+
+      {/* Último Acesso */}
+      <td className="px-4 py-3 font-tabular text-[11px] text-slate-500">
+        {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        }) : 'Nunca'}
       </td>
 
       {/* Criado em */}
@@ -213,16 +190,16 @@ const PAGE_SIZE = 20;
 
 const TABLE_COLS = [
   { label: 'Usuário', cls: 'w-[250px]' },
-  { label: 'Organização', cls: 'w-[200px]' },
-  { label: 'Role', cls: 'w-[120px]' },
+  { label: 'Organização', cls: 'w-[250px]' },
   { label: 'Cargo', cls: 'w-[150px]' },
+  { label: 'Último Acesso', cls: 'w-[130px]' },
   { label: 'Criado em', cls: 'w-[110px]' },
 ];
 
 export default function UsersTab() {
   const [page, setPage] = useState(1);
   const [rawQ, setRawQ] = useState('');
-  const [filters, setFilters] = useState<Omit<Filters, 'q'>>({ tenantId: '', role: '' });
+  const [filters, setFilters] = useState<Omit<Filters, 'q'>>({ tenantId: '' });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
 
@@ -233,7 +210,6 @@ export default function UsersTab() {
     limit: PAGE_SIZE,
     q: debouncedQ || undefined,
     tenantId: filters.tenantId || undefined,
-    role: filters.role || undefined,
   });
 
   const handleFilterChange = useCallback((partial: Partial<Filters>) => {

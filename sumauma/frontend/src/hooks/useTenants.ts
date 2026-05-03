@@ -177,6 +177,9 @@ export interface TenantOption {
   id: string;
   name: string;
   status?: string;
+  type: 'INDIVIDUAL' | 'CORPORATE';
+  apiPlan: string;
+  _count: { users: number };
 }
 
 export function useTenantOptions() {
@@ -199,7 +202,7 @@ export function useCreateTenant(onSuccess?: (id: string, name: string) => void) 
   const [error, setError] = useState<string | null>(null);
 
   const mutate = useCallback(
-    (payload: { name: string; apiPlan?: string; apiMonthlyQuota?: number; type?: string }) => {
+    (payload: { name: string; apiPlan?: string; apiMonthlyQuota?: number; type?: string; ownerFullName?: string; ownerUsername?: string; ownerPassword?: string }) => {
       setLoading(true);
       setError(null);
       return api
@@ -207,6 +210,28 @@ export function useCreateTenant(onSuccess?: (id: string, name: string) => void) 
         .then((res) => onSuccess?.(res.data.data?.id, res.data.data?.name))
         .catch((err) => {
           setError(err.response?.data?.error ?? 'Falha ao criar organização');
+          throw err;
+        })
+        .finally(() => setLoading(false));
+    },
+    [onSuccess]
+  );
+
+  return { mutate, loading, error };
+}
+export function useDeleteTenant(onSuccess?: () => void) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const mutate = useCallback(
+    (id: string) => {
+      setLoading(true);
+      setError(null);
+      return api
+        .delete(`/tenants/${id}`)
+        .then(() => onSuccess?.())
+        .catch((err) => {
+          setError(err.response?.data?.error ?? 'Falha ao excluir organização');
           throw err;
         })
         .finally(() => setLoading(false));

@@ -1,9 +1,11 @@
 const express = require('express');
+const bcrypt = require('bcryptjs');
 const prismaSumauma = require('../lib/prismaSumauma');
-const { createLogtoOrg } = require('../lib/logtoClient');
+const { createLogtoOrg, createLogtoUser, deleteLogtoOrg } = require('../lib/logtoClient');
 const { iacaClient } = require('../lib/m2mClient');
 const { auditLog } = require('../lib/auditLogger');
 const logger = require('../lib/logger');
+const { PLAN_SEATS } = require('../lib/constants');
 
 const router = express.Router();
 
@@ -17,7 +19,7 @@ const ctx = (req) => ({
 async function assertNotMaster(id, res) {
   const tenant = await prismaSumauma.tenant.findUnique({
     where: { id },
-    select: { type: true, name: true, _count: { select: { users: true } } },
+    select: { type: true, name: true, apiPlan: true, _count: { select: { users: true } } },
   });
   if (!tenant) {
     res.status(404).json({ error: 'Organização não encontrada' });
@@ -35,14 +37,10 @@ async function assertNotMaster(id, res) {
 // ============================================
 router.post('/', async (req, res) => {
   try {
-    const { name, apiPlan, apiMonthlyQuota, type } = req.body;
+    const { name, apiPlan, apiMonthlyQuota, ownerFullName, ownerUsername, ownerPassword } = req.body;
     if (!name || typeof name !== 'string' || name.trim().length < 2) {
       return res.status(400).json({ error: 'Nome da organização é obrigatório (mínimo 2 caracteres)' });
     }
-
-    // Validar tipo (poka-yoke)
-    const allowedTypes = ['INDIVIDUAL', 'CORPORATE'];
-    const tenantType = allowedTypes.includes(type) ? type : 'CORPORATE';
 
     // 1. Criar no Banco Local (Fundação)
     const tenant = await prismaSumauma.tenant.create({
@@ -50,7 +48,7 @@ router.post('/', async (req, res) => {
         name: name.trim(),
         apiPlan: apiPlan || 'FREE',
         apiMonthlyQuota: Number(apiMonthlyQuota) || 1000,
-        type: tenantType // NUNCA aceita 'MASTER' da request
+        type: 'CORPORATE' // Sempre CORPORATE para retrocompatibilidade de schema
       }
     });
 
@@ -67,7 +65,49 @@ router.post('/', async (req, res) => {
 
     await auditLog({ ...ctx(req), action: 'ADMIN_CREATE_TENANT', entity: 'Tenant', resourceId: tenant.id, details: `Organização criada: ${tenant.name} (plan=${tenant.apiPlan})`, after: { id: tenant.id, name: tenant.name, apiPlan: tenant.apiPlan } });
 
-    res.status(201).json({ data: tenant, message: 'Organização criada com sucesso na Fundação' });
+    let createdUser = null;
+
+    // 3. Criar Proprietário (se os dados foram fornecidos)
+    if (ownerFullName && ownerUsername && ownerPassword) {
+      try {
+        const hashedPassword = await bcrypt.hash(ownerPassword, 10);
+        
+        createdUser = await prismaSumauma.user.create({
+          data: {
+            username: ownerUsername.trim(),
+            password: hashedPassword,
+            fullName: ownerFullName.trim(),
+            role: 'ADMIN', // Dono da org
+            tenantId: tenant.id,
+            status: 'ACTIVE'
+          }
+        });
+
+        try {
+          const logtoUserId = await createLogtoUser(tenant.id, {
+            username: ownerUsername.trim(),
+            firstName: ownerFullName.split(' ')[0],
+            lastName: ownerFullName.split(' ').slice(1).join(' ') || 'User',
+            email: `${ownerUsername.trim()}@neonorte.local`,
+            password: ownerPassword,
+          });
+          
+          await prismaSumauma.user.update({
+            where: { id: createdUser.id },
+            data: { authProviderId: logtoUserId }
+          });
+        } catch (logtoErr) {
+          logger.warn('Falha ao criar dono no Logto, mas org e user foram salvos localmente', { tenantId: tenant.id, userId: createdUser.id });
+        }
+
+        await auditLog({ ...ctx(req), action: 'ADMIN_CREATE_USER', entity: 'User', resourceId: createdUser.id, details: `Proprietário criado junto com a org: ${createdUser.username}` });
+      } catch (userErr) {
+        logger.error('Erro ao criar proprietário da org', { err: userErr.message });
+        // Não falhamos a request toda se a org já foi criada
+      }
+    }
+
+    res.status(201).json({ data: tenant, user: createdUser, message: 'Organização criada com sucesso na Fundação' });
   } catch (error) {
     logger.error('Erro ao criar tenant', { err: error.message });
     res.status(500).json({ error: 'Falha ao criar organização' });
@@ -125,7 +165,13 @@ router.get('/options', async (req, res) => {
     const tenants = await prismaSumauma.tenant.findMany({
       // POKA-YOKE: Excluir MASTER do dropdown de opções de organização
       where: { status: 'ACTIVE', type: { not: 'MASTER' } },
-      select: { id: true, name: true },
+      select: { 
+        id: true, 
+        name: true,
+        type: true,
+        apiPlan: true,
+        _count: { select: { users: true } }
+      },
       orderBy: { name: 'asc' },
     });
     res.json({ data: tenants });
@@ -173,26 +219,25 @@ router.patch('/:id', async (req, res) => {
 
     const ALLOWED_PATCH_FIELDS = [
       'name', 'apiPlan', 'apiMonthlyQuota', 'apiCurrentUsage',
-      'ssoProvider', 'ssoDomain', 'ssoEnforced', 'status', 'type'
+      'ssoProvider', 'ssoDomain', 'ssoEnforced', 'status'
     ];
-    const PROTECTED_TYPE_VALUES = ['MASTER'];
 
     const rawData = req.body;
     const safeData = Object.fromEntries(
       Object.entries(rawData).filter(([key]) => ALLOWED_PATCH_FIELDS.includes(key))
     );
 
-    // Nunca permitir promoção para MASTER via PATCH
-    if (safeData.type && PROTECTED_TYPE_VALUES.includes(safeData.type)) {
-      return res.status(403).json({
-        error: 'Não é permitido alterar o tipo para MASTER via interface.',
-        code: 'MASTER_PROMOTION_FORBIDDEN'
-      });
-    }
+    // POKA-YOKE: Prevenir downgrade de plano se tiver mais usuários que o permitido
+    if (safeData.apiPlan && safeData.apiPlan !== tenant.apiPlan) {
 
-    // Validar valores permitidos de type
-    if (safeData.type && !['INDIVIDUAL', 'CORPORATE'].includes(safeData.type)) {
-      return res.status(400).json({ error: 'Tipo inválido. Use INDIVIDUAL ou CORPORATE.' });
+      const maxSeats = PLAN_SEATS[safeData.apiPlan] ?? 5;
+      
+      if (tenant._count.users > maxSeats) {
+        return res.status(409).json({
+          error: `Não é possível realizar o downgrade. A organização possui ${tenant._count.users} usuários, mas o plano ${safeData.apiPlan} permite apenas ${maxSeats}.`,
+          code: 'SEAT_LIMIT_EXCEEDED'
+        });
+      }
     }
 
     const updated = await prismaSumauma.tenant.update({
@@ -250,6 +295,49 @@ router.post('/:id/unblock', async (req, res) => {
   } catch (error) {
     logger.error('Erro ao desbloquear tenant', { err: error.message });
     res.status(500).json({ error: 'Falha ao desbloquear organização' });
+  }
+});
+
+// ============================================
+// DELETE /admin/tenants/:id — Excluir (Hard Delete)
+// ============================================
+router.delete('/:id', async (req, res) => {
+  try {
+    const tenantId = req.params.id;
+    const tenant = await assertNotMaster(tenantId, res);
+    if (!tenant) return;
+
+    // 1. Auditoria ANTES de excluir
+    await auditLog({ 
+      ...ctx(req), 
+      action: 'ADMIN_DELETE_TENANT', 
+      entity: 'Tenant', 
+      resourceId: tenantId, 
+      details: `Organização excluída permanentemente: ${tenant.name} (users=${tenant._count.users})`,
+      before: { id: tenantId, name: tenant.name }
+    });
+
+    // 2. Tentar excluir Org no Logto (usamos ssoDomain que guarda o logtoOrgId)
+    if (tenant.ssoDomain) {
+      await deleteLogtoOrg(tenant.ssoDomain);
+    }
+
+    // 3. Exclusão em Transação no Banco Local
+    await prismaSumauma.$transaction([
+      // Limpar API Keys
+      prismaSumauma.tenantApiKey.deleteMany({ where: { tenantId } }),
+      // Limpar AuditLogs do Tenant (os que não têm userId ou que pertencem ao tenant)
+      prismaSumauma.auditLog.deleteMany({ where: { tenantId } }),
+      // Limpar Usuários do Tenant
+      prismaSumauma.user.deleteMany({ where: { tenantId } }),
+      // Finalmente, excluir o Tenant
+      prismaSumauma.tenant.delete({ where: { id: tenantId } })
+    ]);
+
+    res.json({ message: 'Organização e dependências excluídas com sucesso' });
+  } catch (error) {
+    logger.error('Erro ao excluir tenant', { tenantId: req.params.id, err: error.message });
+    res.status(500).json({ error: 'Falha ao excluir organização. Verifique dependências de dados.' });
   }
 });
 

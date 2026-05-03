@@ -4,7 +4,6 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
-  SlidersHorizontal,
   Shield,
   ArrowUpDown,
   Plus,
@@ -14,20 +13,7 @@ import TenantStatusBadge from '@/components/tenants/TenantStatusBadge';
 import TenantDrawer from '@/components/tenants/TenantDrawer';
 import { useDebounce } from '@/hooks/useDebounce';
 
-// ─── Account Type mapping ─────────────────────────────────────────────────────
-
-const ACCOUNT_TYPE_LABEL: Record<string, string> = {
-  INDIVIDUAL: 'Individual',
-  CORPORATE: 'Empresarial',
-  MASTER: 'Plataforma',
-};
-
-const ACCOUNT_TYPE_BADGE_CLASS: Record<string, string> = {
-  INDIVIDUAL: 'text-sky-400 bg-sky-500/10 border border-sky-500/20',
-  CORPORATE:  'text-violet-400 bg-violet-500/10 border border-violet-500/20',
-  MASTER:     'text-slate-400 bg-slate-500/10 border border-slate-500/20',
-};
-
+import { PLAN_SEATS } from '@/lib/tenantUtils';
 // ─── Plan badge ───────────────────────────────────────────────────────────────
 
 const PLAN_COLOR: Record<string, string> = {
@@ -45,7 +31,7 @@ function PlanBadge({ plan }: { plan: string }) {
 
 function UsageBar({ current, quota }: { current: number; quota: number }) {
   const pct = quota > 0 ? Math.min((current / quota) * 100, 100) : 0;
-  const color = pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-500' : 'bg-emerald-500';
+  const color = pct >= 100 ? 'bg-red-500' : pct >= 90 ? 'bg-amber-500' : 'bg-emerald-500';
   return (
     <div className="flex items-center gap-2">
       <div className="h-1 w-16 rounded-full bg-slate-800">
@@ -56,11 +42,32 @@ function UsageBar({ current, quota }: { current: number; quota: number }) {
   );
 }
 
+// ─── Seats mini-bar ───────────────────────────────────────────────────────────
+
+function SeatsBar({ current, plan }: { current: number; plan: string }) {
+  const max = PLAN_SEATS[plan] ?? 5;
+  const isUnlimited = max > 1000;
+  const pct = isUnlimited ? 0 : Math.min((current / max) * 100, 100);
+  const color = pct >= 100 ? 'bg-red-500' : pct >= 90 ? 'bg-amber-500' : 'bg-emerald-500';
+  
+  if (isUnlimited) {
+    return <span className="font-tabular text-[11px] text-slate-500">{current} / Ilimitado</span>;
+  }
+  
+  return (
+    <div className="flex items-center gap-2">
+      <div className="h-1 w-12 rounded-full bg-slate-800">
+        <div className={`h-1 rounded-full ${color}`} style={{ width: `${pct}%` }} />
+      </div>
+      <span className="font-tabular text-[11px] text-slate-500">{current}/{max}</span>
+    </div>
+  );
+}
+
 // ─── Filter bar ───────────────────────────────────────────────────────────────
 
 interface Filters {
   q: string;
-  type: string;
   plan: string;
 }
 
@@ -86,19 +93,7 @@ function FilterBar({
         />
       </div>
 
-      <SlidersHorizontal className="h-3.5 w-3.5 text-slate-600" />
 
-      {/* Type filter */}
-      <select
-        id="tenants-filter-type"
-        value={filters.type}
-        onChange={(e) => onChange({ type: e.target.value })}
-        className="h-8 rounded-sm border border-slate-700 bg-slate-800 px-2 text-xs text-slate-300 focus:outline-none focus:border-sky-500/50"
-      >
-        <option value="">Todos os tipos</option>
-        <option value="INDIVIDUAL">Individual</option>
-        <option value="CORPORATE">Empresarial</option>
-      </select>
 
       {/* Plan filter */}
       <select
@@ -177,9 +172,6 @@ function TenantRow({ tenant, onClick }: { tenant: Tenant; onClick: () => void })
           )}
           <div>
             <p className="text-xs font-medium text-slate-200">{tenant.name}</p>
-            <span className={`mt-0.5 inline-block rounded-sm px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider ${ACCOUNT_TYPE_BADGE_CLASS[tenant.type] || ''}`}>
-              {ACCOUNT_TYPE_LABEL[tenant.type] || tenant.type}
-            </span>
           </div>
         </div>
       </td>
@@ -189,9 +181,9 @@ function TenantRow({ tenant, onClick }: { tenant: Tenant; onClick: () => void })
         <PlanBadge plan={tenant.apiPlan} />
       </td>
 
-      {/* Users */}
-      <td className="px-4 py-3 font-tabular text-xs text-slate-400 text-right">
-        {tenant._count.users.toLocaleString('pt-BR')}
+      {/* Seats */}
+      <td className="px-4 py-3">
+        <SeatsBar current={tenant._count.users} plan={tenant.apiPlan} />
       </td>
 
       {/* API usage */}
@@ -232,7 +224,7 @@ const PAGE_SIZE = 20;
 const TABLE_COLS = [
   { label: 'Organização', cls: 'w-[260px]' },
   { label: 'Plano', cls: 'w-[100px]' },
-  { label: 'Usuários', cls: 'w-[80px] text-right' },
+  { label: 'Assentos', cls: 'w-[120px]' },
   { label: 'Uso de API', cls: 'w-[140px]' },
   { label: 'SSO', cls: 'w-[70px]' },
   { label: 'Status', cls: 'w-[90px]' },
@@ -242,7 +234,7 @@ const TABLE_COLS = [
 export default function TenantsPage() {
   const [page, setPage] = useState(1);
   const [rawQ, setRawQ] = useState('');
-  const [filters, setFilters] = useState({ type: '', plan: '' });
+  const [filters, setFilters] = useState({ plan: '' });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
 
@@ -252,11 +244,10 @@ export default function TenantsPage() {
     page,
     limit: PAGE_SIZE,
     q: debouncedQ || undefined,
-    type: filters.type || undefined,
     plan: filters.plan || undefined,
   });
 
-  const handleFilterChange = useCallback((partial: Partial<{ q: string; type: string; plan: string }>) => {
+  const handleFilterChange = useCallback((partial: Partial<{ q: string; plan: string }>) => {
     if ('q' in partial) setRawQ(partial.q ?? '');
     else setFilters((prev) => ({ ...prev, ...partial }));
     setPage(1);

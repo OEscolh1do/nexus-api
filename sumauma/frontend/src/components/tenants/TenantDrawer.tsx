@@ -10,32 +10,22 @@ import {
   Lock,
   Unlock,
   ChevronRight,
+  Trash2,
 } from 'lucide-react';
 import {
   useTenant,
   useBlockTenant,
   useUnblockTenant,
   usePatchTenant,
+  useDeleteTenant,
   type TenantDetail,
 } from '@/hooks/useTenants';
 import TenantStatusBadge from './TenantStatusBadge';
 import ConfirmBlockModal from './ConfirmBlockModal';
+import ConfirmTenantDeleteModal from './ConfirmTenantDeleteModal';
 import CreateTenantForm from './CreateTenantForm';
-
-// ─── Account Type mapping ─────────────────────────────────────────────────────
-
-const ACCOUNT_TYPE_LABEL: Record<string, string> = {
-  INDIVIDUAL: 'Individual',
-  CORPORATE: 'Empresarial',
-  MASTER: 'Plataforma',
-};
-
-const ACCOUNT_TYPE_BADGE_CLASS: Record<string, string> = {
-  INDIVIDUAL: 'text-sky-400 bg-sky-500/10 border border-sky-500/20',
-  CORPORATE:  'text-violet-400 bg-violet-500/10 border border-violet-500/20',
-  MASTER:     'text-slate-400 bg-slate-500/10 border border-slate-500/20',
-};
-
+import RoleBadge from '@/components/users/RoleBadge';
+import { PLAN_SEATS } from '@/lib/tenantUtils';
 // ─── Plan edit sub-panel ──────────────────────────────────────────────────────
 
 const PLAN_OPTIONS = ['FREE', 'STARTER', 'PRO', 'ENTERPRISE'];
@@ -105,17 +95,68 @@ function EditPlanPanel({
   );
 }
 
-// ─── API Usage bar ────────────────────────────────────────────────────────────
+// ─── Inject Quota sub-panel ───────────────────────────────────────────────────
+
+function InjectQuotaPanel({
+  tenant,
+  onClose,
+  onSaved,
+}: {
+  tenant: TenantDetail;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { mutate: patch, loading } = usePatchTenant(onSaved);
+  const [extra, setExtra] = useState('100');
+
+  function handleSave() {
+    const newQuota = tenant.apiMonthlyQuota + Number(extra);
+    patch(tenant.id, { apiMonthlyQuota: newQuota });
+  }
+
+  return (
+    <div className="mt-4 rounded-sm border border-slate-700 bg-slate-800/60 p-4 space-y-3">
+      <p className="text-xs font-medium text-slate-300 uppercase tracking-wider">Injetar Quota Extra</p>
+      <div className="space-y-1">
+        <label className="text-[11px] text-slate-500">Adicionar Quota de Simulações (+)</label>
+        <input
+          type="number"
+          value={extra}
+          onChange={(e) => setExtra(e.target.value)}
+          min={1}
+          className="w-full rounded-sm border border-slate-700 bg-slate-800 px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500/50 font-tabular"
+        />
+      </div>
+      <div className="flex justify-end gap-2">
+        <button
+          onClick={onClose}
+          className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors"
+        >
+          Cancelar
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={loading}
+          className="rounded-sm border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-xs font-medium text-sky-400 hover:bg-sky-500/20 transition-colors disabled:opacity-50"
+        >
+          {loading ? 'Injetando…' : 'Injetar'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Usage bars ───────────────────────────────────────────────────────────────
 
 function ApiUsageBar({ current, quota }: { current: number; quota: number }) {
   const pct = quota > 0 ? Math.min((current / quota) * 100, 100) : 0;
   const color =
-    pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-500' : 'bg-emerald-500';
+    pct >= 100 ? 'bg-red-500' : pct >= 90 ? 'bg-amber-500' : 'bg-emerald-500';
 
   return (
     <div className="space-y-1.5">
       <div className="flex justify-between text-[11px]">
-        <span className="text-slate-400">Uso de API este mês</span>
+        <span className="text-slate-400">Simulações de Engenharia</span>
         <span className="font-tabular text-slate-300">
           {current.toLocaleString('pt-BR')} / {quota.toLocaleString('pt-BR')}
         </span>
@@ -127,6 +168,35 @@ function ApiUsageBar({ current, quota }: { current: number; quota: number }) {
         />
       </div>
       <p className="text-[11px] text-slate-500">{pct.toFixed(1)}% utilizado</p>
+    </div>
+  );
+}
+
+function SeatsUsageBar({ current, plan }: { current: number; plan: string }) {
+  const max = PLAN_SEATS[plan] ?? 5;
+  const isUnlimited = max > 1000;
+  const pct = isUnlimited ? 0 : Math.min((current / max) * 100, 100);
+  const color = pct >= 100 ? 'bg-red-500' : pct >= 90 ? 'bg-amber-500' : 'bg-emerald-500';
+
+  return (
+    <div className="space-y-1.5 pt-3 border-t border-slate-800">
+      <div className="flex justify-between text-[11px]">
+        <span className="text-slate-400">Assentos Ativos</span>
+        <span className="font-tabular text-slate-300">
+          {current} / {isUnlimited ? 'Ilimitado' : max}
+        </span>
+      </div>
+      {!isUnlimited && (
+        <>
+          <div className="h-1.5 w-full rounded-full bg-slate-800">
+            <div
+              className={`h-1.5 rounded-full transition-all ${color}`}
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <p className="text-[11px] text-slate-500">{pct.toFixed(0)}% utilizado</p>
+        </>
+      )}
     </div>
   );
 }
@@ -169,9 +239,12 @@ export default function TenantDrawer({ tenantId, onClose, onMutated }: TenantDra
   const { mutate: block, loading: blocking } = useBlockTenant(handleSuccess);
   const { mutate: unblock, loading: unblocking } = useUnblockTenant(handleSuccess);
   const { mutate: patch, loading: resetting } = usePatchTenant(handleSuccess);
+  const { mutate: deleteTenant, loading: deleting } = useDeleteTenant(() => { onMutated?.(); onClose(); });
 
   const [showBlock, setShowBlock] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
   const [showEditPlan, setShowEditPlan] = useState(false);
+  const [showInjectQuota, setShowInjectQuota] = useState(false);
 
   const isMaster = tenant?.type === 'MASTER';
   const isBlocked = tenant?.status === 'BLOCKED';
@@ -179,6 +252,11 @@ export default function TenantDrawer({ tenantId, onClose, onMutated }: TenantDra
   function handleBlock() {
     if (!tenantId) return;
     block(tenantId).then(() => setShowBlock(false)).catch(() => {});
+  }
+
+  function handleDelete() {
+    if (!tenantId) return;
+    deleteTenant(tenantId).then(() => setShowDelete(false)).catch(() => {});
   }
 
   function handleResetQuota() {
@@ -230,9 +308,6 @@ export default function TenantDrawer({ tenantId, onClose, onMutated }: TenantDra
                   <div>
                     <div className="flex items-center gap-2">
                       <h2 className="text-base font-semibold text-slate-100">{tenant.name}</h2>
-                      <span className={`inline-block rounded-sm px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider ${ACCOUNT_TYPE_BADGE_CLASS[tenant.type] || ''}`}>
-                        {ACCOUNT_TYPE_LABEL[tenant.type] || tenant.type}
-                      </span>
                     </div>
                     <p className="mt-0.5 font-tabular text-[11px] text-slate-600">{tenant.id}</p>
                   </div>
@@ -265,18 +340,25 @@ export default function TenantDrawer({ tenantId, onClose, onMutated }: TenantDra
                 ))}
               </section>
 
-              {/* API plan */}
+              {/* Limites e Quotas */}
               <section className="space-y-3 rounded-sm border border-slate-800 bg-slate-900 p-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between mb-2">
                   <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
-                    Plano de API
+                    Limites e Quotas
                   </p>
                   <span className="badge badge-info">{tenant.apiPlan}</span>
                 </div>
+                
                 <ApiUsageBar
                   current={tenant.apiCurrentUsage}
                   quota={tenant.apiMonthlyQuota}
                 />
+                
+                <SeatsUsageBar
+                  current={tenant._count.users}
+                  plan={tenant.apiPlan}
+                />
+
                 {showEditPlan && (
                   <EditPlanPanel
                     tenant={tenant}
@@ -284,20 +366,23 @@ export default function TenantDrawer({ tenantId, onClose, onMutated }: TenantDra
                     onSaved={() => setShowEditPlan(false)}
                   />
                 )}
+                
+                {showInjectQuota && (
+                  <InjectQuotaPanel
+                    tenant={tenant}
+                    onClose={() => setShowInjectQuota(false)}
+                    onSaved={() => setShowInjectQuota(false)}
+                  />
+                )}
               </section>
 
               {/* Users list */}
-              {((tenant.users && tenant.users.length > 0) || tenant.type === 'INDIVIDUAL') && (
+              {tenant.users && tenant.users.length > 0 && (
                 <section className="space-y-2">
                   <div className="flex items-center justify-between">
                     <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
                       Usuários ({tenant._count.users})
                     </p>
-                    {tenant.type === 'INDIVIDUAL' && (
-                      <span className="text-[10px] text-amber-500/80 font-medium bg-amber-500/10 px-1.5 py-0.5 rounded-sm border border-amber-500/20">
-                        Max: 1
-                      </span>
-                    )}
                   </div>
                   <div className="rounded-sm border border-slate-800 divide-y divide-slate-800">
                     {tenant.users.slice(0, 10).map((u) => (
@@ -309,7 +394,7 @@ export default function TenantDrawer({ tenantId, onClose, onMutated }: TenantDra
                           <p className="text-xs text-slate-300">{u.fullName || u.username}</p>
                           <p className="text-[11px] text-slate-600">{u.username}</p>
                         </div>
-                        <span className="badge badge-info">{u.role}</span>
+                        <RoleBadge role={u.role} />
                       </div>
                     ))}
                     {tenant._count.users > 10 && (
@@ -349,9 +434,18 @@ export default function TenantDrawer({ tenantId, onClose, onMutated }: TenantDra
         {/* Footer actions */}
         {tenant && !isMaster && (
           <div className="border-t border-slate-800 px-5 py-4 space-y-2">
+            {/* Inject Quota */}
+            <button
+              onClick={() => { setShowInjectQuota((v) => !v); setShowEditPlan(false); }}
+              className="flex w-full items-center justify-between rounded-sm border border-sky-500/20 bg-sky-500/5 px-3 py-2 text-xs text-sky-400 hover:bg-sky-500/10 transition-colors"
+            >
+              <span>Injetar Quota Extra</span>
+              <Zap className="h-3.5 w-3.5" />
+            </button>
+
             {/* Edit plan */}
             <button
-              onClick={() => setShowEditPlan((v) => !v)}
+              onClick={() => { setShowEditPlan((v) => !v); setShowInjectQuota(false); }}
               className="flex w-full items-center justify-between rounded-sm border border-slate-700 bg-slate-800/60 px-3 py-2 text-xs text-slate-300 hover:border-slate-600 hover:bg-slate-800 transition-colors"
             >
               <span>Editar Plano / Quota</span>
@@ -387,6 +481,16 @@ export default function TenantDrawer({ tenantId, onClose, onMutated }: TenantDra
                 <Lock className="h-3.5 w-3.5" />
               </button>
             )}
+
+            {/* Delete */}
+            <button
+              onClick={() => setShowDelete(true)}
+              disabled={deleting}
+              className="flex w-full items-center justify-between rounded-sm border border-slate-800 bg-slate-900/50 px-3 py-2 text-xs text-slate-500 hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/5 transition-all disabled:opacity-50"
+            >
+              <span>{deleting ? 'Excluindo…' : 'Excluir Organização'}</span>
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
           </div>
         )}
       </div>
@@ -399,6 +503,16 @@ export default function TenantDrawer({ tenantId, onClose, onMutated }: TenantDra
           onConfirm={handleBlock}
           onCancel={() => setShowBlock(false)}
           loading={blocking}
+        />
+      )}
+
+      {/* Confirm delete modal */}
+      {showDelete && tenant && (
+        <ConfirmTenantDeleteModal
+          tenantName={tenant.name}
+          onConfirm={handleDelete}
+          onCancel={() => setShowDelete(false)}
+          loading={deleting}
         />
       )}
     </>

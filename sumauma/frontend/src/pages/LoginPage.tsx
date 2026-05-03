@@ -36,6 +36,12 @@ export default function LoginPage() {
 
       // Passamos o JWT real do Logto para o AuthStore, e não uma string hardcoded
       loginStore(rawIdToken, operator);
+
+      // Notificar o backend sobre o login via SSO para auditoria
+      api.post('/auth/audit-login', {}, {
+        headers: { Authorization: `Bearer ${rawIdToken}` }
+      }).catch(err => console.warn('Falha ao auditar login SSO', err));
+
       navigate('/');
     });
   }, [isAuthenticated, isLoading, logto, loginStore, navigate]);

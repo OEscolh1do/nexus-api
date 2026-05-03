@@ -1,9 +1,10 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const prismaSumauma = require('../lib/prismaSumauma');
-const { createLogtoUser } = require('../lib/logtoClient');
+const { createLogtoUser, deleteLogtoUser } = require('../lib/logtoClient');
 const { auditLog } = require('../lib/auditLogger');
 const logger = require('../lib/logger');
+const { PLAN_SEATS } = require('../lib/constants');
 
 const router = express.Router();
 
@@ -40,7 +41,7 @@ router.post('/', async (req, res) => {
       });
     }
 
-    const PLAN_SEATS = { FREE: 1, STARTER: 5, PRO: 20, ENTERPRISE: 9999 };
+
 
     // Buscar tenant para verificar plano e tipo
     const tenant = await prismaSumauma.tenant.findUnique({
@@ -49,19 +50,16 @@ router.post('/', async (req, res) => {
     });
     if (!tenant) return res.status(404).json({ error: 'Organização não encontrada' });
 
-    // POKA-YOKE: Verificar limite de seats pelo tipo da conta e plano
-    const maxSeats = tenant.type === 'INDIVIDUAL' ? 1 : (PLAN_SEATS[tenant.apiPlan] ?? 5);
+    // POKA-YOKE: Verificar limite de seats pelo plano
+    const maxSeats = PLAN_SEATS[tenant.apiPlan] ?? 5;
 
     if (tenant._count.users >= maxSeats) {
       return res.status(409).json({
-        error: tenant.type === 'INDIVIDUAL'
-          ? 'Contas do tipo Individual permitem apenas 1 usuário na equipe. Mude a organização para Empresarial para adicionar mais membros.'
-          : `Limite de ${maxSeats} usuário(s) atingido para o plano ${tenant.apiPlan}. Faça upgrade para adicionar mais usuários.`,
+        error: `Limite de ${maxSeats} usuário(s) atingido para o plano ${tenant.apiPlan}. Faça upgrade para adicionar mais usuários.`,
         code: 'SEAT_LIMIT_EXCEEDED',
         current: tenant._count.users,
         max: maxSeats,
         plan: tenant.apiPlan,
-        type: tenant.type,
       });
     }
 
@@ -298,6 +296,50 @@ router.post('/:id/reset-password', async (req, res) => {
   } catch (error) {
     logger.error('Erro ao resetar senha', { err: error.message });
     res.status(500).json({ error: 'Falha ao redefinir senha' });
+  }
+});
+
+// ============================================
+// DELETE /admin/users/:id — Excluir (Hard Delete)
+// ============================================
+router.delete('/:id', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    if (isSelf(req, userId)) {
+      return res.status(403).json({ error: 'Você não pode excluir a si próprio' });
+    }
+
+    const user = await prismaSumauma.user.findUnique({
+      where: { id: userId },
+      select: { username: true, authProviderId: true }
+    });
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+    // 1. Auditoria
+    await auditLog({ 
+      ...ctx(req), 
+      action: 'ADMIN_DELETE_USER', 
+      entity: 'User', 
+      resourceId: userId, 
+      details: `Usuário excluído permanentemente: ${user.username}`,
+      before: { id: userId, username: user.username }
+    });
+
+    // 2. Tentar excluir no Logto
+    if (user.authProviderId) {
+      await deleteLogtoUser(user.authProviderId);
+    }
+
+    // 3. Exclusão no Banco Local
+    await prismaSumauma.$transaction([
+      prismaSumauma.auditLog.deleteMany({ where: { userId } }),
+      prismaSumauma.user.delete({ where: { id: userId } })
+    ]);
+
+    res.json({ message: 'Usuário excluído com sucesso' });
+  } catch (error) {
+    logger.error('Erro ao excluir usuário', { userId: req.params.id, err: error.message });
+    res.status(500).json({ error: 'Falha ao excluir usuário. Verifique dependências de dados.' });
   }
 });
 

@@ -11,7 +11,8 @@ export default function AuditLogRow({ log }: AuditLogRowProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const formatTimestamp = (ts: string) => {
-    return new Date(ts).toLocaleString('pt-BR', {
+    const date = new Date(ts);
+    const abs = date.toLocaleString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -19,6 +20,28 @@ export default function AuditLogRow({ log }: AuditLogRowProps) {
       minute: '2-digit',
       second: '2-digit',
     });
+    
+    // Simples tempo relativo
+    const diff = Date.now() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    let relative = '';
+    if (minutes < 1) relative = 'agora';
+    else if (minutes < 60) relative = `há ${minutes} min`;
+    else if (hours < 24) relative = `há ${hours} h`;
+    else relative = `há ${days} d`;
+
+    return { abs, relative };
+  };
+
+  const getActionColor = (action: string) => {
+    if (action === 'ADMIN_LOGIN') return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+    if (action === 'ADMIN_LOGOUT') return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+    if (action.includes('DELETE')) return 'bg-red-500/10 text-red-400 border-red-500/20';
+    if (action.includes('CREATE')) return 'bg-sky-500/10 text-sky-400 border-sky-500/20';
+    return 'bg-slate-800 text-slate-400 border-slate-700';
   };
 
   return (
@@ -27,12 +50,15 @@ export default function AuditLogRow({ log }: AuditLogRowProps) {
         className="flex items-center gap-4 px-4 py-3 cursor-pointer"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <div className="w-44 flex items-center gap-2 text-[11px] font-mono text-slate-500">
-          <Clock className="h-3 w-3" />
-          {formatTimestamp(log.timestamp)}
+        <div className="w-44 flex flex-col justify-center text-[11px] font-mono leading-tight">
+          <div className="flex items-center gap-1.5 text-slate-400">
+            <Clock className="h-3 w-3" />
+            {formatTimestamp(log.timestamp).abs}
+          </div>
+          <span className="text-[10px] text-slate-600 ml-4.5">{formatTimestamp(log.timestamp).relative}</span>
         </div>
 
-        <div className="w-40 px-2 py-0.5 rounded-sm bg-slate-800 text-[10px] font-bold uppercase tracking-wider text-sky-400 text-center truncate">
+        <div className={`w-40 px-2 py-0.5 rounded-sm border ${getActionColor(log.action)} text-[10px] font-bold uppercase tracking-wider text-center truncate`}>
           {log.action}
         </div>
 

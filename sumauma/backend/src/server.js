@@ -19,6 +19,7 @@ const bcrypt = require('bcryptjs');
 
 // Middleware
 const platformAuth = require('./middleware/platformAuth');
+const { auditLog } = require('./lib/auditLogger');
 
 // Rotas
 const tenantsRouter = require('./routes/tenants');
@@ -26,7 +27,6 @@ const usersRouter = require('./routes/users');
 const catalogRouter = require('./routes/catalog');
 const auditLogsRouter = require('./routes/auditLogs');
 const systemRouter = require('./routes/system');
-const orgUnitsRouter = require('./routes/orgUnits');
 const rolesRouter = require('./routes/roles');
 const permissionsRouter = require('./routes/permissions');
 const operatorsRouter = require('./routes/operators');
@@ -110,6 +110,17 @@ app.post('/admin/auth/login', async (req, res) => {
       { expiresIn: '8h' }
     );
 
+    // Auditoria de Login
+    await auditLog({ 
+      operator: { id: user.id, role: user.role }, 
+      action: 'ADMIN_LOGIN', 
+      entity: 'Operator', 
+      resourceId: user.id, 
+      ipAddress: req.ip || req.headers['x-forwarded-for'],
+      userAgent: req.headers['user-agent'],
+      details: `Login realizado pelo operador: ${user.username}` 
+    });
+
     res.json({
       token,
       operator: {
@@ -126,6 +137,29 @@ app.post('/admin/auth/login', async (req, res) => {
 });
 
 // =============================================================
+// AUTH — Logout do Operador (protegido)
+// =============================================================
+app.post('/admin/auth/logout', platformAuth, async (req, res) => {
+  try {
+    // Auditoria de Logout
+    await auditLog({ 
+      operator: req.operator, 
+      action: 'ADMIN_LOGOUT', 
+      entity: 'Operator', 
+      resourceId: req.operator.id, 
+      ipAddress: req.ip || req.headers['x-forwarded-for'],
+      userAgent: req.headers['user-agent'],
+      details: `Logout realizado pelo operador: ${req.operator.username}` 
+    });
+
+    res.json({ message: 'Logout registrado com sucesso' });
+  } catch (error) {
+    logger.warn('Falha ao registrar log de logout', { err: error.message });
+    res.json({ message: 'Logout processado localmente' });
+  }
+});
+
+// =============================================================
 // ROTAS PROTEGIDAS — Todas exigem PLATFORM_ADMIN
 // =============================================================
 
@@ -134,10 +168,30 @@ app.use('/admin/users', platformAuth, usersRouter);
 app.use('/admin/catalog', platformAuth, catalogRouter);
 app.use('/admin/audit-logs', platformAuth, auditLogsRouter);
 app.use('/admin/system', platformAuth, systemRouter);
-app.use('/admin/org-units', platformAuth, orgUnitsRouter);
 app.use('/admin/roles', platformAuth, rolesRouter);
 app.use('/admin/permissions', platformAuth, permissionsRouter);
 app.use('/admin/operators', platformAuth, operatorsRouter);
+
+// =============================================================
+// AUTH — Auditoria de Login SSO
+// =============================================================
+app.post('/admin/auth/audit-login', platformAuth, async (req, res) => {
+  try {
+    await auditLog({ 
+      operator: req.operator, 
+      action: 'ADMIN_LOGIN', 
+      entity: 'Operator', 
+      resourceId: req.operator.id, 
+      ipAddress: req.ip || req.headers['x-forwarded-for'],
+      userAgent: req.headers['user-agent'],
+      details: `Login SSO realizado pelo operador: ${req.operator.username}` 
+    });
+    res.json({ message: 'Login registrado' });
+  } catch (error) {
+    logger.warn('Falha ao registrar log de login SSO', { err: error.message });
+    res.json({ message: 'Login processado' });
+  }
+});
 
 // =============================================================
 // DASHBOARD — KPIs agregados
