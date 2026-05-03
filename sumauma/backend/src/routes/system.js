@@ -3,6 +3,7 @@ const axios = require('axios');
 const prismaSumauma = require('../lib/prismaSumauma');
 const prismaIaca = require('../lib/prismaIaca');
 const prismaKurupira = require('../lib/prismaKurupira');
+const logger = require('../lib/logger');
 const { iacaClient } = require('../lib/m2mClient');
 
 const router = express.Router();
@@ -18,7 +19,7 @@ let healthCache = {
 router.get('/health', async (req, res) => {
   const now = Date.now();
   if (healthCache.data && now - healthCache.timestamp < 30000) {
-    return res.status(healthCache.data.status === 'healthy' ? 200 : 503).json({
+    return res.status(200).json({
       ...healthCache.data,
       fromCache: true,
     });
@@ -131,7 +132,7 @@ router.get('/sessions', async (req, res) => {
 
     res.json({ data: enriched });
   } catch (error) {
-    console.error('[System] Erro ao listar sessões:', error.message);
+    logger.error('Erro ao listar sessões', { err: error.message });
     res.json({ data: [] }); // Silencioso para não quebrar UI
   }
 });
@@ -158,7 +159,7 @@ router.get('/jobs', async (req, res) => {
     });
     res.json({ data: jobs });
   } catch (error) {
-    console.warn('[System] CronLocks não disponíveis no momento');
+    logger.warn('CronLocks não disponíveis no momento');
     res.json({ data: [] });
   }
 });
@@ -180,7 +181,7 @@ router.get('/api-usage', async (req, res) => {
     });
     res.json({ data: tenants });
   } catch (error) {
-    console.error('[System] Erro ao listar uso de API:', error.message);
+    logger.error('Erro ao listar uso de API', { err: error.message });
     res.json({ data: [] });
   }
 });

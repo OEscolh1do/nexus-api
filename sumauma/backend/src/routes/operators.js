@@ -1,5 +1,6 @@
 const express = require('express');
 const prismaSumauma = require('../lib/prismaSumauma');
+const logger = require('../lib/logger');
 
 const router = express.Router();
 
@@ -26,7 +27,7 @@ router.get('/', async (req, res) => {
 
     res.json({ data: operators, total: operators.length });
   } catch (error) {
-    console.error('[Operators] Erro ao listar:', error.message);
+    logger.error('Erro ao listar operadores', { err: error.message });
     res.status(500).json({ error: 'Falha ao listar operadores' });
   }
 });
@@ -59,7 +60,7 @@ router.patch('/:id/block', async (req, res) => {
 
     res.json({ data: updated, message: 'Operador bloqueado com sucesso' });
   } catch (error) {
-    console.error('[Operators] Erro ao bloquear:', error.message);
+    logger.error('Erro ao bloquear operador', { err: error.message });
     res.status(500).json({ error: 'Falha ao bloquear operador' });
   }
 });
@@ -75,7 +76,7 @@ router.patch('/:id/unblock', async (req, res) => {
     });
     res.json({ data: updated, message: 'Operador desbloqueado com sucesso' });
   } catch (error) {
-    console.error('[Operators] Erro ao desbloquear:', error.message);
+    logger.error('Erro ao desbloquear operador', { err: error.message });
     res.status(500).json({ error: 'Falha ao desbloquear operador' });
   }
 });

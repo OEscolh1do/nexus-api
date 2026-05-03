@@ -1,4 +1,5 @@
 const prismaSumauma = require('./prismaSumauma');
+const logger = require('./logger');
 
 /**
  * Middleware para checar se o usuário autenticado possui uma permissão específica.
@@ -60,7 +61,7 @@ function checkPermission(requiredPermission) {
 
       next();
     } catch (error) {
-      console.error('[Permissions] Erro ao validar acesso:', error);
+      logger.error('Erro ao validar acesso', { err: error.message });
       res.status(500).json({ error: 'Erro interno de validação de acesso' });
     }
   };

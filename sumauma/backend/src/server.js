@@ -6,6 +6,10 @@
 
 require('dotenv').config();
 
+const validateEnv = require('./lib/validateEnv');
+validateEnv();
+
+const logger = require('./lib/logger');
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
@@ -77,9 +81,9 @@ app.post('/admin/auth/login', async (req, res) => {
       return res.status(400).json({ error: 'Username e password são obrigatórios' });
     }
 
-    // Buscar operador no db_iaca via Prisma read-only
-    const prismaIaca = require('./lib/prismaIaca');
-    const user = await prismaIaca.user.findUnique({
+    // Buscar operador no db_sumauma via Prisma Master
+    const prismaSumauma = require('./lib/prismaSumauma');
+    const user = await prismaSumauma.user.findUnique({
       where: { username },
       select: { id: true, username: true, fullName: true, password: true, role: true },
     });
@@ -116,7 +120,7 @@ app.post('/admin/auth/login', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('[Auth] Erro no login:', error.message);
+    logger.error('Erro no login', { err: error.message });
     res.status(500).json({ error: 'Falha ao processar login' });
   }
 });
@@ -153,7 +157,7 @@ app.get('/admin/dashboard', platformAuth, async (req, res) => {
       try {
         return await prismaModel.count({ where });
       } catch (err) {
-        console.warn(`[Dashboard] Falha ao contar em ${prismaModel.name}:`, err.message);
+        logger.warn('Dashboard: falha ao contar', { model: prismaModel.name, err: err.message });
         return 0;
       }
     };
@@ -174,9 +178,7 @@ app.get('/admin/dashboard', platformAuth, async (req, res) => {
       safeCount(prismaKurupira.technicalDesign),
       safeCount(prismaKurupira.moduleCatalog, { isActive: true }),
       safeCount(prismaKurupira.inverterCatalog, { isActive: true }),
-      safeCount(prismaSumauma.auditLog, {
-        where: { timestamp: { gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) } },
-      }),
+      safeCount(prismaSumauma.auditLog, { timestamp: { gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) } }),
       prismaSumauma.tenant.aggregate({
         _sum: { apiCurrentUsage: true },
       }),
@@ -193,7 +195,7 @@ app.get('/admin/dashboard', platformAuth, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('[Dashboard] Erro fatal ao agregar KPIs:', error.message);
+    logger.error('Erro fatal ao agregar KPIs do dashboard', { err: error.message });
     res.status(500).json({ error: 'Falha ao carregar dashboard' });
   }
 });
@@ -211,7 +213,7 @@ app.use((req, res) => {
 // =============================================================
 
 app.use((err, req, res, _next) => {
-  console.error('[Server] Erro não tratado:', err.message);
+  logger.error('Erro não tratado', { err: err.message, stack: err.stack });
   res.status(500).json({ error: 'Erro interno do servidor' });
 });
 
@@ -220,16 +222,12 @@ app.use((err, req, res, _next) => {
 // =============================================================
 
 app.listen(PORT, () => {
-  console.log('');
-  console.log('╔══════════════════════════════════════════════════╗');
-  console.log('║  NEONORTE ADMIN — Painel de Operações            ║');
-  console.log('║  Gerenciando: Kurupira · Iaçã Platform          ║');
-  console.log(`║  Porta: ${PORT}                                    ║`);
-  console.log(`║  Ambiente: ${(process.env.NODE_ENV || 'development').padEnd(37)}║`);
-  console.log('║  Iaçã:     ' + (process.env.IACA_INTERNAL_URL || 'N/A').padEnd(37) + '║');
-  console.log('║  Kurupira: ' + (process.env.KURUPIRA_INTERNAL_URL || 'N/A').padEnd(37) + '║');
-  console.log('╚══════════════════════════════════════════════════╝');
-  console.log('');
+  logger.info('NEONORTE ADMIN BFF running', {
+    port: PORT,
+    env: process.env.NODE_ENV || 'development',
+    iaca: process.env.IACA_INTERNAL_URL || 'N/A',
+    kurupira: process.env.KURUPIRA_INTERNAL_URL || 'N/A',
+  });
 });
 
 module.exports = app;

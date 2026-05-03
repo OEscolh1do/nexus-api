@@ -79,7 +79,6 @@ function FilterBar({
         className="h-8 rounded-sm border border-slate-700 bg-slate-800 px-2 text-xs text-slate-300 focus:outline-none focus:border-sky-500/50"
       >
         <option value="">Todas as roles</option>
-        <option value="PLATFORM_ADMIN">PLATFORM_ADMIN</option>
         <option value="ADMIN">ADMIN</option>
         <option value="ENGINEER">ENGINEER</option>
         <option value="VIEWER">VIEWER</option>

@@ -1,6 +1,7 @@
 const express = require('express');
 const prismaSumauma = require('../lib/prismaSumauma');
 const { checkPermission } = require('../lib/permissions');
+const logger = require('../lib/logger');
 
 const router = express.Router();
 
@@ -29,7 +30,7 @@ router.get('/', checkPermission('tenants:read'), async (req, res) => {
       grouped: grouped, // Frontend vai amar isso para montar a matriz
     });
   } catch (error) {
-    console.error('[Permissions] Erro ao listar:', error.message);
+    logger.error('Erro ao listar permissions', { err: error.message });
     res.status(500).json({ error: 'Falha ao listar permissões' });
   }
 });

@@ -82,7 +82,6 @@ function FilterBar({
         className="h-8 rounded-sm border border-slate-700 bg-slate-800 px-2 text-xs text-slate-300 focus:outline-none focus:border-sky-500/50"
       >
         <option value="">Todos os tipos</option>
-        <option value="MASTER">MASTER</option>
         <option value="SUB_TENANT">SUB_TENANT</option>
       </select>
 

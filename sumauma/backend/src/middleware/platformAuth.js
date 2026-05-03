@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const jwksClient = require('jwks-rsa');
+const logger = require('../lib/logger');
 
 // Cliente JWKS do Logto Self-Hosted
 // Dev local: http://localhost:3301/oidc/jwks
@@ -7,6 +8,7 @@ const jwksClient = require('jwks-rsa');
 const client = jwksClient({
   jwksUri: process.env.LOGTO_JWKS_URI || 'http://localhost:3301/oidc/jwks',
   cache: true,
+  cacheMaxAge: 60 * 60 * 1000, // 1 hora — suporta rotação de chave em emergências
   rateLimit: true,
 });
 
@@ -54,7 +56,7 @@ function platformAuth(req, res, next) {
         roles.includes('PLATFORM_ADMIN');
 
       if (!isAuthorized) {
-        console.warn(`[Auth] Acesso negado para ${decoded.sub}. Roles:`, roles);
+        logger.warn('Acesso negado — role insuficiente', { sub: decoded.sub, roles });
         return res.status(403).json({
           error: 'Acesso restrito a operadores da plataforma',
         });

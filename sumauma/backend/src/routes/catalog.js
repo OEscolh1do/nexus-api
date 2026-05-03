@@ -2,6 +2,7 @@ const express = require('express');
 const prismaKurupira = require('../lib/prismaKurupira');
 const { kurupiraClient } = require('../lib/m2mClient');
 const { auditLog } = require('../lib/auditLogger');
+const logger = require('../lib/logger');
 
 const router = express.Router();
 
@@ -43,7 +44,7 @@ router.get('/modules', async (req, res) => {
       },
     });
   } catch (error) {
-    console.warn('[Catalog] Aviso: Falha ao listar módulos:', error.message);
+    logger.warn('Falha ao listar módulos', { err: error.message });
     res.json({ data: [], pagination: { total: 0, totalPages: 0 } });
   }
 });
@@ -86,7 +87,7 @@ router.get('/inverters', async (req, res) => {
       },
     });
   } catch (error) {
-    console.warn('[Catalog] Aviso: Falha ao listar inversores:', error.message);
+    logger.warn('Falha ao listar inversores', { err: error.message });
     res.json({ data: [], pagination: { total: 0, totalPages: 0 } });
   }
 });
@@ -103,18 +104,20 @@ router.post('/modules', async (req, res) => {
 
     await auditLog({
       operator: req.operator,
-      action: 'CREATE',
+      action: 'ADMIN_CREATE',
       entity: 'ModuleCatalog',
       resourceId: equipment.id,
       details: `Upload de módulo: ${equipment.manufacturer} ${equipment.model}`,
-      after: equipment
+      after: equipment,
+      ipAddress: req.ip || req.headers['x-forwarded-for'],
+      userAgent: req.headers['user-agent'],
     });
 
     res.status(201).json({ data: equipment, message: 'Módulo adicionado ao catálogo' });
   } catch (error) {
     const status = error.response?.status || 500;
     const message = error.response?.data?.error || 'Falha ao adicionar módulo';
-    console.error('[Catalog] Erro M2M módulo:', message);
+    logger.error('Erro M2M módulo', { status, message });
     res.status(status).json({ error: message });
   }
 });
@@ -129,18 +132,20 @@ router.post('/inverters', async (req, res) => {
 
     await auditLog({
       operator: req.operator,
-      action: 'CREATE',
+      action: 'ADMIN_CREATE',
       entity: 'InverterCatalog',
       resourceId: equipment.id,
       details: `Upload de inversor: ${equipment.manufacturer} ${equipment.model}`,
-      after: equipment
+      after: equipment,
+      ipAddress: req.ip || req.headers['x-forwarded-for'],
+      userAgent: req.headers['user-agent'],
     });
 
     res.status(201).json({ data: equipment, message: 'Inversor adicionado ao catálogo' });
   } catch (error) {
     const status = error.response?.status || 500;
     const message = error.response?.data?.error || 'Falha ao adicionar inversor';
-    console.error('[Catalog] Erro M2M inversor:', message);
+    logger.error('Erro M2M inversor', { status, message });
     res.status(status).json({ error: message });
   }
 });
@@ -155,11 +160,13 @@ router.patch('/modules/:id', async (req, res) => {
 
     await auditLog({
       operator: req.operator,
-      action: 'UPDATE',
+      action: 'ADMIN_UPDATE',
       entity: 'ModuleCatalog',
       resourceId: req.params.id,
       details: `Atualização de módulo (Toggle/Edit)`,
-      after: req.body
+      after: req.body,
+      ipAddress: req.ip || req.headers['x-forwarded-for'],
+      userAgent: req.headers['user-agent'],
     });
 
     res.json({ data: equipment, message: 'Status do módulo atualizado' });
@@ -180,11 +187,13 @@ router.patch('/inverters/:id', async (req, res) => {
 
     await auditLog({
       operator: req.operator,
-      action: 'UPDATE',
+      action: 'ADMIN_UPDATE',
       entity: 'InverterCatalog',
       resourceId: req.params.id,
       details: `Atualização de inversor (Toggle/Edit)`,
-      after: req.body
+      after: req.body,
+      ipAddress: req.ip || req.headers['x-forwarded-for'],
+      userAgent: req.headers['user-agent'],
     });
 
     res.json({ data: equipment, message: 'Status do inversor atualizado' });
@@ -204,10 +213,12 @@ router.delete('/modules/:id', async (req, res) => {
     
     await auditLog({
       operator: req.operator,
-      action: 'DELETE',
+      action: 'ADMIN_DELETE',
       entity: 'ModuleCatalog',
       resourceId: req.params.id,
-      details: `Exclusão permanente de módulo`
+      details: `Exclusão permanente de módulo`,
+      ipAddress: req.ip || req.headers['x-forwarded-for'],
+      userAgent: req.headers['user-agent'],
     });
 
     res.json({ message: 'Módulo excluído com sucesso' });
@@ -227,10 +238,12 @@ router.delete('/inverters/:id', async (req, res) => {
 
     await auditLog({
       operator: req.operator,
-      action: 'DELETE',
+      action: 'ADMIN_DELETE',
       entity: 'InverterCatalog',
       resourceId: req.params.id,
-      details: `Exclusão permanente de inversor`
+      details: `Exclusão permanente de inversor`,
+      ipAddress: req.ip || req.headers['x-forwarded-for'],
+      userAgent: req.headers['user-agent'],
     });
 
     res.json({ message: 'Inversor excluído com sucesso' });
@@ -268,8 +281,5 @@ router.get('/stats', async (req, res) => {
     });
   }
 });
-
-module.exports = router;
-
 
 module.exports = router;

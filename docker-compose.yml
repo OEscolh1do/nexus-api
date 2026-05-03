@@ -22,6 +22,8 @@ services:
         condition: service_healthy
       kurupira-backend:
         condition: service_healthy
+      neonorte-admin-backend:
+        condition: service_healthy
     deploy:
       resources:
         limits:
@@ -44,6 +46,7 @@ services:
       M2M_SERVICE_TOKEN: "m2m_guardioes_secret_2026!"
       PORT: 3001
       NODE_ENV: production
+      NODE_OPTIONS: "--max-old-space-size=192"
       LOGTO_ENDPOINT: "https://214fzz.logto.app"
       LOGTO_JWKS_URI: "https://214fzz.logto.app/oidc/jwks"
     depends_on:
@@ -77,6 +80,7 @@ services:
       IACA_INTERNAL_URL: "http://iaca-backend:3001"
       PORT: 3002
       NODE_ENV: production
+      NODE_OPTIONS: "--max-old-space-size=400"
       LOGTO_ENDPOINT: "https://214fzz.logto.app"
       LOGTO_JWKS_URI: "https://214fzz.logto.app/oidc/jwks"
     depends_on:
@@ -118,6 +122,7 @@ services:
       LOGTO_M2M_CLIENT_SECRET: "6nKfrtSNMOqBwbUt2aOMMkVPZ8dKHusC"
       PORT: 3003
       NODE_ENV: production
+      NODE_OPTIONS: "--max-old-space-size=192"
     depends_on:
       nexus-db:
         condition: service_healthy
@@ -170,6 +175,8 @@ services:
 networks:
   neonorte_net:
     driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: 1450
 
 volumes:
   nexus_mysql_data:

@@ -1,8 +1,24 @@
-const { PrismaClient } = require("@prisma/client");
+const prisma = require("../lib/prisma");
 const { parsePanOnd } = require("./panOndParser");
 const { validateModule, validateInverter } = require("./equipmentValidator");
 
-const prisma = new PrismaClient();
+// Extrai campos elétricos do core OND — whitelist explícita para não vazar sub-objetos PVSyst
+function normalizeTechnicalKeys(core) {
+  const n = (key) => { const v = Number(core[key]); return isFinite(v) && v !== 0 ? v : null; };
+  return {
+    vNom:     n('Vnom'),
+    vMinMppt: n('Vmin'),
+    vMaxMppt: n('Vmax'),
+    vAbsMax:  n('Vabsmax'),
+    vAc:      n('Vac'),
+    pNomDc:   n('PNomDC') ?? n('Pnom'),
+    pMaxDc:   n('Pmax'),
+    effMax:   n('Eff_Max') ?? n('EffMax'),
+    fNom:     n('FNom') ?? n('Fac'),
+    nbPhases: n('NbPhases'),
+    nbInputs: n('NbInputs'),
+  };
+}
 
 function buildModuleElectricalData(core, parsed) {
   // Extrai apenas campos elétricos relevantes — sem vazar sub-objetos PVSyst inteiros

@@ -1,6 +1,7 @@
 const express = require('express');
 const prismaSumauma = require('../lib/prismaSumauma');
 const { checkPermission } = require('../lib/permissions');
+const logger = require('../lib/logger');
 
 const router = express.Router();
 
@@ -42,7 +43,7 @@ router.post('/', async (req, res) => {
 
     res.status(201).json({ data: updatedUnit, message: 'Unidade organizacional criada com sucesso' });
   } catch (error) {
-    console.error('[OrgUnits] Erro ao criar:', error.message);
+    logger.error('Erro ao criar org unit', { err: error.message });
     res.status(500).json({ error: 'Falha ao criar unidade organizacional' });
   }
 });
@@ -64,7 +65,7 @@ router.get('/', async (req, res) => {
 
     res.json({ data: units });
   } catch (error) {
-    console.error('[OrgUnits] Erro ao listar:', error.message);
+    logger.error('Erro ao listar org units', { err: error.message });
     res.status(500).json({ error: 'Falha ao listar unidades' });
   }
 });

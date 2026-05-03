@@ -41,4 +41,19 @@ GRANT ALL PRIVILEGES ON db_sumauma.* TO 'user_sumauma'@'%';
 GRANT SELECT ON db_iaca.* TO 'user_sumauma'@'%';
 GRANT SELECT ON db_kurupira.* TO 'user_sumauma'@'%';
 
+-- Shadow Databases (Prisma Migrate)
+CREATE DATABASE IF NOT EXISTS db_kurupira_shadow
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+
+CREATE DATABASE IF NOT EXISTS db_sumauma_shadow
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+
+-- Grant permissions for shadow databases to allow Prisma Migrate
+GRANT ALL PRIVILEGES ON db_kurupira_shadow.* TO 'user_admin'@'%';
+GRANT ALL PRIVILEGES ON db_sumauma_shadow.* TO 'user_admin'@'%';
+GRANT ALL PRIVILEGES ON db_kurupira_shadow.* TO 'user_kurupira'@'%';
+GRANT ALL PRIVILEGES ON db_sumauma_shadow.* TO 'user_sumauma'@'%';
+
 FLUSH PRIVILEGES;

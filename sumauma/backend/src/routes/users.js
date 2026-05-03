@@ -2,8 +2,16 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const prismaSumauma = require('../lib/prismaSumauma');
 const { createLogtoUser } = require('../lib/logtoClient');
+const { auditLog } = require('../lib/auditLogger');
+const logger = require('../lib/logger');
 
 const router = express.Router();
+
+const ctx = (req) => ({
+  operator: req.operator,
+  ipAddress: req.ip || req.headers['x-forwarded-for'],
+  userAgent: req.headers['user-agent'],
+});
 
 // ─── Helper: guard self-modification ─────────────────────────────────────────
 function isSelf(req, targetUserId) {
@@ -64,12 +72,14 @@ router.post('/', async (req, res) => {
         data: { authProviderId: logtoUserId }
       });
     } catch (zErr) {
-      console.warn(`[Logto] Aviso: Falha ao criar usuário no Logto para o user ${user.id}`);
+      logger.warn('Falha ao criar usuário no Logto', { userId: user.id });
     }
+
+    await auditLog({ ...ctx(req), action: 'ADMIN_CREATE_USER', entity: 'User', resourceId: user.id, details: `Usuário criado: ${user.username} (tenant=${tenantId})`, after: { id: user.id, username: user.username, role: user.role, tenantId } });
 
     res.status(201).json({ data: user, message: 'Usuário criado com sucesso na Fundação' });
   } catch (error) {
-    console.error('[Users] Erro ao criar:', error.message);
+    logger.error('Erro ao criar usuário', { err: error.message });
     res.status(500).json({ error: 'Falha ao criar usuário' });
   }
 });
@@ -83,9 +93,11 @@ router.get('/', async (req, res) => {
     const take = Math.min(Number(limit), 100);
     const skip = (Number(page) - 1) * take;
 
-    const where = {};
+    // POKA-YOKE: Operadores de plataforma são gerenciados exclusivamente via /operators
+    // Impedimos também bypass via query string
+    const where = { role: { not: 'PLATFORM_ADMIN' } };
     if (tenantId) where.tenantId = tenantId;
-    if (role) where.role = role;
+    if (role && role !== 'PLATFORM_ADMIN') where.role = role;
     if (q) {
       where.OR = [
         { username: { contains: q } },
@@ -127,7 +139,7 @@ router.get('/', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('[Users] Erro ao listar:', error.message);
+    logger.error('Erro ao listar usuários', { err: error.message });
     res.status(500).json({ error: 'Falha ao listar usuários' });
   }
 });
@@ -162,7 +174,7 @@ router.get('/:id', async (req, res) => {
 
     res.json({ data: user });
   } catch (error) {
-    console.error('[Users] Erro ao detalhar:', error.message);
+    logger.error('Erro ao detalhar usuário', { err: error.message });
     res.status(500).json({ error: 'Falha ao buscar usuário' });
   }
 });
@@ -192,9 +204,12 @@ router.patch('/:id', async (req, res) => {
       where: { id: req.params.id },
       data: { ...safeData, ...(allowedRole ? { role: allowedRole } : {}) }
     });
+
+    await auditLog({ ...ctx(req), action: 'ADMIN_UPDATE_USER', entity: 'User', resourceId: req.params.id, details: `Usuário atualizado: ${updated.username}`, after: safeData });
+
     res.json({ data: updated, message: 'Usuário atualizado com sucesso' });
   } catch (error) {
-    console.error('[Users] Erro ao atualizar:', error.message);
+    logger.error('Erro ao atualizar usuário', { err: error.message });
     res.status(500).json({ error: 'Falha ao atualizar usuário' });
   }
 });
@@ -212,9 +227,12 @@ router.post('/:id/block', async (req, res) => {
       where: { id: req.params.id },
       data: { status: 'BLOCKED' }
     });
+
+    await auditLog({ ...ctx(req), action: 'ADMIN_BLOCK_USER', entity: 'User', resourceId: req.params.id, details: 'Usuário bloqueado' });
+
     res.json({ message: 'Usuário bloqueado com sucesso' });
   } catch (error) {
-    console.error('[Users] Erro ao bloquear:', error.message);
+    logger.error('Erro ao bloquear usuário', { err: error.message });
     res.status(500).json({ error: 'Falha ao bloquear usuário' });
   }
 });
@@ -228,9 +246,12 @@ router.post('/:id/unblock', async (req, res) => {
       where: { id: req.params.id },
       data: { status: 'ACTIVE' }
     });
+
+    await auditLog({ ...ctx(req), action: 'ADMIN_UNBLOCK_USER', entity: 'User', resourceId: req.params.id, details: 'Usuário desbloqueado' });
+
     res.json({ message: 'Usuário desbloqueado com sucesso' });
   } catch (error) {
-    console.error('[Users] Erro ao desbloquear:', error.message);
+    logger.error('Erro ao desbloquear usuário', { err: error.message });
     res.status(500).json({ error: 'Falha ao desbloquear usuário' });
   }
 });
@@ -245,11 +266,12 @@ router.post('/:id/reset-password', async (req, res) => {
       where: { id: req.params.id },
       data: { mustChangePassword: true }
     });
-    res.json({
-      message: 'Reset de senha solicitado. O usuário deverá trocar a senha no próximo acesso.',
-    });
+
+    await auditLog({ ...ctx(req), action: 'ADMIN_RESET_PASSWORD', entity: 'User', resourceId: req.params.id, details: 'Reset de senha solicitado pelo operador' });
+
+    res.json({ message: 'Reset de senha solicitado. O usuário deverá trocar a senha no próximo acesso.' });
   } catch (error) {
-    console.error('[Users] Erro ao resetar senha:', error.message);
+    logger.error('Erro ao resetar senha', { err: error.message });
     res.status(500).json({ error: 'Falha ao redefinir senha' });
   }
 });

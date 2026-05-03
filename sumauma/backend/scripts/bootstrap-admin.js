@@ -1,14 +1,9 @@
-const { PrismaClient } = require('../node_modules/.prisma/client-iaca');
+const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
-// Usamos o Prisma Client padrão para escrita (Bootstrap)
-// Apontamos para a URL principal do db_iaca (com permissão de escrita)
-const prisma = new PrismaClient({
-  datasources: {
-    db: { url: process.env.DATABASE_URL_IACA_BOOTSTRAP || process.env.DATABASE_URL_IACA_RO.replace('user_admin', 'user_iaca').replace('admin_S3cur3_2026!', 'iaca_S3cur3_2026!') }
-  }
-});
+// Usamos o Prisma Client padrão (MASTER) para db_sumauma
+const prisma = new PrismaClient();
 
 async function main() {
   const username = 'admin';

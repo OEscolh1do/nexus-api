@@ -1,8 +1,17 @@
 const express = require('express');
 const prismaSumauma = require('../lib/prismaSumauma');
 const { createLogtoOrg } = require('../lib/logtoClient');
+const { iacaClient } = require('../lib/m2mClient');
+const { auditLog } = require('../lib/auditLogger');
+const logger = require('../lib/logger');
 
 const router = express.Router();
+
+const ctx = (req) => ({
+  operator: req.operator,
+  ipAddress: req.ip || req.headers['x-forwarded-for'],
+  userAgent: req.headers['user-agent'],
+});
 
 // ─── Helper: guard MASTER tenant ────────────────────────────────────────────
 async function assertNotMaster(id, res) {
@@ -49,12 +58,14 @@ router.post('/', async (req, res) => {
         data: { ssoProvider: 'LOGTO', ssoDomain: logtoOrgId }
       });
     } catch (zErr) {
-      console.warn(`[Logto] Aviso: Falha ao criar org no Logto para o tenant ${tenant.id}`);
+      logger.warn('Falha ao criar org no Logto', { tenantId: tenant.id });
     }
+
+    await auditLog({ ...ctx(req), action: 'ADMIN_CREATE_TENANT', entity: 'Tenant', resourceId: tenant.id, details: `Organização criada: ${tenant.name} (plan=${tenant.apiPlan})`, after: { id: tenant.id, name: tenant.name, apiPlan: tenant.apiPlan } });
 
     res.status(201).json({ data: tenant, message: 'Organização criada com sucesso na Fundação' });
   } catch (error) {
-    console.error('[Tenants] Erro ao criar:', error.message);
+    logger.error('Erro ao criar tenant', { err: error.message });
     res.status(500).json({ error: 'Falha ao criar organização' });
   }
 });
@@ -68,9 +79,10 @@ router.get('/', async (req, res) => {
     const take = Math.min(Number(limit), 100);
     const skip = (Number(page) - 1) * take;
 
-    const where = {};
+    // POKA-YOKE: Tenant MASTER é infraestrutura de plataforma, não um cliente gerenciável
+    const where = { type: { not: 'MASTER' } };
     if (plan) where.apiPlan = plan;
-    if (type) where.type = type;
+    if (type && type !== 'MASTER') where.type = type;
     if (q) where.name = { contains: q };
 
     const [tenants, total] = await Promise.all([
@@ -96,7 +108,7 @@ router.get('/', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('[Tenants] Erro ao listar:', error.message);
+    logger.error('Erro ao listar tenants', { err: error.message });
     res.status(500).json({ error: 'Falha ao listar organizações' });
   }
 });
@@ -107,13 +119,14 @@ router.get('/', async (req, res) => {
 router.get('/options', async (req, res) => {
   try {
     const tenants = await prismaSumauma.tenant.findMany({
-      where: { status: 'ACTIVE' },
+      // POKA-YOKE: Excluir MASTER do dropdown de opções de organização
+      where: { status: 'ACTIVE', type: { not: 'MASTER' } },
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
     });
     res.json({ data: tenants });
   } catch (error) {
-    console.error('[Tenants] Erro ao listar options:', error.message);
+    logger.error('Erro ao listar tenant options', { err: error.message });
     res.status(500).json({ error: 'Falha ao listar opções de organizações' });
   }
 });
@@ -141,7 +154,7 @@ router.get('/:id', async (req, res) => {
 
     res.json({ data: tenant });
   } catch (error) {
-    console.error('[Tenants] Erro ao detalhar:', error.message);
+    logger.error('Erro ao detalhar tenant', { err: error.message });
     res.status(500).json({ error: 'Falha ao buscar organização' });
   }
 });
@@ -158,9 +171,12 @@ router.patch('/:id', async (req, res) => {
       where: { id: req.params.id },
       data: req.body
     });
+
+    await auditLog({ ...ctx(req), action: 'ADMIN_UPDATE_TENANT', entity: 'Tenant', resourceId: req.params.id, details: `Organização atualizada: ${updated.name}`, after: req.body });
+
     res.json({ data: updated, message: 'Organização atualizada com sucesso' });
   } catch (error) {
-    console.error('[Tenants] Erro ao atualizar:', error.message);
+    logger.error('Erro ao atualizar tenant', { err: error.message });
     res.status(500).json({ error: 'Falha ao atualizar organização' });
   }
 });
@@ -177,9 +193,12 @@ router.post('/:id/block', async (req, res) => {
       where: { id: req.params.id },
       data: { status: 'BLOCKED' }
     });
+
+    await auditLog({ ...ctx(req), action: 'ADMIN_BLOCK_TENANT', entity: 'Tenant', resourceId: req.params.id, details: `Tenant bloqueado: ${tenant.name}` });
+
     res.json({ message: 'Tenant bloqueado com sucesso' });
   } catch (error) {
-    console.error('[Tenants] Erro ao bloquear:', error.message);
+    logger.error('Erro ao bloquear tenant', { err: error.message });
     res.status(500).json({ error: 'Falha ao bloquear organização' });
   }
 });
@@ -196,9 +215,12 @@ router.post('/:id/unblock', async (req, res) => {
       where: { id: req.params.id },
       data: { status: 'ACTIVE' }
     });
+
+    await auditLog({ ...ctx(req), action: 'ADMIN_UNBLOCK_TENANT', entity: 'Tenant', resourceId: req.params.id, details: `Tenant desbloqueado: ${tenant.name}` });
+
     res.json({ message: 'Tenant desbloqueado com sucesso' });
   } catch (error) {
-    console.error('[Tenants] Erro ao desbloquear:', error.message);
+    logger.error('Erro ao desbloquear tenant', { err: error.message });
     res.status(500).json({ error: 'Falha ao desbloquear organização' });
   }
 });
@@ -216,7 +238,7 @@ router.put('/:id', async (req, res) => {
   } catch (error) {
     const status = error.response?.status || 500;
     const message = error.response?.data?.error || 'Falha ao atualizar organização';
-    console.error('[Tenants] Erro M2M (PUT):', message);
+    logger.error('Erro M2M PUT tenant', { message });
     res.status(status).json({ error: message });
   }
 });

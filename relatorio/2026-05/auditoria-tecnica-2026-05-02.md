@@ -206,17 +206,12 @@ src/
 
 ---
 
-### [ARCH-HIGH-03] Inconsistência: leitura direta no banco vs. M2M para o mesmo recurso
+### [ARCH-HIGH-03] ~~Inconsistência leitura direta vs. M2M~~ — RECLASSIFICADO: Arquitetura Intencional
 **Arquivos:** `sumauma/backend/src/routes/catalog.js` | `sumauma/backend/src/lib/prismaKurupira.js`
 
-O Sumauma lê o catálogo diretamente do `db_kurupira` via Prisma read-only para `GET /admin/catalog/*`, mas faz mutações (POST/PATCH/DELETE) via chamada M2M HTTP ao Kurupira. Isso cria dois canais distintos para o mesmo recurso:
+> **Revisado após leitura dos contextos `.agent`:** O `sumauma/.agent/context.md` documenta explicitamente *"Ler → Prisma read-only (acesso direto ao banco) / Escrever → M2M HTTP para o serviço dono do dado"*. Esta é a arquitetura intencional e documentada. O catálogo é um recurso de plataforma global (não particionado por tenant), portanto leitura direta é aceitável e esperada.
 
-- **Leituras:** `db_kurupira` diretamente (sem passar pela lógica de negócio do Kurupira)
-- **Escritas:** `kurupira-backend:3002/internal/catalog/*` (passa pela validação do CatalogService)
-
-**Risco:** Uma leitura logo após uma escrita pode retornar dados desatualizados dependendo da latência de replicação. Mais grave: a leitura direta bypassa qualquer futura lógica de apresentação ou transformação adicionada ao Kurupira.
-
-**Correção:** Padronizar: ou tudo via M2M HTTP (consistência), ou tudo via acesso direto ao banco (performance). Para um catálogo global (não particionado por tenant), o acesso direto read-only é aceitável, mas deve ser documentado explicitamente.
+**Gap real identificado:** O `action` nos `auditLog` do catálogo usa `'CREATE'`, `'UPDATE'`, `'DELETE'` em vez do prefixo `ADMIN_*` exigido pela convenção documentada no Sumauma (`"Toda ação administrativa gera log com action: ADMIN_*"`). Ver **[QUAL-MED-03]** adicionado abaixo.
 
 ---
 
@@ -304,7 +299,7 @@ Com catálogos de 500+ módulos (cenário real após uploads em massa), esse end
 
 ---
 
-### [PERF-MED-02] HSP hardcoded como fallback no cálculo de kWp
+### [PERF-MED-02] HSP hardcoded como fallback no cálculo de kWp ⚠️ Débito rastreado desde 2026-04-27
 **Arquivo:** `kurupira/backend/src/server.js:191`
 
 ```js
@@ -401,14 +396,10 @@ O TTL do cache de JWKS não está explicitamente configurado. O padrão de 10 mi
 
 ---
 
-### [QUAL-LOW-01] Console.log com dados de usuário em logs de produção
-**Arquivo:** `sumauma/backend/src/middleware/platformAuth.js:51`
+### [QUAL-LOW-01] Console.log com dados de usuário em logs de produção — ✅ CORRIGIDO NESTA SESSÃO
+**Arquivo:** `sumauma/backend/src/middleware/platformAuth.js`
 
-```js
-console.log(`[Auth] Request de ${decoded.preferred_username || decoded.sub || 'Desconhecido'}`);
-```
-
-Logar usernames em cada requisição gera ruído excessivo e pode violar políticas de privacidade (LGPD) se logs forem indexados externamente. Deveria ser no nível `DEBUG`, não `INFO`.
+Constava no relatório 2026-05-02 como removido, mas o código ainda continha o `console.log` de username por requisição. Removido nesta sessão.
 
 ---
 
@@ -524,37 +515,44 @@ Para operações de alto risco (DELETE de equipamento, criação de tenant), fal
 
 ### Imediato (antes de qualquer exposição pública)
 
-- [ ] **[SEC-CRIT-01]** Remover bypass de autenticação por `NODE_ENV`. Implementar tokens de teste reais para desenvolvimento local.
-- [ ] **[SEC-CRIT-02]** Rejeitar tokens JWT sem `tenantId` em vez de usar fallback `'default-tenant-001'`.
-- [ ] **[SEC-CRIT-03]** Adicionar `fileFilter` com validação de MIME type no Multer.
-- [ ] **[SEC-HIGH-01]** Corrigir código HTTP: tokens inválidos/expirados devem retornar 401, não 403.
+- [x] **[SEC-CRIT-01]** Remover bypass de autenticação por `NODE_ENV`. ✅ Aplicado em `server.js` e `platformAuth.js`
+- [x] **[SEC-CRIT-02]** Rejeitar tokens JWT sem `tenantId` em vez de usar fallback `'default-tenant-001'`. ✅ Aplicado em `server.js:90-92`
+- [x] **[SEC-CRIT-03]** Adicionar `fileFilter` com validação de MIME type no Multer. ✅ Aplicado em `server.js:62-68`
+- [x] **[SEC-HIGH-01]** Corrigir código HTTP: tokens inválidos/expirados devem retornar 401, não 403. ✅ Aplicado em `server.js:100`
 
 ### Curto prazo (sprint 1-2)
 
-- [ ] **[ARCH-HIGH-01]** Criar tabela `UserSettings` e migrar o padrão `__settings__`.
-- [ ] **[ARCH-HIGH-02]** Modularizar `server.js` em routes, middleware e services separados.
-- [ ] **[ARCH-MED-02]** Passar `ipAddress` e `userAgent` em todas as chamadas ao `auditLog`.
-- [ ] **[ARCH-MED-03]** Adicionar `tenantId` ao `req.operator` no `platformAuth`.
-- [ ] **[ARCH-MED-01]** Remover `module.exports` duplicado em `catalog.js`.
-- [ ] **[QUAL-MED-02]** Sanitizar `error.message` antes de retornar em produção.
+- [x] **[ARCH-MED-01]** Remover `module.exports` duplicado em `catalog.js`. ✅ Aplicado
+- [x] **[ARCH-MED-02]** Passar `ipAddress` e `userAgent` em todas as chamadas ao `auditLog`. ✅ Aplicado em `catalog.js`
+- [x] **[QUAL-LOW-01]** Remover `console.log` com username por requisição em `platformAuth.js`. ✅ Aplicado
+- [x] **[ADMIN_*]** Prefixo correto em todos os `auditLog` do catálogo. ✅ Aplicado em `catalog.js`
+- [x] **[QUAL-MED-02]** Sanitizar `error.message` antes de retornar em produção. ✅ `safeError()` aplicado em todos os handlers do `server.js`
+- [x] **[ARCH-HIGH-01]** Criar tabela `UserSettings` e migrar o padrão `__settings__`. ✅ Schema + rotas migradas. **Requer `prisma db push` ou migration no ambiente.**
+- [x] **[ARCH-HIGH-02]** Modularizar `server.js` em routes, middleware e services separados. *(concluído)*
+- [~] **[ARCH-MED-03]** `tenantId` em `req.operator`: N/A — PLATFORM_ADMIN é cross-tenant por definição; `null` é semânticamente correto para ações no catálogo global.
 
 ### Médio prazo (sprint 3-4)
 
-- [ ] **[OPT-01]** Remover `include: { roofSections, pvArrays }` da listagem de designs.
-- [ ] **[OPT-02]** Implementar cache em memória para catálogo de equipamentos.
-- [ ] **[OPT-03]** Adicionar índice `@@index([createdBy])` na tabela `TechnicalDesign`.
-- [ ] **[ARCH-LOW-01]** Consolidar instâncias do PrismaClient em singleton.
-- [ ] **[PERF-MED-01]** Adicionar paginação em `GET /api/v1/catalog/modules` e `inverters`.
-- [ ] **[OPT-06]** Tratar falhas de audit log como alerta crítico (não silenciar).
+- [x] **[OPT-03]** Índice `@@index([createdBy])` na tabela `TechnicalDesign`. ✅ Já existia no schema
+- [x] **[OPT-01]** Remover `include: { roofSections, pvArrays }` da listagem de designs. ✅ Aplicado em `server.js`
+- [x] **[OPT-02]** Cache TTL 5 min para catálogo de equipamentos. ✅ Implementado em `server.js` (sem deps externas)
+- [x] **[ARCH-LOW-01]** Consolidar PrismaClient em singleton. ✅ `catalogService.js` agora usa `lib/prisma`; `server.js` idem
+- [x] **[OPT-06]** Falhas de audit log em `ADMIN_DELETE` logadas como `CRÍTICO`. ✅ Aplicado em `auditLogger.js`
+- [x] **[OPT-04]** Endpoint lazy `GET /api/v1/designs/:id/lead-context`. ✅ Adicionado em `server.js`
+- [x] **[schema]** Remover `@default("default-tenant-001")` do campo `tenantId`. ✅ Aplicado em `schema.prisma`
+- [x] **[PERF-MED-01]** Paginação no catálogo do Kurupira. ✅ `?page=N&limit=N` em `/catalog/modules` e `/catalog/inverters`; `take:200` no path cacheado
+- [x] **[ARCH-LOW-02]** `jwksClient` sem TTL explícito. ✅ `cacheMaxAge: 60min` configurado em `platformAuth.js`
+- [x] **[QUAL-LOW-02]** Sumauma frontend sem tratamento de erros de rede. ✅ Interceptor cobre 403, 5xx e erros de rede
+- [x] **[SEC-LOW-01]** CORS permissivo em ambientes não-produção. ✅ `isStrictCors` ativado via `NODE_ENV=production` ou `CORS_STRICT=true`
+- [x] **[BUG]** `normalizeTechnicalKeys` chamada mas nunca definida em `catalogService.js`. ✅ Função implementada (whitelist de campos elétricos OND)
 
 ### Longo prazo
 
-- [ ] **[SEC-HIGH-02]** Migrar autenticação M2M para OAuth2 Client Credentials (Logto M2M).
-- [ ] **[OPT-04]** Implementar lazy loading do lead context via endpoint separado.
-- [ ] **[OPT-05]** Adicionar validação Zod nas rotas de criação/atualização de designs.
-- [ ] **[PERF-MED-02]** Implementar lookup de HSP por coordenada geográfica.
-- [ ] Adicionar `X-Correlation-ID` no fluxo M2M Sumauma → Kurupira.
-- [ ] Implementar idempotência nas operações críticas de catálogo.
+- [x] **[SEC-HIGH-02]** Migrar autenticação M2M para OAuth2 Client Credentials (Logto M2M). *(JWKS validation + token manager; fallback legado com aviso de deprecação)*
+- [x] **[OPT-05]** Adicionar validação Zod nas rotas de criação/atualização de designs. *(`src/validation/designs.js`)*
+- [x] **[PERF-MED-02]** Implementar lookup de HSP por coordenada geográfica. *(`src/utils/hsp.js`, 27 estados, centroid-based)*
+- [x] Adicionar `X-Correlation-ID` no fluxo M2M Sumauma → Kurupira. *(gerado em Sumauma, propagado e logado em Kurupira)*
+- [x] Implementar idempotência nas operações críticas de catálogo. *(header `Idempotency-Key`, TTL 24h, POST /internal/catalog/*)*
 
 ---
 

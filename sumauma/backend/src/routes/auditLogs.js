@@ -1,5 +1,6 @@
 const express = require('express');
 const prismaSumauma = require('../lib/prismaSumauma');
+const logger = require('../lib/logger');
 
 const router = express.Router();
 
@@ -71,7 +72,7 @@ router.get('/', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('[AuditLogs] Erro ao listar:', error.message);
+    logger.error('Erro ao listar audit logs', { err: error.message });
     res.json({ data: [], pagination: { total: 0, limit: 50 } });
   }
 });
@@ -96,7 +97,7 @@ router.get('/:id', async (req, res) => {
 
     res.json({ data: log });
   } catch (error) {
-    console.error('[AuditLogs] Erro ao detalhar:', error.message);
+    logger.error('Erro ao detalhar audit log', { err: error.message });
     res.status(500).json({ error: 'Falha ao buscar log de auditoria' });
   }
 });
@@ -125,7 +126,7 @@ router.get('/stats/summary', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('[AuditLogs] Erro ao buscar stats:', error.message);
+    logger.error('Erro ao buscar stats de audit log', { err: error.message });
     res.json({ data: { total: 0, last24h: 0, last7d: 0 } });
   }
 });
@@ -178,7 +179,7 @@ router.get('/export', async (req, res) => {
     res.setHeader('Content-Disposition', 'attachment; filename=audit-logs.csv');
     res.status(200).send(csv);
   } catch (error) {
-    console.error('[AuditLogs] Erro ao exportar CSV:', error.message);
+    logger.error('Erro ao exportar CSV de audit log', { err: error.message });
     res.status(500).json({ error: 'Falha ao exportar logs' });
   }
 });

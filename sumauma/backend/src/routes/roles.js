@@ -1,6 +1,7 @@
 const express = require('express');
 const prismaSumauma = require('../lib/prismaSumauma');
 const { checkPermission } = require('../lib/permissions');
+const logger = require('../lib/logger');
 
 const router = express.Router();
 
@@ -32,7 +33,7 @@ router.get('/', checkPermission('users:read'), async (req, res) => {
 
     res.json({ data: roles });
   } catch (error) {
-    console.error('[Roles] Erro ao listar:', error.message);
+    logger.error('Erro ao listar roles', { err: error.message });
     res.status(500).json({ error: 'Falha ao listar perfis' });
   }
 });
@@ -71,7 +72,7 @@ router.post('/', checkPermission('users:write'), async (req, res) => {
 
     res.status(201).json({ data: role, message: 'Perfil criado com sucesso' });
   } catch (error) {
-    console.error('[Roles] Erro ao criar:', error.message);
+    logger.error('Erro ao criar role', { err: error.message });
     res.status(500).json({ error: 'Falha ao criar perfil' });
   }
 });
@@ -115,7 +116,7 @@ router.patch('/:id', checkPermission('users:write'), async (req, res) => {
 
     res.json({ data: updatedRole, message: 'Perfil atualizado com sucesso' });
   } catch (error) {
-    console.error('[Roles] Erro ao atualizar:', error.message);
+    logger.error('Erro ao atualizar role', { err: error.message });
     res.status(500).json({ error: 'Falha ao atualizar perfil' });
   }
 });

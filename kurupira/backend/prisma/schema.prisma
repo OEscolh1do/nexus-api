@@ -3,13 +3,14 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider          = "mysql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 model TechnicalDesign {
   id           String        @id @default(cuid())
-  tenantId     String        @default("default-tenant-001")
+  tenantId     String
   iacaLeadId   String?
   name         String
   status       String        @default("DRAFT")
@@ -20,6 +21,8 @@ model TechnicalDesign {
   updatedAt    DateTime      @updatedAt
   latitude     Float?
   longitude    Float?
+  deletedAt    DateTime?
+  deletedBy    String?
   pvArrays     PVArray[]
   roofSections RoofSection[]
   simulations  Simulation[]
@@ -28,6 +31,8 @@ model TechnicalDesign {
   @@index([iacaLeadId])
   @@index([createdBy])
   @@index([status])
+  @@index([deletedAt])
+  @@map("technical_designs")
 }
 
 model RoofSection {
@@ -43,6 +48,7 @@ model RoofSection {
   technicalDesign   TechnicalDesign @relation(fields: [technicalDesignId], references: [id], onDelete: Cascade)
 
   @@index([technicalDesignId])
+  @@map("roof_sections")
 }
 
 model PVArray {
@@ -62,6 +68,7 @@ model PVArray {
 
   @@index([technicalDesignId])
   @@index([roofSectionId])
+  @@map("pv_arrays")
 }
 
 model Simulation {
@@ -75,6 +82,7 @@ model Simulation {
 
   @@index([technicalDesignId])
   @@index([type])
+  @@map("simulations")
 }
 
 model ModuleCatalog {
@@ -89,7 +97,7 @@ model ModuleCatalog {
   imageUrl          String?
   unifilarSymbolRef String?
   isActive          Boolean @default(true)
-  
+
   // -- Engineering PV Specs (v3.7) --
   bifacial          Boolean @default(false)
   bifacialityFactor Float?
@@ -98,34 +106,49 @@ model ModuleCatalog {
   tempCoeffPmax     Float?
   cellSizeClass     String?
   degradacaoAnual   Decimal @default(0.005) @db.Decimal(5,4)
-  
+
   electricalData    Json?
 
   @@index([manufacturer])
+  @@map("module_catalog")
+}
+
+model UserSettings {
+  id        String   @id @default(cuid())
+  userId    String
+  tenantId  String
+  data      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, tenantId])
+  @@index([tenantId])
+  @@map("user_settings")
 }
 
 model InverterCatalog {
-  id                String  @id @default(cuid())
-  manufacturer      String
-  model             String  @unique
-  nominalPowerW     Float
-  maxInputV         Float?
-  mpptCount         Int?
-  efficiency        Float?
-  datasheet         String?
-  imageUrl          String?
-  unifilarSymbolRef String?
-  isActive          Boolean @default(true)
-  
+  id                   String  @id @default(cuid())
+  manufacturer         String
+  model                String  @unique
+  nominalPowerW        Float
+  maxInputV            Float?
+  mpptCount            Int?
+  efficiency           Float?
+  datasheet            String?
+  imageUrl             String?
+  unifilarSymbolRef    String?
+  isActive             Boolean @default(true)
+
   // -- Engineering PV Specs (v3.7) --
-  Voc_max_hardware  Float?
-  Isc_max_hardware  Float?
-  coolingType       String? @default("passive")
-  afci              Boolean @default(true)
-  rsd               Boolean @default(false)
+  Voc_max_hardware     Float?
+  Isc_max_hardware     Float?
+  coolingType          String? @default("passive")
+  afci                 Boolean @default(true)
+  rsd                  Boolean @default(false)
   portaria515Compliant Boolean @default(false)
 
   electricalData    Json?
 
   @@index([manufacturer])
+  @@map("inverter_catalog")
 }

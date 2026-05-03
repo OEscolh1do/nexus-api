@@ -8,6 +8,7 @@ import './index.css';
 const logtoConfig: LogtoConfig = {
   endpoint: import.meta.env.VITE_LOGTO_ENDPOINT || 'http://localhost:3301',
   appId: import.meta.env.VITE_LOGTO_APP_ID || '',
+  scopes: ['roles'],
 };
 
 createRoot(document.getElementById('root')!).render(

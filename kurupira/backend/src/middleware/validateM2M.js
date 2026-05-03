@@ -1,15 +1,76 @@
-const validateM2M = (req, res, next) => {
-  const token = req.headers['x-service-token'];
+const { createPublicKey } = require('crypto');
+const jwt = require('jsonwebtoken');
+const logger = require('../lib/logger');
 
-  if (!token) {
-    return res.status(401).json({ error: 'Missing M2M Token' });
+// JWKS cache — refreshed every hour
+const jwksCache = { keys: null, fetchedAt: 0 };
+const JWKS_TTL = 60 * 60 * 1000;
+
+async function fetchJwks() {
+  const endpoint = process.env.LOGTO_ENDPOINT;
+  if (!endpoint) return null;
+  try {
+    const res = await fetch(`${endpoint}/oidc/jwks`, { signal: AbortSignal.timeout(3000) });
+    if (!res.ok) return null;
+    const { keys } = await res.json();
+    return keys || null;
+  } catch {
+    return null;
+  }
+}
+
+async function getPublicKey(kid) {
+  const now = Date.now();
+  if (!jwksCache.keys || now - jwksCache.fetchedAt > JWKS_TTL) {
+    const keys = await fetchJwks();
+    if (keys) { jwksCache.keys = keys; jwksCache.fetchedAt = now; }
+  }
+  if (!jwksCache.keys) return null;
+  const jwk = jwksCache.keys.find(k => k.kid === kid);
+  if (!jwk) return null;
+  return createPublicKey({ key: jwk, format: 'jwk' });
+}
+
+async function verifyLogtoToken(token) {
+  const decoded = jwt.decode(token, { complete: true });
+  if (!decoded?.header?.kid) throw new Error('Token missing kid header');
+
+  const publicKey = await getPublicKey(decoded.header.kid);
+  if (!publicKey) throw new Error('Public key not found for kid');
+
+  jwt.verify(token, publicKey, {
+    algorithms: ['RS256'],
+    issuer: `${process.env.LOGTO_ENDPOINT}/oidc`,
+    audience: process.env.LOGTO_M2M_RESOURCE,
+  });
+}
+
+// Legacy shared-secret fallback — accepted during migration window
+function verifyLegacyToken(req) {
+  const legacy = req.headers['x-service-token'];
+  if (!legacy || !process.env.M2M_SERVICE_TOKEN) return false;
+  if (legacy !== process.env.M2M_SERVICE_TOKEN) return false;
+  logger.warn('Deprecated X-Service-Token used — migrate to Logto M2M OAuth2');
+  return true;
+}
+
+const validateM2M = async (req, res, next) => {
+  // Prefer OAuth2 Bearer token (new path)
+  const authHeader = req.headers['authorization'];
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1];
+    try {
+      await verifyLogtoToken(token);
+      return next();
+    } catch {
+      return res.status(401).json({ error: 'Invalid M2M token' });
+    }
   }
 
-  if (token !== process.env.M2M_SERVICE_TOKEN) {
-    return res.status(403).json({ error: 'Invalid M2M Token' });
-  }
+  // Legacy fallback (migration window)
+  if (verifyLegacyToken(req)) return next();
 
-  next();
+  return res.status(401).json({ error: 'Missing M2M credentials' });
 };
 
 module.exports = validateM2M;

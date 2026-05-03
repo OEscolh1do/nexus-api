@@ -1,4 +1,5 @@
 const axios = require('axios');
+const logger = require('./logger');
 
 /**
  * Cliente M2M para a Management API do Logto Self-Hosted.
@@ -63,10 +64,10 @@ async function createLogtoOrg(name) {
       name: name.trim(),
       description: `Organização Ywara: ${name.trim()}`,
     });
-    console.log(`[Logto] Org criada: ${res.data.id} (${name})`);
+    logger.info('Logto org criada', { id: res.data.id, name });
     return res.data.id;
   } catch (error) {
-    console.error('[Logto] createOrg falhou:', error.response?.data || error.message);
+    logger.error('Logto createOrg falhou', { err: error.response?.data || error.message });
     throw new Error('Falha na integração com Logto (createOrg)');
   }
 }
@@ -89,10 +90,10 @@ async function createLogtoUser(tenantId, userObj) {
         role: 'USER',
       },
     });
-    console.log(`[Logto] User criado: ${res.data.id} (${userObj.username})`);
+    logger.info('Logto user criado', { id: res.data.id, username: userObj.username });
     return res.data.id;
   } catch (error) {
-    console.error('[Logto] createUser falhou:', error.response?.data || error.message);
+    logger.error('Logto createUser falhou', { err: error.response?.data || error.message });
     throw new Error('Falha na integração com Logto (createUser)');
   }
 }
