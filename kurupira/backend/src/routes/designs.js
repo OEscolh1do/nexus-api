@@ -143,6 +143,11 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 
 router.post('/:designId/roof-sections', authenticateToken, async (req, res) => {
   try {
+    const design = await prisma.technicalDesign.findFirst({
+      where: { id: req.params.designId, tenantId: req.user.tenantId, deletedAt: null }
+    });
+    if (!design) return res.status(404).json({ success: false, error: 'Design not found' });
+
     const section = await prisma.roofSection.create({
       data: { technicalDesignId: req.params.designId, ...req.body }
     });
@@ -154,6 +159,11 @@ router.post('/:designId/roof-sections', authenticateToken, async (req, res) => {
 
 router.post('/:designId/pv-arrays', authenticateToken, async (req, res) => {
   try {
+    const design = await prisma.technicalDesign.findFirst({
+      where: { id: req.params.designId, tenantId: req.user.tenantId, deletedAt: null }
+    });
+    if (!design) return res.status(404).json({ success: false, error: 'Design not found' });
+
     const pvArray = await prisma.pVArray.create({
       data: { technicalDesignId: req.params.designId, ...req.body }
     });
@@ -165,6 +175,11 @@ router.post('/:designId/pv-arrays', authenticateToken, async (req, res) => {
 
 router.post('/:designId/simulations', authenticateToken, async (req, res) => {
   try {
+    const design = await prisma.technicalDesign.findFirst({
+      where: { id: req.params.designId, tenantId: req.user.tenantId, deletedAt: null }
+    });
+    if (!design) return res.status(404).json({ success: false, error: 'Design not found' });
+
     const simulation = await prisma.simulation.create({
       data: { technicalDesignId: req.params.designId, ...req.body }
     });

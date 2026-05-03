@@ -35,6 +35,10 @@ function buildModuleElectricalData(core, parsed) {
     nCelS:  Number(get('NCelS'))  || null,
     nCelP:  Number(get('NCelP'))  || null,
     technol: get('Technol') || null,
+    // Tensão máxima de sistema por norma — essencial para conformidade NBR 16690 / IEC 60364
+    vMaxIEC: Number(get('VMaxIEC') || get('VMaxUL')) || null,
+    // Fator de bifacialidade — presente em módulos bifaciais; ausente em monofaciais
+    bifacialityFactor: Number(get('BifacialityFactor')) || null,
   };
 }
 
@@ -73,8 +77,10 @@ function extractModuleData(parsed, filename) {
   }
 
   let tempCoeffIsc = Number(core.TempCoeff_Isc || core.TempCoeffIsc || parsed.TempCoeff_Isc) || null;
-  if (tempCoeffIsc === null && (core.muIsc !== undefined || parsed.muIsc !== undefined || core.muIscSpec !== undefined || parsed.muIscSpec !== undefined)) {
-    const muIsc = Number(core.muIsc || parsed.muIsc || core.muIscSpec || parsed.muIscSpec);
+  // muISC é armazenado em CAPS no PVSyst v7; muIscSpec em versões anteriores
+  const _muIscRaw = core.muISC ?? core.muIsc ?? core.muIscSpec ?? parsed.muISC ?? parsed.muIsc ?? parsed.muIscSpec;
+  if (tempCoeffIsc === null && _muIscRaw !== undefined) {
+    const muIsc = Number(_muIscRaw);
     // Se for um valor absoluto alto (ex: 7.7), é mA/°C. Convertendo para %/°C:
     if (muIsc > 0.5 && electricalBase.isc > 0) {
       tempCoeffIsc = Number((((muIsc / 1000) / electricalBase.isc) * 100).toFixed(3));
@@ -134,8 +140,10 @@ function extractInverterData(parsed, filename) {
   const manufacturer = comm.Manufacturer || "Desconhecido";
   const model = comm.Model || filename.replace('.ond', '');
   
-  // Pnom em OND é em kW -> converter para W
-  const nominalPowerW = Number(core.Pnom || parsed.Pnom) ? Number(core.Pnom || parsed.Pnom) * 1000 : 0; 
+  // PVSyst v6 armazena Pnom em kW; versões mais novas podem usar W.
+  // Heurística: Pnom ≥ 1000 → já está em W (nenhum inversor típico tem 1000 kW como Pnom no arquivo).
+  const pnomRaw = Number(core.Pnom || parsed.Pnom) || 0;
+  const nominalPowerW = pnomRaw > 0 ? (pnomRaw < 1000 ? pnomRaw * 1000 : pnomRaw) : 0;
   const maxInputV = Number(core.Vabsmax || parsed.Vabsmax) || null;
   
   let mpptCount = 1;
@@ -153,10 +161,11 @@ function extractInverterData(parsed, filename) {
   // Validação do inversor
   const validation = validateInverter({
     pAcNom: nominalPowerW,
-    pAcMax: Number(core.Pmax || parsed.Pmax) ? Number(core.Pmax || parsed.Pmax) * 1000 : nominalPowerW,
+    pAcMax: (() => { const r = Number(core.Pmax || parsed.Pmax) || 0; return r > 0 ? (r < 1000 ? r * 1000 : r) : nominalPowerW; })(),
     vMinMpp: Number(core.Vmin || parsed.Vmin) || 0,
     vMaxMpp: Number(core.Vmax || parsed.Vmax) || 0,
-    vAbsMax: maxInputV || 0
+    vAbsMax: maxInputV || 0,
+    fNom: normalizedCore.fNom || null,
   });
 
   return {
@@ -185,18 +194,35 @@ async function processPanUpload(filename, content) {
   const parsed = parsePanOnd(content);
   const data = extractModuleData(parsed, filename);
 
-  return await prisma.moduleCatalog.create({
-    data: data
+  // Upsert por fabricante + modelo: idempotente em qualquer número de instâncias.
+  // Re-upload do mesmo arquivo atualiza os parâmetros técnicos mas preserva isActive.
+  const existing = await prisma.moduleCatalog.findFirst({
+    where: { manufacturer: data.manufacturer, model: data.model },
   });
+  if (existing) {
+    return await prisma.moduleCatalog.update({
+      where: { id: existing.id },
+      data: { ...data, isActive: existing.isActive },
+    });
+  }
+  return await prisma.moduleCatalog.create({ data });
 }
 
 async function processOndUpload(filename, content) {
   const parsed = parsePanOnd(content);
   const data = extractInverterData(parsed, filename);
 
-  return await prisma.inverterCatalog.create({
-    data: data
+  // Mesmo padrão upsert: re-upload atualiza parâmetros sem criar duplicata.
+  const existing = await prisma.inverterCatalog.findFirst({
+    where: { manufacturer: data.manufacturer, model: data.model },
   });
+  if (existing) {
+    return await prisma.inverterCatalog.update({
+      where: { id: existing.id },
+      data: { ...data, isActive: existing.isActive },
+    });
+  }
+  return await prisma.inverterCatalog.create({ data });
 }
 
 

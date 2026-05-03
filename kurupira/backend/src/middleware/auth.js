@@ -1,5 +1,7 @@
 const { createPublicKey } = require('crypto');
 const jwt = require('jsonwebtoken');
+const prismaSumauma = require('../lib/prismaSumauma');
+const logger = require('../lib/logger');
 
 // JWKS cache para verificação de tokens Logto (RS256)
 const _jwksCache = { keys: null, fetchedAt: 0 };
@@ -34,19 +36,14 @@ async function getPublicKeyForKid(kid) {
 async function verifyToken(token) {
   const header = jwt.decode(token, { complete: true })?.header;
 
-  // Caminho RS256: Logto
-  if (header?.alg === 'RS256' && header?.kid) {
+  // Caminho Logto (JWKS: RS256, ES384, etc)
+  if (header?.kid) {
     const publicKey = await getPublicKeyForKid(header.kid);
     if (!publicKey) throw new Error('JWKS key não encontrada para kid=' + header.kid);
-    return jwt.verify(token, publicKey, { algorithms: ['RS256'] });
+    return jwt.verify(token, publicKey, { algorithms: ['RS256', 'ES384', 'ES256'] });
   }
 
-  // Caminho HS256: JWT local (dev / testes com JWT_SECRET)
-  if (process.env.JWT_SECRET) {
-    return jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
-  }
-
-  throw new Error('Nenhum método de verificação disponível para o token recebido');
+  throw new Error(`Método de verificação inválido para o token (alg: ${header?.alg}). Apenas tokens do provedor de identidade (Logto) são permitidos em produção.`);
 }
 
 const authenticateToken = async (req, res, next) => {
@@ -63,13 +60,54 @@ const authenticateToken = async (req, res, next) => {
 
   try {
     const decoded = await verifyToken(token);
-    const tenantId = decoded.tenantId;
-    if (!tenantId) {
-      return res.status(401).json({ success: false, error: 'Token inválido: tenantId ausente' });
+    
+    // Fallback: Se o token for local (gerado para dev) e já contiver tenantId, usa direto.
+    // Mas se for Logto, precisamos resolver o sub no db_sumauma.
+    const sub = decoded.sub || decoded.id;
+    
+    if (!sub) {
+      return res.status(401).json({ success: false, error: 'Token inválido: subject ausente' });
     }
-    req.user = { ...decoded, id: decoded.id || decoded.sub, tenantId };
+
+    // Busca o usuário na base do Sumaúma (Fundação) usando o authProviderId (Logto) ou ID local
+    const dbUser = await prismaSumauma.user.findFirst({
+      where: {
+        OR: [
+          { authProviderId: sub },
+          { id: sub } // Suporte a JWT local
+        ]
+      },
+      include: {
+        tenant: true
+      }
+    });
+
+    if (!dbUser) {
+      logger.warn('[Auth] Acesso bloqueado: Usuário Logto autenticado, mas não possui registro no banco de dados (Sumaúma).', { sub });
+      return res.status(403).json({ success: false, error: 'Acesso negado: Seu usuário ainda não foi provisionado no sistema.' });
+    }
+
+    if (dbUser.status !== 'ACTIVE') {
+      return res.status(403).json({ success: false, error: 'Usuário bloqueado ou inativo.' });
+    }
+
+    if (dbUser.tenant?.status !== 'ACTIVE') {
+      return res.status(403).json({ success: false, error: 'Organização bloqueada ou inativa.' });
+    }
+
+    // Injeta os dados ricos do banco no request
+    req.user = {
+      ...decoded,
+      id: dbUser.id,
+      tenantId: dbUser.tenantId,
+      role: dbUser.role,
+      fullName: dbUser.fullName,
+      tenantPlan: dbUser.tenant?.apiPlan
+    };
+
     next();
-  } catch {
+  } catch (err) {
+    logger.error('[Auth] Token verification failed', { error: err.message });
     return res.status(401).json({ success: false, error: 'Token inválido ou expirado' });
   }
 };

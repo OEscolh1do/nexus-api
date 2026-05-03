@@ -21,6 +21,15 @@ export default function LoginPage() {
   const [localError, setLocalError] = useState('');
 
   useEffect(() => {
+    // Quebra do loop infinito: se o backend rejeitou o token (401), forçamos o logout do Logto
+    if (sessionStorage.getItem('sumauma_force_logout') === 'true') {
+      sessionStorage.removeItem('sumauma_force_logout');
+      if (isAuthenticated) {
+        logto.signOut(window.location.origin);
+        return;
+      }
+    }
+
     if (!isAuthenticated || isLoading) return;
 
     // Quando o Logto completar o fluxo de retorno, extraímos o Token e os claims

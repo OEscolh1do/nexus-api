@@ -14,7 +14,8 @@ import {
   DollarSign,
   Building2,
   Database,
-  PiggyBank // Generic finance icon
+  PiggyBank, // Generic finance icon
+  Users // Team icon
 } from 'lucide-react';
 import { DenseButton } from '@/components/ui/dense-form';
 import { SettingsService } from '@/services/SettingsService';
@@ -24,9 +25,10 @@ import { PerformanceTab } from './tabs/PerformanceTab';
 import { PricingTab } from './tabs/PricingTab';
 import { InstitutionalTab } from './tabs/InstitutionalTab';
 import { FinanceTab } from './tabs/FinanceTab'; // New Tab
+import { TeamTab } from './tabs/TeamTab';
 import { CatalogEditor } from '../catalog/CatalogEditor';
 
-type TabType = 'performance' | 'comercial' | 'financeiro' | 'institucional' | 'equipamentos';
+type TabType = 'performance' | 'comercial' | 'financeiro' | 'institucional' | 'equipamentos' | 'equipe';
 
 export const SettingsModule: React.FC = () => {
   const settings = useSolarStore(selectSettings);
@@ -107,6 +109,7 @@ export const SettingsModule: React.FC = () => {
             <TabButton id="comercial" label="Preços" icon={<DollarSign size={12} />} />
             <TabButton id="financeiro" label="Financiamento" icon={<PiggyBank size={12} />} />
             <TabButton id="institucional" label="Empresa" icon={<Building2 size={12} />} />
+            <TabButton id="equipe" label="Equipe" icon={<Users size={12} />} />
           </div>
         </div>
 
@@ -160,6 +163,10 @@ export const SettingsModule: React.FC = () => {
 
           {activeTab === 'institucional' && (
             <InstitutionalTab settings={settings} onChange={handleChange} />
+          )}
+
+          {activeTab === 'equipe' && (
+            <TeamTab />
           )}
 
         </div>

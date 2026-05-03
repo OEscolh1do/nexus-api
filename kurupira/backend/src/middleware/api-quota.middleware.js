@@ -1,12 +1,11 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prismaSumauma = require('../lib/prismaSumauma');
 const crypto = require('crypto');
+const logger = require('../lib/logger');
 
 /**
  * Enterprise API Quota Middleware
  * Intercepts requests to the B2B Gateway, reads the x-api-key header,
- * maps to a Tenant, checks consumption metrics against the monthly limit,
- * and if allowed, increments the usage counter.
+ * maps to a Tenant, checks consumption metrics against the monthly limit.
  */
 async function enforceApiQuota(req, res, next) {
     const rawApiKey = req.headers['x-api-key'];
@@ -20,13 +19,10 @@ async function enforceApiQuota(req, res, next) {
     }
 
     try {
-        // As keys usually hash for security, simulate verifying the keyHash.
-        // For plain text (simplification): assume the rawApiKey is the `keyHash` or use a hash function.
-        // Real-world: const keyHash = crypto.createHash('sha256').update(rawApiKey).digest('hex');
         const keyHash = rawApiKey; // In our demo, the raw API Key acts as the identifier
 
-        // Find the API Key and Include the Tenant Constraints
-        const apiKeyRecord = await prisma.tenantApiKey.findUnique({
+        // Find the API Key and Include the Tenant Constraints in db_sumauma
+        const apiKeyRecord = await prismaSumauma.tenantApiKey.findUnique({
             where: { keyHash },
             include: {
                 tenant: {
@@ -53,7 +49,7 @@ async function enforceApiQuota(req, res, next) {
 
         // Quota Verification
         if (tenant.apiCurrentUsage >= tenant.apiMonthlyQuota) {
-            console.warn(`[API GATEWAY] ⛔ Quota Exceeded for Tenant ${tenant.name} (${tenant.id}) - Plan: ${tenant.apiPlan}`);
+            logger.warn(`[API GATEWAY] ⛔ Quota Exceeded for Tenant ${tenant.name} (${tenant.id}) - Plan: ${tenant.apiPlan}`);
             return res.status(429).json({
                 success: false,
                 error: 'Quota Exceeded - Too Many Requests',
@@ -70,23 +66,13 @@ async function enforceApiQuota(req, res, next) {
         // Let the request pass...
         next();
 
-        // [Asynchronous Fire-and-Forget] Increment the usage
-        // Non-blocking approach so the gateway remains extremely fast.
-        setImmediate(() => {
-            prisma.$transaction([
-                prisma.tenant.update({
-                    where: { id: tenant.id },
-                    data: { apiCurrentUsage: { increment: 1 } }
-                }),
-                prisma.tenantApiKey.update({
-                    where: { id: apiKeyRecord.id },
-                    data: { lastUsed: new Date() }
-                })
-            ]).catch(err => console.error('[API GATEWAY] Background Quota Update Failed:', err));
-        });
+        // [TODO M2M] O Kurupira não pode incrementar a quota diretamente pois usa uma conexão Read-Only com db_sumauma.
+        // O incremento de quota deve ser delegado ao Sumaúma via fila Kafka/RabbitMQ ou M2M endpoint.
+        // Para a SPEC-006, apenas deixamos o rastro em log.
+        logger.info(`[API GATEWAY] Quota trace: Tenant ${tenant.id} usou API Key ${apiKeyRecord.id}`);
 
     } catch (error) {
-        console.error('[API GATEWAY] Internal Integration Error:', error);
+        logger.error('[API GATEWAY] Internal Integration Error:', { err: error.message });
         return res.status(500).json({
             success: false,
             error: 'Server Infrastructure Error parsing Gateway Middleware.'

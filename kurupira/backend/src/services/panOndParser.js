@@ -32,12 +32,13 @@ function parsePanOnd(content) {
     const value = inferType(rawVal);
 
     if (typeof value === 'string' && value.startsWith('pv')) {
-      // É uma declaração de sub-objeto (ex: PVObject_Commercial=pvCommercial)
+      // Sub-objeto PVSyst (ex: PVObject_Commercial=pvCommercial, PVObject_IAM=pvIAM)
       const child = { [key]: value };
       parent[key] = child;
       stack.push({ obj: child, level });
-    } else if (typeof value === 'string' && value.startsWith('T') && key.startsWith('PVObject_')) {
-      // Declaração genérica de bloco estruturado (ex: PVObject_=TCubicProfile)
+    } else if (typeof value === 'string' && /^T[A-Z]/.test(value)) {
+      // Bloco estruturado cujo tipo começa com T maiúsculo (ex: TCubicProfile).
+      // Cobre tanto PVObject_=TCubicProfile quanto IAMProfile=TCubicProfile.
       const child = { [key]: value };
       parent[key] = child;
       stack.push({ obj: child, level });
@@ -50,18 +51,22 @@ function parsePanOnd(content) {
 }
 
 function inferType(value) {
-  // Se tiver mais de um ponto, é uma versão ou string complexa (ex: 7.1.1)
+  // Par separado por vírgula (ex: Point_N=0.0,1.00000 em perfis IAM/TCubicProfile)
+  // Preservar como string para não descartar o segundo valor silenciosamente.
+  if (value.includes(',')) return value;
+
+  // Versão ou string com múltiplos pontos (ex: 7.1.1)
   if ((value.match(/\./g) || []).length > 1) return value;
 
   if (value.includes('.')) {
     const f = parseFloat(value);
     if (!isNaN(f) && String(f) !== 'NaN') return f;
   }
-  
+
   // Inteiros
   const i = parseInt(value, 10);
   if (!isNaN(i) && String(i) === value) return i;
-  
+
   return value;
 }
 

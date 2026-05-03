@@ -1,0 +1,85 @@
+{
+  "evals": [
+    {
+      "eval_id": 1,
+      "eval_name": "eval-renderizacao-ecommerce",
+      "prompt": "Estou construindo um e-commerce com 50.000 produtos. A página de listagem de produtos está lenta (LCP de 4,2 segundos). Qual estratégia de renderização devo usar e como otimizar o LCP?",
+      "assertions": [
+        {
+          "name": "recomenda-isr-ou-ssg",
+          "type": "llm_judge",
+          "description": "Recomenda ISR ou SSG para a listagem de produtos com justificativa de SEO e performance"
+        },
+        {
+          "name": "explica-trade-offs",
+          "type": "llm_judge",
+          "description": "Explica trade-offs entre as estratégias (frescor dos dados vs velocidade)"
+        },
+        {
+          "name": "tecnica-lcp-especifica",
+          "type": "llm_judge",
+          "description": "Fornece tecnica concreta de otimizacao de LCP (fetchpriority, preload, lazy removal, CSS critico)"
+        },
+        {
+          "name": "tem-proximo-passo",
+          "type": "llm_judge",
+          "description": "Termina com 'Proximo passo recomendado:' e uma acao concreta"
+        }
+      ]
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "eval-typescript-generics",
+      "prompt": "Estou criando um hook de fetch generico para varios endpoints da minha API. Como usar TypeScript generics e utility types para garantir que o retorno seja sempre tipado sem duplicar interfaces?",
+      "assertions": [
+        {
+          "name": "usa-generics-com-exemplo",
+          "type": "llm_judge",
+          "description": "Demonstra uso de generics com exemplo de codigo ou pseudocodigo"
+        },
+        {
+          "name": "menciona-utility-types",
+          "type": "llm_judge",
+          "description": "Menciona pelo menos dois utility types relevantes (Partial, Pick, Omit, Record) com caso de uso"
+        },
+        {
+          "name": "explica-inferencia",
+          "type": "llm_judge",
+          "description": "Explica como o sistema de tipos infere o tipo de retorno sem duplicacao de interface"
+        },
+        {
+          "name": "tem-proximo-passo",
+          "type": "llm_judge",
+          "description": "Termina com 'Proximo passo recomendado:' e uma acao concreta"
+        }
+      ]
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "eval-arquitetura-saas",
+      "prompt": "Nosso SaaS B2B esta crescendo. Temos 3 times: plataforma, financeiro e relatorios. O codigo e um monolito React de 200.000 linhas. Como estruturar para escalar com times independentes?",
+      "assertions": [
+        {
+          "name": "avalia-micro-frontends",
+          "type": "llm_judge",
+          "description": "Discute micro-frontends como opcao com criterios claros de quando faz sentido"
+        },
+        {
+          "name": "menciona-fsd-ou-clean",
+          "type": "llm_judge",
+          "description": "Menciona Feature-Sliced Design ou Clean Architecture como padrao de organizacao de codigo"
+        },
+        {
+          "name": "aborda-estado-compartilhado",
+          "type": "llm_judge",
+          "description": "Aborda como gerenciar estado compartilhado entre times (auth, tema, comunicacao entre modulos)"
+        },
+        {
+          "name": "tem-proximo-passo",
+          "type": "llm_judge",
+          "description": "Termina com 'Proximo passo recomendado:' e uma acao concreta"
+        }
+      ]
+    }
+  ]
+}

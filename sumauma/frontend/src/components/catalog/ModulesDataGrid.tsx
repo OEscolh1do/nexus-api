@@ -107,7 +107,7 @@ export default function ModulesDataGrid({ refreshTrigger }: { refreshTrigger: nu
                     </span>
                   </td>
                   <td className="px-4 py-3 text-xs font-mono text-slate-400">
-                    {m.efficiency ? `${(m.efficiency * 100).toFixed(1)}%` : '—'}
+                    {m.efficiency ? `${m.efficiency.toFixed(1)}%` : '—'}
                   </td>
                 </tr>
               ))}

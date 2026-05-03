@@ -22,6 +22,7 @@ api.interceptors.request.use((config) => {
   if (token) {
     if (isTokenExpiredOrExpiringSoon(token)) {
       logout();
+      sessionStorage.setItem('sumauma_force_logout', 'true');
       window.location.href = '/login';
       return Promise.reject(new Error('Sessão expirada'));
     }
@@ -37,6 +38,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       console.warn(`[API] 401 em ${error.config?.url} — sessão expirada`);
       useAuthStore.getState().logout();
+      sessionStorage.setItem('sumauma_force_logout', 'true');
       window.location.href = '/login';
       return Promise.reject(error);
     }

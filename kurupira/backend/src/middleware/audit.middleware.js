@@ -1,4 +1,5 @@
 const { Prisma } = require("@prisma/client");
+const logger = require("../lib/logger");
 
 /**
  * Audit Middleware for Prisma
@@ -72,7 +73,7 @@ function createAuditMiddleware() {
         }
 
         try {
-            console.log(`[AUDIT] Action: ${action} on ${model} | Resource: ${resourceId} | By: ${contextUserId}`);
+            logger.info(`Action: ${action} on ${model} | Resource: ${resourceId} | By: ${contextUserId}`);
 
             // Require dinamicamente para evitar dependência cíclica com o construtor Prisma original
             const corePrisma = require("../lib/prisma");
@@ -89,10 +90,10 @@ function createAuditMiddleware() {
                     after: afterState,
                     before: beforeState
                 }
-            }).catch(e => console.error("[AUDIT ERROR CRITICAL] Failed to persist log:", e.message));
+            }).catch(e => logger.error("Failed to persist audit log:", e.message));
 
         } catch (auditErr) {
-            console.error("[AUDIT ERROR] Generator fault:", auditErr);
+            logger.error("Audit generator fault:", auditErr);
         }
 
         return result;

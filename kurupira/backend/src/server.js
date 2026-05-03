@@ -15,6 +15,7 @@ const designsRouter = require('./routes/designs');
 const catalogRouter = require('./routes/catalog');
 const internalCatalogRouter = require('./routes/internalCatalog');
 const settingsRouter = require('./routes/settings');
+const teamRouter = require('./routes/team');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -37,14 +38,18 @@ app.use(cors({
   },
   credentials: true
 }));
-app.use(express.json());
+// Rota interna M2M recebe conteúdo de arquivo PVSyst (.pan/.ond) — limite maior e explícito.
+// Deve vir antes do parser global para sobrescrever o limite nessa rota específica.
+app.use('/internal/catalog', express.json({ limit: '1mb' }), internalCatalogRouter);
+
+app.use(express.json({ limit: '100kb' }));
 app.use(cookieParser());
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.use('/api/v1/designs', designsRouter);
 app.use('/api/v1/catalog', catalogRouter);
-app.use('/internal/catalog', internalCatalogRouter);
 app.use('/api/v1/settings', settingsRouter);
+app.use('/api/v1/team', teamRouter);
 
 // Health check profundo — verifica conectividade com o banco
 app.get('/health', async (req, res) => {

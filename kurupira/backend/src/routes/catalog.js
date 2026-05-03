@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const prisma = require('../lib/prisma');
 const { authenticateToken } = require('../middleware/auth');
+const { requireRole } = require('../middleware/rbac.middleware');
 const { upload, validateMagicBytes } = require('../middleware/upload');
 const { getCache, setCache, invalidateCache } = require('../lib/cache');
 
@@ -38,7 +39,7 @@ router.get('/modules', authenticateToken, async (req, res) => {
   }
 });
 
-router.post('/modules', authenticateToken, async (req, res) => {
+router.post('/modules', authenticateToken, requireRole(['PLATFORM_ADMIN']), async (req, res) => {
   try {
     const { manufacturer, model, powerWp, efficiency, dimensions, weight, datasheet, isActive, electricalData, unifilarSymbolRef } = req.body;
     const module = await prisma.moduleCatalog.create({
@@ -51,7 +52,7 @@ router.post('/modules', authenticateToken, async (req, res) => {
   }
 });
 
-router.put('/modules/:id', authenticateToken, async (req, res) => {
+router.put('/modules/:id', authenticateToken, requireRole(['PLATFORM_ADMIN']), async (req, res) => {
   try {
     const { manufacturer, model, powerWp, efficiency, dimensions, weight, datasheet, isActive, electricalData, unifilarSymbolRef } = req.body;
     const module = await prisma.moduleCatalog.update({
@@ -65,7 +66,7 @@ router.put('/modules/:id', authenticateToken, async (req, res) => {
   }
 });
 
-router.post('/modules/:id/image', authenticateToken, upload.single('image'), validateMagicBytes, async (req, res) => {
+router.post('/modules/:id/image', authenticateToken, requireRole(['PLATFORM_ADMIN']), upload.single('image'), validateMagicBytes, async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, error: 'No image uploaded' });
     const imageUrl = `/uploads/catalog/${req.file.filename}`;
@@ -107,7 +108,7 @@ router.get('/inverters', authenticateToken, async (req, res) => {
   }
 });
 
-router.post('/inverters', authenticateToken, async (req, res) => {
+router.post('/inverters', authenticateToken, requireRole(['PLATFORM_ADMIN']), async (req, res) => {
   try {
     const { manufacturer, model, nominalPowerW, maxInputV, mpptCount, efficiency, datasheet, isActive, electricalData, unifilarSymbolRef } = req.body;
     const inverter = await prisma.inverterCatalog.create({
@@ -120,7 +121,7 @@ router.post('/inverters', authenticateToken, async (req, res) => {
   }
 });
 
-router.put('/inverters/:id', authenticateToken, async (req, res) => {
+router.put('/inverters/:id', authenticateToken, requireRole(['PLATFORM_ADMIN']), async (req, res) => {
   try {
     const { manufacturer, model, nominalPowerW, maxInputV, mpptCount, efficiency, datasheet, isActive, electricalData, unifilarSymbolRef } = req.body;
     const inverter = await prisma.inverterCatalog.update({
@@ -134,7 +135,7 @@ router.put('/inverters/:id', authenticateToken, async (req, res) => {
   }
 });
 
-router.post('/inverters/:id/image', authenticateToken, upload.single('image'), validateMagicBytes, async (req, res) => {
+router.post('/inverters/:id/image', authenticateToken, requireRole(['PLATFORM_ADMIN']), upload.single('image'), validateMagicBytes, async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, error: 'No image uploaded' });
     const imageUrl = `/uploads/catalog/${req.file.filename}`;

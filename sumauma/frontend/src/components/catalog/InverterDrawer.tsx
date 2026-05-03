@@ -28,20 +28,7 @@ export default function InverterDrawer({ inverterEquipment: m, onClose, onMutate
   });
   const isSaving = patchLoadingId === m.id;
 
-  const handleToggle = () => {
-    toggle(m.id, !m.isActive);
-  };
-
-  const handleDelete = () => {
-    remove(m.id);
-  };
-
-  const handleSave = () => {
-    patch(m.id, {
-      nominalPowerW: Number(formData.nominalPowerW) || m.nominalPowerW,
-      maxInputV: formData.maxInputV ? Number(formData.maxInputV) : null,
-    });
-  };
+  const ed = m.electricalData;
 
   return (
     <>
@@ -59,6 +46,7 @@ export default function InverterDrawer({ inverterEquipment: m, onClose, onMutate
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
+          {/* Header */}
           <section>
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -67,13 +55,16 @@ export default function InverterDrawer({ inverterEquipment: m, onClose, onMutate
               </div>
               <div className="flex flex-col items-end gap-1.5">
                 <TenantStatusBadge status={m.isActive ? 'ACTIVE' : 'BLOCKED'} />
-                {m.electricalData?.bankability && (
+                {ed?.bankability && (
                   <div className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
-                    m.electricalData.bankability === 'BANKABLE' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-                    'bg-red-500/10 text-red-400 border border-red-500/20'
+                    ed.bankability === 'BANKABLE'    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                    ed.bankability === 'ACCEPTABLE'  ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                                                       'bg-red-500/10 text-red-400 border border-red-500/20'
                   }`}>
-                    {m.electricalData.bankability === 'BANKABLE' ? <ShieldCheck className="h-2.5 w-2.5" /> : <ShieldAlert className="h-2.5 w-2.5" />}
-                    {m.electricalData.bankability}
+                    {ed.bankability === 'BANKABLE'   ? <ShieldCheck className="h-2.5 w-2.5" /> :
+                     ed.bankability === 'ACCEPTABLE' ? <AlertTriangle className="h-2.5 w-2.5" /> :
+                                                       <ShieldAlert className="h-2.5 w-2.5" />}
+                    {ed.bankability}
                   </div>
                 )}
               </div>
@@ -81,13 +72,13 @@ export default function InverterDrawer({ inverterEquipment: m, onClose, onMutate
           </section>
 
           {/* Alertas de Validação */}
-          {m.electricalData?.validation && m.electricalData.validation.length > 0 && (
+          {ed?.validation && ed.validation.length > 0 && (
             <section className="rounded-sm border border-amber-500/20 bg-amber-500/5 p-3">
               <div className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-400">
                 <AlertTriangle className="h-3 w-3" /> Alertas Técnicos (.OND)
               </div>
               <div className="space-y-2">
-                {m.electricalData.validation.map((v: any, i: number) => (
+                {ed.validation.map((v, i) => (
                   <div key={i} className="flex gap-2 text-[10px] leading-relaxed text-slate-400">
                     <span className={`mt-1 h-1 w-1 shrink-0 rounded-full ${v.status === 'critical' ? 'bg-red-500' : 'bg-amber-500'}`} />
                     <p>{v.message}</p>
@@ -97,16 +88,16 @@ export default function InverterDrawer({ inverterEquipment: m, onClose, onMutate
             </section>
           )}
 
-
+          {/* Cards: Potência / Eficiência / Conexão AC / MPPTs */}
           <section className="grid grid-cols-2 gap-2">
-            <div className="rounded-sm border border-slate-800 bg-slate-900 p-3 relative group">
+            <div className="rounded-sm border border-slate-800 bg-slate-900 p-3">
               {isEditing ? (
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] text-slate-500">Potência (W)</label>
-                  <input 
-                    type="number" 
-                    value={formData.nominalPowerW} 
-                    onChange={e => setFormData(s => ({...s, nominalPowerW: Number(e.target.value)}))}
+                  <input
+                    type="number"
+                    value={formData.nominalPowerW}
+                    onChange={e => setFormData(s => ({ ...s, nominalPowerW: Number(e.target.value) }))}
                     className="w-full bg-slate-950 border border-slate-700 rounded-sm px-2 py-1 text-sm font-mono text-slate-200 focus:border-sky-500 focus:outline-none"
                   />
                 </div>
@@ -120,48 +111,72 @@ export default function InverterDrawer({ inverterEquipment: m, onClose, onMutate
                 </>
               )}
             </div>
-            <div className="rounded-sm border border-slate-800 bg-slate-900 p-3 relative group">
-              {isEditing ? (
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-slate-500">Max Input V</label>
-                  <input 
-                    type="number" 
-                    value={formData.maxInputV} 
-                    onChange={e => setFormData(s => ({...s, maxInputV: e.target.value}))}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-sm px-2 py-1 text-sm font-mono text-slate-200 focus:border-sky-500 focus:outline-none"
+
+            <div className="rounded-sm border border-slate-800 bg-slate-900 p-3">
+              <Activity className="mb-1 h-3.5 w-3.5 text-slate-500" />
+              <p className="text-sm font-semibold text-slate-200">{ed?.phase ?? '—'}</p>
+              <p className="text-[10px] text-slate-500">Conexão AC</p>
+            </div>
+
+            <div className="rounded-sm border border-slate-800 bg-slate-900 p-3">
+              <Zap className="mb-1 h-3.5 w-3.5 text-slate-500" />
+              <p className="text-sm font-semibold text-slate-200">
+                {m.efficiency != null ? `${(m.efficiency * (m.efficiency <= 1 ? 100 : 1)).toFixed(1)}%` : '—'}
+              </p>
+              <p className="text-[10px] text-slate-500">Eficiência Máx.</p>
+            </div>
+
+            <div className="rounded-sm border border-slate-800 bg-slate-900 p-3">
+              <Battery className="mb-1 h-3.5 w-3.5 text-slate-500" />
+              <p className="text-sm font-semibold text-slate-200">
+                {m.mpptCount != null ? `${m.mpptCount}` : '—'}
+              </p>
+              <p className="text-[10px] text-slate-500">Entradas MPPT</p>
+            </div>
+          </section>
+
+          {/* Parâmetros de Entrada DC */}
+          <section className="space-y-2">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">Entrada CC (DC)</p>
+            <div className="rounded-sm border border-slate-800 divide-y divide-slate-800">
+              <div className="flex justify-between px-3 py-2">
+                <span className="text-xs text-slate-400">Tensão Absoluta Máxima (Vabsmax)</span>
+                <span className="text-xs font-mono text-slate-200">{m.maxInputV ? `${m.maxInputV} V` : 'N/A'}</span>
+              </div>
+              <div className="flex justify-between px-3 py-2">
+                <span className="text-xs text-slate-400">Tensão Máxima MPPT (Vmax MPPT)</span>
+                <span className="text-xs font-mono text-slate-200">{ed?.vMaxMppt ? `${ed.vMaxMppt} V` : 'N/A'}</span>
+              </div>
+              <div className="flex justify-between px-3 py-2">
+                <span className="text-xs text-slate-400">Tensão Mínima MPPT (Vmin MPPT)</span>
+                <span className="text-xs font-mono text-slate-200">{ed?.minInputV ? `${ed.minInputV} V` : 'N/A'}</span>
+              </div>
+              {isEditing && (
+                <div className="flex justify-between px-3 py-2 items-center gap-3">
+                  <span className="text-xs text-slate-400 shrink-0">Vabsmax (editar)</span>
+                  <input
+                    type="number"
+                    value={formData.maxInputV}
+                    onChange={e => setFormData(s => ({ ...s, maxInputV: e.target.value }))}
+                    placeholder="V"
+                    className="w-24 bg-slate-950 border border-slate-700 rounded-sm px-2 py-1 text-xs font-mono text-slate-200 focus:border-sky-500 focus:outline-none"
                   />
                 </div>
-              ) : (
-                <>
-                  <Activity className="mb-1 h-3.5 w-3.5 text-slate-500" />
-                  <p className="text-sm font-semibold text-slate-200">
-                    {m.electricalData?.phase ?? '—'}
-                  </p>
-                  <p className="text-[10px] text-slate-500">Conexão AC</p>
-                </>
               )}
             </div>
           </section>
 
-          {/* Parâmetros Elétricos */}
+          {/* Saída AC */}
           <section className="space-y-2">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">Parâmetros Elétricos (Entrada DC)</p>
+            <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">Saída CA (AC)</p>
             <div className="rounded-sm border border-slate-800 divide-y divide-slate-800">
               <div className="flex justify-between px-3 py-2">
-                <span className="text-xs text-slate-400">Tensão Máxima Absoluta (Vmax)</span>
-                <span className="text-xs font-mono text-slate-200">{m.maxInputV ? `${m.maxInputV} V` : 'N/A'}</span>
+                <span className="text-xs text-slate-400">Tensão de Saída (Vac)</span>
+                <span className="text-xs font-mono text-slate-200">{ed?.vAc ? `${ed.vAc} V` : 'N/A'}</span>
               </div>
               <div className="flex justify-between px-3 py-2">
-                <span className="text-xs text-slate-400">Tensão Mínima Entrada (Vmin)</span>
-                <span className="text-xs font-mono text-slate-200">{m.electricalData?.minInputV ? `${m.electricalData.minInputV} V` : 'N/A'}</span>
-              </div>
-              <div className="flex justify-between px-3 py-2">
-                <span className="text-xs text-slate-400">Voc Máx. Hardware (NBR 16690)</span>
-                <span className="text-xs font-mono text-slate-200">{m.Voc_max_hardware ? `${m.Voc_max_hardware} V` : 'N/A'}</span>
-              </div>
-              <div className="flex justify-between px-3 py-2">
-                <span className="text-xs text-slate-400">Corrente Máx. Entrada (Isc max)</span>
-                <span className="text-xs font-mono text-slate-200">{m.Isc_max_hardware ? `${m.Isc_max_hardware} A` : 'N/A'}</span>
+                <span className="text-xs text-slate-400">Frequência (Fnom)</span>
+                <span className="text-xs font-mono text-slate-200">{ed?.fNom ? `${ed.fNom} Hz` : 'N/A'}</span>
               </div>
             </div>
           </section>
@@ -177,7 +192,10 @@ export default function InverterDrawer({ inverterEquipment: m, onClose, onMutate
                 Cancelar
               </button>
               <button
-                onClick={handleSave}
+                onClick={() => patch(m.id, {
+                  nominalPowerW: Number(formData.nominalPowerW) || m.nominalPowerW,
+                  maxInputV: formData.maxInputV ? Number(formData.maxInputV) : null,
+                })}
                 disabled={isSaving}
                 className="flex-1 flex items-center justify-center gap-1.5 rounded-sm bg-sky-600 px-3 py-2 text-xs font-medium text-white hover:bg-sky-500 transition-colors disabled:opacity-50"
               >
@@ -196,7 +214,7 @@ export default function InverterDrawer({ inverterEquipment: m, onClose, onMutate
           )}
 
           <button
-            onClick={handleToggle}
+            onClick={() => toggle(m.id, !m.isActive)}
             disabled={loading || isEditing}
             className={`flex w-full items-center justify-between rounded-sm border px-3 py-2 text-xs transition-colors disabled:opacity-50 ${
               m.isActive
@@ -210,7 +228,7 @@ export default function InverterDrawer({ inverterEquipment: m, onClose, onMutate
 
           {!isEditing && (
             <button
-              onClick={handleDelete}
+              onClick={() => remove(m.id)}
               disabled={isDeleting || loading}
               className="flex w-full items-center justify-between rounded-sm border border-transparent px-3 py-2 text-xs font-medium text-slate-500 hover:bg-red-500/10 hover:text-red-400 transition-all opacity-40 hover:opacity-100"
             >

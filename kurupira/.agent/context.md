@@ -33,8 +33,9 @@
 - **Runtime**: Node.js (CommonJS)
 - **Framework**: Express
 - **ORM**: Prisma (db_kurupira)
-- **Auth**: JWT + M2M (X-Service-Token)
-- **M2M**: Aceita chamadas do Sumaúma (Admin)
+- **Auth**: Logto SSO (OIDC/PKCE) com validação JWKS estrita (ES384/RS256). Fallbacks locais removidos.
+- **M2M**: Logto Client Credentials (OAuth2).
+- **Governança**: Zero-Trust (O acesso do Kurupira exige registro prévio validado no `db_sumauma`).
 
 ---
 

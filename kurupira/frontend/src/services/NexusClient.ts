@@ -30,6 +30,21 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}));
+    if (response.status === 401 || response.status === 403) {
+      const hadToken = !!getAuthToken();
+      
+      console.warn('[NexusClient] 401/403 recebido do backend. Limpando tokens.');
+      sessionStorage.removeItem('kurupira_token');
+      localStorage.removeItem('token');
+      
+      // Só exibe alerta se o usuário TENTOU usar um token e ele foi rejeitado
+      // Evita o alerta "Token required" durante o momento em que o usuário clica em "Sair"
+      if (hadToken) {
+        alert(`Erro de Sessão: ${errorBody.error || 'Inválida ou expirada'}`);
+      }
+      
+      window.location.href = '/login';
+    }
     throw new Error(errorBody.error || `API Error: ${response.status}`);
   }
 
@@ -154,6 +169,10 @@ export const KurupiraClient = {
       if (!response.ok) throw new Error('Falha no upload da imagem');
       return (await response.json()).data;
     },
+  },
+
+  team: {
+    list: () => apiFetch<any[]>('/api/v1/team'),
   },
 };
 

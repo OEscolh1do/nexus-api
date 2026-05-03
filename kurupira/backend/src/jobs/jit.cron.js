@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const prisma = require('../lib/prisma');
 const { acquireCronLock, releaseCronLock } = require('../lib/cron-lock');
+const logger = require('../lib/logger');
 
 /**
  * 🚛 JIT LOGISTICS ENGINE (Phase 3 Corporate Strategy)
@@ -18,7 +19,7 @@ const checkJitLogisticsTriggers = async () => {
         return;
     }
 
-    console.log('[CRON-JIT] ⏳ Iniciando varredura diária de Alocação Just-In-Time... (Lock acquired)');
+    logger.info('Iniciando varredura diária de Alocação Just-In-Time... (Lock acquired)');
 
     try {
         const today = new Date();
@@ -90,7 +91,7 @@ const checkJitLogisticsTriggers = async () => {
                             }
                         });
 
-                        console.log(`[CRON-JIT] 🎯 Gatilho Ativado: PO-${po.id} (Material: ${po.material.name}) para Fornecedor ${po.vendor.name}.`);
+                        logger.info(`Gatilho Ativado: PO-${po.id} (Material: ${po.material.name}) para Fornecedor ${po.vendor.name}.`);
                         triggeredCount++;
                     }
                 }
@@ -99,10 +100,10 @@ const checkJitLogisticsTriggers = async () => {
             skip += take; // Pavança para a próxima página
         }
 
-        console.log(`[CRON-JIT] ✅ Varredura concluída. ${triggeredCount} Requisições(s) Just-In-Time enviada(s) à Diretoria.`);
+        logger.info(`Varredura concluída. ${triggeredCount} Requisições(s) Just-In-Time enviada(s) à Diretoria.`);
 
     } catch (error) {
-        console.error('[CRON-JIT] 🚨 Erro Catastrófico no Motor Logístico: ', error);
+        logger.error('Erro Catastrófico no Motor Logístico: ', error);
     } finally {
         await releaseCronLock(CRON_ID, lockSignature); // Só o dono solta o lock
     }
@@ -120,7 +121,7 @@ const initJitCronJobs = () => {
         checkJitLogisticsTriggers();
     });
 
-    console.log('[SYSTEM] 🚛 JIT Corporate Logistics Module Initialized.');
+    logger.info('🚛 JIT Corporate Logistics Module Initialized.');
 };
 
 module.exports = { initJitCronJobs, checkJitLogisticsTriggers };

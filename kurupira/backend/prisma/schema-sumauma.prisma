@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../node_modules/.prisma/client-sumauma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL_SUMAUMA_RO")
+}
+
+model Tenant {
+  id              String   @id @default(cuid())
+  name            String
+  type            String   @default("CORPORATE")
+  apiPlan         String   @default("FREE")
+  apiMonthlyQuota Int      @default(1000)
+  apiCurrentUsage Int      @default(0)
+  status          String   @default("ACTIVE")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  users   User[]
+  apiKeys TenantApiKey[]
+}
+
+model User {
+  id             String    @id @default(cuid())
+  username       String    @unique
+  fullName       String
+  role           String
+  roleId         String?
+  tenantId       String
+  authProviderId String?   @unique
+  status         String    @default("ACTIVE")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  tenant  Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+}
+
+model TenantApiKey {
+  id        String    @id @default(cuid())
+  tenantId  String
+  keyHash   String    @unique
+  name      String
+  lastUsed  DateTime?
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+}

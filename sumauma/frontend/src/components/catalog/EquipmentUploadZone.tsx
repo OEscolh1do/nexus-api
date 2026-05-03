@@ -10,11 +10,13 @@ interface EquipmentUploadZoneProps {
 export default function EquipmentUploadZone({ type, onSuccess }: EquipmentUploadZoneProps) {
   const [dragActive, setDragActive] = useState(false);
   const [fileState, setFileState] = useState<{ name: string; size: number } | null>(null);
-  
+  const [uploadedName, setUploadedName] = useState<string | null>(null);
+
   const ext = type === 'module' ? '.pan' : '.ond';
   const endpoint = type === 'module' ? '/catalog/modules' : '/catalog/inverters';
 
   const { mutate: upload, loading, error, setError } = useUploadEquipment(endpoint, () => {
+    setUploadedName(fileState?.name ?? null);
     setFileState(null);
     onSuccess();
   });
@@ -31,14 +33,13 @@ export default function EquipmentUploadZone({ type, onSuccess }: EquipmentUpload
     }
   };
 
-  const processFile = (file: File) => {
+  const processFile = async (file: File) => {
     setError(null);
+    setUploadedName(null);
     if (!file.name.toLowerCase().endsWith(ext)) {
       setError(`O arquivo deve ter a extensão ${ext}`);
       return;
     }
-    
-    // File Size Limit (e.g. 5MB max for text files is very generous)
     if (file.size > 5 * 1024 * 1024) {
       setError('O arquivo é grande demais (max 5MB)');
       return;
@@ -46,18 +47,21 @@ export default function EquipmentUploadZone({ type, onSuccess }: EquipmentUpload
 
     setFileState({ name: file.name, size: file.size });
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const text = e.target?.result as string;
-      if (text) {
-        try {
-          await upload(file.name, text);
-        } catch {
-          // Error is handled by hook
-        }
-      }
-    };
-    reader.readAsText(file);
+    // PVSyst < 6.80 usa ANSI/Latin-1; 6.80+ usa UTF-8 (com ou sem BOM).
+    // Tenta UTF-8 estrito primeiro; se falhar, decodifica como Latin-1.
+    const buffer = await file.arrayBuffer();
+    let text: string;
+    try {
+      text = new TextDecoder('utf-8', { fatal: true }).decode(buffer);
+    } catch {
+      text = new TextDecoder('latin1').decode(buffer);
+    }
+
+    try {
+      await upload(file.name, text);
+    } catch {
+      // Error is handled by hook
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -131,10 +135,10 @@ export default function EquipmentUploadZone({ type, onSuccess }: EquipmentUpload
           <span>{error}</span>
         </div>
       )}
-      {!error && fileState && !loading && (
+      {!error && uploadedName && !loading && (
         <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-400">
           <CheckCircle2 className="h-3.5 w-3.5" />
-          <span>Upload concluído com sucesso.</span>
+          <span><span className="font-mono">{uploadedName}</span> importado com sucesso.</span>
         </div>
       )}
     </div>

@@ -12,35 +12,13 @@
  */
 
 import React from 'react';
+import { Routes, Route } from 'react-router-dom';
 import { ProfileOrchestrator } from './layout/ProfileOrchestrator';
 import { AuthProvider } from './core/auth/AuthProvider';
 import { useAuth } from './core/auth/useAuth';
 import { NeonorteLoader } from './components/ui/NeonorteLoader';
-
-// Captura token + leadId injetados via deep link do Iaçã (?token=<jwt>&leadId=<id>&name=<nome>)
-// Executado antes do AuthProvider para que sessionStorage já esteja preenchido
-function captureDeepLinkParams() {
-  const params = new URLSearchParams(window.location.search);
-  const token = params.get('token');
-  const leadId = params.get('leadId');
-  const leadName = params.get('name');
-
-  if (token) {
-    sessionStorage.setItem('kurupira_token', token);
-  }
-
-  if (leadId) {
-    sessionStorage.setItem('kurupira_leadId', leadId);
-    if (leadName) sessionStorage.setItem('kurupira_leadName', leadName);
-  }
-
-  // Limpa URL (segurança — token não deve ficar no histórico/referer)
-  if (token || leadId) {
-    window.history.replaceState({}, '', window.location.pathname);
-  }
-}
-
-captureDeepLinkParams();
+import CallbackPage from './pages/CallbackPage';
+import LoginPage from './pages/LoginPage';
 
 const AuthGuard: React.FC = () => {
   const { loading } = useAuth();
@@ -61,9 +39,15 @@ const AuthGuard: React.FC = () => {
 const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-900 selection:bg-emerald-500/20 selection:text-white">
-      <AuthProvider>
-        <AuthGuard />
-      </AuthProvider>
+      <Routes>
+        <Route path="/callback" element={<CallbackPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="*" element={
+          <AuthProvider>
+            <AuthGuard />
+          </AuthProvider>
+        } />
+      </Routes>
     </div>
   );
 };

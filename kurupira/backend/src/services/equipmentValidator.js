@@ -125,7 +125,9 @@ function validateModule(params) {
 
 function validateInverter(params) {
   const results = [];
-  const { pAcNom, pAcMax, vMinMpp, vMaxMpp, vAbsMax } = params;
+  const { pAcNom, pAcMax, vMinMpp, vMaxMpp, vAbsMax, fNom } = params;
+
+  // --- Regras críticas ---
 
   if (pAcMax < pAcNom) {
     results.push({
@@ -135,7 +137,17 @@ function validateInverter(params) {
     });
   }
 
-  if (vMaxMpp > vAbsMax) {
+  // Só verifica hierarquia de tensão se os valores estiverem presentes no arquivo.
+  // vAbsMax=0 significa "ausente" — não gerar falso positivo crítico.
+  if (vMinMpp > 0 && vMaxMpp > 0 && vMinMpp >= vMaxMpp) {
+    results.push({
+      rule: 'voltage_mppt_order',
+      status: 'critical',
+      message: `Vmin_mpp (${vMinMpp}V) deve ser menor que Vmax_mpp (${vMaxMpp}V). Parâmetros parecem invertidos.`
+    });
+  }
+
+  if (vMaxMpp > 0 && vAbsMax > 0 && vMaxMpp > vAbsMax) {
     results.push({
       rule: 'voltage_consistency',
       status: 'critical',
@@ -143,11 +155,36 @@ function validateInverter(params) {
     });
   }
 
+  // --- Regras de aviso ---
+
+  // Vabsmax fora da faixa típica de sistemas FV (600–1500 V)
+  if (vAbsMax > 0 && (vAbsMax < 600 || vAbsMax > 1500)) {
+    results.push({
+      rule: 'vabsmax_range',
+      status: 'warning',
+      message: `Vabsmax=${vAbsMax}V fora da faixa típica (600–1500V). Verificar se o valor não está em mV.`
+    });
+  }
+
+  // Frequência deve ser 50 Hz (Brasil/Europa) ou 60 Hz (EUA)
+  if (fNom && fNom !== 50 && fNom !== 60) {
+    results.push({
+      rule: 'frequencia_nonstandard',
+      status: 'warning',
+      message: `Frequência=${fNom}Hz fora do padrão (50Hz ou 60Hz). Verificar compatibilidade com a rede local.`
+    });
+  }
+
   const criticals = results.filter(r => r.status === 'critical').length;
-  
+  const warnings  = results.filter(r => r.status === 'warning').length;
+
+  let bankability = 'BANKABLE';
+  if (criticals > 0) bankability = 'UNRELIABLE';
+  else if (warnings > 0) bankability = 'ACCEPTABLE';
+
   return {
     results,
-    bankability: criticals > 0 ? 'UNRELIABLE' : 'BANKABLE',
+    bankability,
     isHealthy: criticals === 0
   };
 }

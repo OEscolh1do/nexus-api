@@ -63,11 +63,12 @@ router.use(internalRateLimit, validateM2M, correlationId);
 // --- MÓDULOS M2M ---
 
 router.post('/modules', idempotencyCheck, async (req, res) => {
+  const { filename, content } = req.body;
+  if (!filename || !content) {
+    return res.status(400).json({ success: false, error: 'filename e content são obrigatórios.' });
+  }
   try {
-    const { filename, content } = req.body;
-    const module = (content && filename)
-      ? await catalogService.processPanUpload(filename, content)
-      : await prisma.moduleCatalog.create({ data: req.body });
+    const module = await catalogService.processPanUpload(filename, content);
     invalidateCache('catalog:modules');
     res.status(201).json({ success: true, data: module });
   } catch (error) {
@@ -104,11 +105,12 @@ router.delete('/modules/:id', async (req, res) => {
 // --- INVERSORES M2M ---
 
 router.post('/inverters', idempotencyCheck, async (req, res) => {
+  const { filename, content } = req.body;
+  if (!filename || !content) {
+    return res.status(400).json({ success: false, error: 'filename e content são obrigatórios.' });
+  }
   try {
-    const { filename, content } = req.body;
-    const inverter = (content && filename)
-      ? await catalogService.processOndUpload(filename, content)
-      : await prisma.inverterCatalog.create({ data: req.body });
+    const inverter = await catalogService.processOndUpload(filename, content);
     invalidateCache('catalog:inverters');
     res.status(201).json({ success: true, data: inverter });
   } catch (error) {
