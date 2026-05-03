@@ -11,6 +11,7 @@ export interface ModuleEquipment {
   isActive: boolean;
   createdAt?: string;
   efficiency?: number;
+  noct?: number;
   // Parâmetros técnicos vindos de `electricalData` (JSON):
   electricalData?: {
     voc?: number;
@@ -20,6 +21,8 @@ export interface ModuleEquipment {
     pmax?: number;
     tempCoeffPmax?: number;
     tempCoeffVoc?: number;
+    validation?: Array<{ status: 'critical' | 'warning' | 'info'; message: string; rule?: string }>;
+    bankability?: 'BANKABLE' | 'ACCEPTABLE' | 'UNRELIABLE';
     [key: string]: unknown;
   };
   // Campos diretos do schema (tempCoeff armazenados nas colunas dedicadas):
@@ -45,6 +48,8 @@ export interface InverterEquipment {
     maxOutputCurrent?: number;
     ipRating?: string;
     observations?: string;
+    validation?: Array<{ status: 'critical' | 'warning' | 'info'; message: string; rule?: string }>;
+    bankability?: 'BANKABLE' | 'ACCEPTABLE' | 'UNRELIABLE';
     [key: string]: unknown;
   };
   // Campos diretos do schema:
@@ -52,6 +57,7 @@ export interface InverterEquipment {
   Voc_max_hardware?: number;
   Isc_max_hardware?: number;
 }
+
 
 export interface CatalogListParams {
   page?: number;
@@ -117,6 +123,7 @@ export function useUploadEquipment(endpoint: string, onSuccess?: () => void) {
       setError(null);
       return api
         .post(endpoint, { filename, content })
+
         .then(() => onSuccess?.())
         .catch((err) => {
           setError(err.response?.data?.error ?? 'Falha no upload do equipamento');

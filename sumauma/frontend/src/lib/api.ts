@@ -21,11 +21,13 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      console.warn(`[API-Auth-Loop] 401 detectado em ${error.config.url}. Resetando auth...`);
       useAuthStore.getState().logout();
       window.location.href = '/login';
     }
     return Promise.reject(error);
   }
+
 );
 
 export default api;

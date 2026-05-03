@@ -45,19 +45,13 @@ function platformAuth(req, res, next) {
         return res.status(401).json({ error: 'Token inválido' });
       }
 
-      // Log para debug no console do backend
-      console.log(`[Auth] Request de ${decoded.preferred_username || decoded.sub || 'Desconhecido'}`);
-
       // O Logto injeta roles via array 'roles' ou claim customizada
       const roles = decoded.roles || [];
       const legacyRole = decoded.role || decoded?.customData?.role;
 
-      // Bypass em desenvolvimento: se estiver em localhost e for o primeiro acesso, permite
-      // ou se tiver a role PLATFORM_ADMIN em qualquer um dos formatos
-      const isAuthorized = 
-        legacyRole === 'PLATFORM_ADMIN' || 
-        roles.includes('PLATFORM_ADMIN') ||
-        process.env.NODE_ENV === 'development'; 
+      const isAuthorized =
+        legacyRole === 'PLATFORM_ADMIN' ||
+        roles.includes('PLATFORM_ADMIN');
 
       if (!isAuthorized) {
         console.warn(`[Auth] Acesso negado para ${decoded.sub}. Roles:`, roles);

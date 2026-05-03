@@ -56,9 +56,16 @@ const storage = multer.diskStorage({
     cb(null, req.params.id + '-' + uniqueSuffix + '.webp');
   }
 });
-const upload = multer({ 
+const upload = multer({
   storage: storage,
-  limits: { fileSize: 2 * 1024 * 1024 } // 2MB limit
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowed.includes(file.mimetype)) {
+      return cb(new Error('Tipo de arquivo não permitido. Use JPEG, PNG ou WebP.'), false);
+    }
+    cb(null, true);
+  }
 });
 
 // =============================================================
@@ -74,25 +81,23 @@ const authenticateToken = (req, res, next) => {
   }
 
   if (!token) {
-    if (process.env.NODE_ENV !== 'production' || process.env.IS_DEMO === 'true') {
-      // Sincronizando com o Fallback Standalone do AuthProvider.tsx
-      req.user = { id: 'dev-engineer', tenantId: 'dev-tenant', role: 'ADMIN' };
-      return next();
-    }
     return res.status(401).json({ success: false, error: 'Token required' });
   }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    // Normaliza campo de ID e tenantId
+    const tenantId = decoded.tenantId;
+    if (!tenantId) {
+      return res.status(401).json({ success: false, error: 'Token inválido: tenantId ausente' });
+    }
     req.user = {
       ...decoded,
       id: decoded.id || decoded.sub,
-      tenantId: decoded.tenantId || 'default-tenant-001'
+      tenantId
     };
     next();
   } catch (error) {
-    return res.status(403).json({ success: false, error: 'Invalid or expired token' });
+    return res.status(401).json({ success: false, error: 'Token inválido ou expirado' });
   }
 };
 
@@ -546,10 +551,12 @@ app.post("/internal/catalog/modules", validateM2M, async (req, res) => {
     const { filename, content } = req.body;
     
     if (content && filename) {
+
       // É um upload de arquivo .PAN
       const module = await catalogService.processPanUpload(filename, content);
       return res.status(201).json({ success: true, data: module });
     }
+
 
     // É uma criação manual
     const module = await prisma.moduleCatalog.create({ data: req.body });

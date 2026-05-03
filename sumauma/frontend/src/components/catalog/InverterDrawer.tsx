@@ -3,6 +3,7 @@ import { X, Battery, Power, Zap, Activity, Edit2, Save, Loader2, Trash2 } from '
 import { useToggleEquipment, useDeleteEquipment, type InverterEquipment } from '@/hooks/useCatalog';
 import { usePatchEquipment } from '@/hooks/usePatchEquipment';
 import TenantStatusBadge from '@/components/tenants/TenantStatusBadge';
+import { ShieldCheck, AlertTriangle, ShieldAlert } from 'lucide-react';
 
 interface InverterDrawerProps {
   inverterEquipment: InverterEquipment;
@@ -64,9 +65,38 @@ export default function InverterDrawer({ inverterEquipment: m, onClose, onMutate
                 <h2 className="text-base font-semibold text-slate-100">{m.model}</h2>
                 <p className="mt-0.5 font-tabular text-[11px] text-slate-600">{m.manufacturer}</p>
               </div>
-              <TenantStatusBadge status={m.isActive ? 'ACTIVE' : 'BLOCKED'} />
+              <div className="flex flex-col items-end gap-1.5">
+                <TenantStatusBadge status={m.isActive ? 'ACTIVE' : 'BLOCKED'} />
+                {m.electricalData?.bankability && (
+                  <div className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
+                    m.electricalData.bankability === 'BANKABLE' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                    'bg-red-500/10 text-red-400 border border-red-500/20'
+                  }`}>
+                    {m.electricalData.bankability === 'BANKABLE' ? <ShieldCheck className="h-2.5 w-2.5" /> : <ShieldAlert className="h-2.5 w-2.5" />}
+                    {m.electricalData.bankability}
+                  </div>
+                )}
+              </div>
             </div>
           </section>
+
+          {/* Alertas de Validação */}
+          {m.electricalData?.validation && m.electricalData.validation.length > 0 && (
+            <section className="rounded-sm border border-amber-500/20 bg-amber-500/5 p-3">
+              <div className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-400">
+                <AlertTriangle className="h-3 w-3" /> Alertas Técnicos (.OND)
+              </div>
+              <div className="space-y-2">
+                {m.electricalData.validation.map((v: any, i: number) => (
+                  <div key={i} className="flex gap-2 text-[10px] leading-relaxed text-slate-400">
+                    <span className={`mt-1 h-1 w-1 shrink-0 rounded-full ${v.status === 'critical' ? 'bg-red-500' : 'bg-amber-500'}`} />
+                    <p>{v.message}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
 
           <section className="grid grid-cols-2 gap-2">
             <div className="rounded-sm border border-slate-800 bg-slate-900 p-3 relative group">

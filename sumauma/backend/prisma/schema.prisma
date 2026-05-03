@@ -81,8 +81,8 @@ model User {
 
 model AuditLog {
   id         String   @id @default(cuid())
-  tenantId   String
-  userId     String
+  tenantId   String?
+  userId     String?
   action     String   // CREATE, UPDATE, DELETE, LOGIN, EXPORT
   entity     String?  // User, Tenant, Project, etc.
   resourceId String
@@ -93,8 +93,9 @@ model AuditLog {
   userAgent  String?
   timestamp  DateTime @default(now())
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-  user   User   @relation(fields: [userId], references: [id])
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+  user   User?   @relation(fields: [userId], references: [id])
+
 
   @@index([tenantId])
   @@index([userId])
