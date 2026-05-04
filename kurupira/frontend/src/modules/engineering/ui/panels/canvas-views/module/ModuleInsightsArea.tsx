@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   ComposedChart,
   Bar,
-  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -41,7 +40,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
           <span className="text-slate-300 font-bold">BALANÇO</span>
           <span className={cn(
             "font-mono tabular-nums font-bold",
-            balance >= 0 ? "text-emerald-400" : "text-rose-400"
+            balance >= 0 ? "text-amber-400" : "text-rose-400"
           )}>
             {balance >= 0 ? '+' : ''}{Math.round(balance)} kWh
           </span>
@@ -245,7 +244,7 @@ export const ModuleInsightsArea: React.FC<ModuleInsightsAreaProps> = ({
                 <span className="text-[7px] text-slate-600 font-black uppercase tracking-[0.15em]">Cobertura</span>
                 <span className={cn(
                   "text-[12px] font-mono font-black tabular-nums",
-                  coveragePercent >= 100 ? "text-emerald-400" : coveragePercent >= 80 ? "text-amber-400" : "text-rose-400"
+                  coveragePercent >= 100 ? "text-amber-400" : coveragePercent >= 80 ? "text-amber-400" : "text-rose-400"
                 )}>
                   {hasData ? coveragePercent.toFixed(0) : '—'}%
                 </span>
@@ -266,17 +265,13 @@ export const ModuleInsightsArea: React.FC<ModuleInsightsAreaProps> = ({
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={chartData}>
                   <defs>
-                    <linearGradient id="genGradOk" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#10b981" stopOpacity={0.9} />
-                      <stop offset="100%" stopColor="#10b981" stopOpacity={0.5} />
-                    </linearGradient>
-                    <linearGradient id="genGradDeficit" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.9} />
-                      <stop offset="100%" stopColor="#f59e0b" stopOpacity={0.5} />
+                    <linearGradient id="genGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#fbbf24" stopOpacity={0.9} />
+                      <stop offset="100%" stopColor="#fbbf24" stopOpacity={0.5} />
                     </linearGradient>
                     <linearGradient id="conGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#0ea5e9" stopOpacity={0.35} />
-                      <stop offset="100%" stopColor="#0ea5e9" stopOpacity={0.1} />
+                      <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="#38bdf8" stopOpacity={0.1} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="2 2" stroke="#1e293b" vertical={false} />
@@ -292,24 +287,17 @@ export const ModuleInsightsArea: React.FC<ModuleInsightsAreaProps> = ({
                     tickLine={false}
                     axisLine={false}
                   />
-                  <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(245,158,11,0.03)' }} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(251,191,36,0.03)' }} />
 
                   {/* Consumo (atrás) */}
-                  <Bar dataKey="consumo" fill="url(#conGrad)" radius={[0, 0, 0, 0]} isAnimationActive={false} />
+                  <Bar dataKey="consumo" fill="url(#conGrad)" radius={0} isAnimationActive={false} />
                   {/* Geração (frente) */}
-                  <Bar dataKey="geracao" radius={[2, 2, 0, 0]} isAnimationActive={false}>
-                    {chartData.map((entry, index) => (
-                      <Cell 
-                        key={`cell-${index}`} 
-                        fill={entry.geracao >= entry.consumo ? 'url(#genGradOk)' : 'url(#genGradDeficit)'} 
-                      />
-                    ))}
-                  </Bar>
+                  <Bar dataKey="geracao" fill="url(#genGrad)" radius={0} isAnimationActive={false} />
 
                   {/* Linha de média de geração */}
-                  <ReferenceLine y={avgMonthlyGeneration} stroke="#f59e0b" strokeDasharray="3 3" strokeOpacity={0.3} />
+                  <ReferenceLine y={avgMonthlyGeneration} stroke="#fbbf24" strokeDasharray="3 3" strokeOpacity={0.3} />
                   {/* Linha de média de consumo */}
-                  <ReferenceLine y={avgMonthlyConsumption} stroke="#0ea5e9" strokeDasharray="3 3" strokeOpacity={0.2} />
+                  <ReferenceLine y={avgMonthlyConsumption} stroke="#38bdf8" strokeDasharray="3 3" strokeOpacity={0.2} />
                 </ComposedChart>
               </ResponsiveContainer>
             )}
@@ -319,11 +307,11 @@ export const ModuleInsightsArea: React.FC<ModuleInsightsAreaProps> = ({
           {hasData && (
             <div className="flex items-center gap-4 shrink-0">
               <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 bg-amber-500 rounded-sm" />
+                <div className="w-2.5 h-2.5 bg-amber-400 rounded-sm" />
                 <span className="text-[9px] text-slate-500 uppercase font-bold tracking-wider">Geração Estimada</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 bg-sky-500/30 rounded-sm" />
+                <div className="w-2.5 h-2.5 bg-sky-400/30 rounded-sm" />
                 <span className="text-[9px] text-slate-500 uppercase font-bold tracking-wider">Consumo</span>
               </div>
             </div>
