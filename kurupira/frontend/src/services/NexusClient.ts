@@ -32,18 +32,20 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
     const errorBody = await response.json().catch(() => ({}));
     if (response.status === 401 || response.status === 403) {
       const hadToken = !!getAuthToken();
+      const isManualLogoutInProgress = sessionStorage.getItem('just_logged_out') === 'true';
       
       console.warn('[NexusClient] 401/403 recebido do backend. Limpando tokens.');
       sessionStorage.removeItem('kurupira_token');
       localStorage.removeItem('token');
       
-      // Só exibe alerta se o usuário TENTOU usar um token e ele foi rejeitado
-      // Evita o alerta "Token required" durante o momento em que o usuário clica em "Sair"
-      if (hadToken) {
-        alert(`Erro de Sessão: ${errorBody.error || 'Inválida ou expirada'}`);
+      // Se o usuário está clicando em sair, não interrompa o logtoSignOut
+      if (!isManualLogoutInProgress) {
+        // Só exibe alerta se o usuário TENTOU usar um token e ele foi rejeitado
+        if (hadToken) {
+          alert(`Erro de Sessão: ${errorBody.error || 'Inválida ou expirada'}`);
+        }
+        window.location.href = '/login';
       }
-      
-      window.location.href = '/login';
     }
     throw new Error(errorBody.error || `API Error: ${response.status}`);
   }

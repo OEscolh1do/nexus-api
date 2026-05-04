@@ -20,10 +20,14 @@ const teamRouter = require('./routes/team');
 const app = express();
 const PORT = process.env.PORT || 3002;
 
+const envOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [];
+
 const allowedOrigins = [
-  'http://localhost:5174',
-  'http://localhost:5173',
+  'http://localhost:5173', // Dev Kurupira
+  'http://localhost:5174', // Dev alternativo
+  'http://localhost:5175', // Dev Sumauma
   'https://neonorte-kurupira.vercel.app',
+  ...envOrigins
 ];
 
 const isStrictCors = process.env.NODE_ENV === 'production' || process.env.CORS_STRICT === 'true';

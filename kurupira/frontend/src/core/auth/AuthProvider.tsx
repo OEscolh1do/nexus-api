@@ -75,11 +75,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (clearAllTokens) {
         await clearAllTokens();
       }
+      // Marcamos o logout no storage local para evitar loops, sem precisar registrar 
+      // novas URIs complexas no Console do Logto (evita Erro 400)
+      sessionStorage.setItem('just_logged_out', 'true');
       await logtoSignOut(window.location.origin);
     } catch (err) {
       console.error('[Auth] Erro ao tentar redirecionar para o logout do Logto:', err);
-      // Se der erro (ex: Post-Logout URI não cadastrada no Console do Logto),
-      // forçamos o usuário para a tela de login localmente.
+      sessionStorage.setItem('just_logged_out', 'true');
       window.location.href = '/login';
     }
   };

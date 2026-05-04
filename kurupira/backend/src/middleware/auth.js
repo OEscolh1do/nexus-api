@@ -22,12 +22,29 @@ async function fetchJwksKeys() {
 
 async function getPublicKeyForKid(kid) {
   const now = Date.now();
+  
+  // Se não tem cache ou expirou, busca
   if (!_jwksCache.keys || now - _jwksCache.fetchedAt > JWKS_TTL) {
     const keys = await fetchJwksKeys();
     if (keys) { _jwksCache.keys = keys; _jwksCache.fetchedAt = now; }
   }
+  
   if (!_jwksCache.keys) return null;
-  const jwk = _jwksCache.keys.find(k => k.kid === kid);
+  
+  let jwk = _jwksCache.keys.find(k => k.kid === kid);
+  
+  // Cache-miss retry: se não achou o kid, a chave pode ter sido rotacionada no Logto.
+  // Força uma nova busca e tenta novamente.
+  if (!jwk) {
+    logger.warn(`[Auth] JWKS cache miss para kid=${kid}. Forçando re-fetch...`);
+    const keys = await fetchJwksKeys();
+    if (keys) { 
+      _jwksCache.keys = keys; 
+      _jwksCache.fetchedAt = Date.now(); 
+      jwk = _jwksCache.keys.find(k => k.kid === kid);
+    }
+  }
+
   return jwk ? createPublicKey({ key: jwk, format: 'jwk' }) : null;
 }
 
@@ -58,9 +75,15 @@ const authenticateToken = async (req, res, next) => {
     return res.status(401).json({ success: false, error: 'Token required' });
   }
 
+  let decoded;
   try {
-    const decoded = await verifyToken(token);
-    
+    decoded = await verifyToken(token);
+  } catch (err) {
+    logger.error('[Auth] Token verification failed', { error: err.message });
+    return res.status(401).json({ success: false, error: 'Token inválido ou expirado: ' + err.message });
+  }
+
+  try {
     // Fallback: Se o token for local (gerado para dev) e já contiver tenantId, usa direto.
     // Mas se for Logto, precisamos resolver o sub no db_sumauma.
     const sub = decoded.sub || decoded.id;
@@ -106,9 +129,9 @@ const authenticateToken = async (req, res, next) => {
     };
 
     next();
-  } catch (err) {
-    logger.error('[Auth] Token verification failed', { error: err.message });
-    return res.status(401).json({ success: false, error: 'Token inválido ou expirado' });
+  } catch (dbErr) {
+    logger.error('[Auth] Erro interno ao validar sessão no banco de dados', { error: dbErr.message, stack: dbErr.stack });
+    return res.status(500).json({ success: false, error: 'Erro interno ao validar sessão.' });
   }
 };
 
