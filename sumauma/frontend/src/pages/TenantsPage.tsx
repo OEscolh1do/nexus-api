@@ -7,6 +7,8 @@ import {
   Shield,
   ArrowUpDown,
   Plus,
+  Briefcase,
+  User2,
 } from 'lucide-react';
 import { useTenants, type Tenant } from '@/hooks/useTenants';
 import TenantStatusBadge from '@/components/tenants/TenantStatusBadge';
@@ -172,6 +174,18 @@ function TenantRow({ tenant, onClick }: { tenant: Tenant; onClick: () => void })
           )}
           <div>
             <p className="text-xs font-medium text-slate-200">{tenant.name}</p>
+            {tenant.type === 'CORPORATE' && (
+              <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 mt-0.5">
+                <Briefcase className="h-2.5 w-2.5" />
+                Empresa
+              </span>
+            )}
+            {tenant.type === 'INDIVIDUAL' && (
+              <span className="inline-flex items-center gap-1 text-[10px] text-sky-500/70 mt-0.5">
+                <User2 className="h-2.5 w-2.5" />
+                Autônomo
+              </span>
+            )}
           </div>
         </div>
       </td>

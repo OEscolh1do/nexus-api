@@ -12,6 +12,7 @@ import { useUsers, type User } from '@/hooks/useUsers';
 import { useDebounce } from '@/hooks/useDebounce';
 import api from '@/lib/api';
 import UserDrawer from '@/components/users/UserDrawer';
+import RoleBadge from '@/components/users/RoleBadge';
 
 // ─── Filter bar ───────────────────────────────────────────────────────────────
 
@@ -127,6 +128,7 @@ function UserRow({
   user: User;
   onClick: () => void;
 }) {
+  const isBlocked = user.status === 'BLOCKED';
   return (
     <tr
       className="grid-row cursor-pointer"
@@ -138,7 +140,9 @@ function UserRow({
       {/* Nome e Username */}
       <td className="px-4 py-3">
         <div className="flex flex-col">
-          <p className="text-xs font-medium text-slate-200">{user.fullName || user.username}</p>
+          <p className={`text-xs font-medium ${isBlocked ? 'text-slate-500 line-through' : 'text-slate-200'}`}>
+            {user.fullName || user.username}
+          </p>
           <p className="text-[10px] text-slate-500">{user.username}</p>
         </div>
       </td>
@@ -146,15 +150,24 @@ function UserRow({
       {/* Tenant */}
       <td className="px-4 py-3">
         <div className="flex flex-col">
-          <div className="flex items-center gap-1.5">
-            <p className="text-xs text-slate-300">{user.tenant?.name || '—'}</p>
-
-          </div>
+          <p className="text-xs text-slate-300">{user.tenant?.name || '—'}</p>
           <p className="text-[10px] text-slate-600 font-tabular mt-0.5">{user.tenantId}</p>
         </div>
       </td>
 
+      {/* Nível (Role) */}
+      <td className="px-4 py-3">
+        <RoleBadge role={user.role} />
+      </td>
 
+      {/* Status */}
+      <td className="px-4 py-3">
+        {isBlocked ? (
+          <span className="badge badge-blocked">Bloqueado</span>
+        ) : (
+          <span className="badge badge-active">Ativo</span>
+        )}
+      </td>
 
       {/* Cargo */}
       <td className="px-4 py-3">
@@ -189,11 +202,13 @@ function UserRow({
 const PAGE_SIZE = 20;
 
 const TABLE_COLS = [
-  { label: 'Usuário', cls: 'w-[250px]' },
-  { label: 'Organização', cls: 'w-[250px]' },
-  { label: 'Cargo', cls: 'w-[150px]' },
+  { label: 'Usuário', cls: 'w-[220px]' },
+  { label: 'Organização', cls: 'w-[200px]' },
+  { label: 'Nível', cls: 'w-[110px]' },
+  { label: 'Status', cls: 'w-[90px]' },
+  { label: 'Cargo', cls: 'w-[140px]' },
   { label: 'Último Acesso', cls: 'w-[130px]' },
-  { label: 'Criado em', cls: 'w-[110px]' },
+  { label: 'Criado em', cls: 'w-[100px]' },
 ];
 
 export default function UsersTab() {
@@ -315,10 +330,11 @@ export default function UsersTab() {
         <UserDrawer userId={selectedId} onClose={() => setSelectedId(null)} onMutated={refetch} />
       )}
 
-      {/* Drawer — criar usuário */}
+      {/* Drawer — criar usuário (pré-seleciona org do filtro ativo, se houver) */}
       {createOpen && (
         <UserDrawer
           userId={null}
+          defaultTenantId={filters.tenantId || undefined}
           onClose={() => setCreateOpen(false)}
           onMutated={() => { refetch(); setPage(1); }}
         />

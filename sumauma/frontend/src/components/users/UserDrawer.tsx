@@ -30,9 +30,11 @@ interface UserDrawerProps {
   userId: string | null;
   onClose: () => void;
   onMutated?: () => void;
+  /** Pré-seleciona e trava a organização no formulário de criação */
+  defaultTenantId?: string;
 }
 
-export default function UserDrawer({ userId, onClose, onMutated }: UserDrawerProps) {
+export default function UserDrawer({ userId, onClose, onMutated, defaultTenantId }: UserDrawerProps) {
   // Modo create
   if (userId === null) {
     return (
@@ -46,6 +48,7 @@ export default function UserDrawer({ userId, onClose, onMutated }: UserDrawerPro
           <CreateUserForm
             onClose={onClose}
             onCreated={() => { onMutated?.(); onClose(); }}
+            defaultTenantId={defaultTenantId}
           />
         </div>
       </>

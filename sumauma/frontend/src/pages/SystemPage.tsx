@@ -30,7 +30,7 @@ export default function SystemPage() {
         </div>
 
         <button
-          onClick={refresh}
+          onClick={() => refresh()}
           disabled={loading}
           className="flex items-center gap-2 h-9 px-4 text-xs font-medium bg-slate-800 border border-slate-700 rounded-sm text-slate-200 hover:bg-slate-700 transition-colors disabled:opacity-50"
         >

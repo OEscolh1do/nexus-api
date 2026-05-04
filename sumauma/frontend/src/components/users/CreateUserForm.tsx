@@ -22,7 +22,7 @@ export default function CreateUserForm({ onClose, onCreated, defaultTenantId }: 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [role] = useState('ADMIN');
+  const [role, setRole] = useState<'ADMIN' | 'ENGINEER'>('ENGINEER');
   const [tenantId, setTenantId] = useState(defaultTenantId ?? '');
   const [jobTitle, setJobTitle] = useState('');
 
@@ -43,7 +43,7 @@ export default function CreateUserForm({ onClose, onCreated, defaultTenantId }: 
       .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase()
       .trim()
-      .replace(/\s+/g, '.');
+      .replace(/\s+/g, '_');
     setUsername(generated);
   }, [fullName, username]);
 
@@ -64,17 +64,43 @@ export default function CreateUserForm({ onClose, onCreated, defaultTenantId }: 
       {/* Header */}
       <div className="flex items-center gap-2 border-b border-slate-800 px-5 py-4">
         <Users className="h-4 w-4 text-slate-500" />
-        <span className="text-sm font-medium text-slate-200">Novo Usuário</span>
+        <span className="text-sm font-medium text-slate-200">Adicionar Membro Corporativo</span>
       </div>
 
       {/* Body */}
-      <div className="flex-1 space-y-6 overflow-y-auto p-5">
-        
-        {/* Header descritivo */}
-        <div className="rounded-sm bg-sky-500/5 border border-sky-500/10 p-4">
-          <p className="text-xs text-sky-300/80 leading-relaxed">
-            Ao criar um usuário, ele terá acesso total à organização selecionada para visualizar e editar projetos.
-          </p>
+      <div className="flex-1 space-y-5 overflow-y-auto p-5">
+
+        {/* Nível de Acesso */}
+        <div className="space-y-2">
+          <label className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
+            Nível de Acesso
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setRole('ENGINEER')}
+              className={`rounded-sm border px-3 py-2 text-left transition-colors ${
+                role === 'ENGINEER'
+                  ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300'
+                  : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600 hover:text-slate-300'
+              }`}
+            >
+              <p className="text-xs font-medium">Engenheiro</p>
+              <p className="text-[10px] text-slate-500">Cria e edita projetos</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => setRole('ADMIN')}
+              className={`rounded-sm border px-3 py-2 text-left transition-colors ${
+                role === 'ADMIN'
+                  ? 'border-sky-500/50 bg-sky-500/10 text-sky-300'
+                  : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600 hover:text-slate-300'
+              }`}
+            >
+              <p className="text-xs font-medium">Administrador</p>
+              <p className="text-[10px] text-slate-500">Gerencia equipe e org</p>
+            </button>
+          </div>
         </div>
 
         {/* Nome Completo */}
@@ -102,7 +128,7 @@ export default function CreateUserForm({ onClose, onCreated, defaultTenantId }: 
             id="create-user-username"
             type="text"
             value={username}
-            onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
+            onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
             placeholder="carlos.souza"
             className="w-full rounded-sm border border-slate-700 bg-slate-800 px-3 py-2 font-tabular text-sm text-slate-200 placeholder:text-slate-600 focus:border-sky-500/50 focus:outline-none"
           />

@@ -11,6 +11,8 @@ import {
   Unlock,
   ChevronRight,
   Trash2,
+  UserPlus,
+  AlertCircle,
 } from 'lucide-react';
 import {
   useTenant,
@@ -24,6 +26,7 @@ import TenantStatusBadge from './TenantStatusBadge';
 import ConfirmBlockModal from './ConfirmBlockModal';
 import ConfirmTenantDeleteModal from './ConfirmTenantDeleteModal';
 import CreateTenantForm from './CreateTenantForm';
+import CreateUserForm from '@/components/users/CreateUserForm';
 import RoleBadge from '@/components/users/RoleBadge';
 import { PLAN_SEATS } from '@/lib/tenantUtils';
 // ─── Plan edit sub-panel ──────────────────────────────────────────────────────
@@ -245,9 +248,13 @@ export default function TenantDrawer({ tenantId, onClose, onMutated }: TenantDra
   const [showDelete, setShowDelete] = useState(false);
   const [showEditPlan, setShowEditPlan] = useState(false);
   const [showInjectQuota, setShowInjectQuota] = useState(false);
+  const [showAddMember, setShowAddMember] = useState(false);
 
   const isMaster = tenant?.type === 'MASTER';
   const isBlocked = tenant?.status === 'BLOCKED';
+  const maxSeats = tenant ? (PLAN_SEATS[tenant.apiPlan] ?? 1) : 0;
+  const isUnlimitedSeats = maxSeats > 1000;
+  const isSeatsFull = !isUnlimitedSeats && !!tenant && tenant._count.users >= maxSeats;
 
   function handleBlock() {
     if (!tenantId) return;
@@ -434,7 +441,23 @@ export default function TenantDrawer({ tenantId, onClose, onMutated }: TenantDra
         {/* Footer actions */}
         {tenant && !isMaster && (
           <div className="border-t border-slate-800 px-5 py-4 space-y-2">
-            {/* Inject Quota */}
+            {/* Adicionar Membro */}
+            {isSeatsFull ? (
+              <div className="flex items-center gap-2 rounded-sm border border-slate-700 bg-slate-800/40 px-3 py-2">
+                <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-400" />
+                <p className="text-[11px] text-amber-300/80">
+                  Limite de assentos atingido ({tenant._count.users}/{maxSeats}). Upgrade o plano para adicionar membros.
+                </p>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowAddMember(true)}
+                className="flex w-full items-center justify-between rounded-sm border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+              >
+                <span>Adicionar Membro</span>
+                <UserPlus className="h-3.5 w-3.5" />
+              </button>
+            )}
             <button
               onClick={() => { setShowInjectQuota((v) => !v); setShowEditPlan(false); }}
               className="flex w-full items-center justify-between rounded-sm border border-sky-500/20 bg-sky-500/5 px-3 py-2 text-xs text-sky-400 hover:bg-sky-500/10 transition-colors"
@@ -514,6 +537,28 @@ export default function TenantDrawer({ tenantId, onClose, onMutated }: TenantDra
           onCancel={() => setShowDelete(false)}
           loading={deleting}
         />
+      )}
+
+      {/* Sub-drawer: Adicionar Membro — z-50 para sobrepor o drawer pai (z-40) */}
+      {showAddMember && tenantId && (
+        <>
+          <div
+            className="fixed inset-0 z-[45] bg-black/30"
+            onClick={() => setShowAddMember(false)}
+            aria-hidden="true"
+          />
+          <div className="fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col border-l border-slate-700 bg-slate-950 shadow-2xl">
+            <CreateUserForm
+              defaultTenantId={tenantId}
+              onClose={() => setShowAddMember(false)}
+              onCreated={() => {
+                setShowAddMember(false);
+                refetch();
+                onMutated?.();
+              }}
+            />
+          </div>
+        </>
       )}
     </>
   );
