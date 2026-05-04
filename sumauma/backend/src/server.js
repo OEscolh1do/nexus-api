@@ -200,7 +200,6 @@ app.post('/admin/auth/audit-login', platformAuth, async (req, res) => {
 app.get('/admin/dashboard', platformAuth, async (req, res) => {
   try {
     const prismaSumauma = require('./lib/prismaSumauma');
-    const prismaIaca = require('./lib/prismaIaca');
     const prismaKurupira = require('./lib/prismaKurupira');
 
     const now = new Date();
