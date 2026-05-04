@@ -14,11 +14,13 @@ const LoginPage: React.FC = () => {
   // Redireciona para o app se já autenticado
   useEffect(() => {
     if (isAuthenticated) {
-      // Se logou com sucesso, garantimos que a flag de logout seja limpa
-      sessionStorage.removeItem('just_logged_out');
-      navigate('/', { replace: true });
+      if (!isLogout) {
+        // Se logou com sucesso, garantimos que a flag de logout seja limpa
+        sessionStorage.removeItem('just_logged_out');
+        navigate('/', { replace: true });
+      }
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, isLogout]);
 
   // Auto-redirect: dispara signIn() assim que o SDK termina de inicializar,
   // EXCETO se o usuário acabou de fazer logout.

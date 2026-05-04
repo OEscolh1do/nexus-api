@@ -42,16 +42,14 @@ app.use(cors({
   },
   credentials: true
 }));
-// Rota interna M2M recebe conteúdo de arquivo PVSyst (.pan/.ond) — limite maior e explícito.
-// Deve vir antes do parser global para sobrescrever o limite nessa rota específica.
-app.use('/internal/catalog', express.json({ limit: '1mb' }), internalCatalogRouter);
-
-app.use(express.json({ limit: '100kb' }));
+// Limite aumentado para 10mb para suportar imagens base64 de mapas (blueprint/satélite) dentro do designData
+app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.use('/api/v1/designs', designsRouter);
 app.use('/api/v1/catalog', catalogRouter);
+app.use('/internal/catalog', internalCatalogRouter);
 app.use('/api/v1/settings', settingsRouter);
 app.use('/api/v1/team', teamRouter);
 

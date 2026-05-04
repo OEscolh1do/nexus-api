@@ -17,7 +17,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const setUserRole = useSolarStore(state => state.setUserRole);
   
   const navigate = useNavigate();
-  const { isAuthenticated, isLoading: logtoLoading, getIdTokenClaims, getIdToken, signOut: logtoSignOut, clearAllTokens } = useLogto();
+  const { isAuthenticated, isLoading: logtoLoading, getIdTokenClaims, getAccessToken, signOut: logtoSignOut, clearAllTokens } = useLogto();
 
   useEffect(() => {
     // Se o Logto ainda está carregando o estado de auth, aguardamos
@@ -35,10 +35,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const fetchClaims = async () => {
       try {
         const claims = await getIdTokenClaims();
-        const rawToken = await getIdToken();
+        const rawToken = await getAccessToken('https://api.ywara.com.br');
         
         if (!claims || !rawToken) {
-          throw new Error('Sem claims ou token');
+          throw new Error('Sem claims ou token de acesso');
         }
 
         // Guarda o token no sessionStorage para o NexusClient usar
@@ -59,13 +59,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (err) {
         console.error('Falha ao processar sessão Logto', err);
         sessionStorage.removeItem('kurupira_token');
+        if (clearAllTokens) {
+          await clearAllTokens();
+        }
         navigate('/login', { replace: true });
         setInternalLoading(false);
       }
     };
 
     fetchClaims();
-  }, [isAuthenticated, logtoLoading, getIdTokenClaims, getIdToken, navigate, setUserRole]);
+  }, [isAuthenticated, logtoLoading, getIdTokenClaims, getAccessToken, navigate, setUserRole]);
+
+  // Efeito secundário: Manter o sessionStorage atualizado com um token fresco.
+  // Como o NexusClient (non-react) lê do sessionStorage, precisamos garantir que o token lá não expire.
+  useEffect(() => {
+    if (!isAuthenticated || logtoLoading) return;
+
+    const refreshInterval = setInterval(async () => {
+      try {
+        const freshToken = await getAccessToken('https://api.ywara.com.br');
+        if (freshToken) {
+          sessionStorage.setItem('kurupira_token', freshToken);
+          // console.log('[AuthProvider] Token proativamente atualizado no sessionStorage.');
+        }
+      } catch (err) {
+        console.error('[AuthProvider] Erro ao atualizar token proativamente:', err);
+      }
+    }, 10 * 60 * 1000); // Atualiza a cada 10 minutos (tokens Logto costumam durar 1h)
+
+    return () => clearInterval(refreshInterval);
+  }, [isAuthenticated, logtoLoading, getAccessToken]);
 
   const signOut = async () => {
     sessionStorage.removeItem('kurupira_token');

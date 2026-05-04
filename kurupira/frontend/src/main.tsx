@@ -13,7 +13,8 @@ if (!rootElement) {
 const logtoConfig: LogtoConfig = {
   endpoint: import.meta.env.VITE_LOGTO_ENDPOINT || 'http://localhost:3301',
   appId: import.meta.env.VITE_LOGTO_APP_ID || '',
-  scopes: ['roles'],
+  scopes: ['openid', 'profile', 'email', 'offline_access', 'roles'],
+  resources: ['https://api.ywara.com.br'],
 };
 
 const root = ReactDOM.createRoot(rootElement);

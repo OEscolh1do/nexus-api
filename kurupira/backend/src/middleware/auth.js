@@ -11,11 +11,16 @@ async function fetchJwksKeys() {
   const uri = process.env.LOGTO_JWKS_URI;
   if (!uri) return null;
   try {
-    const res = await fetch(uri, { signal: AbortSignal.timeout(3000) });
-    if (!res.ok) return null;
+    const res = await fetch(uri, { signal: AbortSignal.timeout(10000) });
+    if (!res.ok) {
+      const text = await res.text();
+      logger.error(`[Auth] Erro HTTP ao buscar JWKS (${res.status}): ${text}`);
+      return null;
+    }
     const { keys } = await res.json();
     return keys || null;
-  } catch {
+  } catch (err) {
+    logger.error(`[Auth] Falha de rede/timeout ao buscar JWKS em ${uri}:`, { error: err.message });
     return null;
   }
 }
@@ -57,7 +62,10 @@ async function verifyToken(token) {
   if (header?.kid) {
     const publicKey = await getPublicKeyForKid(header.kid);
     if (!publicKey) throw new Error('JWKS key não encontrada para kid=' + header.kid);
-    return jwt.verify(token, publicKey, { algorithms: ['RS256', 'ES384', 'ES256'] });
+    return jwt.verify(token, publicKey, { 
+      algorithms: ['RS256', 'ES384', 'ES256'],
+      clockTolerance: 30 
+    });
   }
 
   throw new Error(`Método de verificação inválido para o token (alg: ${header?.alg}). Apenas tokens do provedor de identidade (Logto) são permitidos em produção.`);
@@ -79,7 +87,14 @@ const authenticateToken = async (req, res, next) => {
   try {
     decoded = await verifyToken(token);
   } catch (err) {
-    logger.error('[Auth] Token verification failed', { error: err.message });
+    const raw = jwt.decode(token, { complete: true });
+    logger.error('[Auth] Token verification failed', { 
+      error: err.message,
+      stack: err.stack,
+      issuer: raw?.payload?.iss,
+      audience: raw?.payload?.aud,
+      kid: raw?.header?.kid
+    });
     return res.status(401).json({ success: false, error: 'Token inválido ou expirado: ' + err.message });
   }
 

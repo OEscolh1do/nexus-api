@@ -4,6 +4,7 @@ const { authenticateToken } = require('../middleware/auth');
 const { fetchLeadContext, fetchLeadsBatch } = require('../services/m2mClient');
 const { extractDesignMetrics } = require('../utils/designMetrics');
 const { createDesignSchema, updateDesignSchema, validate } = require('../validation/designs');
+const logger = require('../lib/logger');
 
 const safeError = (err) =>
   process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message;
@@ -120,6 +121,7 @@ router.put('/:id', authenticateToken, validate(updateDesignSchema), async (req, 
     });
     res.json({ success: true, data: design });
   } catch (error) {
+    logger.error('[PUT /designs/:id] Error:', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: safeError(error) });
   }
 });

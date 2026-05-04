@@ -21,7 +21,7 @@ import CallbackPage from './pages/CallbackPage';
 import LoginPage from './pages/LoginPage';
 
 const AuthGuard: React.FC = () => {
-  const { loading } = useAuth();
+  const { loading, user } = useAuth();
 
   if (loading) {
     return (
@@ -31,6 +31,11 @@ const AuthGuard: React.FC = () => {
         overlay={false}
       />
     );
+  }
+
+  // Prevents rendering the app if fetchClaims failed and we are redirecting
+  if (!user) {
+    return null;
   }
 
   return <ProfileOrchestrator />;

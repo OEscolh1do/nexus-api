@@ -39,7 +39,7 @@ function platformAuth(req, res, next) {
   const token = authHeader.split(' ')[1];
 
   try {
-    jwt.verify(token, getKey, {}, (err, decoded) => {
+    jwt.verify(token, getKey, { clockTolerance: 30 }, (err, decoded) => {
       if (err) {
         if (err.name === 'TokenExpiredError') {
           return res.status(401).json({ error: 'Token expirado. Faça login novamente.' });

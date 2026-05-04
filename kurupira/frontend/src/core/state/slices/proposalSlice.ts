@@ -14,6 +14,10 @@
  */
 
 import { StateCreator } from 'zustand';
+import type { CanvasElement, CanvasPage, ProposalTemplate } from '@/modules/engineering/ui/panels/canvas-views/proposal/engine/types';
+import { CLASSIC_TEMPLATE } from '@/modules/engineering/ui/panels/canvas-views/proposal/engine/templates/classicTemplate';
+
+export type { CanvasElement, CanvasPage, ProposalTemplate };
 
 // =============================================================================
 // TYPES — Sub-interfaces do documento de proposta
@@ -91,6 +95,11 @@ export interface ProposalData {
 
   // White-label
   logoOverride: string | null;
+
+  // Canvas editor
+  activeTemplateId: string;
+  activeLayout: ProposalTemplate | null;
+  customTemplates: ProposalTemplate[];
 }
 
 // =============================================================================
@@ -131,6 +140,20 @@ export interface ProposalSlice {
 
   /** Actions — Execution Schedule */
   updateExecutionStage: (id: string, updates: Partial<ExecutionStage>) => void;
+
+  /** Actions — Canvas Templates */
+  applyTemplate: (template: ProposalTemplate) => void;
+  saveCurrentAsTemplate: (name: string) => void;
+  deleteCustomTemplate: (id: string) => void;
+
+  /** Actions — Canvas Layout Editing */
+  addCanvasElement: (pageId: string, element: CanvasElement) => void;
+  updateCanvasElement: (pageId: string, elementId: string, updates: Partial<CanvasElement>) => void;
+  removeCanvasElement: (pageId: string, elementId: string) => void;
+  addCanvasPage: (page: CanvasPage) => void;
+  removeCanvasPage: (pageId: string) => void;
+  reorderCanvasPages: (pageIds: string[]) => void;
+  updateCanvasPageBackground: (pageId: string, bg: CanvasPage['background']) => void;
 }
 
 // =============================================================================
@@ -245,6 +268,10 @@ export const initialProposalData: ProposalData = {
   excludedPages: [],
 
   logoOverride: null,
+
+  activeTemplateId: 'classic',
+  activeLayout: null,
+  customTemplates: [],
 };
 
 // =============================================================================
@@ -383,4 +410,166 @@ export const createProposalSlice: StateCreator<
         ),
       },
     })),
+
+  // ── Canvas Templates ─────────────────────────────────────────────────────
+
+  applyTemplate: (template) =>
+    set((state) => ({
+      proposalData: {
+        ...state.proposalData,
+        activeTemplateId: template.id,
+        activeLayout: JSON.parse(JSON.stringify(template)),
+      },
+    })),
+
+  saveCurrentAsTemplate: (name) =>
+    set((state) => {
+      const layout = state.proposalData.activeLayout ?? CLASSIC_TEMPLATE;
+      const newTemplate: ProposalTemplate = {
+        ...JSON.parse(JSON.stringify(layout)),
+        id: `custom-${Date.now()}`,
+        name,
+        isBuiltIn: false,
+        createdAt: new Date().toISOString(),
+      };
+      return {
+        proposalData: {
+          ...state.proposalData,
+          customTemplates: [...state.proposalData.customTemplates, newTemplate],
+        },
+      };
+    }),
+
+  deleteCustomTemplate: (id) =>
+    set((state) => ({
+      proposalData: {
+        ...state.proposalData,
+        customTemplates: state.proposalData.customTemplates.filter((t) => t.id !== id),
+      },
+    })),
+
+  // ── Canvas Layout Editing ────────────────────────────────────────────────
+
+  addCanvasElement: (pageId, element) =>
+    set((state) => {
+      const base = state.proposalData.activeLayout ?? JSON.parse(JSON.stringify(CLASSIC_TEMPLATE));
+      const layout: ProposalTemplate = state.proposalData.activeLayout
+        ? base
+        : { ...base, id: `custom-${Date.now()}`, isBuiltIn: false, createdAt: new Date().toISOString() };
+      return {
+        proposalData: {
+          ...state.proposalData,
+          activeTemplateId: layout.id,
+          activeLayout: {
+            ...layout,
+            pages: layout.pages.map((p) =>
+              p.id === pageId
+                ? { ...p, elements: [...p.elements, element] }
+                : p
+            ),
+          },
+        },
+      };
+    }),
+
+  updateCanvasElement: (pageId, elementId, updates) =>
+    set((state) => {
+      const layout = state.proposalData.activeLayout;
+      if (!layout) return {};
+      return {
+        proposalData: {
+          ...state.proposalData,
+          activeLayout: {
+            ...layout,
+            pages: layout.pages.map((p) =>
+              p.id === pageId
+                ? {
+                    ...p,
+                    elements: p.elements.map((el) =>
+                      el.id === elementId ? { ...el, ...updates } : el
+                    ),
+                  }
+                : p
+            ),
+          },
+        },
+      };
+    }),
+
+  removeCanvasElement: (pageId, elementId) =>
+    set((state) => {
+      const layout = state.proposalData.activeLayout;
+      if (!layout) return {};
+      return {
+        proposalData: {
+          ...state.proposalData,
+          activeLayout: {
+            ...layout,
+            pages: layout.pages.map((p) =>
+              p.id === pageId
+                ? { ...p, elements: p.elements.filter((el) => el.id !== elementId) }
+                : p
+            ),
+          },
+        },
+      };
+    }),
+
+  addCanvasPage: (page) =>
+    set((state) => {
+      const layout = state.proposalData.activeLayout;
+      if (!layout) return {};
+      return {
+        proposalData: {
+          ...state.proposalData,
+          activeLayout: { ...layout, pages: [...layout.pages, page] },
+        },
+      };
+    }),
+
+  removeCanvasPage: (pageId) =>
+    set((state) => {
+      const layout = state.proposalData.activeLayout;
+      if (!layout) return {};
+      return {
+        proposalData: {
+          ...state.proposalData,
+          activeLayout: {
+            ...layout,
+            pages: layout.pages.filter((p) => p.id !== pageId),
+          },
+        },
+      };
+    }),
+
+  reorderCanvasPages: (pageIds) =>
+    set((state) => {
+      const layout = state.proposalData.activeLayout;
+      if (!layout) return {};
+      const map = new Map(layout.pages.map((p) => [p.id, p]));
+      const reordered = pageIds.map((id) => map.get(id)!).filter(Boolean);
+      return {
+        proposalData: {
+          ...state.proposalData,
+          activeLayout: { ...layout, pages: reordered },
+        },
+      };
+    }),
+
+  updateCanvasPageBackground: (pageId, bg) =>
+    set((state) => {
+      const layout = state.proposalData.activeLayout;
+      if (!layout) return {};
+      return {
+        proposalData: {
+          ...state.proposalData,
+          activeLayout: {
+            ...layout,
+            pages: layout.pages.map((p) =>
+              p.id === pageId ? { ...p, background: bg } : p
+            ),
+          },
+        },
+      };
+    }),
 });

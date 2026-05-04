@@ -44,6 +44,8 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
         if (hadToken) {
           alert(`Erro de Sessão: ${errorBody.error || 'Inválida ou expirada'}`);
         }
+        // Sinaliza para o LoginPage não redirecionar de volta no mesmo loop
+        sessionStorage.setItem('just_logged_out', 'true');
         window.location.href = '/login';
       }
     }
