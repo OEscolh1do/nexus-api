@@ -80,7 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const freshToken = await getAccessToken('https://api.ywara.com.br');
         if (freshToken) {
           sessionStorage.setItem('kurupira_token', freshToken);
-          // console.log('[AuthProvider] Token proativamente atualizado no sessionStorage.');
+
         }
       } catch (err) {
         console.error('[AuthProvider] Erro ao atualizar token proativamente:', err);
