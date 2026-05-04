@@ -44,8 +44,9 @@ router.get('/modules', async (req, res) => {
       },
     });
   } catch (error) {
-    logger.warn('Falha ao listar módulos', { err: error.message });
-    res.json({ data: [], pagination: { total: 0, totalPages: 0 } });
+    logger.error('Falha ao listar módulos do catálogo (db_kurupira RO)', { err: error.message });
+    const msg = process.env.NODE_ENV === 'development' ? error.message : 'Falha ao carregar catálogo de módulos';
+    res.status(500).json({ error: msg, data: [], pagination: { total: 0, totalPages: 0 } });
   }
 });
 
@@ -87,8 +88,9 @@ router.get('/inverters', async (req, res) => {
       },
     });
   } catch (error) {
-    logger.warn('Falha ao listar inversores', { err: error.message });
-    res.json({ data: [], pagination: { total: 0, totalPages: 0 } });
+    logger.error('Falha ao listar inversores do catálogo (db_kurupira RO)', { err: error.message });
+    const msg = process.env.NODE_ENV === 'development' ? error.message : 'Falha ao carregar catálogo de inversores';
+    res.status(500).json({ error: msg, data: [], pagination: { total: 0, totalPages: 0 } });
   }
 });
 

@@ -145,6 +145,135 @@ function DividerProps({ element, onUpdate }: Props) {
   );
 }
 
+// ── Projeção: título compartilhado ───────────────────────────────────────────
+
+function ChartTitleRow({ element, onUpdate }: Props) {
+  const p = element.props as Record<string, unknown>;
+  return (
+    <TextPropRow
+      label="Título"
+      value={String(p.title ?? '')}
+      onChange={(v) => onUpdate({ props: { ...p, title: v } })}
+    />
+  );
+}
+
+// ── Geração vs Consumo ───────────────────────────────────────────────────────
+
+function ChartGenConsumptionProps({ element, onUpdate }: Props) {
+  const p = element.props as Record<string, unknown>;
+  const update = (key: string, val: unknown) => onUpdate({ props: { ...p, [key]: val } });
+  return (
+    <>
+      <ChartTitleRow element={element} onUpdate={onUpdate} />
+      <ColorPropRow label="Geração"  value={String(p.colorGen  ?? '#0ea5e9')} onChange={(v) => update('colorGen', v)}  />
+      <ColorPropRow label="Consumo"  value={String(p.colorCons ?? '#f59e0b')} onChange={(v) => update('colorCons', v)} />
+      <FieldRow label="Legenda">
+        <input type="checkbox" checked={p.showLegend !== false}
+          onChange={(e) => update('showLegend', e.target.checked)} className="cursor-pointer" />
+        <span className="text-xs text-slate-500 ml-1">Exibir</span>
+      </FieldRow>
+    </>
+  );
+}
+
+// ── ROI ──────────────────────────────────────────────────────────────────────
+
+function ChartROIProps({ element, onUpdate }: Props) {
+  const p = element.props as Record<string, unknown>;
+  const update = (key: string, val: unknown) => onUpdate({ props: { ...p, [key]: val } });
+  return (
+    <>
+      <ChartTitleRow element={element} onUpdate={onUpdate} />
+      <ColorPropRow label="Área" value={String(p.colorArea ?? '#10b981')} onChange={(v) => update('colorArea', v)} />
+    </>
+  );
+}
+
+// ── Balanço Financeiro ───────────────────────────────────────────────────────
+
+function ChartFinancialBalanceProps({ element, onUpdate }: Props) {
+  const p = element.props as Record<string, unknown>;
+  const update = (key: string, val: unknown) => onUpdate({ props: { ...p, [key]: val } });
+  return (
+    <>
+      <ChartTitleRow element={element} onUpdate={onUpdate} />
+      <ColorPropRow label="Base"      value={String(p.colorBase      ?? '#64748b')} onChange={(v) => update('colorBase', v)}      />
+      <ColorPropRow label="Acréscimo" value={String(p.colorAddition  ?? '#f59e0b')} onChange={(v) => update('colorAddition', v)}  />
+      <ColorPropRow label="Redução"   value={String(p.colorReduction ?? '#10b981')} onChange={(v) => update('colorReduction', v)} />
+      <ColorPropRow label="Resultado" value={String(p.colorResult    ?? '#6366f1')} onChange={(v) => update('colorResult', v)}    />
+    </>
+  );
+}
+
+// ── Banco de Créditos ────────────────────────────────────────────────────────
+
+function ChartCreditBankProps({ element, onUpdate }: Props) {
+  const p = element.props as Record<string, unknown>;
+  const update = (key: string, val: unknown) => onUpdate({ props: { ...p, [key]: val } });
+  return (
+    <>
+      <ChartTitleRow element={element} onUpdate={onUpdate} />
+      <ColorPropRow label="Depósito" value={String(p.colorDeposit  ?? '#22c55e')} onChange={(v) => update('colorDeposit', v)}  />
+      <ColorPropRow label="Saque"    value={String(p.colorWithdraw ?? '#f87171')} onChange={(v) => update('colorWithdraw', v)} />
+      <ColorPropRow label="Saldo"    value={String(p.colorBalance  ?? '#0ea5e9')} onChange={(v) => update('colorBalance', v)}  />
+    </>
+  );
+}
+
+// ── Geração Diária ───────────────────────────────────────────────────────────
+
+function ChartDailyProps({ element, onUpdate }: Props) {
+  const p = element.props as Record<string, unknown>;
+  const update = (key: string, val: unknown) => onUpdate({ props: { ...p, [key]: val } });
+  return (
+    <>
+      <ChartTitleRow element={element} onUpdate={onUpdate} />
+      <ColorPropRow label="Área" value={String(p.colorArea ?? '#6366f1')} onChange={(v) => update('colorArea', v)} />
+    </>
+  );
+}
+
+// ── KPI Projeção ─────────────────────────────────────────────────────────────
+
+const KPI_METRICS = [
+  { value: 'totalGen',      label: 'Geração Anual'   },
+  { value: 'totalCons',     label: 'Consumo Anual'   },
+  { value: 'coverage',      label: 'Cobertura Solar' },
+  { value: 'economiaAno',   label: 'Economia Anual'  },
+  { value: 'totalPowerKwp', label: 'Potência Total'  },
+  { value: 'monthlyGenAvg', label: 'Média Mensal'    },
+];
+
+function KpiProjectionProps({ element, onUpdate }: Props) {
+  const p = element.props as Record<string, unknown>;
+  const update = (key: string, val: unknown) => onUpdate({ props: { ...p, [key]: val } });
+  return (
+    <>
+      <FieldRow label="Métrica">
+        <select
+          value={String(p.metric ?? 'totalGen')}
+          onChange={(e) => update('metric', e.target.value)}
+          className="flex-1 text-xs border border-slate-200 rounded px-2 py-1 bg-white"
+        >
+          {KPI_METRICS.map((m) => (
+            <option key={m.value} value={m.value}>{m.label}</option>
+          ))}
+        </select>
+      </FieldRow>
+      <ColorPropRow label="Fundo"   value={String(p.bgColor    ?? '#f0fdf4')} onChange={(v) => update('bgColor', v)}    />
+      <ColorPropRow label="Texto"   value={String(p.textColor  ?? '#166534')} onChange={(v) => update('textColor', v)}  />
+      <ColorPropRow label="Destaque" value={String(p.accentColor ?? '#10b981')} onChange={(v) => update('accentColor', v)} />
+    </>
+  );
+}
+
+// ── Análise de Perdas / Tabela ────────────────────────────────────────────────
+
+function ChartTitleOnlyProps({ element, onUpdate }: Props) {
+  return <ChartTitleRow element={element} onUpdate={onUpdate} />;
+}
+
 export function ElementPropertiesPanel({ element, onUpdate }: Props) {
   const isPageBlock = element.type.startsWith('page-');
 
@@ -209,9 +338,17 @@ export function ElementPropertiesPanel({ element, onUpdate }: Props) {
         {!isPageBlock && (
           <div>
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Conteúdo</p>
-            {element.type === 'text'      && <TextElementProps element={element} onUpdate={onUpdate} />}
-            {element.type === 'watermark' && <WatermarkProps element={element} onUpdate={onUpdate} />}
-            {element.type === 'divider'   && <DividerProps element={element} onUpdate={onUpdate} />}
+            {element.type === 'text'                    && <TextElementProps element={element} onUpdate={onUpdate} />}
+            {element.type === 'watermark'               && <WatermarkProps element={element} onUpdate={onUpdate} />}
+            {element.type === 'divider'                 && <DividerProps element={element} onUpdate={onUpdate} />}
+            {element.type === 'chart-gen-consumption'   && <ChartGenConsumptionProps element={element} onUpdate={onUpdate} />}
+            {element.type === 'chart-roi'               && <ChartROIProps element={element} onUpdate={onUpdate} />}
+            {element.type === 'chart-financial-balance' && <ChartFinancialBalanceProps element={element} onUpdate={onUpdate} />}
+            {element.type === 'chart-credit-bank'       && <ChartCreditBankProps element={element} onUpdate={onUpdate} />}
+            {element.type === 'chart-daily'             && <ChartDailyProps element={element} onUpdate={onUpdate} />}
+            {element.type === 'chart-loss-waterfall'    && <ChartTitleOnlyProps element={element} onUpdate={onUpdate} />}
+            {element.type === 'kpi-projection'          && <KpiProjectionProps element={element} onUpdate={onUpdate} />}
+            {element.type === 'table-analytics'         && <ChartTitleOnlyProps element={element} onUpdate={onUpdate} />}
           </div>
         )}
 

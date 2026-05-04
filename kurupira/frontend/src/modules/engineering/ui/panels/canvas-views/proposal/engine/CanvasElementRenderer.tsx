@@ -8,6 +8,16 @@ import { ImageElement } from './elements/ImageElement';
 import { LogoElement } from './elements/LogoElement';
 import { WatermarkElement } from './elements/WatermarkElement';
 import { DividerElement } from './elements/DividerElement';
+import {
+  ChartGenConsumptionElement,
+  ChartROIElement,
+  ChartFinancialBalanceElement,
+  ChartCreditBankElement,
+  ChartDailyElement,
+  ChartLossWaterfallElement,
+  KpiProjectionElement,
+  TableAnalyticsElement,
+} from './elements/ProjectionElements';
 import { useProposalPageData } from './useProposalPageData';
 import type { CanvasElement } from './types';
 
@@ -59,6 +69,23 @@ export function CanvasElementRenderer({ element, isEditing = false, onPropsChang
           {element.type}
         </div>
       );
+    // ── Elementos de Projeção ──────────────────────────────────────────────────
+    case 'chart-gen-consumption':
+      return <ChartGenConsumptionElement element={element} />;
+    case 'chart-roi':
+      return <ChartROIElement element={element} />;
+    case 'chart-financial-balance':
+      return <ChartFinancialBalanceElement element={element} />;
+    case 'chart-credit-bank':
+      return <ChartCreditBankElement element={element} />;
+    case 'chart-daily':
+      return <ChartDailyElement element={element} />;
+    case 'chart-loss-waterfall':
+      return <ChartLossWaterfallElement element={element} />;
+    case 'kpi-projection':
+      return <KpiProjectionElement element={element} />;
+    case 'table-analytics':
+      return <TableAnalyticsElement element={element} />;
     default:
       return null;
   }

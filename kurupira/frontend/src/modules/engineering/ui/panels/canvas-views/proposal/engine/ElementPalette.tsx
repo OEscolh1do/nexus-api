@@ -3,6 +3,7 @@ import { useDraggable } from '@dnd-kit/core';
 import {
   Type, Image, Star, Droplets, Minus, BarChart2, TrendingUp,
   Table, ListOrdered, Map, Zap, LayoutTemplate,
+  Sun, CandlestickChart, Activity, PieChart, Layers, BarChart,
 } from 'lucide-react';
 import type { CanvasElementType } from './types';
 import { DEFAULT_ELEMENT_PROPS } from './types';
@@ -23,6 +24,17 @@ const CONTENT_ITEMS: PaletteItem[] = [
   { type: 'payment-table',      label: 'Tab. Investimento', icon: <Table size={14} />,       defaultWidth: 340, defaultHeight: 180 },
   { type: 'schedule-timeline',  label: 'Cronograma',      icon: <ListOrdered size={14} />,   defaultWidth: 680, defaultHeight: 280 },
   { type: 'map-static',         label: 'Mapa Estático',   icon: <Map size={14} />,           defaultWidth: 320, defaultHeight: 200 },
+];
+
+const PROJECTION_ITEMS: PaletteItem[] = [
+  { type: 'chart-gen-consumption',  label: 'Geração vs Consumo',   icon: <BarChart2 size={14} />,      defaultWidth: 400, defaultHeight: 220 },
+  { type: 'chart-roi',              label: 'Retorno Acumulado',     icon: <TrendingUp size={14} />,     defaultWidth: 400, defaultHeight: 220 },
+  { type: 'chart-financial-balance',label: 'Balanço Financeiro',    icon: <CandlestickChart size={14}/>,defaultWidth: 380, defaultHeight: 220 },
+  { type: 'chart-credit-bank',      label: 'Banco de Créditos',     icon: <Activity size={14} />,       defaultWidth: 400, defaultHeight: 200 },
+  { type: 'chart-daily',            label: 'Geração Diária',        icon: <Sun size={14} />,            defaultWidth: 380, defaultHeight: 180 },
+  { type: 'chart-loss-waterfall',   label: 'Análise de Perdas',     icon: <Layers size={14} />,         defaultWidth: 360, defaultHeight: 200 },
+  { type: 'kpi-projection',         label: 'KPI Projeção',          icon: <PieChart size={14} />,       defaultWidth: 180, defaultHeight: 80  },
+  { type: 'table-analytics',        label: 'Tabela Analítica',      icon: <BarChart size={14} />,       defaultWidth: 700, defaultHeight: 300 },
 ];
 
 const DESIGN_ITEMS: PaletteItem[] = [
@@ -92,6 +104,15 @@ export function ElementPalette({ hasCustomLayout }: Props) {
         <div className="px-3 py-1.5">
           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Conteúdo</p>
           {CONTENT_ITEMS.map((item) => (
+            <DraggableItem key={item.type} item={item} />
+          ))}
+        </div>
+
+        <div className="px-3 py-1.5 border-t border-slate-100 mt-1">
+          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1 mt-1">
+            Projeção
+          </p>
+          {PROJECTION_ITEMS.map((item) => (
             <DraggableItem key={item.type} item={item} />
           ))}
         </div>

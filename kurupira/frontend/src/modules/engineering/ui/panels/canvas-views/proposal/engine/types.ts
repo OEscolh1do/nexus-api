@@ -17,7 +17,16 @@ export type CanvasElementType =
   | 'chart-financial'
   | 'payment-table'
   | 'schedule-timeline'
-  | 'map-static';
+  | 'map-static'
+  // Projeção — charts e widgets data-bound
+  | 'chart-gen-consumption'
+  | 'chart-roi'
+  | 'chart-financial-balance'
+  | 'chart-daily'
+  | 'chart-credit-bank'
+  | 'chart-loss-waterfall'
+  | 'kpi-projection'
+  | 'table-analytics';
 
 export interface CanvasElement {
   id: string;
@@ -96,4 +105,13 @@ export const DEFAULT_ELEMENT_PROPS: Record<CanvasElementType, Record<string, unk
   'payment-table':   { showTotal: true },
   'schedule-timeline': { compact: false },
   'map-static':      { zoom: 17, showMarker: true },
+  // Projeção
+  'chart-gen-consumption':  { colorGen: '#0ea5e9', colorCons: '#f59e0b', showLegend: true, title: 'Geração vs Consumo' },
+  'chart-roi':              { colorArea: '#10b981', colorLine: '#059669', showGrid: true, title: 'Retorno Acumulado' },
+  'chart-financial-balance':{ colorBase: '#64748b', colorAddition: '#f59e0b', colorReduction: '#10b981', colorResult: '#6366f1', title: 'Balanço Financeiro' },
+  'chart-daily':            { colorArea: '#6366f1', title: 'Geração Diária Estimada' },
+  'chart-credit-bank':      { colorDeposit: '#22c55e', colorWithdraw: '#f87171', colorBalance: '#0ea5e9', title: 'Banco de Créditos' },
+  'chart-loss-waterfall':   { title: 'Análise de Perdas' },
+  'kpi-projection':         { metric: 'totalGen', bgColor: '#f0fdf4', textColor: '#166534', accentColor: '#10b981' },
+  'table-analytics':        { showEconomy: true, title: 'Tabela Analítica' },
 };

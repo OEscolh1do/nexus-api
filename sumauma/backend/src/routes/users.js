@@ -46,7 +46,7 @@ router.post('/', async (req, res) => {
     // Buscar tenant para verificar plano e tipo
     const tenant = await prismaSumauma.tenant.findUnique({
       where: { id: tenantId },
-      select: { type: true, apiPlan: true, _count: { select: { users: true } } }
+      select: { type: true, apiPlan: true, ssoDomain: true, _count: { select: { users: true } } }
     });
     if (!tenant) return res.status(404).json({ error: 'Organização não encontrada' });
 
@@ -88,6 +88,8 @@ router.post('/', async (req, res) => {
         lastName: fullName.split(' ').slice(1).join(' ') || 'User',
         email: `${username.trim()}@neonorte.local`,
         password,
+        role: role || 'ENGINEER',
+        logtoOrgId: tenant.ssoDomain,
       });
       
       await prismaSumauma.user.update({
@@ -95,7 +97,9 @@ router.post('/', async (req, res) => {
         data: { authProviderId: logtoUserId }
       });
     } catch (zErr) {
-      logger.warn('Falha ao criar usuário no Logto', { userId: user.id });
+      logger.error('Falha ao criar usuário no Logto. Revertendo localmente.', { userId: user.id });
+      await prismaSumauma.user.delete({ where: { id: user.id } });
+      return res.status(502).json({ error: 'Falha de integração com o Logto. O usuário não foi criado.' });
     }
 
     await auditLog({ ...ctx(req), action: 'ADMIN_CREATE_USER', entity: 'User', resourceId: user.id, details: `Usuário criado: ${user.username} (tenant=${tenantId})`, after: { id: user.id, username: user.username, role: user.role, tenantId } });

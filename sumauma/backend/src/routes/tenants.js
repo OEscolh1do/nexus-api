@@ -37,30 +37,44 @@ async function assertNotMaster(id, res) {
 // ============================================
 router.post('/', async (req, res) => {
   try {
-    const { name, apiPlan, apiMonthlyQuota, ownerFullName, ownerUsername, ownerPassword } = req.body;
-    if (!name || typeof name !== 'string' || name.trim().length < 2) {
-      return res.status(400).json({ error: 'Nome da organização é obrigatório (mínimo 2 caracteres)' });
+    const { name, apiPlan, apiMonthlyQuota, ownerFullName, ownerUsername, ownerPassword, type } = req.body;
+    
+    const tenantType = type === 'INDIVIDUAL' ? 'INDIVIDUAL' : 'CORPORATE';
+    let finalName = name;
+    
+    if (tenantType === 'INDIVIDUAL') {
+      if (!ownerFullName || !ownerUsername || !ownerPassword) {
+        return res.status(400).json({ error: 'Para autônomos, os dados do usuário são obrigatórios.' });
+      }
+      finalName = `Workspace de ${ownerFullName.trim()}`;
+    } else {
+      if (!name || typeof name !== 'string' || name.trim().length < 2) {
+        return res.status(400).json({ error: 'Nome da organização é obrigatório para empresas (mínimo 2 caracteres)' });
+      }
     }
 
     // 1. Criar no Banco Local (Fundação)
     const tenant = await prismaSumauma.tenant.create({
       data: {
-        name: name.trim(),
+        name: finalName.trim(),
         apiPlan: apiPlan || 'FREE',
         apiMonthlyQuota: Number(apiMonthlyQuota) || 1000,
-        type: 'CORPORATE' // Sempre CORPORATE para retrocompatibilidade de schema
+        type: tenantType
       }
     });
 
     // 2. Criar Org Shadow Auth no Logto
+    let logtoOrgId = null;
     try {
-      const logtoOrgId = await createLogtoOrg(name.trim());
+      logtoOrgId = await createLogtoOrg(finalName.trim());
       await prismaSumauma.tenant.update({
         where: { id: tenant.id },
         data: { ssoProvider: 'LOGTO', ssoDomain: logtoOrgId }
       });
     } catch (zErr) {
-      logger.warn('Falha ao criar org no Logto', { tenantId: tenant.id });
+      logger.error('Falha ao criar org no Logto, revertendo.', { tenantId: tenant.id });
+      await prismaSumauma.tenant.delete({ where: { id: tenant.id } });
+      return res.status(502).json({ error: 'Falha de integração com o Logto ao criar organização.' });
     }
 
     await auditLog({ ...ctx(req), action: 'ADMIN_CREATE_TENANT', entity: 'Tenant', resourceId: tenant.id, details: `Organização criada: ${tenant.name} (plan=${tenant.apiPlan})`, after: { id: tenant.id, name: tenant.name, apiPlan: tenant.apiPlan } });
@@ -90,6 +104,8 @@ router.post('/', async (req, res) => {
             lastName: ownerFullName.split(' ').slice(1).join(' ') || 'User',
             email: `${ownerUsername.trim()}@neonorte.local`,
             password: ownerPassword,
+            role: 'ADMIN',
+            logtoOrgId,
           });
           
           await prismaSumauma.user.update({
@@ -97,7 +113,15 @@ router.post('/', async (req, res) => {
             data: { authProviderId: logtoUserId }
           });
         } catch (logtoErr) {
-          logger.warn('Falha ao criar dono no Logto, mas org e user foram salvos localmente', { tenantId: tenant.id, userId: createdUser.id });
+          logger.error('Falha ao criar dono no Logto, revertendo criação do dono local.', { tenantId: tenant.id, userId: createdUser.id });
+          await prismaSumauma.user.delete({ where: { id: createdUser.id } });
+          createdUser = null;
+          // Retornamos um aviso para a interface
+          return res.status(201).json({ 
+            data: tenant, 
+            user: null, 
+            message: 'A organização foi criada, mas houve uma falha de rede ao tentar criar o dono no Logto. Adicione o dono manualmente pela aba Usuários.' 
+          });
         }
 
         await auditLog({ ...ctx(req), action: 'ADMIN_CREATE_USER', entity: 'User', resourceId: createdUser.id, details: `Proprietário criado junto com a org: ${createdUser.username}` });
@@ -317,12 +341,23 @@ router.delete('/:id', async (req, res) => {
       before: { id: tenantId, name: tenant.name }
     });
 
-    // 2. Tentar excluir Org no Logto (usamos ssoDomain que guarda o logtoOrgId)
+    // 2. Excluir TODOS os usuários do Logto associados a este tenant ANTES de excluir a Org
+    const usersToDelete = await prismaSumauma.user.findMany({
+      where: { tenantId, authProviderId: { not: null } },
+      select: { authProviderId: true }
+    });
+    for (const user of usersToDelete) {
+      if (user.authProviderId) {
+        await deleteLogtoUser(user.authProviderId);
+      }
+    }
+
+    // 3. Tentar excluir Org no Logto (usamos ssoDomain que guarda o logtoOrgId)
     if (tenant.ssoDomain) {
       await deleteLogtoOrg(tenant.ssoDomain);
     }
 
-    // 3. Exclusão em Transação no Banco Local
+    // 4. Exclusão em Transação no Banco Local
     await prismaSumauma.$transaction([
       // Limpar API Keys
       prismaSumauma.tenantApiKey.deleteMany({ where: { tenantId } }),

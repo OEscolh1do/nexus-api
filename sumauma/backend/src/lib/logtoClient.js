@@ -87,11 +87,26 @@ async function createLogtoUser(tenantId, userObj) {
       name: `${userObj.firstName} ${userObj.lastName}`.trim(),
       customData: {
         tenantId,
-        role: 'USER',
+        role: userObj.role || 'USER',
       },
     });
-    logger.info('Logto user criado', { id: res.data.id, username: userObj.username });
-    return res.data.id;
+    
+    const logtoUserId = res.data.id;
+    logger.info('Logto user criado', { id: logtoUserId, username: userObj.username });
+
+    // Associar usuário à organização do Logto
+    if (userObj.logtoOrgId) {
+      try {
+        await logtoRequest('post', `/organizations/${userObj.logtoOrgId}/users`, {
+          userIds: [logtoUserId]
+        });
+        logger.info('User associado à Org no Logto', { logtoUserId, orgId: userObj.logtoOrgId });
+      } catch (orgErr) {
+        logger.warn('Falha ao associar user à org no Logto', { err: orgErr.response?.data || orgErr.message });
+      }
+    }
+
+    return logtoUserId;
   } catch (error) {
     logger.error('Logto createUser falhou', { err: error.response?.data || error.message });
     throw new Error('Falha na integração com Logto (createUser)');
