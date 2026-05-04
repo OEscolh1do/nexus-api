@@ -34,6 +34,7 @@ model ModuleCatalog {
   electricalData    Json?
 
   @@index([manufacturer])
+  @@map("module_catalog")
 }
 
 model InverterCatalog {
@@ -56,6 +57,7 @@ model InverterCatalog {
   electricalData       Json?
 
   @@index([manufacturer])
+  @@map("inverter_catalog")
 }
 
 model TechnicalDesign {
@@ -69,4 +71,5 @@ model TechnicalDesign {
 
   @@index([tenantId])
   @@index([status])
+  @@map("technical_designs")
 }

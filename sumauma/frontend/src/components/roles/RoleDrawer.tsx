@@ -33,21 +33,22 @@ export default function RoleDrawer({ roleId, onClose, onMutated }: RoleDrawerPro
   }, []);
 
   useEffect(() => {
-    if (roleId) {
+    if (roleId && roles.length > 0) {
       // Editar: encontrar role e popular
       const existing = roles.find((r: any) => r.id === roleId);
       if (existing) {
         setName(existing.name);
         setLevel(existing.level);
         setTenantId(existing.tenantId || '');
-        setSelectedPermissionIds(existing.permissions.map((p: any) => p.permissionId));
+        const pIds = existing.permissions.map((p: any) => p.permissionId);
+        setSelectedPermissionIds(pIds);
       }
-    } else {
-      // Criar: limpar form
-      setName('');
-      setLevel('TENANT');
-      setTenantId('');
-      setSelectedPermissionIds([]);
+    } else if (!roleId) {
+      // Criar: limpar form (somente se necessário para evitar loops)
+      setName(n => n === '' ? n : '');
+      setLevel(l => l === 'TENANT' ? l : 'TENANT');
+      setTenantId(t => t === '' ? t : '');
+      setSelectedPermissionIds(p => p.length === 0 ? p : []);
     }
   }, [roleId, roles]);
 

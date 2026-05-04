@@ -21,13 +21,18 @@ export default function LoginPage() {
   const [localError, setLocalError] = useState('');
 
   useEffect(() => {
-    // Quebra do loop infinito: se o backend rejeitou o token (401), forçamos o logout do Logto
-    if (sessionStorage.getItem('sumauma_force_logout') === 'true') {
-      sessionStorage.removeItem('sumauma_force_logout');
+    const isForceLogout = sessionStorage.getItem('sumauma_force_logout') === 'true';
+
+    // Quebra do loop infinito: se o backend rejeitou o token (401)
+    if (isForceLogout) {
       if (isAuthenticated) {
-        logto.signOut(window.location.origin);
-        return;
+        console.warn('[Login] Loop detectado. Forçando logout do Logto para limpar sessão...');
+        logto.signOut(window.location.origin + '/login');
+      } else {
+        // Usuário já está deslogado do Logto, podemos limpar a flag e permitir novos logins
+        sessionStorage.removeItem('sumauma_force_logout');
       }
+      return;
     }
 
     if (!isAuthenticated || isLoading) return;
@@ -38,12 +43,12 @@ export default function LoginPage() {
 
       const operator = {
         id: claims.sub,
-        username: claims.username as string || claims.email as string || claims.sub,
+        username: (claims.username as string) || (claims.email as string) || claims.sub,
         fullName: (claims.name as string) || (claims.username as string) || (claims.email as string) || '',
         role: (claims.role as string) || 'PLATFORM_ADMIN',
       };
 
-      // Passamos o JWT real do Logto para o AuthStore, e não uma string hardcoded
+      // Passamos o JWT real do Logto para o AuthStore
       loginStore(rawIdToken, operator);
 
       // Notificar o backend sobre o login via SSO para auditoria

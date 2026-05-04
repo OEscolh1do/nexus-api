@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import useSWR from 'swr';
 import api from '@/lib/api';
 
@@ -25,9 +26,12 @@ export function usePermissions() {
     }
   );
 
+  const permissions = useMemo(() => data?.data || [], [data?.data]);
+  const groupedPermissions = useMemo(() => data?.grouped || {}, [data?.grouped]);
+
   return {
-    permissions: data?.data || [],
-    groupedPermissions: data?.grouped || {},
+    permissions,
+    groupedPermissions,
     loading: isLoading,
     error: error?.response?.data?.error || error?.message,
     refetch: mutate,

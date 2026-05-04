@@ -209,9 +209,12 @@ app.get('/admin/dashboard', platformAuth, async (req, res) => {
     // Função auxiliar para contar com segurança (retorna 0 se a tabela não existir)
     const safeCount = async (prismaModel, where = {}) => {
       try {
+        if (!prismaModel || typeof prismaModel.count !== 'function') {
+          return 0;
+        }
         return await prismaModel.count({ where });
       } catch (err) {
-        logger.warn('Dashboard: falha ao contar', { model: prismaModel.name, err: err.message });
+        logger.warn(`Dashboard: falha ao contar ${prismaModel?.name || 'modelo desconhecido'}`, { err: err.message });
         return 0;
       }
     };
@@ -235,6 +238,9 @@ app.get('/admin/dashboard', platformAuth, async (req, res) => {
       safeCount(prismaSumauma.auditLog, { timestamp: { gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) } }),
       prismaSumauma.tenant.aggregate({
         _sum: { apiCurrentUsage: true },
+      }).catch(err => {
+        logger.warn('Dashboard: falha ao agregar uso de API', { err: err.message });
+        return { _sum: { apiCurrentUsage: 0 } };
       }),
     ]);
 

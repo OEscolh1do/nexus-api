@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import useSWR from 'swr';
 import api from '@/lib/api';
 import { Permission } from './usePermissions';
@@ -49,8 +50,10 @@ export function useRoles(params?: UseRolesParams) {
     fetcher
   );
 
+  const roles = useMemo(() => data?.data || [], [data?.data]);
+
   return {
-    roles: data?.data || [],
+    roles,
     loading: isLoading,
     error: error?.response?.data?.error || error?.message,
     refetch: mutate,

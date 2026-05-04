@@ -85,15 +85,15 @@ export function useSystemHealth() {
     }
   }, []);
 
-  const refresh = useCallback(async () => {
-    setLoading(true);
+  const refresh = useCallback(async (isInitial = false) => {
+    if (isInitial) setLoading(true);
     await Promise.all([fetchHealth(), fetchInfo(), fetchJobs(), fetchApiUsage()]);
     setLoading(false);
   }, [fetchHealth, fetchInfo, fetchJobs, fetchApiUsage]);
 
   useEffect(() => {
-    refresh();
-    const interval = setInterval(refresh, 60000); // Auto-refresh everything 60s
+    refresh(true);
+    const interval = setInterval(() => refresh(false), 60000); // Auto-refresh 60s
     return () => clearInterval(interval);
   }, [refresh]);
 
