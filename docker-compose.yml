@@ -123,6 +123,7 @@ services:
       LOGTO_JWKS_URI: "${LOGTO_JWKS_URI}"
       LOGTO_M2M_CLIENT_ID: "${LOGTO_M2M_CLIENT_ID}"
       LOGTO_M2M_CLIENT_SECRET: "${LOGTO_M2M_CLIENT_SECRET}"
+      LOGTO_M2M_RESOURCE: "${LOGTO_M2M_RESOURCE}"
       PORT: 3003
       NODE_ENV: production
       NODE_OPTIONS: "--max-old-space-size=192"
