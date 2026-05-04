@@ -76,6 +76,7 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: "mysql://${DB_KURUPIRA_USER}:${DB_KURUPIRA_PASSWORD}@nexus-db:3306/db_kurupira"
+      DATABASE_URL_SUMAUMA_RO: "mysql://${DB_ADMIN_USER}:${DB_ADMIN_PASSWORD}@nexus-db:3306/db_sumauma"
       JWT_SECRET: "${JWT_SECRET}"
       M2M_SERVICE_TOKEN: "${M2M_SERVICE_TOKEN}"
       IACA_INTERNAL_URL: "http://iaca-backend:3001"
@@ -84,6 +85,7 @@ services:
       NODE_OPTIONS: "--max-old-space-size=400"
       LOGTO_ENDPOINT: "${LOGTO_ENDPOINT}"
       LOGTO_JWKS_URI: "${LOGTO_JWKS_URI}"
+      LOGTO_M2M_RESOURCE: "${LOGTO_M2M_RESOURCE}"
     depends_on:
       nexus-db:
         condition: service_healthy
