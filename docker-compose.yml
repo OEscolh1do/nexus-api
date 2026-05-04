@@ -1,6 +1,7 @@
 # =============================================================
 # Neonorte Workspace — Docker Compose (Operação Guardiões)
 # 4 Contentores: API Gateway, Iaçã, Kurupira, MySQL
+# Segredos lidos do arquivo .env na raiz do projeto.
 # Otimizado para VPS 2GB (Logto Hybrid Cloud)
 # =============================================================
 
@@ -41,14 +42,14 @@ services:
     container_name: neonorte_iaca
     restart: unless-stopped
     environment:
-      DATABASE_URL: "mysql://user_iaca:iaca_S3cur3_2026!@nexus-db:3306/db_iaca"
-      JWT_SECRET: "nexus_dev_secret_2026"
-      M2M_SERVICE_TOKEN: "m2m_guardioes_secret_2026!"
+      DATABASE_URL: "mysql://${DB_IACA_USER}:${DB_IACA_PASSWORD}@nexus-db:3306/db_iaca"
+      JWT_SECRET: "${JWT_SECRET}"
+      M2M_SERVICE_TOKEN: "${M2M_SERVICE_TOKEN}"
       PORT: 3001
       NODE_ENV: production
       NODE_OPTIONS: "--max-old-space-size=192"
-      LOGTO_ENDPOINT: "https://214fzz.logto.app"
-      LOGTO_JWKS_URI: "https://214fzz.logto.app/oidc/jwks"
+      LOGTO_ENDPOINT: "${LOGTO_ENDPOINT}"
+      LOGTO_JWKS_URI: "${LOGTO_JWKS_URI}"
     depends_on:
       nexus-db:
         condition: service_healthy
@@ -74,15 +75,15 @@ services:
     container_name: neonorte_kurupira
     restart: unless-stopped
     environment:
-      DATABASE_URL: "mysql://user_kurupira:kuru_S3cur3_2026!@nexus-db:3306/db_kurupira"
-      JWT_SECRET: "nexus_dev_secret_2026"
-      M2M_SERVICE_TOKEN: "m2m_guardioes_secret_2026!"
+      DATABASE_URL: "mysql://${DB_KURUPIRA_USER}:${DB_KURUPIRA_PASSWORD}@nexus-db:3306/db_kurupira"
+      JWT_SECRET: "${JWT_SECRET}"
+      M2M_SERVICE_TOKEN: "${M2M_SERVICE_TOKEN}"
       IACA_INTERNAL_URL: "http://iaca-backend:3001"
       PORT: 3002
       NODE_ENV: production
       NODE_OPTIONS: "--max-old-space-size=400"
-      LOGTO_ENDPOINT: "https://214fzz.logto.app"
-      LOGTO_JWKS_URI: "https://214fzz.logto.app/oidc/jwks"
+      LOGTO_ENDPOINT: "${LOGTO_ENDPOINT}"
+      LOGTO_JWKS_URI: "${LOGTO_JWKS_URI}"
     depends_on:
       nexus-db:
         condition: service_healthy
@@ -108,18 +109,18 @@ services:
     container_name: neonorte_admin
     restart: unless-stopped
     environment:
-      DATABASE_URL: "mysql://user_sumauma:sumauma_S3cur3_2026!@nexus-db:3306/db_sumauma"
-      DATABASE_URL_IACA_RO: "mysql://user_admin:admin_S3cur3_2026!@nexus-db:3306/db_iaca"
-      DATABASE_URL_KURUPIRA_RO: "mysql://user_admin:admin_S3cur3_2026!@nexus-db:3306/db_kurupira"
-      JWT_SECRET: "nexus_dev_secret_2026"
-      M2M_SERVICE_TOKEN: "m2m_guardioes_secret_2026!"
+      DATABASE_URL: "mysql://${DB_SUMAUMA_USER}:${DB_SUMAUMA_PASSWORD}@nexus-db:3306/db_sumauma"
+      DATABASE_URL_IACA_RO: "mysql://${DB_ADMIN_USER}:${DB_ADMIN_PASSWORD}@nexus-db:3306/db_iaca"
+      DATABASE_URL_KURUPIRA_RO: "mysql://${DB_ADMIN_USER}:${DB_ADMIN_PASSWORD}@nexus-db:3306/db_kurupira"
+      JWT_SECRET: "${JWT_SECRET}"
+      M2M_SERVICE_TOKEN: "${M2M_SERVICE_TOKEN}"
       IACA_INTERNAL_URL: "http://iaca-backend:3001"
       KURUPIRA_INTERNAL_URL: "http://kurupira-backend:3002"
-      ADMIN_FRONTEND_URL: "https://admin.seu-dominio.com"
-      LOGTO_ENDPOINT: "https://214fzz.logto.app"
-      LOGTO_JWKS_URI: "https://214fzz.logto.app/oidc/jwks"
-      LOGTO_M2M_CLIENT_ID: "78gi2h4gwsbnncyc10769"
-      LOGTO_M2M_CLIENT_SECRET: "6nKfrtSNMOqBwbUt2aOMMkVPZ8dKHusC"
+      ADMIN_FRONTEND_URL: "${ADMIN_FRONTEND_URL}"
+      LOGTO_ENDPOINT: "${LOGTO_ENDPOINT}"
+      LOGTO_JWKS_URI: "${LOGTO_JWKS_URI}"
+      LOGTO_M2M_CLIENT_ID: "${LOGTO_M2M_CLIENT_ID}"
+      LOGTO_M2M_CLIENT_SECRET: "${LOGTO_M2M_CLIENT_SECRET}"
       PORT: 3003
       NODE_ENV: production
       NODE_OPTIONS: "--max-old-space-size=192"
@@ -150,7 +151,7 @@ services:
     container_name: neonorte_db
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: neonorte_root_2026!
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
     ports:
       - "3306:3306"
     volumes:
@@ -162,7 +163,7 @@ services:
         limits:
           memory: 512M
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pneonorte_root_2026!"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 5
