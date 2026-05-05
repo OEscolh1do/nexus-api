@@ -1,8 +1,8 @@
 # CONTEXT.md — Kurupira (Motor de Engenharia Solar)
 
-> **Última Atualização:** 2026-05-01
+> **Última Atualização:** 2026-05-04
 > **Arquiteto:** Antigravity AI
-> **Versão do Sistema:** 3.8.1
+> **Versão do Sistema:** 3.9.0
 
 ---
 
@@ -136,7 +136,27 @@ O Pin de localização é o elemento central de ancoragem visual e interatividad
 
 ---
 
+## 🚀 INFRAESTRUTURA DE PRODUÇÃO (VPS)
+
+| Componente | Detalhe |
+|:---|:---|
+| **OS** | Debian 13 (Trixie) - VPS Locaweb |
+| **Domínio Principal** | `neonorte-ywara.tech` |
+| **URL App** | `https://www.neonorte-ywara.tech` |
+| **URL API** | `https://www.neonorte-ywara.tech/api` |
+| **Orquestração** | Docker Compose (Backends) + Nginx Host (Proxy/SSL) |
+| **SSL** | Certbot (Let's Encrypt) |
+
+---
+
 ## 🔄 CHANGELOG
+
+### v3.9.0 (2026-05-04) — Produção: VPS Deployment + Recharts Fix
+
+- ✅ **Build de Produção**: Resolvida falha de resolução do `react-is` no build do Vite/Rollup (dependência do Recharts).
+- ✅ **Nginx Host Proxy**: Migração do Gateway Docker para Nginx nativo no host para suporte otimizado a SSL/Certbot.
+- ✅ **Variáveis de Ambiente**: Padronização da `VITE_API_URL` apontando para o endpoint HTTPS de produção.
+- ✅ **Segurança**: Bloqueio de login root via SSH e ativação de firewall UFW.
 
 ### v3.8.1 (2026-04-18) — Refatoração Radical de Consumo + UI Ghost Scrollbars
 

@@ -1,8 +1,8 @@
 # CONTEXT.md — Ecossistema YWARA (Visão Global)
 
-> **Última Atualização:** 2026-05-01
+> **Última Atualização:** 2026-05-04
 > **Arquiteto:** Antigravity AI
-> **Versão do Ecossistema:** 4.0.0 (Era Ywara)
+> **Versão do Ecossistema:** 5.0.0 (O Lançamento — Produção)
 
 ---
 
@@ -12,12 +12,12 @@ O ecossistema **Ywara** (Andar Superior na cosmologia Tupi) representa a infraes
 
 Este hub orquestra domínios autônomos, cada um com frontend + backend + schema MySQL dedicado:
 
-| Módulo | Codinome | Papel | Porta BE | Porta FE |
-|--------|----------|-------|----------|----------|
-| **Hub / Root** | **Ywara** | Infraestrutura e orquestração celeste | - | - |
-| **Admin** | **Sumaúma** | Backoffice (O pilar central que conecta e sustenta o ecossistema. **Acesso exclusivo para gestão do Ywara. Demais usuários do ecossistema NÃO devem ter acesso.**) | 3003 | 5175 |
-| **Engenharia** | **Kurupira** | Motor Solar (O protetor técnico da floresta) | 3002 | 5173 |
-| **ERP** | **Iaçã** | Gestão e Prosperidade (O fruto que alimenta o negócio) | 3001 | 5174 |
+| Módulo | Codinome | Papel | Porta BE | Domínio Produção |
+|--------|----------|-------|----------|-------------------|
+| **Hub / Root** | **Ywara** | Infraestrutura e orquestração celeste | - | `neonorte-ywara.tech` |
+| **Admin** | **Sumaúma** | Backoffice (Exclusivo Neonorte) | 3003 | `admin.neonorte-ywara.tech` |
+| **Engenharia** | **Kurupira** | Motor Solar (B2B SaaS) | 3002 | `www.neonorte-ywara.tech` |
+| **ERP** | **Iaçã** | Gestão e Prosperidade (Interno) | 3001 | `iaca.neonorte-ywara.tech` |
 
 ---
 
@@ -25,13 +25,13 @@ Este hub orquestra domínios autônomos, cada um com frontend + backend + schema
 
 | Camada | Tecnologia |
 |--------|-----------|
-| **Orquestração** | Docker Compose (Otimizado para VPS 2GB) |
-| **Banco de Dados** | MySQL 8 (Tuning: 256MB Buffer) — schemas: `db_iaca`, `db_kurupira`, `db_sumauma` |
-| **ORM** | Prisma 5.10 (um client por serviço) |
-| **Auth** | Logto (Hybrid Cloud: Cloud IAM + Local Apps) |
-| **Backend Pattern** | Node.js (CommonJS) + Express |
-| **Frontend Pattern** | Vite + React + TypeScript + Tailwind CSS (dark-mode only) |
-| **Ícones** | Lucide React |
+| **Hospedagem** | VPS Locaweb (Debian 13 Trixie) |
+| **Domínio Principal** | `neonorte-ywara.tech` |
+| **Proxy / SSL** | Nginx Host + Certbot (Let's Encrypt) |
+| **Orquestração** | Docker Compose (Backends isolados em 127.0.0.1) |
+| **Banco de Dados** | MySQL 8 (Schemas: `db_iaca`, `db_kurupira`, `db_sumauma`) |
+| **Auth** | Logto Cloud (OIDC / M2M) |
+| **Frontend** | Vite + React + TypeScript (Servido como estático pelo Nginx) |
 
 ---
 
@@ -94,6 +94,7 @@ iaca/.agent/       ← CAMADA 3: Iaçã (ERP, CRM)
 
 ## 🔄 CHANGELOG DO ECOSSISTEMA
 
+| v5.0.0 | 2026-05-04 | **O Lançamento**: Deploy oficial em VPS Debian 13 no domínio `neonorte-ywara.tech`. |
 | v4.1.0 | 2026-05-02 | **Infra Otimizada**: Migração para Logto Cloud, Tuning de MySQL (256MB) e suporte a VPS 2GB |
 | v4.0.0 | 2026-05-01 | **A Era Ywara**: Rebranding completo e renomeação de pastas (Hub -> Ywara, Admin -> Sumaúma) |
 | v3.8.1 | 2026-04-18 | Kurupira: Refatoração Consumo + Ghost Scrollbars |

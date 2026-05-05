@@ -70,7 +70,7 @@ services:
       DATABASE_URL_KURUPIRA_RO: "mysql://$${DB_ADMIN_USER}:$${DB_ADMIN_PASSWORD}@nexus-db:3306/db_kurupira"
       JWT_SECRET: "${JWT_SECRET}"
       M2M_SERVICE_TOKEN: "${M2M_SERVICE_TOKEN}"
-      ADMIN_FRONTEND_URL: "https://admin.vps66668.publiccloud.com.br"
+      ADMIN_FRONTEND_URL: "https://admin.neonorte-ywara.tech"
       LOGTO_ENDPOINT: "${LOGTO_ENDPOINT}"
       LOGTO_JWKS_URI: "${LOGTO_JWKS_URI}"
       LOGTO_M2M_CLIENT_ID: "${LOGTO_M2M_CLIENT_ID}"

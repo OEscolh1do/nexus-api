@@ -1,8 +1,8 @@
 # CONTEXT.md — Sumaúma (Backoffice do Operador)
 
-> **Última Atualização:** 2026-05-03 (sessão cbc99bf1)
+> **Última Atualização:** 2026-05-04
 > **Arquiteto:** Antigravity AI
-> **Versão do Sistema:** 1.5.0 (Era Ywara — Sprint Governance & Hard Delete)
+> **Versão do Sistema:** 1.6.0 (Era Ywara — Produção & Governança Refinada)
 
 ---
 
@@ -247,6 +247,29 @@ A exclusão de tenants e usuários era apenas lógica (soft delete) ou inexisten
 - **UI de Auditoria**: Timeline com timestamp relativo e absoluto, com cores semânticas para identificação rápida de logins (emerald) e logouts (amber).
 
 ---
+
+---
+
+## 🚀 INFRAESTRUTURA DE PRODUÇÃO (VPS)
+
+| Componente | Detalhe |
+|:---|:---|
+| **OS** | Debian 13 (Trixie) - VPS Locaweb |
+| **Domínio Principal** | `neonorte-ywara.tech` |
+| **URL Admin** | `https://admin.neonorte-ywara.tech` |
+| **Orquestração** | Docker Compose (Backends) + Nginx Host (Proxy/SSL) |
+| **SSL** | Certbot (Let's Encrypt) |
+
+---
+
+## 🔄 CHANGELOG
+
+### v1.6.0 (2026-05-04) — Produção: VPS + UX de Governança
+
+- ✅ **Contextual Member Addition**: Implementado botão "Adicionar Membro" no `TenantDrawer`, permitindo criação de usuários já vinculados à organização com Poka-Yoke de assentos (seats).
+- ✅ **Role Selection UX**: Refatorado o formulário de criação de usuário para incluir seletor explícito de Role (`ADMIN` vs `ENGINEER`) com badges semânticas.
+- ✅ **Listagem Refinada**: Adicionada visibilidade de Role e Status (Ativo/Bloqueado) na `UsersTab`. Usuários bloqueados agora aparecem com estilo riscado.
+- ✅ **Nginx Host Proxy**: Configuração do Proxy Reverso no host para suportar os domínios `admin.neonorte-ywara.tech` e SSL nativo.
 
 ## 🐛 BUGS CORRIGIDOS (v1.2.0)
 
