@@ -142,8 +142,8 @@ O Pin de localização é o elemento central de ancoragem visual e interatividad
 |:---|:---|
 | **OS** | Debian 13 (Trixie) - VPS Locaweb |
 | **Domínio Principal** | `neonorte-ywara.tech` |
-| **URL App** | `https://www.neonorte-ywara.tech` |
-| **URL API** | `https://www.neonorte-ywara.tech/api` |
+| **URL App** | `https://kurupira.neonorte-ywara.tech` |
+| **URL API** | `https://kurupira.neonorte-ywara.tech/api` |
 | **Orquestração** | Docker Compose (Backends) + Nginx Host (Proxy/SSL) |
 | **SSL** | Certbot (Let's Encrypt) |
 

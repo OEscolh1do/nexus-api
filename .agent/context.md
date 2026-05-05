@@ -16,7 +16,7 @@ Este hub orquestra domínios autônomos, cada um com frontend + backend + schema
 |--------|----------|-------|----------|-------------------|
 | **Hub / Root** | **Ywara** | Infraestrutura e orquestração celeste | - | `neonorte-ywara.tech` |
 | **Admin** | **Sumaúma** | Backoffice (Exclusivo Neonorte) | 3003 | `admin.neonorte-ywara.tech` |
-| **Engenharia** | **Kurupira** | Motor Solar (B2B SaaS) | 3002 | `www.neonorte-ywara.tech` |
+| **Engenharia** | **Kurupira** | Motor Solar (B2B SaaS) | 3002 | `kurupira.neonorte-ywara.tech` |
 | **ERP** | **Iaçã** | Gestão e Prosperidade (Interno) | 3001 | `iaca.neonorte-ywara.tech` |
 
 ---
