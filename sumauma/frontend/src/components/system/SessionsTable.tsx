@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '@/lib/api';
 import { User, Building2, ShieldX, Loader2 } from 'lucide-react';
 
 interface Session {
@@ -18,7 +18,7 @@ export default function SessionsTable() {
 
   const fetchSessions = async () => {
     try {
-      const response = await axios.get('/admin/system/sessions');
+      const response = await api.get('/system/sessions');
       setSessions(response.data.data);
     } catch (err) {
       console.error('Falha ao buscar sessões');
@@ -32,7 +32,7 @@ export default function SessionsTable() {
     
     setRevokingId(id);
     try {
-      await axios.delete(`/admin/system/sessions/${id}`);
+      await api.delete(`/system/sessions/${id}`);
       setSessions(prev => prev.filter(s => s.id !== id));
     } catch (err) {
       alert('Erro ao revogar sessão');

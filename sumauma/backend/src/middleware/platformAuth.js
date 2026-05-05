@@ -55,9 +55,9 @@ function platformAuth(req, res, next) {
         legacyRole === 'PLATFORM_ADMIN' ||
         roles.includes('PLATFORM_ADMIN');
 
-      const finalizeAuth = (operatorRole) => {
+      const finalizeAuth = (operatorRole, internalId = null) => {
         req.operator = {
-          id: decoded.id || decoded.sub,
+          id: internalId || decoded.id || decoded.sub,
           username: decoded.username || decoded.preferred_username || decoded.email,
           role: operatorRole,
         };
@@ -76,10 +76,10 @@ function platformAuth(req, res, next) {
               { authProviderId: userId }
             ]
           },
-          select: { role: true }
+          select: { id: true, role: true }
         }).then(dbUser => {
           if (dbUser && dbUser.role === 'PLATFORM_ADMIN') {
-            finalizeAuth('PLATFORM_ADMIN');
+            finalizeAuth('PLATFORM_ADMIN', dbUser.id);
           } else {
             logger.warn('Acesso negado — role insuficiente no Token e DB', { sub: userId, dbRole: dbUser?.role });
             return res.status(403).json({
@@ -91,7 +91,23 @@ function platformAuth(req, res, next) {
           return res.status(500).json({ error: 'Erro interno na autorização' });
         });
       } else {
-        finalizeAuth('PLATFORM_ADMIN');
+        // Se já está autorizado via Token, ainda assim tentamos pegar o ID interno do banco para consistência
+        const prismaSumauma = require('../lib/prismaSumauma');
+        const userId = decoded.id || decoded.sub;
+
+        prismaSumauma.user.findFirst({
+          where: {
+            OR: [
+              { id: userId },
+              { authProviderId: userId }
+            ]
+          },
+          select: { id: true }
+        }).then(dbUser => {
+          finalizeAuth('PLATFORM_ADMIN', dbUser?.id);
+        }).catch(() => {
+          finalizeAuth('PLATFORM_ADMIN');
+        });
       }
     });
   } catch (err) {

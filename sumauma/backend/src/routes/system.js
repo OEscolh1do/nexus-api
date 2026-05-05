@@ -117,17 +117,13 @@ router.get('/sessions', async (req, res) => {
       where: { expiresAt: { gt: now } },
       take: 100,
       orderBy: { createdAt: 'desc' },
-      include: {
-        user: {
-          select: { username: true, fullName: true, tenant: { select: { name: true } } }
-        }
-      }
+      // include: { user: ... } - Removido pois a relação não existe no schema atual
     });
 
     const enriched = sessions.map(s => ({
       ...s,
-      user: s.user ? { username: s.user.username, fullName: s.user.fullName } : null,
-      tenant: s.user?.tenant ? { name: s.user.tenant.name } : null
+      user: null, // Sem relação no schema, não é possível buscar via include
+      tenant: null
     }));
 
     res.json({ data: enriched });
