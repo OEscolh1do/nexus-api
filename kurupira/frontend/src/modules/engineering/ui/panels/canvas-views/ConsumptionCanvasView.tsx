@@ -48,8 +48,12 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
     activeInvoiceAvg > 0 ? Math.round(activeInvoiceAvg).toString() : ''
   );
 
-  // Sincroniza local -> store quando mudar de UC ou quando a média mudar externamente
+  const isAvgFocused = React.useRef(false);
+
+  // Sincroniza local -> store quando mudar de UC ou quando a média mudar externamente (apenas se não estiver focado)
   useEffect(() => {
+    if (isAvgFocused.current) return;
+    
     const roundedStore = Math.round(activeInvoiceAvg);
     const currentLocal = localAvg === '' ? 0 : Number(localAvg);
     
@@ -415,14 +419,12 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
                 data-field="average-consumption"
                 placeholder="0"
                 value={localAvg}
-                onChange={e => {
-                  setLocalAvg(e.target.value);
-                  // Live update apenas se NÃO houver histórico manual (UX fluida)
-                  if (!hasManualHistory && e.target.value !== '') {
-                    updateActiveInvoice({ monthlyHistory: Array(12).fill(Number(e.target.value)) });
-                  }
+                onFocus={() => { isAvgFocused.current = true; }}
+                onChange={e => setLocalAvg(e.target.value)}
+                onBlur={() => {
+                  isAvgFocused.current = false;
+                  onAvgBlur();
                 }}
-                onBlur={onAvgBlur}
                 onKeyDown={e => {
                   if (e.key === 'Enter') {
                     (e.target as HTMLInputElement).blur();

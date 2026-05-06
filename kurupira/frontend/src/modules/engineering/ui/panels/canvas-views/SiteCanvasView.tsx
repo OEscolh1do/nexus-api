@@ -23,7 +23,8 @@ const GeocodeFlyTo: React.FC<{ lat: number, lng: number, isPanning: boolean, isD
 
   useEffect(() => {
     // Se estiver movendo (PAN), não faz nada.
-    if (isPanning || !lat || !lng || isNaN(lat) || isNaN(lng)) return;
+    if (isPanning) return;
+    if (lat === undefined || lng === undefined || lat === null || lng === null || isNaN(lat) || isNaN(lng)) return;
     
     const currentCenter = map.getCenter();
     const target = L.latLng(lat, lng);

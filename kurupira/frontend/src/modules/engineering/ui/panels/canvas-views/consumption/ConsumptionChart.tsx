@@ -384,111 +384,112 @@ export const ConsumptionChart: React.FC = () => {
             </div>
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={chartData}>
-              <defs>
-                <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#0ea5e9" stopOpacity={1} />
-                  <stop offset="100%" stopColor="#0ea5e9" stopOpacity={0.6} />
-                </linearGradient>
-                <linearGradient id="barSimGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#0ea5e9" stopOpacity={0.4} />
-                  <stop offset="100%" stopColor="#0ea5e9" stopOpacity={0.1} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="2 2" stroke="#1e293b" vertical={false} />
-              <XAxis 
-                dataKey="mes" 
-                tick={{ fill: '#475569', fontSize: 11, fontFamily: 'var(--font-mono)', fontWeight: 700 }} 
-                tickLine={false} 
-                axisLine={{ stroke: '#1e293b' }} 
-              />
-              <YAxis 
-                yAxisId="energy"
-                tick={{ fill: '#475569', fontSize: 11, fontFamily: 'var(--font-mono)' }} 
-                unit="" 
-                width={45} 
-                tickLine={false} 
-                axisLine={false} 
-                className="tabular-nums"
-              />
-              {showHSP && (
-                <YAxis 
-                  yAxisId="hsp"
-                  orientation="right"
-                  hide={true}
-                  domain={climateDomains.hspDomain}
+          <div className="absolute inset-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={chartData}>
+                <defs>
+                  <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#0ea5e9" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#0ea5e9" stopOpacity={0.6} />
+                  </linearGradient>
+                  <linearGradient id="barSimGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#0ea5e9" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="#0ea5e9" stopOpacity={0.1} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="2 2" stroke="#1e293b" vertical={false} />
+                <XAxis 
+                  dataKey="mes" 
+                  tick={{ fill: '#475569', fontSize: 11, fontFamily: 'var(--font-mono)', fontWeight: 700 }} 
+                  tickLine={false} 
+                  axisLine={{ stroke: '#1e293b' }} 
                 />
-              )}
-              {showTemp && (
                 <YAxis 
-                  yAxisId="temp"
-                  orientation="right"
-                  domain={climateDomains.tempDomain}
+                  yAxisId="energy"
                   tick={{ fill: '#475569', fontSize: 11, fontFamily: 'var(--font-mono)' }} 
-                  width={35} 
+                  unit="" 
+                  width={45} 
                   tickLine={false} 
                   axisLine={false} 
                   className="tabular-nums"
                 />
-              )}
-              <Tooltip content={<CustomConsumptionTooltip tariffRate={tariffRate} />} cursor={{ fill: 'rgba(245,158,11,0.03)' }} />
-              <ReferenceLine yAxisId="energy" y={chartData[0]?.media} stroke="#0ea5e9" strokeDasharray="3 3" strokeOpacity={0.2}>
-                {!isEmpty && chartData[0]?.media > 0 && (
-                  <Label
-                    value={`Média: ${Math.round(chartData[0].media)} kWh`}
-                    position="insideTopLeft"
-                    fill="#475569"
-                    fontSize={9}
-                    fontFamily="var(--font-mono)"
-                    offset={4}
+                {showHSP && (
+                  <YAxis 
+                    yAxisId="hsp"
+                    orientation="right"
+                    hide={true}
+                    domain={climateDomains.hspDomain}
                   />
                 )}
-              </ReferenceLine>
-              
-              <Bar 
-                yAxisId="energy"
-                dataKey="consumoBase" 
-                stackId="a" 
-                fill="url(#barGradient)" 
-                radius={[0,0,0,0]} 
-                isAnimationActive={false}
-              />
-              <Bar 
-                yAxisId="energy"
-                dataKey="cargasSimuladas" 
-                stackId="a" 
-                fill="url(#barSimGradient)" 
-                radius={[0,0,0,0]} 
-                isAnimationActive={false} 
-              />
-
-              {showHSP && (
-                <Line
-                  yAxisId="hsp"
-                  type="monotone"
-                  dataKey="hsp"
-                  stroke="#f59e0b"
-                  strokeWidth={2.5}
-                  dot={{ r: 2, fill: '#f59e0b', strokeWidth: 0 }}
+                {showTemp && (
+                  <YAxis 
+                    yAxisId="temp"
+                    orientation="right"
+                    domain={climateDomains.tempDomain}
+                    tick={{ fill: '#475569', fontSize: 11, fontFamily: 'var(--font-mono)' }} 
+                    width={35} 
+                    tickLine={false} 
+                    axisLine={false} 
+                    className="tabular-nums"
+                  />
+                )}
+                <Tooltip content={<CustomConsumptionTooltip tariffRate={tariffRate} />} cursor={{ fill: 'rgba(245,158,11,0.03)' }} />
+                <ReferenceLine yAxisId="energy" y={chartData[0]?.media} stroke="#0ea5e9" strokeDasharray="3 3" strokeOpacity={0.2}>
+                  {!isEmpty && chartData[0]?.media > 0 && (
+                    <Label
+                      value={`Média: ${Math.round(chartData[0].media)} kWh`}
+                      position="insideTopLeft"
+                      fill="#475569"
+                      fontSize={9}
+                      fontFamily="var(--font-mono)"
+                      offset={4}
+                    />
+                  )}
+                </ReferenceLine>
+                
+                <Bar 
+                  yAxisId="energy"
+                  dataKey="consumoBase" 
+                  stackId="a" 
+                  fill="url(#barGradient)" 
+                  radius={[0,0,0,0]} 
                   isAnimationActive={false}
                 />
-              )}
-              {showTemp && (
-                <Line
-                  yAxisId="temp"
-                  type="monotone"
-                  dataKey="temp"
-                  stroke="#f43f5e"
-                  strokeWidth={2}
-                  strokeDasharray="4 2"
-                  dot={false}
-                  isAnimationActive={false}
+                <Bar 
+                  yAxisId="energy"
+                  dataKey="cargasSimuladas" 
+                  stackId="a" 
+                  fill="url(#barSimGradient)" 
+                  radius={[0,0,0,0]} 
+                  isAnimationActive={false} 
                 />
-              )}
-            </ComposedChart>
 
-          </ResponsiveContainer>
+                {showHSP && (
+                  <Line
+                    yAxisId="hsp"
+                    type="monotone"
+                    dataKey="hsp"
+                    stroke="#f59e0b"
+                    strokeWidth={2.5}
+                    dot={{ r: 2, fill: '#f59e0b', strokeWidth: 0 }}
+                    isAnimationActive={false}
+                  />
+                )}
+                {showTemp && (
+                  <Line
+                    yAxisId="temp"
+                    type="monotone"
+                    dataKey="temp"
+                    stroke="#f43f5e"
+                    strokeWidth={2}
+                    strokeDasharray="4 2"
+                    dot={false}
+                    isAnimationActive={false}
+                  />
+                )}
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
         )}
       </div>
 

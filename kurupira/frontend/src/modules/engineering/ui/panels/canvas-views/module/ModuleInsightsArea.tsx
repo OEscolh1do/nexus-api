@@ -262,44 +262,46 @@ export const ModuleInsightsArea: React.FC<ModuleInsightsAreaProps> = ({
                 </p>
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={chartData}>
-                  <defs>
-                    <linearGradient id="genGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#fbbf24" stopOpacity={0.9} />
-                      <stop offset="100%" stopColor="#fbbf24" stopOpacity={0.5} />
-                    </linearGradient>
-                    <linearGradient id="conGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.35} />
-                      <stop offset="100%" stopColor="#38bdf8" stopOpacity={0.1} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="2 2" stroke="#1e293b" vertical={false} />
-                  <XAxis
-                    dataKey="mes"
-                    tick={{ fill: '#475569', fontSize: 11, fontFamily: 'var(--font-mono)', fontWeight: 700 }}
-                    tickLine={false}
-                    axisLine={{ stroke: '#1e293b' }}
-                  />
-                  <YAxis
-                    tick={{ fill: '#475569', fontSize: 11, fontFamily: 'var(--font-mono)' }}
-                    width={50}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(251,191,36,0.03)' }} />
+              <div className="absolute inset-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={chartData}>
+                    <defs>
+                      <linearGradient id="genGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#fbbf24" stopOpacity={0.9} />
+                        <stop offset="100%" stopColor="#fbbf24" stopOpacity={0.5} />
+                      </linearGradient>
+                      <linearGradient id="conGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.35} />
+                        <stop offset="100%" stopColor="#38bdf8" stopOpacity={0.1} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="2 2" stroke="#1e293b" vertical={false} />
+                    <XAxis
+                      dataKey="mes"
+                      tick={{ fill: '#475569', fontSize: 11, fontFamily: 'var(--font-mono)', fontWeight: 700 }}
+                      tickLine={false}
+                      axisLine={{ stroke: '#1e293b' }}
+                    />
+                    <YAxis
+                      tick={{ fill: '#475569', fontSize: 11, fontFamily: 'var(--font-mono)' }}
+                      width={50}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(251,191,36,0.03)' }} />
 
-                  {/* Consumo (atrás) */}
-                  <Bar dataKey="consumo" fill="url(#conGrad)" radius={0} isAnimationActive={false} />
-                  {/* Geração (frente) */}
-                  <Bar dataKey="geracao" fill="url(#genGrad)" radius={0} isAnimationActive={false} />
+                    {/* Consumo (atrás) */}
+                    <Bar dataKey="consumo" fill="url(#conGrad)" radius={0} isAnimationActive={false} />
+                    {/* Geração (frente) */}
+                    <Bar dataKey="geracao" fill="url(#genGrad)" radius={0} isAnimationActive={false} />
 
-                  {/* Linha de média de geração */}
-                  <ReferenceLine y={avgMonthlyGeneration} stroke="#fbbf24" strokeDasharray="3 3" strokeOpacity={0.3} />
-                  {/* Linha de média de consumo */}
-                  <ReferenceLine y={avgMonthlyConsumption} stroke="#38bdf8" strokeDasharray="3 3" strokeOpacity={0.2} />
-                </ComposedChart>
-              </ResponsiveContainer>
+                    {/* Linha de média de geração */}
+                    <ReferenceLine y={avgMonthlyGeneration} stroke="#fbbf24" strokeDasharray="3 3" strokeOpacity={0.3} />
+                    {/* Linha de média de consumo */}
+                    <ReferenceLine y={avgMonthlyConsumption} stroke="#38bdf8" strokeDasharray="3 3" strokeOpacity={0.2} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
             )}
           </div>
 

@@ -61,14 +61,54 @@ Em telas de engenharia complexas (ex: Consumption View), os inputs numéricos co
 Implementar o padrão de **Deferred Store Sync** (Sincronização Adiada do Store):
 
 1. **Estado Local de Buffer:** Utilize um `useState<string>` local para controlar o valor do input como texto puro. Isso permite que o campo fique vazio (`''`) enquanto o usuário edita.
-2. **Sincronização Unidirecional (Store -> Local):** Sincronize o estado local com o valor do store apenas no `useEffect` de montagem ou quando a entidade ativa mudar (ex: mudar de Unidade Consumidora).
+2. **Proteção de Foco (Focus Guard):** Utilize um `useRef` (ex: `isFocused`) para monitorar o foco do input. O `useEffect` que sincroniza o Store para o Local State deve ser interrompido se `isFocused.current` for verdadeiro. Isso evita que o valor no store "atropele" a digitação do usuário.
 3. **Escrita Condicional (Local -> Store):**
    - **Live Update:** Atualize o store em tempo real apenas se a alteração for trivial e não disparar efeitos bloqueantes.
    - **Deferred Sync (onBlur / Enter):** Se a alteração exigir confirmação do usuário ou for pesada, execute a atualização do store global apenas no evento `onBlur` ou ao pressionar `Enter`.
 4. **Tratamento de Vazio:** Trate o valor vazio (`''`) no local state como `0` ou `null` apenas no momento de enviar para o store, nunca durante a digitação.
 
 #### Regra de Ouro
-> "Se um input numérico vinculado a um store global dispara efeitos colaterais ou validações complexas, use um buffer local (`useState`) e sincronize apenas no término da edição (`onBlur`), para garantir fluidez e evitar disparos falsos."
+> "Se um input numérico vinculado a um store global dispara efeitos colaterais ou possui sincronização bidirecional, use um buffer local (`useState`) com proteção de foco (`useRef`), e sincronize apenas no término da edição (`onBlur`), para evitar o travamento ('locking') do campo."
+
+---
+
+## 6. Validação e Robustez de API (API Robustness)
+
+### 6.1. Integridade de Schemas Zod e Erros Crípticos
+**Data:** 06/05/2026
+**Módulo:** Kurupira Backend (Middleware de Validação)
+
+#### O Problema
+Edições manuais rápidas em schemas complexos de validação (ex: Zod) podem corromper a estrutura do objeto (nesting incorreto, referências a variáveis indefinidas). Isso resulta em erros crípticos no middleware como `Cannot read properties of undefined (reading '_zod')`, que derrubam o processo ou retornam `500` sem explicação clara, mascarando o fato de que o próprio schema de validação está quebrado, e não os dados enviados.
+
+#### A Solução (Padrão Adotado)
+1.  **Try/Catch no Middleware:** O middleware de validação deve envolver o `safeParse` em um bloco `try/catch` e logar falhas estruturais do schema separadamente de falhas de dados.
+2.  **Schema Check:** Antes de validar, verifique se o objeto do schema está definido.
+3.  **Sanitização de Erros em Produção:** Use uma função `safeError` para garantir que detalhes da pilha de erro (stack trace) não vazem para o cliente em produção, mas forneça logs ricos no servidor.
+
+#### Regra de Ouro
+> "Se a validação falhar com um erro interno da biblioteca (ex: '_zod' is undefined), o problema está na definição do seu schema (código), não no payload do usuário. Proteja seu middleware com try/catch para não derrubar o servidor por erro de sintaxe no schema."
+
+---
+
+## 7. Estabilidade de Renderização Geoespacial (Geospatial Stability)
+
+### 7.1. Prevenção de Crashes por Coordenadas Inválidas (NaN)
+**Data:** 06/05/2026
+**Módulo:** Kurupira Frontend (Leaflet / Google Maps)
+
+#### O Problema
+Dados corrompidos no banco (latitude/longitude como `NaN` ou strings inválidas) ou cálculos matemáticos que resultam em `NaN` no frontend causam crashes fatais em bibliotecas de mapa. Métodos como `map.flyTo([lat, lng])` lançam exceções imediatas se os valores não forem números finitos, impedindo a renderização do componente e travando a interface de engenharia.
+
+#### A Solução (Padrão Adotado)
+Implementar **Sanitização de Duplo Fator (Double-Factor Sanitization)**:
+
+1.  **Sanitização na Persistência:** No serviço de salvamento (ex: `ProjectService`), valide se as coordenadas são números finitos (`!isNaN`) antes de enviar ao backend. Converta valores inválidos para `null` explicitamente.
+2.  **Guarda no Viewport (Consumer-Side Guard):** Nos componentes que interagem com o mapa, adicione verificações rigorosas de `isNaN`, `null` e `undefined` antes de chamar qualquer método da API de mapa (FlyTo, Marker placement).
+3.  **Fallback de Coordenadas:** Sempre defina coordenadas de fallback seguras (ex: Centro da Cidade ou [0,0]) se o valor do store for inválido, mas prefira apenas ignorar o comando de movimento para evitar saltos bruscos no mapa.
+
+#### Regra de Ouro
+> "Nunca assuma que uma coordenada vinda do banco ou do store é um número válido. Verifique `isNaN` e `null` antes de qualquer interação com APIs de Mapa para evitar que um dado corrompido 'mate' o frontend da aplicação."
 
 ---
 

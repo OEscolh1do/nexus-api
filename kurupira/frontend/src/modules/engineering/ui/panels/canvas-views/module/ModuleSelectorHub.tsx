@@ -189,11 +189,18 @@ export const ModuleSelectorHub: React.FC<ModuleSelectorHubProps> = ({
           {arrayChips.map(chip => {
             const isActive = chip.id === activeChipId;
             return (
-              <button
+              <div
                 key={chip.id}
                 onClick={() => onChipSelect(chip.id)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    onChipSelect(chip.id);
+                  }
+                }}
                 className={cn(
-                  "flex items-center gap-2 px-3 py-1.5 border rounded-sm transition-all shrink-0 group/chip",
+                  "flex items-center gap-2 px-3 py-1.5 border rounded-sm transition-all shrink-0 group/chip cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-amber-500",
                   isActive
                     ? "bg-amber-950/30 border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.1)]"
                     : "bg-slate-900/60 border-slate-800 hover:border-slate-700"
@@ -238,7 +245,7 @@ export const ModuleSelectorHub: React.FC<ModuleSelectorHubProps> = ({
                 >
                   <X size={10} strokeWidth={3} />
                 </button>
-              </button>
+              </div>
             );
           })}
         </div>
