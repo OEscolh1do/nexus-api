@@ -11,9 +11,22 @@ export interface ModuleEquipment {
   isActive: boolean;
   createdAt?: string;
   efficiency?: number;
-  noct?: number;
   dimensions?: string;
   weight?: number;
+  depth?: number;
+  datasheet?: string;
+  imageUrl?: string;
+  unifilarSymbolRef?: string;
+
+  // -- Engineering PV Specs (v3.7) --
+  bifacial?: boolean;
+  bifacialityFactor?: number;
+  cellSizeClass?: string;
+  degradacaoAnual?: number;
+  noct?: number;
+  tempCoeffPmax?: number;
+  tempCoeffVoc?: number;
+
   // Parâmetros técnicos vindos de `electricalData` (JSON):
   electricalData?: {
     voc?: number;
@@ -36,10 +49,6 @@ export interface ModuleEquipment {
     bankability?: 'BANKABLE' | 'ACCEPTABLE' | 'UNRELIABLE';
     [key: string]: unknown;
   };
-  // Campos diretos do schema (colunas dedicadas no Prisma):
-  tempCoeffPmax?: number;
-  tempCoeffVoc?: number;
-  // weight e dimensions também são colunas diretas (já declarados acima)
 }
 
 export interface InverterEquipment {
@@ -55,6 +64,18 @@ export interface InverterEquipment {
   width?: number;
   depth?: number;
   weight?: number;
+  datasheet?: string;
+  imageUrl?: string;
+  unifilarSymbolRef?: string;
+
+  // -- Engineering PV Specs (v3.7) --
+  Voc_max_hardware?: number;
+  Isc_max_hardware?: number;
+  coolingType?: string;
+  afci?: boolean;
+  rsd?: boolean;
+  portaria515Compliant?: boolean;
+
   // Parâmetros técnicos vindos de `electricalData` (JSON):
   electricalData?: {
     phase?: string;          // 'Monofásico' | 'Trifásico'

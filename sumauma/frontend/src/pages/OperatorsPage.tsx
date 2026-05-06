@@ -11,6 +11,8 @@ interface Operator {
   status: 'ACTIVE' | 'BLOCKED';
   jobTitle: string | null;
   createdAt: string;
+  lastLoginAt: string | null;
+  authProviderId: string | null;
 }
 
 const fetcher = (url: string) => api.get(url).then(res => res.data);
@@ -113,6 +115,9 @@ export default function OperatorsPage() {
                 <th className="px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-slate-500 w-[120px]">
                   Desde
                 </th>
+                <th className="px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-slate-500 w-[140px]">
+                  Último Acesso
+                </th>
                 <th className="px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-slate-500 w-[100px]">
                   Ações
                 </th>
@@ -161,7 +166,12 @@ export default function OperatorsPage() {
                       </div>
                       <div>
                         <p className="text-xs font-medium text-slate-200">{op.fullName}</p>
-                        <p className="text-[10px] font-mono text-slate-500">{op.username}</p>
+                        <div className="flex flex-col gap-0.5">
+                          <p className="text-[10px] font-mono text-slate-500">{op.username}</p>
+                          {op.authProviderId && (
+                            <p className="text-[9px] font-mono text-slate-600">ID: {op.authProviderId}</p>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </td>
@@ -187,6 +197,20 @@ export default function OperatorsPage() {
                   {/* Data */}
                   <td className="px-4 py-3 font-tabular text-[11px] text-slate-500">
                     {new Date(op.createdAt).toLocaleDateString('pt-BR')}
+                  </td>
+
+                  {/* Último Login */}
+                  <td className="px-4 py-3 font-tabular text-[11px] text-slate-500">
+                    {op.lastLoginAt ? (
+                      <span className="text-slate-300">
+                        {new Date(op.lastLoginAt).toLocaleDateString('pt-BR')}
+                        <span className="ml-1 opacity-50">
+                          {new Date(op.lastLoginAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="text-slate-600 italic">Nunca</span>
+                    )}
                   </td>
 
                   {/* Ações */}

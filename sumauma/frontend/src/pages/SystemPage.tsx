@@ -7,7 +7,7 @@ import CronJobsTable from '@/components/system/CronJobsTable';
 import ApiUsageTable from '@/components/system/ApiUsageTable';
 
 export default function SystemPage() {
-  const { health, info, jobs, apiUsage, loading, refresh } = useSystemHealth();
+  const { health, info, jobs, sessions, apiUsage, loading, refresh, revokeSession } = useSystemHealth();
 
   const formatUptime = (seconds: number) => {
     const days = Math.floor(seconds / (24 * 3600));
@@ -47,7 +47,7 @@ export default function SystemPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <SessionsTable />
+          <SessionsTable sessions={sessions} onRevoke={revokeSession} loading={loading} />
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <CronJobsTable jobs={jobs} />

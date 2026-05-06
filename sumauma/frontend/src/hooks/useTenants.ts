@@ -19,8 +19,9 @@ export interface Tenant {
   apiMonthlyQuota: number;
   apiCurrentUsage: number;
   ssoProvider: string | null;
+  ssoDomain: string | null;
   ssoEnforced: boolean;
-  status?: 'ACTIVE' | 'BLOCKED' | 'SUSPENDED';
+  status: 'ACTIVE' | 'BLOCKED' | 'SUSPENDED' | 'TRIAL_EXPIRED';
   createdAt: string;
   _count: { users: number; auditLogs: number };
 }

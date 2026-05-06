@@ -1,6 +1,10 @@
 ---
 name: bff-backoffice
-description: Especialista na arquitetura BFF (Backend for Frontend) do Sumaúma. Ative ao implementar rotas do Admin BFF, configurar o cliente M2M OAuth2 (Logto) para Kurupira, criar Prisma Clients multi-schema (db_sumauma escrita + db_iaca_RO + db_kurupira_RO leitura), ou implementar a camada de autenticação PLATFORM_ADMIN via Logto JWKS. Cobre o padrão Híbrido Pragmático: leitura direta + escrita via M2M Bearer.
+description: >
+  Especialista na arquitetura BFF (Backend for Frontend) do Sumaúma. Ative ao implementar rotas do Admin BFF,
+  configurar o cliente M2M OAuth2 (Logto) para Kurupira, criar Prisma Clients multi-schema (db_sumauma escrita +
+  db_iaca_RO + db_kurupira_RO leitura), ou implementar a camada de autenticação PLATFORM_ADMIN via Logto JWKS.
+  Cobre o padrão Híbrido Pragmático: leitura direta + escrita via M2M Bearer.
 ---
 
 # Skill: BFF Backoffice

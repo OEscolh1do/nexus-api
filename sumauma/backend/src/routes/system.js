@@ -117,16 +117,19 @@ router.get('/sessions', async (req, res) => {
       where: { expiresAt: { gt: now } },
       take: 100,
       orderBy: { createdAt: 'desc' },
-      // include: { user: ... } - Removido pois a relação não existe no schema atual
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            tenant: { select: { id: true, name: true } },
+          },
+        },
+      },
     });
 
-    const enriched = sessions.map(s => ({
-      ...s,
-      user: null, // Sem relação no schema, não é possível buscar via include
-      tenant: null
-    }));
-
-    res.json({ data: enriched });
+    res.json({ data: sessions });
   } catch (error) {
     logger.error('Erro ao listar sessões', { err: error.message });
     res.json({ data: [] }); // Silencioso para não quebrar UI

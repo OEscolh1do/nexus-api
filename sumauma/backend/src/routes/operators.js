@@ -21,6 +21,8 @@ router.get('/', async (req, res) => {
         createdAt: true,
         updatedAt: true,
         jobTitle: true,
+        lastLoginAt: true,
+        authProviderId: true,
       },
       orderBy: { createdAt: 'asc' },
     });

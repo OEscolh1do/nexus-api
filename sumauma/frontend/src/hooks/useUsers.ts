@@ -29,6 +29,7 @@ export interface User {
   createdAt: string;
   updatedAt: string;
   lastLoginAt?: string | null;
+  authProviderId?: string | null;
   status: string;
   tenant: UserTenant;
 }

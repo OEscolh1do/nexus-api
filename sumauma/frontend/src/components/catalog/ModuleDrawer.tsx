@@ -102,9 +102,13 @@ export default function ModuleDrawer({ moduleEquipment: m, onClose, onMutated }:
               <div className="flex-1 min-w-0">
                 <h2 className="text-lg font-bold text-white tracking-tight leading-tight">{m.model}</h2>
                 <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.1em] text-slate-500">{m.manufacturer}</p>
-              </div>
-              <div className="flex flex-col items-end gap-2">
+                         <div className="flex flex-col items-end gap-2">
                 <TenantStatusBadge status={m.isActive ? 'ACTIVE' : 'BLOCKED'} />
+                {m.bifacial && (
+                  <div className="rounded-sm bg-sky-500/10 px-2 py-1 text-[10px] font-bold tracking-wider text-sky-400 border border-sky-500/20">
+                    BIFACIAL
+                  </div>
+                )}
                 {ed?.bankability && (
                   <div className={`flex items-center gap-1.5 rounded-sm px-2 py-1 text-[10px] font-bold tracking-wider border ${
                     ed.bankability === 'BANKABLE'   ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
@@ -113,11 +117,11 @@ export default function ModuleDrawer({ moduleEquipment: m, onClose, onMutated }:
                   }`}>
                     {ed.bankability === 'BANKABLE'   ? <ShieldCheck className="h-3 w-3" /> :
                      ed.bankability === 'ACCEPTABLE' ? <Shield className="h-3 w-3" /> :
-                                                       <ShieldAlert className="h-3 w-3" />}
+                                                        <ShieldAlert className="h-3 w-3" />}
                     {ed.bankability}
                   </div>
                 )}
-              </div>
+              </div>    </div>
             </div>
           </section>
 
@@ -156,7 +160,7 @@ export default function ModuleDrawer({ moduleEquipment: m, onClose, onMutated }:
                   />
                 ) : (
                   <span className="text-[11px] font-mono text-slate-200 tabular-nums">
-                    {m.dimensions || '—'}{ed?.depth ? ` x ${ed.depth} m` : ''}
+                    {m.dimensions || '—'}{ (m.depth || ed?.depth) ? ` x ${m.depth || ed?.depth} m` : ''}
                   </span>
                 )}
               </div>
@@ -181,6 +185,7 @@ export default function ModuleDrawer({ moduleEquipment: m, onClose, onMutated }:
                 <span className="text-[11px] text-slate-400">Arranjo Células</span>
                 <span className="text-[11px] font-mono text-slate-200 tabular-nums">
                   {ed?.nCelS && ed?.nCelP ? `${ed.nCelS} série x ${ed.nCelP} paral.` : ed?.nCelS || '—'}
+                  {m.cellSizeClass ? ` (${m.cellSizeClass})` : ''}
                 </span>
               </div>
             </div>
@@ -330,13 +335,21 @@ export default function ModuleDrawer({ moduleEquipment: m, onClose, onMutated }:
                 <span className="text-[11px] text-slate-400">Resistência Shunt (RShunt)</span>
                 <span className="text-[11px] font-mono text-slate-300 tabular-nums">{formatN(ed?.rShunt, 1)} Ω</span>
               </div>
+              <div className="flex justify-between px-3 py-2.5">
+                <span className="text-[11px] text-slate-400">Símbolo Unifilar</span>
+                <span className="text-[11px] font-mono text-slate-400 italic">{m.unifilarSymbolRef || 'solar-panel-default'}</span>
+              </div>
               <div className="flex justify-between px-3 py-2.5 bg-slate-900/30">
                 <span className="text-[11px] text-slate-400">Tensão Máx. Sistema (IEC)</span>
                 <span className="text-[11px] font-mono text-slate-200 tabular-nums">{ed?.vMaxIEC ? `${ed.vMaxIEC} V` : '—'}</span>
               </div>
+              <div className="flex justify-between px-3 py-2.5">
+                <span className="text-[11px] text-slate-400">Degradação Anual (Calculada)</span>
+                <span className="text-[11px] font-mono text-red-400/80 tabular-nums">{formatP(m.degradacaoAnual)} / ano</span>
+              </div>
               {ed?.lidLoss != null && (
-                <div className="flex justify-between px-3 py-2.5">
-                  <span className="text-[11px] text-slate-400">LID Loss (Degradação)</span>
+                <div className="flex justify-between px-3 py-2.5 bg-slate-900/30">
+                  <span className="text-[11px] text-slate-400">LID Loss (STC)</span>
                   <span className="text-[11px] font-mono text-red-400/80 tabular-nums">{formatN(ed.lidLoss, 2)}%</span>
                 </div>
               )}

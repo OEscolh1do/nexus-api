@@ -1,6 +1,9 @@
 ---
 name: data-integrity-auditor
-description: Auditor de integridade entre DB, Backend e Frontend no ecossistema Ywara. Rastreia a "cadeia da verdade" de uma entidade (ex: InverterCatalog) do schema Prisma até a UI, detectando campos órfãos, hardcoded, renomeados ou ausentes em qualquer camada.
+description: >
+  Auditor de integridade entre DB, Backend e Frontend no ecossistema Ywara. Rastreia a "cadeia da verdade"
+  de uma entidade (ex: InverterCatalog) do schema Prisma até a UI, detectando campos órfãos, hardcoded,
+  renomeados ou ausentes em qualquer camada.
 ---
 
 # Skill: Data Integrity Auditor

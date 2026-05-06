@@ -7,7 +7,6 @@ export interface Permission {
   slug: string;
   description: string | null;
   createdAt: string;
-  updatedAt: string;
 }
 
 export interface PermissionsResponse {

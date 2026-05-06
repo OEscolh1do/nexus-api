@@ -121,4 +121,33 @@ router.patch('/:id', checkPermission('users:write'), async (req, res) => {
   }
 });
 
+// ============================================
+// DELETE /admin/roles/:id — Excluir Perfil
+// ============================================
+router.delete('/:id', checkPermission('users:write'), async (req, res) => {
+  try {
+    const roleId = req.params.id;
+
+    // Verificar se existe algum usuário usando esta role
+    const usersCount = await prismaSumauma.user.count({
+      where: { roleId }
+    });
+
+    if (usersCount > 0) {
+      return res.status(400).json({ 
+        error: `Não é possível excluir este perfil pois ele está associado a ${usersCount} usuário(s).` 
+      });
+    }
+
+    await prismaSumauma.role.delete({
+      where: { id: roleId }
+    });
+
+    res.json({ success: true, message: 'Perfil excluído com sucesso' });
+  } catch (error) {
+    logger.error('Erro ao excluir role', { err: error.message });
+    res.status(500).json({ error: 'Falha ao excluir perfil' });
+  }
+});
+
 module.exports = router;

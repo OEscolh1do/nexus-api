@@ -433,6 +433,11 @@ export default function TenantDrawer({ tenantId, onClose, onMutated }: TenantDra
                     SSO Provider: <span className="text-slate-400">{tenant.ssoProvider}</span>
                   </p>
                 )}
+                {tenant.ssoDomain && (
+                  <p>
+                    Logto Org ID: <span className="font-mono text-[10px] text-slate-400">{tenant.ssoDomain}</span>
+                  </p>
+                )}
               </section>
             </>
           )}

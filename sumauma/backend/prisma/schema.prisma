@@ -76,6 +76,7 @@ model User {
   orgUnit   OrgUnit?   @relation(fields: [orgUnitId], references: [id])
   roleRef   Role?      @relation(fields: [roleId], references: [id])
   auditLogs AuditLog[]
+  sessions  Session[]
 
   @@index([tenantId])
   @@index([roleId])
@@ -125,6 +126,10 @@ model Session {
   token     String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model CronLock {

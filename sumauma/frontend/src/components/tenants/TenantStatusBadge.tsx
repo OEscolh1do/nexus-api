@@ -1,12 +1,13 @@
-import { CheckCircle2, XCircle, ShieldAlert } from 'lucide-react';
+import { CheckCircle2, XCircle, ShieldAlert, Clock } from 'lucide-react';
 
-type TenantStatus = 'ACTIVE' | 'BLOCKED' | 'SUSPENDED';
+type TenantStatus = 'ACTIVE' | 'BLOCKED' | 'SUSPENDED' | 'TRIAL_EXPIRED';
 
 const config: Record<TenantStatus, { label: string; cssClass: string; Icon: React.ElementType }> =
   {
     ACTIVE: { label: 'Ativo', cssClass: 'badge-active', Icon: CheckCircle2 },
     BLOCKED: { label: 'Bloqueado', cssClass: 'badge-blocked', Icon: XCircle },
     SUSPENDED: { label: 'Suspenso', cssClass: 'badge-pending', Icon: ShieldAlert },
+    TRIAL_EXPIRED: { label: 'Trial Expirado', cssClass: 'text-amber-400 bg-amber-500/10 border border-amber-500/20', Icon: Clock },
   };
 
 interface TenantStatusBadgeProps {

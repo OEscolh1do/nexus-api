@@ -1,8 +1,8 @@
 # CONTEXT.md — Ecossistema YWARA (Visão Global)
 
-> **Última Atualização:** 2026-05-04
+> **Última Atualização:** 2026-05-06
 > **Arquiteto:** Antigravity AI
-> **Versão do Ecossistema:** 5.0.0 (O Lançamento — Produção)
+> **Versão do Ecossistema:** 5.1.0 (Auditoria de Integridade & Dados)
 
 ---
 
@@ -92,8 +92,20 @@ iaca/.agent/       ← CAMADA 3: Iaçã (ERP, CRM)
 
 ---
 
+## 🛡️ PROTOCOLO DE INTEGRIDADE (CADEIA DA VERDADE)
+
+Para garantir que os dados fluam sem perdas do Banco até a UI, seguimos 5 níveis de auditoria:
+1. **Level 0 (DB)**: Schema Prisma como fonte da verdade absoluta.
+2. **Level 1 (Serviço)**: Extração e saneamento no backend do domínio (Kurupira/Iaçã).
+3. **Level 2 (API/BFF)**: Seleção, inclusão (`include`/`select`) e auditoria no Sumaúma.
+4. **Level 3 (Hook)**: Tipagem TypeScript estrita e contratos de interface resilientes.
+5. **Level 4 (UI)**: Renderização defensiva com tratamento de fallbacks e objetos `Json`.
+
+---
+
 ## 🔄 CHANGELOG DO ECOSSISTEMA
 
+| v5.1.0 | 2026-05-06 | **Auditoria de Integridade**: Sincronização total Sumaúma-Kurupira, Rastreabilidade de Sessões e Remediação de Catálogo. |
 | v5.0.0 | 2026-05-04 | **O Lançamento**: Deploy oficial em VPS Debian 13 no domínio `neonorte-ywara.tech`. |
 | v4.1.0 | 2026-05-02 | **Infra Otimizada**: Migração para Logto Cloud, Tuning de MySQL (256MB) e suporte a VPS 2GB |
 | v4.0.0 | 2026-05-01 | **A Era Ywara**: Rebranding completo e renomeação de pastas (Hub -> Ywara, Admin -> Sumaúma) |

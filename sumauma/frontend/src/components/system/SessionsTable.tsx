@@ -1,49 +1,28 @@
-import { useState, useEffect } from 'react';
-import api from '@/lib/api';
+import { useState } from 'react';
 import { User, Building2, ShieldX, Loader2 } from 'lucide-react';
+import { Session } from '@/hooks/useSystemHealth';
 
-interface Session {
-  id: string;
-  userId: string;
-  expiresAt: string;
-  createdAt: string;
-  user: { username: string; fullName: string } | null;
-  tenant: { name: string } | null;
+interface SessionsTableProps {
+  sessions: Session[];
+  onRevoke: (id: string) => Promise<void>;
+  loading: boolean;
 }
 
-export default function SessionsTable() {
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function SessionsTable({ sessions, onRevoke, loading }: SessionsTableProps) {
   const [revokingId, setRevokingId] = useState<string | null>(null);
-
-  const fetchSessions = async () => {
-    try {
-      const response = await api.get('/system/sessions');
-      setSessions(response.data.data);
-    } catch (err) {
-      console.error('Falha ao buscar sessões');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleRevoke = async (id: string) => {
     if (!confirm('Tem certeza que deseja revogar esta sessão? O usuário será deslogado imediatamente.')) return;
     
     setRevokingId(id);
     try {
-      await api.delete(`/system/sessions/${id}`);
-      setSessions(prev => prev.filter(s => s.id !== id));
+      await onRevoke(id);
     } catch (err) {
       alert('Erro ao revogar sessão');
     } finally {
       setRevokingId(null);
     }
   };
-
-  useEffect(() => {
-    fetchSessions();
-  }, []);
 
   if (loading) {
     return (
@@ -95,7 +74,7 @@ export default function SessionsTable() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5 text-xs text-slate-400">
                       <Building2 className="h-3 w-3" />
-                      {session.tenant?.name || 'Global'}
+                      {session.user?.tenant?.name || 'Global'}
                     </div>
                   </td>
                   <td className="px-4 py-3 text-[10px] font-mono text-slate-500">

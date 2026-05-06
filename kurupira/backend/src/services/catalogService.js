@@ -130,9 +130,20 @@ function extractModuleData(parsed, filename) {
     dimensions,
     weight,
     depth: electricalBase.depth,
-    datasheet: null,
+    datasheet: core.Datasheet || core.datasheet || null,
+    imageUrl: core.ImageUrl || core.imageUrl || null,
     isActive: true,
-    unifilarSymbolRef: "solar-panel-default",
+    unifilarSymbolRef: core.unifilarSymbolRef || "solar-panel-default",
+    
+    // -- Engineering PV Specs (v3.7) --
+    bifacial: !!(core.Bifacial || core.bifacial),
+    bifacialityFactor: Number(core.BifacialityFactor || electricalBase.bifacialityFactor) || null,
+    cellSizeClass: (core.CellSizeClass || core.cellSizeClass || '').toString() || null,
+    noct: Number(core.NOCT || parsed.NOCT || core.Tnom || parsed.Tnom || core.T_NOCT || parsed.T_NOCT) || null,
+    tempCoeffPmax: tempCoeffPmax || null,
+    tempCoeffVoc: tempCoeffVoc || null,
+    degradacaoAnual: Number(core.YearDegradation || core.LIDLoss || 0.5) / 100 || 0.005, // Default 0.5% se não encontrar
+
     electricalData: {
       ...electricalBase,
       tempCoeffVoc,
@@ -141,10 +152,6 @@ function extractModuleData(parsed, filename) {
       validation: validation.results,
       bankability: validation.bankability,
     },
-    tempCoeffPmax: tempCoeffPmax || null,
-    tempCoeffVoc: tempCoeffVoc || null,
-    noct: Number(core.NOCT || parsed.NOCT || core.Tnom || parsed.Tnom || core.T_NOCT || parsed.T_NOCT) || null,
-
   };
 }
 
@@ -306,9 +313,19 @@ function extractInverterData(parsed, filename) {
     height,
     depth,
     weight,
-    datasheet: null,
+    datasheet: core.Datasheet || core.datasheet || null,
+    imageUrl: core.ImageUrl || core.imageUrl || null,
     isActive: true,
-    unifilarSymbolRef: 'inverter-default',
+    unifilarSymbolRef: core.unifilarSymbolRef || 'inverter-default',
+
+    // -- Engineering PV Specs (v3.7) --
+    Voc_max_hardware:     Number(conv.VAbsMax ?? conv.Vabsmax ?? core.VAbsMax ?? core.Voc_max_hardware) || maxInputV,
+    Isc_max_hardware:     Number(conv.IMaxDC ?? conv.IDCMax ?? core.Isc_max_hardware) || iMaxDC,
+    coolingType:          (core.CoolingType || core.coolingType || 'passive').toString(),
+    afci:                 !!(core.AFCI || core.afci || true),
+    rsd:                  !!(core.RSD || core.rsd || false),
+    portaria515Compliant: !!(core.Portaria515 || core.portaria515Compliant || false),
+
     electricalData: {
       ...normalizedCore,
       phase,

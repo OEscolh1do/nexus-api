@@ -1,36 +1,42 @@
 
 
 interface DiffViewerProps {
-  before: string | null;
-  after: string | null;
+  before: any;
+  after: any;
 }
 
 export default function DiffViewer({ before, after }: DiffViewerProps) {
-  const sanitize = (jsonStr: string | null) => {
-    if (!jsonStr) return null;
-    try {
-      const obj = JSON.parse(jsonStr);
-      const sensitiveKeys = ['password', 'token', 'secret', 'key'];
-      
-      const clean = (data: any): any => {
-        if (typeof data !== 'object' || data === null) return data;
-        if (Array.isArray(data)) return data.map(clean);
-        
-        const newObj: any = {};
-        for (const key in data) {
-          if (sensitiveKeys.some(sk => key.toLowerCase().includes(sk))) {
-            newObj[key] = '********';
-          } else {
-            newObj[key] = clean(data[key]);
-          }
-        }
-        return newObj;
-      };
-
-      return JSON.stringify(clean(obj), null, 2);
-    } catch (e) {
-      return jsonStr;
+  const sanitize = (data: any) => {
+    if (!data) return null;
+    
+    // Se vier como string (fallback), tenta parsear, senão usa o objeto
+    let obj = data;
+    if (typeof data === 'string') {
+      try {
+        obj = JSON.parse(data);
+      } catch (e) {
+        return data;
+      }
     }
+
+    const sensitiveKeys = ['password', 'token', 'secret', 'key'];
+    
+    const clean = (val: any): any => {
+      if (typeof val !== 'object' || val === null) return val;
+      if (Array.isArray(val)) return val.map(clean);
+      
+      const newObj: any = {};
+      for (const key in val) {
+        if (sensitiveKeys.some(sk => key.toLowerCase().includes(sk))) {
+          newObj[key] = '********';
+        } else {
+          newObj[key] = clean(val[key]);
+        }
+      }
+      return newObj;
+    };
+
+    return JSON.stringify(clean(obj), null, 2);
   };
 
   const beforeClean = sanitize(before);

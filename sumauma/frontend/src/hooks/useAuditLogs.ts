@@ -8,8 +8,8 @@ export interface AuditLog {
   entity: string | null;
   resourceId: string;
   details: string | null;
-  before: string | null;
-  after: string | null;
+  before: any;
+  after: any;
   ipAddress: string | null;
   userAgent: string | null;
   user: { id: string; username: string; fullName: string };

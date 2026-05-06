@@ -28,6 +28,19 @@ export interface CronJob {
   expiresAt: string;
 }
 
+export interface Session {
+  id: string;
+  userId: string;
+  expiresAt: string;
+  createdAt: string;
+  user: {
+    id: string;
+    username: string;
+    fullName: string;
+    tenant: { id: string; name: string };
+  } | null;
+}
+
 export interface ApiUsageInfo {
   id: string;
   name: string;
@@ -40,6 +53,7 @@ export function useSystemHealth() {
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [info, setInfo] = useState<SystemInfo | null>(null);
   const [jobs, setJobs] = useState<CronJob[]>([]);
+  const [sessions, setSessions] = useState<Session[]>([]);
   const [apiUsage, setApiUsage] = useState<ApiUsageInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -85,11 +99,30 @@ export function useSystemHealth() {
     }
   }, []);
 
+  const fetchSessions = useCallback(async () => {
+    try {
+      const response = await api.get('/system/sessions');
+      setSessions(response.data.data);
+    } catch (err) {
+      console.error('Falha ao obter sessões');
+    }
+  }, []);
+
+  const revokeSession = useCallback(async (id: string) => {
+    try {
+      await api.delete(`/system/sessions/${id}`);
+      setSessions(prev => prev.filter(s => s.id !== id));
+    } catch (err) {
+      console.error('Erro ao revogar sessão');
+      throw err;
+    }
+  }, []);
+
   const refresh = useCallback(async (isInitial = false) => {
     if (isInitial) setLoading(true);
-    await Promise.all([fetchHealth(), fetchInfo(), fetchJobs(), fetchApiUsage()]);
+    await Promise.all([fetchHealth(), fetchInfo(), fetchJobs(), fetchApiUsage(), fetchSessions()]);
     setLoading(false);
-  }, [fetchHealth, fetchInfo, fetchJobs, fetchApiUsage]);
+  }, [fetchHealth, fetchInfo, fetchJobs, fetchApiUsage, fetchSessions]);
 
   useEffect(() => {
     refresh(true);
@@ -97,5 +130,5 @@ export function useSystemHealth() {
     return () => clearInterval(interval);
   }, [refresh]);
 
-  return { health, info, jobs, apiUsage, loading, error, refresh };
+  return { health, info, jobs, sessions, apiUsage, loading, error, refresh, revokeSession };
 }

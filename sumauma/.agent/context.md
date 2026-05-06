@@ -1,8 +1,8 @@
 # CONTEXT.md — Sumaúma (Backoffice do Operador)
 
-> **Última Atualização:** 2026-05-04
+> **Última Atualização:** 2026-05-06
 > **Arquiteto:** Antigravity AI
-> **Versão do Sistema:** 1.6.0 (Era Ywara — Produção & Governança Refinada)
+> **Versão do Sistema:** 1.7.0 (Auditoria & Rastreabilidade Full-Stack)
 
 ---
 
@@ -248,6 +248,13 @@ A exclusão de tenants e usuários era apenas lógica (soft delete) ou inexisten
 
 ---
 
+### Auditoria de Integridade de Dados (Protocolo JSON)
+
+**Data**: 2026-05-06 | **Status**: ✅ Implementado
+- **Tratamento de Json**: Campos `before` e `after` nos AuditLogs são objetos nativos. A UI (`DiffViewer`) deve usar a função `sanitize` para tratar objetos ou strings, evitando crashes de renderização de objetos React.
+- **Rastreabilidade de Sessões**: Modelo `Session` agora vinculado a `User`. O administrador identifica o operador por trás de cada conexão ativa no dashboard de Saúde do Sistema.
+- **Alta Fidelidade no Catálogo**: O Sumaúma expõe 100% dos parâmetros de engenharia do Kurupira (Curvas de Eficiência, Coeficientes Térmicos e Modelos de Diodo).
+
 ---
 
 ## 🚀 INFRAESTRUTURA DE PRODUÇÃO (VPS)
@@ -264,7 +271,14 @@ A exclusão de tenants e usuários era apenas lógica (soft delete) ou inexisten
 
 ## 🔄 CHANGELOG
 
-### v1.6.0 (2026-05-04) — Produção: VPS + UX de Governança
+### v1.7.0 (2026-05-06) — Auditoria & Rastreabilidade
+>
+> - ✅ **Enriched Sessions**: Vinculação DB `Session <-> User` para auditoria de conexões em tempo real.
+> - ✅ **Robust Audit Logs**: Remediação de crash em campos JSON e suporte a objetos nativos via saneamento defensivo.
+> - ✅ **Access Audit**: Exposição de `lastLoginAt` e `authProviderId` na gestão de operadores para rastreabilidade de acessos.
+> - ✅ **Role Management**: Rota de exclusão segura (com trava de uso) e unificação da listagem leve de Tenants (`GET /options`).
+>
+> ### v1.6.0 (2026-05-04) — Produção: VPS + UX de Governança
 
 - ✅ **Contextual Member Addition**: Implementado botão "Adicionar Membro" no `TenantDrawer`, permitindo criação de usuários já vinculados à organização com Poka-Yoke de assentos (seats).
 - ✅ **Role Selection UX**: Refatorado o formulário de criação de usuário para incluir seletor explícito de Role (`ADMIN` vs `ENGINEER`) com badges semânticas.
@@ -286,7 +300,7 @@ A exclusão de tenants e usuários era apenas lógica (soft delete) ou inexisten
 
 | Item | Prioridade | Notas |
 |------|-----------|-------|
-| **Monitoramento de Churn** | Média | Implementar alertas de quota > 95% e auditoria de usuários inativos (Last Login). |
+| **Monitoramento de Churn** | Média | Implementar alertas de quota > 95%. (Auditoria de usuários inativos concluída em v1.7.0). |
 | Remover `M2M_SERVICE_TOKEN` | Alta | Após smoke test confirmar Bearer nos logs de ambos os serviços |
 | Testes unitários `catalogService.js` | Média | Parser PAN/OND tem maior complexidade ciclomática do projeto |
 | Secrets manager em produção | Alta | `LOGTO_M2M_CLIENT_SECRET`, `JWT_SECRET` e senhas de DB devem sair do `.env` plano |

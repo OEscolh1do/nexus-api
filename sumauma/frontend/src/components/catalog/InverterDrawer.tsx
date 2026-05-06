@@ -96,6 +96,23 @@ export default function InverterDrawer({ inverterEquipment: m, onClose, onMutate
               </div>
               <div className="flex flex-col items-end gap-1.5">
                 <TenantStatusBadge status={m.isActive ? 'ACTIVE' : 'BLOCKED'} />
+                <div className="flex flex-wrap justify-end gap-1">
+                  {m.afci && (
+                    <div className="rounded-sm bg-indigo-500/10 px-1.5 py-0.5 text-[9px] font-bold text-indigo-400 border border-indigo-500/20">
+                      AFCI
+                    </div>
+                  )}
+                  {m.rsd && (
+                    <div className="rounded-sm bg-orange-500/10 px-1.5 py-0.5 text-[9px] font-bold text-orange-400 border border-orange-500/20">
+                      RSD
+                    </div>
+                  )}
+                  {m.portaria515Compliant && (
+                    <div className="rounded-sm bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-bold text-emerald-400 border border-emerald-500/20">
+                      INMETRO 515
+                    </div>
+                  )}
+                </div>
                 {ed?.bankability && (
                   <div className={`flex items-center gap-1 rounded-sm px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
                     ed.bankability === 'BANKABLE'    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
@@ -104,7 +121,7 @@ export default function InverterDrawer({ inverterEquipment: m, onClose, onMutate
                   }`}>
                     {ed.bankability === 'BANKABLE'   ? <ShieldCheck className="h-2.5 w-2.5" /> :
                      ed.bankability === 'ACCEPTABLE' ? <AlertTriangle className="h-2.5 w-2.5" /> :
-                                                       <ShieldAlert className="h-2.5 w-2.5" />}
+                                                        <ShieldAlert className="h-2.5 w-2.5" />}
                     {ed.bankability}
                   </div>
                 )}
@@ -167,19 +184,19 @@ export default function InverterDrawer({ inverterEquipment: m, onClose, onMutate
                   {ed?.vMinMpp && ed?.vMaxMpp ? `${formatV(ed.vMinMpp)} - ${formatV(ed.vMaxMpp)}` : '—'}
                 </span>
               </div>
-              <div className="flex justify-between px-3 py-2 text-[11px]">
-                <span className="text-slate-500">Tensão Máx. Hardware (Vabsmax)</span>
-                <span className="font-mono font-bold text-red-400">{formatV(m.maxInputV)}</span>
+              <div className="flex justify-between px-3 py-2 text-[11px] bg-red-500/5">
+                <span className="text-slate-500">Tensão Máx. Hardware (Voc)</span>
+                <span className="font-mono font-bold text-red-400">{formatV(m.Voc_max_hardware || m.maxInputV)}</span>
               </div>
               <div className="flex justify-between px-3 py-2 text-[11px]">
-                <span className="text-slate-500">Corrente Máx. (Imax DC)</span>
-                <span className="font-mono text-slate-200">{formatA(ed?.iMaxDC)}</span>
+                <span className="text-slate-500">Corrente Máx. Hardware (Isc)</span>
+                <span className="font-mono text-slate-200">{formatA(m.Isc_max_hardware || ed?.iMaxDC)}</span>
               </div>
               <div className="flex justify-between px-3 py-2 text-[11px]">
                 <span className="text-slate-500">MPPTs / Entradas</span>
                 <span className="font-mono text-slate-200 tracking-widest">{m.mpptCount ?? '—'} / {ed?.nbInputs ?? '—'}</span>
               </div>
-              <div className="flex justify-between px-3 py-2 text-[11px]">
+              <div className="flex justify-between px-3 py-2 text-[11px] bg-slate-900/30">
                 <span className="text-slate-500">Potência CC Nominal / Máx.</span>
                 <span className="font-mono text-slate-200">{formatW(ed?.pNomDCW)} / {formatW(ed?.pMaxDCW)}</span>
               </div>
@@ -225,15 +242,19 @@ export default function InverterDrawer({ inverterEquipment: m, onClose, onMutate
                 <span className="text-slate-500">Eficiência Máxima / Euro</span>
                 <span className="font-mono text-slate-200">{formatEff(m.efficiency)} / {formatEff(ed?.effEuro)}</span>
               </div>
+              <div className="flex justify-between px-3 py-2 text-[11px] bg-slate-900/30">
+                <span className="text-slate-500">Resfriamento / Cooling</span>
+                <span className="font-mono text-slate-200 uppercase tracking-tighter">{m.coolingType || 'Passive'}</span>
+              </div>
               <div className="flex justify-between px-3 py-2 text-[11px]">
                 <span className="text-slate-500">Limiar Ativação (Pthreshold)</span>
                 <span className="font-mono text-amber-400">{ed?.pThreshold ? `${ed.pThreshold.toLocaleString('pt-BR')} W` : '—'}</span>
               </div>
               <div className="flex justify-between px-3 py-2 text-[11px]">
-                <span className="text-slate-500">Consumo Noturno</span>
-                <span className="font-mono text-slate-200">{ed?.nightLoss ? `${ed.nightLoss.toLocaleString('pt-BR')} W` : '—'}</span>
+                <span className="text-slate-500">Símbolo Unifilar</span>
+                <span className="font-mono text-slate-500 italic">{m.unifilarSymbolRef || 'inverter-default'}</span>
               </div>
-              <div className="flex justify-between px-3 py-2 text-[11px]">
+              <div className="flex justify-between px-3 py-2 text-[11px] bg-slate-900/30">
                 <span className="text-slate-500">Derating Térmico (Pnom / Pmax)</span>
                 <span className="font-mono text-slate-200">{ed?.tPNom ?? '—'}°C / {ed?.tPMax ?? '—'}°C</span>
               </div>
