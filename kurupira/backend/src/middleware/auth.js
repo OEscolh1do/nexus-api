@@ -64,7 +64,7 @@ async function verifyToken(token) {
     if (!publicKey) throw new Error('JWKS key não encontrada para kid=' + header.kid);
     return jwt.verify(token, publicKey, { 
       algorithms: ['RS256', 'ES384', 'ES256'],
-      clockTolerance: 30 
+      clockTolerance: 60 
     });
   }
 

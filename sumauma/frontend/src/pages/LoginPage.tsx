@@ -10,6 +10,8 @@ export default function LoginPage() {
   const logto = useLogto();
   const { signIn, isAuthenticated, isLoading, error } = logto;
   const loginStore = useAuthStore((s) => s.login);
+  const [isAuditing, setIsAuditing] = useState(false);
+  const [auditFailed, setAuditFailed] = useState(false);
 
   // Hook específico para processar o callback do Logto
   const { isLoading: isCallbackLoading } = useHandleSignInCallback();
@@ -23,21 +25,32 @@ export default function LoginPage() {
   useEffect(() => {
     const isForceLogout = sessionStorage.getItem('sumauma_force_logout') === 'true';
 
-    // Quebra do loop infinito: se o backend rejeitou o token (401)
+    // 1. Limpeza proativa: Se estamos no login mas não autenticados no Logto,
+    // garantimos que o Zustand não tenha lixo (token expirado) de sessões anteriores.
+    if (!isAuthenticated && !isLoading && !isCallbackLoading && !isForceLogout) {
+      const { token, logout } = useAuthStore.getState();
+      if (token) {
+        console.log('[Login] Limpando sessão zumbi detectada no Zustand.');
+        logout();
+      }
+    }
+
+    // 2. Quebra do loop infinito: se o backend rejeitou o token (401)
     if (isForceLogout) {
       if (isAuthenticated) {
-        console.warn('[Login] Loop detectado. Forçando logout do Logto para limpar sessão...');
+        console.warn('[Login] Loop detectado ou Audit falhou. Forçando logout do Logto para limpar sessão...');
         logto.signOut(window.location.origin + '/login');
       } else {
         // Usuário já está deslogado do Logto, podemos limpar a flag e permitir novos logins
         sessionStorage.removeItem('sumauma_force_logout');
+        setAuditFailed(false);
       }
       return;
     }
 
-    if (!isAuthenticated || isLoading) return;
+    if (!isAuthenticated || isLoading || isAuditing || auditFailed) return;
 
-    // Quando o Logto completar o fluxo de retorno, extraímos o Token e os claims
+    // 3. Sucesso no login: extraímos o Token e os claims
     Promise.all([logto.getIdToken(), logto.getIdTokenClaims()]).then(([rawIdToken, claims]) => {
       if (!claims || !rawIdToken) return;
 
@@ -48,23 +61,31 @@ export default function LoginPage() {
         role: (claims.role as string) || 'PLATFORM_ADMIN',
       };
 
-      // Passamos o JWT real do Logto para o AuthStore
+      // Atualizamos o store global IMEDIATAMENTE
       loginStore(rawIdToken, operator);
 
       // Notificar o backend sobre o login via SSO para auditoria
+      // Passamos o token explicitamente no header para que o interceptor ignore lixos eventuais no store
+      setIsAuditing(true);
       api.post('/auth/audit-login', {}, {
         headers: { Authorization: `Bearer ${rawIdToken}` }
+      }).then(() => {
+        setIsAuditing(false);
+        navigate('/');
       }).catch(err => {
-        if (err.message === 'Sessão expirada') {
-          console.warn('[Login] Auditoria ignorada: Sessão expirada no interceptor (provável refresh/race condition)');
+        setIsAuditing(false);
+        setAuditFailed(true);
+        const errorMsg = err.response?.data?.error || err.message;
+        const details = err.response?.data?.details || '';
+        
+        if (errorMsg.includes('expirado')) {
+          console.warn(`[Login] Auditoria rejeitada: Token expirado. Detalhes: ${details}`);
         } else {
-          console.warn('Falha ao auditar login SSO', err);
+          console.warn('Falha ao auditar login SSO', errorMsg, details);
         }
       });
-
-      navigate('/');
     });
-  }, [isAuthenticated, isLoading, logto, loginStore, navigate]);
+  }, [isAuthenticated, isLoading, isCallbackLoading, logto, loginStore, navigate]);
 
   const handleLogtoClick = () => {
     signIn(`${window.location.origin}/login`);

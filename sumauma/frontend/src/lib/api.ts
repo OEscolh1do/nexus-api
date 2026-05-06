@@ -39,16 +39,22 @@ function isTokenExpiredOrExpiringSoon(token: string, marginSeconds = 60): boolea
 api.interceptors.request.use((config) => {
   const { token, logout } = useAuthStore.getState();
   
+  // Se a requisição já traz seu próprio Authorization (ex: no LoginPage), confiamos nela
+  if (config.headers.Authorization) {
+    return config;
+  }
+
   if (token) {
     if (isTokenExpiredOrExpiringSoon(token)) {
       console.warn('[API] Token expirado detectado no interceptor de request');
       logout();
-      sessionStorage.setItem('sumauma_force_logout', 'true');
       
-      // Só redireciona se não estivermos já na página de login
+      // Só sinaliza "Force Logout" (que limpa o SSO) se NÃO estivermos já na página de login
       if (!window.location.pathname.includes('/login')) {
+        sessionStorage.setItem('sumauma_force_logout', 'true');
         window.location.href = '/login';
       }
+      
       return Promise.reject(new Error('Sessão expirada'));
     }
     config.headers.Authorization = `Bearer ${token}`;
@@ -71,6 +77,9 @@ api.interceptors.response.use(
       
       if (!isM2MError) {
         useAuthStore.getState().logout();
+        
+        // Sempre sinaliza force_logout em 401 para garantir que o SSO seja limpo se necessário.
+        // Isso interrompe loops onde o Logto acha que está logado mas o backend rejeita o token.
         sessionStorage.setItem('sumauma_force_logout', 'true');
         
         if (!window.location.pathname.includes('/login')) {
