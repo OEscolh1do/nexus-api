@@ -51,17 +51,46 @@ export interface InverterEquipment {
   createdAt?: string;
   mpptCount?: number;
   efficiency?: number;
+  height?: number;
+  width?: number;
+  depth?: number;
+  weight?: number;
   // Parâmetros técnicos vindos de `electricalData` (JSON):
   electricalData?: {
     phase?: string;          // 'Monofásico' | 'Trifásico'
-    vAc?: number;
-    minInputV?: number;
-    vMaxMppt?: number;
+    vNom?: number;
+    vNomDC?: number;
+    vAcOut?: number;
+    vMinMpp?: number;
+    vMaxMpp?: number;
     effMax?: number;
+    effEuro?: number;
     fNom?: number;
     pNomDc?: number;
+    pNomDCW?: number;
+    pMaxDCW?: number;
+    pThreshold?: number;
+    iMaxDC?: number;
+    iNomAC?: number;
+    iMaxAC?: number;
+    tPNom?: number;
+    tPMax?: number;
+    tPLim1?: number;
+    tPLimAbs?: number;
+    pLim1W?: number;
+    pLimAbsW?: number;
+    nightLoss?: number;
+    transfo?: string;
+    maxOutputW?: number;
+    nbInputs?: number;
+    nbMppt?: number;
+    width?: number;
+    height?: number;
+    depth?: number;
+    weight?: number;
     validation?: Array<{ status: 'critical' | 'warning' | 'info'; message: string; rule?: string }>;
     bankability?: 'BANKABLE' | 'ACCEPTABLE' | 'UNRELIABLE';
+    efficiencyCurve?: Array<{ power: number; efficiency: number; pOut?: number }>;
     [key: string]: unknown;
   };
   // Campos diretos do schema:

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Cpu, Thermometer, Info, Power, Zap, Edit2, Save, Loader2, Trash2 } from 'lucide-react';
+import { X, Cpu, Thermometer, Info, Zap, Edit2, Save, Loader2, Trash2 } from 'lucide-react';
 import { useToggleEquipment, useDeleteEquipment, type ModuleEquipment } from '@/hooks/useCatalog';
 import { usePatchEquipment } from '@/hooks/usePatchEquipment';
 import TenantStatusBadge from '@/components/tenants/TenantStatusBadge';
@@ -14,11 +14,6 @@ const TECHNOL_LABELS: Record<string, string> = {
   mtHIT:      'HIT / HJT',
   mtTopCon:   'TOPCon',
 };
-
-function fmt(value: number | null | undefined, unit: string, decimals = 3): string {
-  if (value == null || value === 0) return 'N/A';
-  return `${Number(value).toFixed(decimals)} ${unit}`;
-}
 
 interface ModuleDrawerProps {
   moduleEquipment: ModuleEquipment;
@@ -36,15 +31,54 @@ export default function ModuleDrawer({ moduleEquipment: m, onClose, onMutated }:
   const isDeleting = deletingId === m.id;
 
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({ powerWp: m.powerWp, efficiency: m.efficiency || '' });
+  const [formData, setFormData] = useState({ 
+    powerWp: m.powerWp, 
+    efficiency: m.efficiency || '',
+    dimensions: m.dimensions || '',
+    weight: m.weight || ''
+  });
+
   const { mutate: patch, loadingId: patchLoadingId } = usePatchEquipment('/catalog/modules', () => {
     setIsEditing(false);
     if (onMutated) onMutated();
   });
   const isSaving = patchLoadingId === m.id;
 
-  const ed = m.electricalData;
+  // Casting estendido para electricalData (campos PVSyst)
+  const ed = m.electricalData as ModuleEquipment['electricalData'] & {
+    technol?: string;
+    nCelS?: number;
+    nCelP?: number;
+    voc?: number;
+    isc?: number;
+    vmp?: number;
+    imp?: number;
+    vMaxIEC?: number;
+    bifacialityFactor?: number;
+    tempCoeffPmax?: number;
+    tempCoeffVoc?: number;
+    tempCoeffIsc?: number;
+    rSerie?: number;
+    rShunt?: number;
+    lidLoss?: number;
+    depth?: number;
+    iamPoints?: Array<[number, number]>;
+    relEffic?: {
+      g800?: number;
+      g600?: number;
+      g400?: number;
+      g200?: number;
+    };
+  };
+
   const technolLabel = ed?.technol ? (TECHNOL_LABELS[ed.technol] ?? ed.technol) : null;
+
+  // Helpers de Formatação (Padrão Backoffice PT-BR)
+  const formatN = (val: number | undefined | null, dec = 2) => 
+    val != null ? val.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec }) : '—';
+  
+  const formatP = (val: number | undefined | null) => 
+    val != null ? `${(val * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%` : '—';
 
   return (
     <>
@@ -61,25 +95,25 @@ export default function ModuleDrawer({ moduleEquipment: m, onClose, onMutated }:
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
-          {/* Header */}
+        <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
+          {/* 1. Identificação e Comercial */}
           <section>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-base font-semibold text-slate-100">{m.model}</h2>
-                <p className="mt-0.5 font-tabular text-[11px] text-slate-600">{m.manufacturer}</p>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <h2 className="text-lg font-bold text-white tracking-tight leading-tight">{m.model}</h2>
+                <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.1em] text-slate-500">{m.manufacturer}</p>
               </div>
-              <div className="flex flex-col items-end gap-1.5">
+              <div className="flex flex-col items-end gap-2">
                 <TenantStatusBadge status={m.isActive ? 'ACTIVE' : 'BLOCKED'} />
                 {ed?.bankability && (
-                  <div className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
-                    ed.bankability === 'BANKABLE'   ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-                    ed.bankability === 'ACCEPTABLE' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
-                                                      'bg-red-500/10 text-red-400 border border-red-500/20'
+                  <div className={`flex items-center gap-1.5 rounded-sm px-2 py-1 text-[10px] font-bold tracking-wider border ${
+                    ed.bankability === 'BANKABLE'   ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                    ed.bankability === 'ACCEPTABLE' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                                                      'bg-red-500/10 text-red-400 border-red-500/20'
                   }`}>
-                    {ed.bankability === 'BANKABLE'   ? <ShieldCheck className="h-2.5 w-2.5" /> :
-                     ed.bankability === 'ACCEPTABLE' ? <Shield className="h-2.5 w-2.5" /> :
-                                                       <ShieldAlert className="h-2.5 w-2.5" />}
+                    {ed.bankability === 'BANKABLE'   ? <ShieldCheck className="h-3 w-3" /> :
+                     ed.bankability === 'ACCEPTABLE' ? <Shield className="h-3 w-3" /> :
+                                                       <ShieldAlert className="h-3 w-3" />}
                     {ed.bankability}
                   </div>
                 )}
@@ -87,16 +121,16 @@ export default function ModuleDrawer({ moduleEquipment: m, onClose, onMutated }:
             </div>
           </section>
 
-          {/* Alertas de Validação */}
+          {/* Alertas Técnicos */}
           {ed?.validation && ed.validation.length > 0 && (
-            <section className="rounded-sm border border-amber-500/20 bg-amber-500/5 p-3">
-              <div className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-400">
-                <AlertTriangle className="h-3 w-3" /> Alertas Técnicos (.PAN)
+            <section className="rounded-sm border border-amber-500/30 bg-amber-500/5 p-3">
+              <div className="mb-2.5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-amber-500">
+                <AlertTriangle className="h-3.5 w-3.5" /> Alertas Técnicos (.PAN)
               </div>
               <div className="space-y-2">
                 {ed.validation.map((v, i) => (
-                  <div key={i} className="flex gap-2 text-[10px] leading-relaxed text-slate-400">
-                    <span className={`mt-1 h-1 w-1 shrink-0 rounded-full ${v.status === 'critical' ? 'bg-red-500' : 'bg-amber-500'}`} />
+                  <div key={i} className="flex gap-2.5 text-[11px] leading-relaxed text-slate-400">
+                    <span className={`mt-1.5 h-1 w-1 shrink-0 rounded-full ${v.status === 'critical' ? 'bg-red-500' : 'bg-amber-500'}`} />
                     <p>{v.message}</p>
                   </div>
                 ))}
@@ -104,162 +138,234 @@ export default function ModuleDrawer({ moduleEquipment: m, onClose, onMutated }:
             </section>
           )}
 
-          {/* Cards de potência e eficiência */}
-          <section className="grid grid-cols-2 gap-2">
-            <div className="rounded-sm border border-slate-800 bg-slate-900 p-3">
-              {isEditing ? (
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-slate-500">Potência (Wp)</label>
+          {/* 2. Dimensões e Físico */}
+          <section className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Info className="h-3.5 w-3.5 text-sky-500" />
+              <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Dimensões e Físico</h3>
+            </div>
+            <div className="rounded-sm border border-slate-800 divide-y divide-slate-800 bg-slate-900/50">
+              <div className="flex justify-between px-3 py-2.5">
+                <span className="text-[11px] text-slate-400">L x A x P</span>
+                {isEditing ? (
+                  <input
+                    value={formData.dimensions}
+                    onChange={e => setFormData(s => ({ ...s, dimensions: e.target.value }))}
+                    className="h-6 w-32 bg-slate-950 border border-slate-700 rounded-sm px-2 text-[11px] font-mono text-slate-200 focus:border-sky-500 focus:outline-none"
+                    placeholder="L x A x P"
+                  />
+                ) : (
+                  <span className="text-[11px] font-mono text-slate-200 tabular-nums">
+                    {m.dimensions || '—'}{ed?.depth ? ` x ${ed.depth} m` : ''}
+                  </span>
+                )}
+              </div>
+              <div className="flex justify-between px-3 py-2.5">
+                <span className="text-[11px] text-slate-400">Peso Total</span>
+                {isEditing ? (
+                  <input
+                    type="number"
+                    value={formData.weight}
+                    onChange={e => setFormData(s => ({ ...s, weight: e.target.value }))}
+                    className="h-6 w-24 bg-slate-950 border border-slate-700 rounded-sm px-2 text-[11px] font-mono text-slate-200 focus:border-sky-500 focus:outline-none"
+                  />
+                ) : (
+                  <span className="text-[11px] font-mono text-slate-200 tabular-nums">{m.weight ? `${m.weight.toLocaleString('pt-BR')} kg` : '—'}</span>
+                )}
+              </div>
+              <div className="flex justify-between px-3 py-2.5 bg-slate-900/30">
+                <span className="text-[11px] text-slate-400">Tecnologia</span>
+                <span className="text-[11px] font-mono text-slate-200 text-right">{technolLabel || '—'}</span>
+              </div>
+              <div className="flex justify-between px-3 py-2.5">
+                <span className="text-[11px] text-slate-400">Arranjo Células</span>
+                <span className="text-[11px] font-mono text-slate-200 tabular-nums">
+                  {ed?.nCelS && ed?.nCelP ? `${ed.nCelS} série x ${ed.nCelP} paral.` : ed?.nCelS || '—'}
+                </span>
+              </div>
+            </div>
+          </section>
+
+          {/* 3. Performance STC */}
+          <section className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Zap className="h-3.5 w-3.5 text-emerald-500" />
+              <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Performance STC (1000W/m²)</h3>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-px bg-slate-800 rounded-sm overflow-hidden border border-slate-800 shadow-inner">
+              <div className="bg-slate-900 p-3">
+                <p className="text-[10px] text-slate-500 mb-1">Potência Nominal</p>
+                {isEditing ? (
                   <input
                     type="number"
                     value={formData.powerWp}
                     onChange={e => setFormData(s => ({ ...s, powerWp: Number(e.target.value) }))}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-sm px-2 py-1 text-sm font-mono text-slate-200 focus:border-sky-500 focus:outline-none"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-sm px-2 py-1 text-sm font-mono text-emerald-400 focus:border-sky-500 focus:outline-none"
                   />
-                </div>
-              ) : (
-                <>
-                  <Power className="mb-1 h-3.5 w-3.5 text-slate-500" />
-                  <p className="text-sm font-semibold text-slate-200 truncate">{m.powerWp} Wp</p>
-                  <p className="text-[10px] text-slate-500">Potência Nominal</p>
-                </>
-              )}
-            </div>
-            <div className="rounded-sm border border-slate-800 bg-slate-900 p-3">
-              {isEditing ? (
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-slate-500">Eficiência (%)</label>
+                ) : (
+                  <p className="text-sm font-mono font-bold text-emerald-400 tabular-nums">{formatN(m.powerWp, 1)} Wp</p>
+                )}
+              </div>
+              <div className="bg-slate-900 p-3">
+                <p className="text-[10px] text-slate-500 mb-1">Eficiência</p>
+                {isEditing ? (
                   <input
                     type="number"
-                    step="0.1"
+                    step="0.01"
                     value={formData.efficiency}
                     onChange={e => setFormData(s => ({ ...s, efficiency: e.target.value }))}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-sm px-2 py-1 text-sm font-mono text-slate-200 focus:border-sky-500 focus:outline-none"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-sm px-2 py-1 text-sm font-mono text-emerald-400 focus:border-sky-500 focus:outline-none"
                   />
-                </div>
-              ) : (
-                <>
-                  <Info className="mb-1 h-3.5 w-3.5 text-slate-500" />
-                  <p className="text-sm font-semibold text-slate-200">{m.efficiency ? `${m.efficiency}%` : 'N/A'}</p>
-                  <p className="text-[10px] text-slate-500">Eficiência</p>
-                </>
-              )}
-            </div>
-          </section>
-
-          {/* Parâmetros Elétricos STC */}
-          <section className="space-y-2">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">Parâmetros Elétricos (STC)</p>
-            <div className="rounded-sm border border-slate-800 divide-y divide-slate-800">
-              <div className="flex justify-between px-3 py-2">
-                <span className="text-xs text-slate-400">Tensão de Circuito Aberto (Voc)</span>
-                <span className="text-xs font-mono text-slate-200">{ed?.voc ? `${ed.voc} V` : 'N/A'}</span>
+                ) : (
+                  <p className="text-sm font-mono font-bold text-emerald-400 tabular-nums">
+                    {m.efficiency ? `${Number(m.efficiency).toLocaleString('pt-BR', { minimumFractionDigits: 1 })}%` : '—'}
+                  </p>
+                )}
               </div>
-              <div className="flex justify-between px-3 py-2">
-                <span className="text-xs text-slate-400">Corrente de Curto-Circuito (Isc)</span>
-                <span className="text-xs font-mono text-slate-200">{ed?.isc ? `${ed.isc} A` : 'N/A'}</span>
+              <div className="bg-slate-900 p-3">
+                <p className="text-[10px] text-slate-500 mb-1 truncate">Tensão Voc</p>
+                <p className="text-sm font-mono text-slate-200 tabular-nums">{formatN(ed?.voc, 2)} V</p>
               </div>
-              <div className="flex justify-between px-3 py-2">
-                <span className="text-xs text-slate-400">Tensão Máx. Potência (Vmp)</span>
-                <span className="text-xs font-mono text-slate-200">{ed?.vmp ? `${ed.vmp} V` : 'N/A'}</span>
+              <div className="bg-slate-900 p-3">
+                <p className="text-[10px] text-slate-500 mb-1 truncate">Corrente Isc</p>
+                <p className="text-sm font-mono text-slate-200 tabular-nums">{formatN(ed?.isc, 2)} A</p>
               </div>
-              <div className="flex justify-between px-3 py-2">
-                <span className="text-xs text-slate-400">Corrente Máx. Potência (Imp)</span>
-                <span className="text-xs font-mono text-slate-200">{ed?.imp ? `${ed.imp} A` : 'N/A'}</span>
+              <div className="bg-slate-900 p-3">
+                <p className="text-[10px] text-slate-500 mb-1 truncate">Tensão Vmp</p>
+                <p className="text-sm font-mono text-slate-200 tabular-nums">{formatN(ed?.vmp, 2)} V</p>
               </div>
-              {ed?.vMaxIEC && (
-                <div className="flex justify-between px-3 py-2">
-                  <span className="text-xs text-slate-400">Tensão Máx. Sistema (NBR/IEC)</span>
-                  <span className="text-xs font-mono text-slate-200">{ed.vMaxIEC} V</span>
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* Coeficientes Térmicos */}
-          <section className="space-y-2">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-              <Thermometer className="h-3 w-3" /> Coeficientes Térmicos
-            </p>
-            <div className="rounded-sm border border-slate-800 divide-y divide-slate-800">
-              <div className="flex justify-between px-3 py-2">
-                <span className="text-xs text-slate-400">Coef. de Potência (Pmax)</span>
-                <span className="text-xs font-mono text-slate-200">
-                  {(m.tempCoeffPmax ?? ed?.tempCoeffPmax) != null
-                    ? `${m.tempCoeffPmax ?? ed?.tempCoeffPmax} %/°C`
-                    : 'N/A'}
-                </span>
-              </div>
-              <div className="flex justify-between px-3 py-2">
-                <span className="text-xs text-slate-400">Coef. de Tensão (Voc)</span>
-                <span className="text-xs font-mono text-slate-200">
-                  {(m.tempCoeffVoc ?? ed?.tempCoeffVoc) != null
-                    ? `${m.tempCoeffVoc ?? ed?.tempCoeffVoc} %/°C`
-                    : 'N/A'}
-                </span>
-              </div>
-              <div className="flex justify-between px-3 py-2">
-                <span className="text-xs text-slate-400">Coef. de Corrente (Isc)</span>
-                <span className="text-xs font-mono text-slate-200">
-                  {ed?.tempCoeffIsc != null ? `${ed.tempCoeffIsc} %/°C` : 'N/A'}
-                </span>
-              </div>
-              <div className="flex justify-between px-3 py-2">
-                <span className="text-xs text-slate-400">NOCT / NMOT</span>
-                <span className="text-xs font-mono text-slate-200">{m.noct ? `${m.noct} °C` : 'N/A'}</span>
+              <div className="bg-slate-900 p-3">
+                <p className="text-[10px] text-slate-500 mb-1 truncate">Corrente Imp</p>
+                <p className="text-sm font-mono text-slate-200 tabular-nums">{formatN(ed?.imp, 2)} A</p>
               </div>
             </div>
           </section>
 
-          {/* Características Físicas e Construtivas */}
-          <section className="space-y-2">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">Características Físicas</p>
-            <div className="rounded-sm border border-slate-800 divide-y divide-slate-800">
-              {technolLabel && (
-                <div className="flex justify-between px-3 py-2">
-                  <span className="text-xs text-slate-400">Tecnologia</span>
-                  <span className="text-xs font-mono text-slate-200">{technolLabel}</span>
-                </div>
-              )}
-              <div className="flex justify-between px-3 py-2">
-                <span className="text-xs text-slate-400">Células (série × paralelo)</span>
-                <span className="text-xs font-mono text-slate-200">
-                  {ed?.nCelS && ed?.nCelP ? `${ed.nCelS} × ${ed.nCelP}` : ed?.nCelS ? `${ed.nCelS}` : 'N/A'}
+          {/* 4. Coeficientes de Temperatura */}
+          <section className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Thermometer className="h-3.5 w-3.5 text-amber-500" />
+              <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Comportamento Térmico</h3>
+            </div>
+            <div className="rounded-sm border border-slate-800 divide-y divide-slate-800 bg-slate-900/50">
+              <div className="flex justify-between px-3 py-2.5">
+                <span className="text-[11px] text-slate-400">Coef. de Potência (muPmp)</span>
+                <span className="text-[11px] font-mono text-amber-400 tabular-nums">
+                  {formatN(m.tempCoeffPmax ?? ed?.tempCoeffPmax, 3)} %/°C
                 </span>
               </div>
-              {m.dimensions && (
-                <div className="flex justify-between px-3 py-2">
-                  <span className="text-xs text-slate-400">Dimensões (L × A)</span>
-                  <span className="text-xs font-mono text-slate-200">{m.dimensions}</span>
-                </div>
-              )}
-              {m.weight && (
-                <div className="flex justify-between px-3 py-2">
-                  <span className="text-xs text-slate-400">Peso</span>
-                  <span className="text-xs font-mono text-slate-200">{m.weight} kg</span>
-                </div>
-              )}
-              {ed?.bifacialityFactor != null && ed.bifacialityFactor > 0 && (
-                <div className="flex justify-between px-3 py-2">
-                  <span className="text-xs text-slate-400">Fator de Bifacialidade</span>
-                  <span className="text-xs font-mono text-slate-200">
-                    {(ed.bifacialityFactor * 100).toFixed(0)}%
-                  </span>
-                </div>
-              )}
-              <div className="flex justify-between px-3 py-2">
-                <span className="text-xs text-slate-400">Rs / Rsh (SDM)</span>
-                <span className="text-xs font-mono text-slate-200">
-                  {ed?.rSerie != null && ed?.rShunt != null
-                    ? `${fmt(ed.rSerie, 'Ω', 4)} / ${fmt(ed.rShunt, 'Ω', 0)}`
-                    : 'N/A'}
+              <div className="flex justify-between px-3 py-2.5">
+                <span className="text-[11px] text-slate-400">Coef. de Tensão (muVoc)</span>
+                <span className="text-[11px] font-mono text-amber-400 tabular-nums">
+                  {formatN(m.tempCoeffVoc ?? ed?.tempCoeffVoc, 3)} %/°C
                 </span>
+              </div>
+              <div className="flex justify-between px-3 py-2.5">
+                <span className="text-[11px] text-slate-400">Coef. de Corrente (muIsc)</span>
+                <span className="text-[11px] font-mono text-amber-400 tabular-nums">
+                  {formatN(ed?.tempCoeffIsc, 3)} %/°C
+                </span>
+              </div>
+              <div className="flex justify-between px-3 py-2.5 bg-slate-900/30">
+                <span className="text-[11px] text-slate-400">NOCT / NMOT</span>
+                <span className="text-[11px] font-mono text-slate-200 tabular-nums">{m.noct ? `${m.noct} °C` : '—'}</span>
               </div>
             </div>
           </section>
+
+          {/* 5. Eficiência em Baixa Irradiação */}
+          {ed?.relEffic && (ed.relEffic.g800 || ed.relEffic.g200) && (
+            <section className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Cpu className="h-3.5 w-3.5 text-indigo-400" />
+                <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Eficiência em Baixa Irradiação</h3>
+              </div>
+              <div className="grid grid-cols-4 gap-px bg-slate-800 rounded-sm overflow-hidden border border-slate-800 shadow-inner">
+                <div className="bg-slate-900/50 p-2 text-center">
+                  <p className="text-[9px] text-slate-500 mb-0.5">800W/m²</p>
+                  <p className={`text-[11px] font-mono tabular-nums ${ed.relEffic.g800 && ed.relEffic.g800 > 0 ? 'text-emerald-400' : 'text-slate-400'}`}>
+                    {ed.relEffic.g800 != null ? `${ed.relEffic.g800 > 0 ? '+' : ''}${ed.relEffic.g800.toFixed(2)}%` : '—'}
+                  </p>
+                </div>
+                <div className="bg-slate-900/50 p-2 text-center">
+                  <p className="text-[9px] text-slate-500 mb-0.5">600W/m²</p>
+                  <p className={`text-[11px] font-mono tabular-nums ${ed.relEffic.g600 && ed.relEffic.g600 > 0 ? 'text-emerald-400' : 'text-slate-400'}`}>
+                    {ed.relEffic.g600 != null ? `${ed.relEffic.g600 > 0 ? '+' : ''}${ed.relEffic.g600.toFixed(2)}%` : '—'}
+                  </p>
+                </div>
+                <div className="bg-slate-900/50 p-2 text-center">
+                  <p className="text-[9px] text-slate-500 mb-0.5">400W/m²</p>
+                  <p className={`text-[11px] font-mono tabular-nums ${ed.relEffic.g400 && ed.relEffic.g400 > 0 ? 'text-emerald-400' : 'text-slate-400'}`}>
+                    {ed.relEffic.g400 != null ? `${ed.relEffic.g400 > 0 ? '+' : ''}${ed.relEffic.g400.toFixed(2)}%` : '—'}
+                  </p>
+                </div>
+                <div className="bg-slate-900/50 p-2 text-center">
+                  <p className="text-[9px] text-slate-500 mb-0.5">200W/m²</p>
+                  <p className={`text-[11px] font-mono tabular-nums ${ed.relEffic.g200 && ed.relEffic.g200 > 0 ? 'text-emerald-400' : 'text-red-400/80'}`}>
+                    {ed.relEffic.g200 != null ? `${ed.relEffic.g200 > 0 ? '+' : ''}${ed.relEffic.g200.toFixed(2)}%` : '—'}
+                  </p>
+                </div>
+              </div>
+              <p className="text-[9px] text-slate-600 italic">Delta de eficiência relativa em relação ao STC.</p>
+            </section>
+          )}
+
+          {/* 6. Engenharia e Modelagem */}
+          <section className="space-y-3">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-3.5 w-3.5 text-slate-500" />
+              <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Engenharia e Modelagem</h3>
+            </div>
+            <div className="rounded-sm border border-slate-800 divide-y divide-slate-800 bg-slate-900/50">
+              <div className="flex justify-between px-3 py-2.5">
+                <span className="text-[11px] text-slate-400">Fator de Bifacialidade</span>
+                <span className="text-[11px] font-mono text-emerald-400 tabular-nums">{formatP(ed?.bifacialityFactor)}</span>
+              </div>
+              <div className="flex justify-between px-3 py-2.5">
+                <span className="text-[11px] text-slate-400">Resistência Série (RSerie)</span>
+                <span className="text-[11px] font-mono text-slate-300 tabular-nums">{formatN(ed?.rSerie, 4)} Ω</span>
+              </div>
+              <div className="flex justify-between px-3 py-2.5">
+                <span className="text-[11px] text-slate-400">Resistência Shunt (RShunt)</span>
+                <span className="text-[11px] font-mono text-slate-300 tabular-nums">{formatN(ed?.rShunt, 1)} Ω</span>
+              </div>
+              <div className="flex justify-between px-3 py-2.5 bg-slate-900/30">
+                <span className="text-[11px] text-slate-400">Tensão Máx. Sistema (IEC)</span>
+                <span className="text-[11px] font-mono text-slate-200 tabular-nums">{ed?.vMaxIEC ? `${ed.vMaxIEC} V` : '—'}</span>
+              </div>
+              {ed?.lidLoss != null && (
+                <div className="flex justify-between px-3 py-2.5">
+                  <span className="text-[11px] text-slate-400">LID Loss (Degradação)</span>
+                  <span className="text-[11px] font-mono text-red-400/80 tabular-nums">{formatN(ed.lidLoss, 2)}%</span>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* 6. Perfil de Ângulo (IAM) */}
+          {ed?.iamPoints && ed.iamPoints.length > 0 && (
+            <section className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Zap className="h-3.5 w-3.5 text-sky-500 rotate-90" />
+                <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Perfil de Ângulo (IAM)</h3>
+              </div>
+              <div className="rounded-sm border border-slate-800 bg-slate-900/30 p-2 overflow-hidden">
+                <div className="grid grid-cols-5 gap-1">
+                  {ed.iamPoints.slice(0, 10).map(([angle, factor], idx) => (
+                    <div key={idx} className="flex flex-col items-center p-1 border border-slate-800 rounded-sm bg-slate-900/50">
+                      <span className="text-[9px] text-slate-500">{angle}°</span>
+                      <span className="text-[10px] font-mono text-slate-300">{factor.toFixed(3)}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-2 text-[9px] text-slate-600 text-center italic">Perfil de incidência óptica (Transmission Factor)</p>
+              </div>
+            </section>
+          )}
         </div>
 
-        <div className="border-t border-slate-800 px-5 py-4 space-y-2">
+        <div className="border-t border-slate-800 bg-slate-950 px-5 py-4 space-y-2">
           {isEditing ? (
             <div className="flex gap-2">
               <button
@@ -272,6 +378,8 @@ export default function ModuleDrawer({ moduleEquipment: m, onClose, onMutated }:
                 onClick={() => patch(m.id, {
                   powerWp: Number(formData.powerWp) || m.powerWp,
                   efficiency: formData.efficiency ? Number(formData.efficiency) : null,
+                  dimensions: formData.dimensions || null,
+                  weight: formData.weight ? Number(formData.weight) : null,
                 })}
                 disabled={isSaving}
                 className="flex-1 flex items-center justify-center gap-1.5 rounded-sm bg-sky-600 px-3 py-2 text-xs font-medium text-white hover:bg-sky-500 transition-colors disabled:opacity-50"
@@ -283,7 +391,7 @@ export default function ModuleDrawer({ moduleEquipment: m, onClose, onMutated }:
           ) : (
             <button
               onClick={() => setIsEditing(true)}
-              className="flex w-full items-center justify-between rounded-sm border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-700 transition-colors"
+              className="flex w-full items-center justify-between rounded-sm border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-700 transition-colors shadow-sm"
             >
               <span>Editar Parâmetros</span>
               <Edit2 className="h-3.5 w-3.5" />
@@ -293,10 +401,10 @@ export default function ModuleDrawer({ moduleEquipment: m, onClose, onMutated }:
           <button
             onClick={() => toggle(m.id, !m.isActive)}
             disabled={loading || isEditing}
-            className={`flex w-full items-center justify-between rounded-sm border px-3 py-2 text-xs transition-colors disabled:opacity-50 ${
+            className={`flex w-full items-center justify-between rounded-sm border px-3 py-2 text-xs transition-all disabled:opacity-50 ${
               m.isActive
-                ? 'border-red-500/20 bg-red-500/5 text-red-400 hover:bg-red-500/10'
-                : 'border-emerald-500/20 bg-emerald-500/5 text-emerald-400 hover:bg-emerald-500/10'
+                ? 'border-red-500/20 bg-red-500/5 text-red-400 hover:bg-red-500/10 active:scale-[0.98]'
+                : 'border-emerald-500/20 bg-emerald-500/5 text-emerald-400 hover:bg-emerald-500/10 active:scale-[0.98]'
             }`}
           >
             <span>{loading ? 'Processando...' : m.isActive ? 'Desativar Módulo no Catálogo' : 'Ativar Módulo no Catálogo'}</span>
@@ -307,7 +415,7 @@ export default function ModuleDrawer({ moduleEquipment: m, onClose, onMutated }:
             <button
               onClick={() => remove(m.id)}
               disabled={isDeleting || loading}
-              className="flex w-full items-center justify-between rounded-sm border border-transparent px-3 py-2 text-xs font-medium text-slate-500 hover:bg-red-500/10 hover:text-red-400 transition-all opacity-40 hover:opacity-100"
+              className="flex w-full items-center justify-between rounded-sm border border-transparent px-3 py-2 text-xs font-medium text-slate-600 hover:bg-red-500/10 hover:text-red-500 transition-all opacity-40 hover:opacity-100"
             >
               <span>{isDeleting ? 'Excluindo...' : 'Excluir Permanentemente'}</span>
               <Trash2 className="h-3.5 w-3.5" />

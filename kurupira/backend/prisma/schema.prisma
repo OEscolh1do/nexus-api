@@ -93,6 +93,7 @@ model ModuleCatalog {
   efficiency        Float?
   dimensions        String?
   weight            Float?
+  depth             Float?
   datasheet         String?
   imageUrl          String?
   unifilarSymbolRef String?
@@ -138,6 +139,11 @@ model InverterCatalog {
   imageUrl             String?
   unifilarSymbolRef    String?
   isActive             Boolean @default(true)
+
+  width                Float?
+  height               Float?
+  depth                Float?
+  weight               Float?
 
   // -- Engineering PV Specs (v3.7) --
   Voc_max_hardware     Float?

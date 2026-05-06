@@ -11,7 +11,7 @@ import {
 } from '@dnd-kit/core';
 import { useUIStore } from '@/core/state/uiStore';
 import { useSolarStore } from '@/core/state/solarStore';
-import { Settings2, FileText, LayoutTemplate, Pencil, Save, Layers, ChevronLeft, ChevronRight, Plus, Trash2, Grid3x3, Magnet, Target, PanelLeft, LayoutList } from 'lucide-react';
+import { Settings2, FileText, LayoutTemplate, Pencil, Save, Layers, ChevronLeft, ChevronRight, Plus, Trash2, Grid3x3, Magnet, Target, PanelLeft, LayoutList, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 import { ProposalEditPanel } from './proposal/ProposalEditPanel';
@@ -23,6 +23,7 @@ import { ElementPropertiesPanel } from './proposal/engine/ElementPropertiesPanel
 import { LayersPanel } from './proposal/engine/LayersPanel';
 import { CanvasPage } from './proposal/engine/CanvasPage';
 import { CLASSIC_TEMPLATE } from './proposal/engine/templates/classicTemplate';
+import { TECHNICAL_PAGE_ELEMENTS } from './proposal/engine/templates/technicalPageDecomposed';
 import type { CanvasElement, CanvasPage as CanvasPageType, GridConfig } from './proposal/engine/types';
 import { A4_WIDTH, A4_HEIGHT, DEFAULT_ELEMENT_PROPS, DEFAULT_GRID_CONFIG } from './proposal/engine/types';
 
@@ -123,7 +124,7 @@ export const ProposalCanvasView: React.FC = () => {
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const data = event.active.data.current;
-    if (data?.fromPalette) setActiveDragType(String(data.elementType));
+    if (data?.fromPalette && !data.isPreset) setActiveDragType(String(data.elementType));
   }, []);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
@@ -153,20 +154,45 @@ export const ProposalCanvasView: React.FC = () => {
     const x = snap(Math.max(0, Math.min(A4_WIDTH  - w, rawX - w / 2)));
     const y = snap(Math.max(0, Math.min(A4_HEIGHT - h, rawY - h / 2)));
 
-    // If no custom layout yet, clone classic (addCanvasElement handles this automatically)
+    // If no custom layout yet, clone classic
     if (!activeLayout) applyTemplate(CLASSIC_TEMPLATE);
 
+    const baseZIndex = (currentPage.elements.length + 1) * 10;
+
+    // ── Preset: adiciona múltiplos elementos de uma vez ────────────────────────
+    if (data.isPreset) {
+      type PresetDef = { type: CanvasElement['type']; dx: number; dy: number; width: number; height: number; zIndex: number; props: Record<string, unknown> };
+      const defs = (data.presetElements as PresetDef[]) ?? [];
+      defs.forEach((def, i) => {
+        const el: CanvasElement = {
+          id:      `el-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${i}`,
+          type:    def.type,
+          x:       Math.round(snap(Math.max(0, x + def.dx))),
+          y:       Math.round(snap(Math.max(0, y + def.dy))),
+          width:   def.width,
+          height:  def.height,
+          zIndex:  baseZIndex + def.zIndex,
+          locked:  false,
+          visible: true,
+          props:   { ...def.props },
+        };
+        addCanvasElement(currentPage.id, el);
+      });
+      return;
+    }
+
+    // ── Elemento único ─────────────────────────────────────────────────────────
     const newElement: CanvasElement = {
-      id: `el-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      type: data.elementType as CanvasElement['type'],
-      x: Math.round(x),
-      y: Math.round(y),
-      width: w,
-      height: h,
-      zIndex: (currentPage.elements.length + 1) * 10,
-      locked: false,
+      id:      `el-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      type:    data.elementType as CanvasElement['type'],
+      x:       Math.round(x),
+      y:       Math.round(y),
+      width:   w,
+      height:  h,
+      zIndex:  baseZIndex,
+      locked:  false,
       visible: true,
-      props: { ...(data.defaultProps ?? DEFAULT_ELEMENT_PROPS[data.elementType as CanvasElement['type']]) },
+      props:   { ...(data.defaultProps ?? DEFAULT_ELEMENT_PROPS[data.elementType as CanvasElement['type']]) },
     };
 
     addCanvasElement(currentPage.id, newElement);
@@ -205,6 +231,50 @@ export const ProposalCanvasView: React.FC = () => {
     removeCanvasElement(currentPage.id, elementId);
     if (selectedElementId === elementId) setSelectedElementId(null);
   }, [currentPage, removeCanvasElement, selectedElementId]);
+
+  // ─── Decompose / Restore page handlers ─────────────────────────────────────
+
+  const handleDecomposePage = useCallback(() => {
+    if (!currentPage) return;
+    // Clone classic first if still on built-in
+    if (!activeLayout) applyTemplate(CLASSIC_TEMPLATE);
+    // Remove the locked page-technical element
+    const pageTechEl = currentPage.elements.find((e) => e.type === 'page-technical');
+    if (pageTechEl) removeCanvasElement(currentPage.id, pageTechEl.id);
+    // Add all decomposed elements
+    TECHNICAL_PAGE_ELEMENTS.forEach((el) => {
+      addCanvasElement(currentPage.id, { ...el, id: `${el.id}-${Date.now()}` });
+    });
+    setSelectedElementId(null);
+  }, [currentPage, activeLayout, applyTemplate, removeCanvasElement, addCanvasElement]);
+
+  const handleRestorePage = useCallback(() => {
+    if (!currentPage) return;
+    if (!activeLayout) return;
+    // Remove all non-page elements
+    [...currentPage.elements].forEach((el) => {
+      if (!el.type.startsWith('page-')) removeCanvasElement(currentPage.id, el.id);
+    });
+    // Add back the locked page-technical element
+    addCanvasElement(currentPage.id, {
+      id: `classic-p0-main-${Date.now()}`,
+      type: 'page-technical',
+      x: 0,
+      y: 0,
+      width: 794,
+      height: 1123,
+      zIndex: 0,
+      locked: true,
+      visible: true,
+      props: {},
+    });
+    setSelectedElementId(null);
+  }, [currentPage, activeLayout, removeCanvasElement, addCanvasElement]);
+
+  // Detect if the current page is decomposed (no page-technical element)
+  const isPageDecomposed = currentPage
+    ? !currentPage.elements.some((e) => e.type === 'page-technical')
+    : false;
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
@@ -275,6 +345,7 @@ export const ProposalCanvasView: React.FC = () => {
                   <ElementPropertiesPanel
                     element={selectedElement}
                     onUpdate={(updates) => handleUpdateElement(selectedElement.id, updates)}
+                    onDecompose={handleDecomposePage}
                   />
                 </>
               ) : (
@@ -377,6 +448,17 @@ export const ProposalCanvasView: React.FC = () => {
                     <ChevronRight size={13} />
                   </button>
                 </div>
+
+                {/* Restore default button (only when decomposed) */}
+                {isPageDecomposed && (
+                  <button
+                    onClick={handleRestorePage}
+                    className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-amber-400 hover:text-amber-300 hover:bg-slate-800 rounded transition-colors"
+                  >
+                    <RotateCcw size={12} />
+                    <span className="hidden sm:inline">Restaurar padrão</span>
+                  </button>
+                )}
 
                 {/* Grid controls */}
                 <div className="flex items-center gap-0.5 bg-slate-800 rounded-lg px-1 py-1">

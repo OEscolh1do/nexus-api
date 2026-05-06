@@ -19,6 +19,14 @@ import {
   TableAnalyticsElement,
 } from './elements/ProjectionElements';
 import { PlaceholderElement } from './elements/PlaceholderElement';
+import { BoxElement } from './elements/BoxElement';
+import { IconElement } from './elements/IconElement';
+import {
+  SectionHeaderElement,
+  KpiCapacityBadgeElement,
+  GuaranteesListElement,
+  EquipmentPanelElement,
+} from './elements/TechnicalElements';
 import { useProposalPageData } from './useProposalPageData';
 import type { CanvasElement } from './types';
 
@@ -91,6 +99,20 @@ export function CanvasElementRenderer({ element, isEditing = false, onPropsChang
       return <TableAnalyticsElement element={element} />;
     case 'placeholder':
       return <PlaceholderElement element={element} />;
+    // ── Elementos de Dimensionamento Técnico ───────────────────────────────────
+    case 'section-header':
+      return <SectionHeaderElement element={element} />;
+    case 'kpi-capacity-badge':
+      return <KpiCapacityBadgeElement element={element} />;
+    case 'guarantees-list':
+      return <GuaranteesListElement element={element} />;
+    case 'equipment-panel':
+      return <EquipmentPanelElement element={element} />;
+    // ── Primitivos de design ───────────────────────────────────────────────────
+    case 'box':
+      return <BoxElement element={element} />;
+    case 'icon':
+      return <IconElement element={element} />;
     default:
       return null;
   }

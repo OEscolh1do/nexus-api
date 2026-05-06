@@ -28,7 +28,15 @@ export type CanvasElementType =
   | 'kpi-projection'
   | 'table-analytics'
   // Placeholder — campo dinâmico vinculado a dado do projeto
-  | 'placeholder';
+  | 'placeholder'
+  // Dimensionamento Técnico — blocos decompostos da ProposalPageTechnical
+  | 'section-header'
+  | 'kpi-capacity-badge'
+  | 'guarantees-list'
+  | 'equipment-panel'
+  // Primitivos de design
+  | 'box'
+  | 'icon';
 
 export interface CanvasElement {
   id: string;
@@ -96,7 +104,7 @@ export const DEFAULT_ELEMENT_PROPS: Record<CanvasElementType, Record<string, unk
   'page-technical':  {},
   'page-schedule':   {},
   'page-contact':    {},
-  text:              { content: 'Texto aqui', fontSize: 16, fontWeight: 400, color: '#1a1a1a', textAlign: 'left', fontFamily: 'system' },
+  text:              { content: 'Texto aqui', fontSize: 16, fontWeight: 400, color: '#1a1a1a', textAlign: 'left', fontFamily: 'system', rotation: 0 },
   image:             { url: '', objectFit: 'contain' },
   logo:              { variant: 'verde' },
   watermark:         { text: 'CONFIDENCIAL', opacity: 0.08, angle: -45, fontSize: 72, color: '#000000' },
@@ -117,4 +125,11 @@ export const DEFAULT_ELEMENT_PROPS: Record<CanvasElementType, Record<string, unk
   'kpi-projection':         { metric: 'totalGen', bgColor: '#f0fdf4', textColor: '#166534', accentColor: '#10b981' },
   'table-analytics':        { showEconomy: true, title: 'Tabela Analítica' },
   'placeholder':            { field: 'client.name', prefix: '', suffix: '', fontSize: 14, fontWeight: 400, color: '#1a1a1a', textAlign: 'left', italic: false },
+  'section-header':         { title: 'DIMENSIONAMENTO E\nVIABILIDADE DO PROJETO', subtitle: 'No momento da contratação é estabelecido um contrato formal de prestação de serviços com a NEONORTE, responsável pelo faturamento e emissão de Nota Fiscal de Serviço.', borderColor: '#1a3d2b', titleColor: '#0F172A', subtitleColor: '#64748B' },
+  'kpi-capacity-badge':     { colorPower: '#2D6A4F', colorGen: '#4CAF50', labelColor: '#064E3B', showClientName: true },
+  'guarantees-list':        { accentColor: '#4CAF50', headingColor: '#2D0A4E', customBullets: '' },
+  'equipment-panel':        { labelBgColor: '#2D6A4F', labelColor: '#ffffff' },
+  // Primitivos
+  'box':                    { bgColor: '#e2e8f0', border: '', borderTop: '', borderRight: '', borderBottom: '', borderLeft: '', borderRadius: 0, opacity: 1, shadow: false },
+  'icon':                   { name: 'Zap', size: 24, color: '#10b981', bgColor: '', bgRadius: 4 },
 };

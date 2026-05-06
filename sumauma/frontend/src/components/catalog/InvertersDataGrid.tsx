@@ -72,7 +72,8 @@ export default function InvertersDataGrid({ refreshTrigger }: { refreshTrigger: 
                 <th className="px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-slate-500">Fabricante</th>
                 <th className="px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-slate-500">Modelo</th>
                 <th className="px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-slate-500">Potência AC</th>
-                <th className="px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-slate-500">Conexão</th>
+                <th className="px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-slate-500">Vmax CC</th>
+                <th className="px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-slate-500">Eficiência</th>
                 <th className="px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-slate-500">MPPTs</th>
                 <th className="px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-slate-500">Status</th>
               </tr>
@@ -81,13 +82,13 @@ export default function InvertersDataGrid({ refreshTrigger }: { refreshTrigger: 
               {loading &&
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="border-b border-slate-800/50">
-                    <td colSpan={6} className="px-4 py-3"><div className="h-3 w-full animate-pulse rounded-sm bg-slate-800" /></td>
+                    <td colSpan={7} className="px-4 py-3"><div className="h-3 w-full animate-pulse rounded-sm bg-slate-800" /></td>
                   </tr>
                 ))}
               
               {!loading && inverters.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-xs text-slate-500">
+                  <td colSpan={7} className="px-4 py-12 text-center text-xs text-slate-500">
                     Nenhum inversor encontrado.
                   </td>
                 </tr>
@@ -102,8 +103,11 @@ export default function InvertersDataGrid({ refreshTrigger }: { refreshTrigger: 
                   <td className="px-4 py-3 text-xs font-medium text-slate-200">{m.manufacturer}</td>
                   <td className="px-4 py-3 text-xs text-slate-300 font-mono">{m.model}</td>
                   <td className="px-4 py-3 text-xs text-slate-300 font-mono">{(m.nominalPowerW / 1000).toFixed(1)} kW</td>
-                  <td className="px-4 py-3 text-xs text-slate-400">
-                    {m.electricalData?.phase ?? '—'}
+                  <td className="px-4 py-3 text-xs text-slate-400 font-mono">
+                    {m.maxInputV ? `${m.maxInputV}V` : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-slate-400 font-mono">
+                    {m.efficiency ? `${(m.efficiency * (m.efficiency <= 1 ? 100 : 1)).toFixed(1)}%` : '—'}
                   </td>
                   <td className="px-4 py-3 text-xs font-mono text-slate-400">
                     {m.mpptCount ?? '—'}

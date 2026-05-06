@@ -1,5 +1,6 @@
 import React from 'react';
-import { Lock, Unlock, Eye, EyeOff, ChevronUp, ChevronDown } from 'lucide-react';
+import { Lock, Unlock, Eye, EyeOff, ChevronUp, ChevronDown, Edit3, FileText } from 'lucide-react';
+import { ICON_CATALOG } from './elements/IconElement';
 import type { CanvasElement } from './types';
 import { PLACEHOLDER_FIELDS, DEFAULT_PLACEHOLDER_FIELD } from './elements/PlaceholderElement';
 import { cn } from '@/lib/utils';
@@ -7,6 +8,7 @@ import { cn } from '@/lib/utils';
 interface Props {
   element: CanvasElement;
   onUpdate: (updates: Partial<CanvasElement>) => void;
+  onDecompose?: () => void;
 }
 
 function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
@@ -60,6 +62,34 @@ function ColorPropRow({ label, value, onChange }: { label: string; value: string
           className="flex-1 text-xs border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:border-blue-400"
         />
       </div>
+    </FieldRow>
+  );
+}
+
+function TextAreaPropRow({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+  return (
+    <FieldRow label={label}>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        rows={3}
+        className="flex-1 text-xs border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:border-blue-400 resize-none"
+      />
+    </FieldRow>
+  );
+}
+
+function CheckboxRow({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <FieldRow label={label}>
+      <input
+        type="checkbox"
+        checked={value}
+        onChange={(e) => onChange(e.target.checked)}
+        className="cursor-pointer"
+      />
+      <span className="text-xs text-slate-500 ml-1">Ativado</span>
     </FieldRow>
   );
 }
@@ -131,6 +161,76 @@ function TextElementProps({ element, onUpdate }: Props) {
         />
       </FieldRow>
       <TextStyleControls p={p} update={update} defaultFontSize={16} />
+      <FieldRow label="Rotação">
+        <select
+          value={String(p.rotation ?? 0)}
+          onChange={(e) => update('rotation', Number(e.target.value))}
+          className="flex-1 text-xs border border-slate-200 rounded px-2 py-1 bg-white"
+        >
+          <option value={0}>0° — Horizontal</option>
+          <option value={90}>90° — Vertical ↓</option>
+          <option value={-90}>-90° — Vertical ↑</option>
+          <option value={180}>180° — Invertido</option>
+        </select>
+      </FieldRow>
+    </>
+  );
+}
+
+function BoxElementProps({ element, onUpdate }: Props) {
+  const p = element.props as Record<string, unknown>;
+  const update = (key: string, val: unknown) => onUpdate({ props: { ...p, [key]: val } });
+
+  return (
+    <>
+      <ColorPropRow label="Fundo"      value={String(p.bgColor     ?? 'transparent')} onChange={(v) => update('bgColor', v)} />
+      <TextPropRow  label="Borda"      value={String(p.border      ?? '')}            onChange={(v) => update('border', v)} />
+      <TextPropRow  label="Borda topo" value={String(p.borderTop   ?? '')}            onChange={(v) => update('borderTop', v)} />
+      <TextPropRow  label="Borda dir." value={String(p.borderRight  ?? '')}           onChange={(v) => update('borderRight', v)} />
+      <TextPropRow  label="Borda baixo"value={String(p.borderBottom ?? '')}           onChange={(v) => update('borderBottom', v)} />
+      <TextPropRow  label="Borda esq." value={String(p.borderLeft   ?? '')}           onChange={(v) => update('borderLeft', v)} />
+      <FieldRow label="Arred.">
+        <NumInput value={Number(p.borderRadius ?? 0)} onChange={(v) => update('borderRadius', v)} min={0} />
+      </FieldRow>
+      <FieldRow label="Opacidade">
+        <input type="range" min={0} max={1} step={0.05} value={Number(p.opacity ?? 1)}
+          onChange={(e) => update('opacity', Number(e.target.value))} className="flex-1" />
+        <span className="text-xs text-slate-500 w-8 text-right">{Math.round(Number(p.opacity ?? 1) * 100)}%</span>
+      </FieldRow>
+      <FieldRow label="Sombra">
+        <input type="checkbox" checked={Boolean(p.shadow ?? false)}
+          onChange={(e) => update('shadow', e.target.checked)} className="cursor-pointer" />
+        <span className="text-xs text-slate-500 ml-1">Ativada</span>
+      </FieldRow>
+    </>
+  );
+}
+
+function IconElementProps({ element, onUpdate }: Props) {
+  const p = element.props as Record<string, unknown>;
+  const update = (key: string, val: unknown) => onUpdate({ props: { ...p, [key]: val } });
+
+  return (
+    <>
+      <FieldRow label="Ícone">
+        <select
+          value={String(p.name ?? 'Zap')}
+          onChange={(e) => update('name', e.target.value)}
+          className="flex-1 text-xs border border-slate-200 rounded px-2 py-1 bg-white"
+        >
+          {Object.keys(ICON_CATALOG).map((name) => (
+            <option key={name} value={name}>{name}</option>
+          ))}
+        </select>
+      </FieldRow>
+      <FieldRow label="Tamanho">
+        <NumInput value={Number(p.size ?? 24)} onChange={(v) => update('size', v)} min={8} />
+      </FieldRow>
+      <ColorPropRow label="Cor"   value={String(p.color   ?? '#10b981')} onChange={(v) => update('color', v)} />
+      <ColorPropRow label="Fundo" value={String(p.bgColor ?? '')}        onChange={(v) => update('bgColor', v)} />
+      <FieldRow label="Arred.">
+        <NumInput value={Number(p.bgRadius ?? 4)} onChange={(v) => update('bgRadius', v)} min={0} />
+      </FieldRow>
     </>
   );
 }
@@ -319,7 +419,68 @@ function PlaceholderProps({ element, onUpdate }: Props) {
   );
 }
 
-export function ElementPropertiesPanel({ element, onUpdate }: Props) {
+// ─── Technical Elements Props ──────────────────────────────────────────────────
+
+function SectionHeaderProps({ element, onUpdate }: Props) {
+  const p = element.props as Record<string, unknown>;
+  const update = (key: string, val: unknown) => onUpdate({ props: { ...p, [key]: val } });
+
+  return (
+    <>
+      <TextAreaPropRow label="Título" value={String(p.title ?? '')} onChange={(v) => update('title', v)} />
+      <TextAreaPropRow label="Subtexto" value={String(p.subtitle ?? '')} onChange={(v) => update('subtitle', v)} />
+      <ColorPropRow label="Borda" value={String(p.borderColor ?? '#1a3d2b')} onChange={(v) => update('borderColor', v)} />
+      <ColorPropRow label="Cor do título" value={String(p.titleColor ?? '#0F172A')} onChange={(v) => update('titleColor', v)} />
+      <ColorPropRow label="Cor do subtexto" value={String(p.subtitleColor ?? '#64748B')} onChange={(v) => update('subtitleColor', v)} />
+    </>
+  );
+}
+
+function KpiCapacityBadgeProps({ element, onUpdate }: Props) {
+  const p = element.props as Record<string, unknown>;
+  const update = (key: string, val: unknown) => onUpdate({ props: { ...p, [key]: val } });
+
+  return (
+    <>
+      <CheckboxRow label="Mostrar cliente" value={Boolean(p.showClientName ?? true)} onChange={(v) => update('showClientName', v)} />
+      <ColorPropRow label="Cor Potência" value={String(p.colorPower ?? '#2D6A4F')} onChange={(v) => update('colorPower', v)} />
+      <ColorPropRow label="Cor Geração" value={String(p.colorGen ?? '#4CAF50')} onChange={(v) => update('colorGen', v)} />
+      <ColorPropRow label="Cor label" value={String(p.labelColor ?? '#064E3B')} onChange={(v) => update('labelColor', v)} />
+    </>
+  );
+}
+
+function GuaranteesListProps({ element, onUpdate }: Props) {
+  const p = element.props as Record<string, unknown>;
+  const update = (key: string, val: unknown) => onUpdate({ props: { ...p, [key]: val } });
+
+  return (
+    <>
+      <ColorPropRow label="Cor destaque" value={String(p.accentColor ?? '#4CAF50')} onChange={(v) => update('accentColor', v)} />
+      <ColorPropRow label="Cor título" value={String(p.headingColor ?? '#2D0A4E')} onChange={(v) => update('headingColor', v)} />
+      <TextAreaPropRow
+        label="Bullets custom"
+        value={String(p.customBullets ?? '')}
+        onChange={(v) => update('customBullets', v)}
+        placeholder="Título: Descrição&#10;Título2: Descrição2"
+      />
+    </>
+  );
+}
+
+function EquipmentPanelProps({ element, onUpdate }: Props) {
+  const p = element.props as Record<string, unknown>;
+  const update = (key: string, val: unknown) => onUpdate({ props: { ...p, [key]: val } });
+
+  return (
+    <>
+      <ColorPropRow label="Cor label lateral" value={String(p.labelBgColor ?? '#2D6A4F')} onChange={(v) => update('labelBgColor', v)} />
+      <ColorPropRow label="Cor texto label" value={String(p.labelColor ?? '#ffffff')} onChange={(v) => update('labelColor', v)} />
+    </>
+  );
+}
+
+export function ElementPropertiesPanel({ element, onUpdate, onDecompose }: Props) {
   const isPageBlock = element.type.startsWith('page-');
 
   return (
@@ -384,6 +545,8 @@ export function ElementPropertiesPanel({ element, onUpdate }: Props) {
           <div>
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Conteúdo</p>
             {element.type === 'text'        && <TextElementProps element={element} onUpdate={onUpdate} />}
+            {element.type === 'box'         && <BoxElementProps element={element} onUpdate={onUpdate} />}
+            {element.type === 'icon'        && <IconElementProps element={element} onUpdate={onUpdate} />}
             {element.type === 'watermark'   && <WatermarkProps element={element} onUpdate={onUpdate} />}
             {element.type === 'divider'     && <DividerProps element={element} onUpdate={onUpdate} />}
             {element.type === 'kpi-projection' && <KpiProjectionProps element={element} onUpdate={onUpdate} />}
@@ -392,10 +555,37 @@ export function ElementPropertiesPanel({ element, onUpdate }: Props) {
             {(element.type === 'chart-loss-waterfall' || element.type === 'table-analytics') && (
               <ChartElementProps element={element} onUpdate={onUpdate} />
             )}
+            {/* Technical elements */}
+            {element.type === 'section-header'    && <SectionHeaderProps element={element} onUpdate={onUpdate} />}
+            {element.type === 'kpi-capacity-badge' && <KpiCapacityBadgeProps element={element} onUpdate={onUpdate} />}
+            {element.type === 'guarantees-list'   && <GuaranteesListProps element={element} onUpdate={onUpdate} />}
+            {element.type === 'equipment-panel'   && <EquipmentPanelProps element={element} onUpdate={onUpdate} />}
           </div>
         )}
 
-        {isPageBlock && (
+        {isPageBlock && element.type === 'page-technical' && onDecompose && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-slate-600">
+              <FileText size={16} className="text-slate-400" />
+              <div>
+                <p className="text-xs font-semibold">Template clássico (bloqueado)</p>
+                <p className="text-[10px] text-slate-400 leading-relaxed">Página técnica completa</p>
+              </div>
+            </div>
+            <button
+              onClick={onDecompose}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-md transition-colors"
+            >
+              <Edit3 size={13} />
+              Editar esta página
+            </button>
+            <div className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 leading-relaxed">
+              <strong>Atenção:</strong> Esta ação substituirá o bloco único por elementos individuais editáveis. Você poderá mover, redimensionar e personalizar cada seção.
+            </div>
+          </div>
+        )}
+
+        {isPageBlock && element.type !== 'page-technical' && (
           <div className="text-xs text-slate-400 leading-relaxed">
             Este bloco representa uma página completa do template clássico. O conteúdo é editado pelo painel lateral de dados da proposta.
           </div>

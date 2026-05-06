@@ -10,11 +10,7 @@ import {
 import { cn } from '@/lib/utils';
 
 // Pages
-import { ProposalPageCover } from './pages/ProposalPageCover';
-import { ProposalPageInvestment } from './pages/ProposalPageInvestment';
 import { ProposalPageTechnical } from './pages/ProposalPageTechnical';
-import { ProposalPageSchedule } from './pages/ProposalPageSchedule';
-import { ProposalPageContact } from './pages/ProposalPageContact';
 
 export const ProposalDocumentPreview: React.FC = () => {
   const clientData = useSolarStore(s => s.clientData);
@@ -133,11 +129,7 @@ export const ProposalDocumentPreview: React.FC = () => {
   // ─────────────────────────────────────────────────────────────────
 
   const pages = [
-    <ProposalPageCover key="cover" {...pageData} />,
-    <ProposalPageInvestment key="investment" {...pageData} />,
     <ProposalPageTechnical key="technical" {...pageData} />,
-    <ProposalPageSchedule key="schedule" {...pageData} />,
-    <ProposalPageContact key="contact" {...pageData} />,
   ];
 
   return (

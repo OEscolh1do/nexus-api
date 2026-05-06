@@ -125,7 +125,7 @@ function validateModule(params) {
 
 function validateInverter(params) {
   const results = [];
-  const { pAcNom, pAcMax, vMinMpp, vMaxMpp, vAbsMax, fNom } = params;
+  const { pAcNom, pAcMax, vMinMpp, vMaxMpp, vAbsMax, fNom, pThreshold, efficiencyCurve } = params;
 
   // --- Regras críticas ---
 
@@ -137,8 +137,6 @@ function validateInverter(params) {
     });
   }
 
-  // Só verifica hierarquia de tensão se os valores estiverem presentes no arquivo.
-  // vAbsMax=0 significa "ausente" — não gerar falso positivo crítico.
   if (vMinMpp > 0 && vMaxMpp > 0 && vMinMpp >= vMaxMpp) {
     results.push({
       rule: 'voltage_mppt_order',
@@ -155,9 +153,50 @@ function validateInverter(params) {
     });
   }
 
+  // Regra 3 — Pthreshold (limiar de autoconsumo)
+  // Motor de simulação usa Pth/Pnom na fórmula de eficiência — valor zero causa NaN/divisão por zero.
+  if (pAcNom > 0) {
+    const minPth = pAcNom * 0.005; // 0,5% da potência nominal
+    if (pThreshold === undefined || pThreshold === null) {
+      results.push({
+        rule: 'pthreshold_missing',
+        status: 'critical',
+        message: `Pthreshold ausente. Mínimo obrigatório: ${minPth.toFixed(1)}W (0,5% de PAC_nom). Pode causar NaN na simulação PVSyst.`
+      });
+    } else if (pThreshold < minPth) {
+      results.push({
+        rule: 'pthreshold_too_low',
+        status: 'critical',
+        message: `Pthreshold=${pThreshold}W abaixo do mínimo de ${minPth.toFixed(1)}W (0,5% de PAC_nom). Risco de divisão por zero.`,
+        value: pThreshold,
+        threshold: minPth
+      });
+    }
+  }
+
+  // Regra 4 — Monotonidade da curva de eficiência (ProfilPIO)
+  if (efficiencyCurve && efficiencyCurve.length > 1) {
+    for (let i = 1; i < efficiencyCurve.length; i++) {
+      if (efficiencyCurve[i].power <= efficiencyCurve[i - 1].power) {
+        results.push({
+          rule: 'efficiency_curve_monotonicity',
+          status: 'critical',
+          message: `Ponto ${i + 1} (P=${efficiencyCurve[i].power}W) não é maior que o ponto ${i} (P=${efficiencyCurve[i - 1].power}W). Curva não-monótona causa interpolação inválida.`
+        });
+      }
+    }
+    const maxEff = Math.max(...efficiencyCurve.map(p => p.efficiency));
+    if (maxEff > 0.995) {
+      results.push({
+        rule: 'efficiency_max_range',
+        status: 'warning',
+        message: `Eficiência máxima da curva=${(maxEff * 100).toFixed(2)}% acima de 99,5%. Verificar plausibilidade.`
+      });
+    }
+  }
+
   // --- Regras de aviso ---
 
-  // Vabsmax fora da faixa típica de sistemas FV (600–1500 V)
   if (vAbsMax > 0 && (vAbsMax < 600 || vAbsMax > 1500)) {
     results.push({
       rule: 'vabsmax_range',
@@ -166,7 +205,6 @@ function validateInverter(params) {
     });
   }
 
-  // Frequência deve ser 50 Hz (Brasil/Europa) ou 60 Hz (EUA)
   if (fNom && fNom !== 50 && fNom !== 60) {
     results.push({
       rule: 'frequencia_nonstandard',

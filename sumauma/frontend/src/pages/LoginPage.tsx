@@ -54,7 +54,13 @@ export default function LoginPage() {
       // Notificar o backend sobre o login via SSO para auditoria
       api.post('/auth/audit-login', {}, {
         headers: { Authorization: `Bearer ${rawIdToken}` }
-      }).catch(err => console.warn('Falha ao auditar login SSO', err));
+      }).catch(err => {
+        if (err.message === 'Sessão expirada') {
+          console.warn('[Login] Auditoria ignorada: Sessão expirada no interceptor (provável refresh/race condition)');
+        } else {
+          console.warn('Falha ao auditar login SSO', err);
+        }
+      });
 
       navigate('/');
     });

@@ -13,7 +13,10 @@ function parsePanOnd(content) {
 
   for (let line of lines) {
     if (!line.trim() || !line.includes('=')) continue;
-    if (line.trimStart().startsWith('End of PVObject')) continue;
+    // Ignorar todos os terminadores: End of PVObject, End of TConverter, End of TCubicProfile, End of Remarks, etc.
+    if (/^\s*End of /.test(line)) continue;
+    // Ignorar bloco Remarks (linhas Str_N= são metadados textuais, não parâmetros elétricos)
+    if (/^\s*Remarks,/.test(line)) continue;
 
     const indent = line.length - line.trimStart().length;
     // Normaliza para nível lógico (2 espaços = 1 nível), igual ao parser do frontend

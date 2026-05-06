@@ -21,6 +21,7 @@ model ModuleCatalog {
   efficiency        Float?
   dimensions        String?
   weight            Float?
+  depth             Float?
   datasheet         String?
   imageUrl          String?
   isActive          Boolean @default(true)
@@ -48,6 +49,10 @@ model InverterCatalog {
   datasheet            String?
   imageUrl             String?
   isActive             Boolean @default(true)
+  width                Float?
+  height               Float?
+  depth                Float?
+  weight               Float?
   Voc_max_hardware     Float?
   Isc_max_hardware     Float?
   coolingType          String? @default("passive")

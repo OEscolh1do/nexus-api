@@ -36,13 +36,33 @@ async function verifyLogtoToken(token) {
   if (!decoded?.header?.kid) throw new Error('Token missing kid header');
 
   const publicKey = await getPublicKey(decoded.header.kid);
-  if (!publicKey) throw new Error('Public key not found for kid');
+  if (!publicKey) throw new Error(`Public key not found for kid: ${decoded.header.kid}`);
 
-  jwt.verify(token, publicKey, {
-    algorithms: ['RS256'],
-    issuer: `${process.env.LOGTO_ENDPOINT}/oidc`,
-    audience: process.env.LOGTO_M2M_RESOURCE,
-  });
+  const payload = decoded.payload;
+  const header = decoded.header;
+  const receivedIssuer = payload.iss;
+  const expectedIssuer = `${process.env.LOGTO_ENDPOINT}/oidc`;
+  const fallbackIssuer = process.env.LOGTO_ENDPOINT;
+  const audience = process.env.LOGTO_M2M_RESOURCE;
+
+  try {
+    const validIssuers = [expectedIssuer, fallbackIssuer];
+    const issuer = validIssuers.includes(receivedIssuer) ? receivedIssuer : expectedIssuer;
+
+    jwt.verify(token, publicKey, {
+      algorithms: ['RS256', 'ES384'],
+      issuer,
+      audience,
+    });
+  } catch (err) {
+    logger.error('M2M JWT Verification failed', {
+      name: err.name,
+      message: err.message,
+      issuer: receivedIssuer,
+      audience
+    });
+    throw new Error(`Invalid M2M token: ${err.message}`);
+  }
 }
 
 // Legacy shared-secret fallback — accepted during migration window
@@ -62,8 +82,11 @@ const validateM2M = async (req, res, next) => {
     try {
       await verifyLogtoToken(token);
       return next();
-    } catch {
-      return res.status(401).json({ error: 'Invalid M2M token' });
+    } catch (err) {
+      return res.status(401).json({ 
+        error: 'Invalid M2M token',
+        details: process.env.NODE_ENV === 'development' ? err.message : undefined 
+      });
     }
   }
 

@@ -119,8 +119,9 @@ router.post('/modules', async (req, res) => {
   } catch (error) {
     const status = error.response?.status || 500;
     const message = error.response?.data?.error || 'Falha ao adicionar módulo';
-    logger.error('Erro M2M módulo', { status, message });
-    res.status(status).json({ error: message });
+    const details = error.response?.data?.details;
+    logger.error('Erro M2M módulo', { status, message, details });
+    res.status(status).json({ error: message, details });
   }
 });
 
@@ -147,8 +148,9 @@ router.post('/inverters', async (req, res) => {
   } catch (error) {
     const status = error.response?.status || 500;
     const message = error.response?.data?.error || 'Falha ao adicionar inversor';
-    logger.error('Erro M2M inversor', { status, message });
-    res.status(status).json({ error: message });
+    const details = error.response?.data?.details;
+    logger.error('Erro M2M inversor', { status, message, details });
+    res.status(status).json({ error: message, details });
   }
 });
 
@@ -175,7 +177,8 @@ router.patch('/modules/:id', async (req, res) => {
   } catch (error) {
     const status = error.response?.status || 500;
     const message = error.response?.data?.error || 'Falha ao atualizar módulo';
-    res.status(status).json({ error: message });
+    const details = error.response?.data?.details;
+    res.status(status).json({ error: message, details });
   }
 });
 
@@ -202,7 +205,8 @@ router.patch('/inverters/:id', async (req, res) => {
   } catch (error) {
     const status = error.response?.status || 500;
     const message = error.response?.data?.error || 'Falha ao atualizar inversor';
-    res.status(status).json({ error: message });
+    const details = error.response?.data?.details;
+    res.status(status).json({ error: message, details });
   }
 });
 
@@ -227,7 +231,8 @@ router.delete('/modules/:id', async (req, res) => {
   } catch (error) {
     const status = error.response?.status || 500;
     const message = error.response?.data?.error || 'Falha ao excluir módulo';
-    res.status(status).json({ error: message });
+    const details = error.response?.data?.details;
+    res.status(status).json({ error: message, details });
   }
 });
 
@@ -252,7 +257,8 @@ router.delete('/inverters/:id', async (req, res) => {
   } catch (error) {
     const status = error.response?.status || 500;
     const message = error.response?.data?.error || 'Falha ao excluir inversor';
-    res.status(status).json({ error: message });
+    const details = error.response?.data?.details;
+    res.status(status).json({ error: message, details });
   }
 });
 

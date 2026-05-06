@@ -41,10 +41,16 @@ function platformAuth(req, res, next) {
   try {
     jwt.verify(token, getKey, { clockTolerance: 30 }, (err, decoded) => {
       if (err) {
+        logger.error('Falha na verificação do JWT', { 
+          name: err.name, 
+          message: err.message,
+          stack: err.stack,
+          tokenSnippet: token.substring(0, 10) + '...'
+        });
         if (err.name === 'TokenExpiredError') {
           return res.status(401).json({ error: 'Token expirado. Faça login novamente.' });
         }
-        return res.status(401).json({ error: 'Token inválido' });
+        return res.status(401).json({ error: `Token inválido: ${err.message}` });
       }
 
       // O Logto injeta roles via array 'roles' ou claim customizada
