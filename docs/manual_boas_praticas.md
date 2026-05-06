@@ -43,9 +43,32 @@ Para resolver isso de forma definitiva e transparente para o usuário:
 
 ---
 
-## 2. Padrões de Interface de Engenharia ( इंजीनियरिंग UI)
+## 2. Padrões de Interface de Engenharia (Engineering UI)
 
-*(Espaço reservado para futuras entradas sobre WebGL, Canvas e Cálculos Fotovoltaicos)*
+### 2.1. Buffer de Estado para Inputs de Alta Performance
+**Data:** 06/05/2026
+**Módulo:** Kurupira Frontend (Módulo de Engenharia)
+
+#### O Problema
+Em telas de engenharia complexas (ex: Consumption View), os inputs numéricos costumam estar vinculados diretamente a um store global (Zustand) que dispara múltiplos efeitos colaterais:
+1. Re-renderização de gráficos pesados (Recharts/Canvas).
+2. Recálculo imediato de metas (kWp alvo).
+3. Disparo de modais de confirmação (ex: "Ajuste manual detectado").
+
+**Consequência:** O usuário não consegue apagar o campo para digitar um novo valor (o store força o retorno para 0 ou para o valor anterior), e a experiência de digitação fica travada ou interrompida por popups constantes.
+
+#### A Solução (Padrão Adotado)
+Implementar o padrão de **Deferred Store Sync** (Sincronização Adiada do Store):
+
+1. **Estado Local de Buffer:** Utilize um `useState<string>` local para controlar o valor do input como texto puro. Isso permite que o campo fique vazio (`''`) enquanto o usuário edita.
+2. **Sincronização Unidirecional (Store -> Local):** Sincronize o estado local com o valor do store apenas no `useEffect` de montagem ou quando a entidade ativa mudar (ex: mudar de Unidade Consumidora).
+3. **Escrita Condicional (Local -> Store):**
+   - **Live Update:** Atualize o store em tempo real apenas se a alteração for trivial e não disparar efeitos bloqueantes.
+   - **Deferred Sync (onBlur / Enter):** Se a alteração exigir confirmação do usuário ou for pesada, execute a atualização do store global apenas no evento `onBlur` ou ao pressionar `Enter`.
+4. **Tratamento de Vazio:** Trate o valor vazio (`''`) no local state como `0` ou `null` apenas no momento de enviar para o store, nunca durante a digitação.
+
+#### Regra de Ouro
+> "Se um input numérico vinculado a um store global dispara efeitos colaterais ou validações complexas, use um buffer local (`useState`) e sincronize apenas no término da edição (`onBlur`), para garantir fluidez e evitar disparos falsos."
 
 ---
 
@@ -90,3 +113,31 @@ Mesmo definindo `ALLOWED_ORIGINS` no arquivo `.env`, o container do backend pode
 
 #### Regra de Ouro
 > "Nunca assuma que o Docker carregou seu .env global. Se o backend precisa da variável, ela deve estar listada no environment do serviço no compose."
+
+---
+
+## 5. Integridade de Dados de Engenharia (Engineering Data Integrity)
+
+### 5.1. Sincronização Top-Level vs. JSON Metadata (Merge-on-Save)
+**Data:** 06/05/2026
+**Módulo:** Sumaúma Catalog / Kurupira Engine
+
+#### O Problema
+Em sistemas de engenharia onde os dados de equipamento evoluem, é comum adotar uma estrutura de banco de dados híbrida:
+1. **Campos de Topo (Flattened):** Campos comuns indexáveis e fáceis de filtrar (ex: `powerWp`, `efficiency`).
+2. **JSON Blob (`electricalData`):** Metadados técnicos densos (curvas de eficiência, coeficientes, limites de hardware) usados pelos motores de simulação (ex: PVSyst .PAN/.OND).
+
+**O Problema:** Ao editar um campo de topo na UI (ex: atualizar a Potência de 550 para 555Wp), o JSON técnico interno (`electricalData.pmax`) permanece com o valor antigo. Se o motor de simulação ler apenas o JSON para os cálculos pesados, ele usará dados obsoletos, quebrando a consistência técnica e a confiança do usuário no resultado.
+
+#### A Solução (Padrão Adotado)
+Implementar o padrão de **Sincronização Unidirecional de Metadados (Metadata Syncing)** no momento da persistência:
+
+1.  **Utilitário de Sincronização Centralizado:** Criar funções puras (ex: `syncModuleData`) que recebem os valores de topo e o objeto JSON, devolvendo um JSON atualizado onde as redundâncias são eliminadas em favor dos novos valores de topo.
+2.  **Estratégia de Merge-on-Save:**
+    - O frontend coleta as edições do usuário em um estado local de formulário.
+    - Antes de enviar o `PATCH`, o sistema mescla as alterações manuais avançadas no objeto JSON.
+    - Em seguida, aplica a sincronização automática dos campos de topo sobre esse JSON.
+3.  **Transparência Técnica:** A interface deve refletir claramente quais campos são de topo e quais são "metadados avançados", mas garantir que a alteração de um reflita no outro para manter a "Cadeia da Verdade".
+
+#### Regra de Ouro
+> "A UI é a fonte da verdade para o usuário, mas o JSON é a fonte da verdade para o motor técnico. No momento do salvamento, a UI deve sempre ter precedência e sobrescrever os metadados JSON correspondentes."

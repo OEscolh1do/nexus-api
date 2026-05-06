@@ -41,9 +41,17 @@ router.get('/modules', authenticateToken, async (req, res) => {
 
 router.post('/modules', authenticateToken, requireRole(['PLATFORM_ADMIN']), async (req, res) => {
   try {
-    const { manufacturer, model, powerWp, efficiency, dimensions, weight, datasheet, isActive, electricalData, unifilarSymbolRef } = req.body;
+    const { 
+      manufacturer, model, powerWp, efficiency, dimensions, weight, datasheet, isActive, 
+      electricalData, unifilarSymbolRef, bifacial, bifacialityFactor, noct, 
+      tempCoeffVoc, tempCoeffPmax, cellSizeClass, degradacaoAnual 
+    } = req.body;
     const module = await prisma.moduleCatalog.create({
-      data: { manufacturer, model, powerWp, efficiency, dimensions, weight, datasheet, isActive, electricalData, unifilarSymbolRef }
+      data: { 
+        manufacturer, model, powerWp, efficiency, dimensions, weight, datasheet, isActive, 
+        electricalData, unifilarSymbolRef, bifacial, bifacialityFactor, noct, 
+        tempCoeffVoc, tempCoeffPmax, cellSizeClass, degradacaoAnual 
+      }
     });
     invalidateCache('catalog:modules');
     res.status(201).json({ success: true, data: module });
@@ -54,10 +62,18 @@ router.post('/modules', authenticateToken, requireRole(['PLATFORM_ADMIN']), asyn
 
 router.put('/modules/:id', authenticateToken, requireRole(['PLATFORM_ADMIN']), async (req, res) => {
   try {
-    const { manufacturer, model, powerWp, efficiency, dimensions, weight, datasheet, isActive, electricalData, unifilarSymbolRef } = req.body;
+    const { 
+      manufacturer, model, powerWp, efficiency, dimensions, weight, datasheet, isActive, 
+      electricalData, unifilarSymbolRef, bifacial, bifacialityFactor, noct, 
+      tempCoeffVoc, tempCoeffPmax, cellSizeClass, degradacaoAnual 
+    } = req.body;
     const module = await prisma.moduleCatalog.update({
       where: { id: req.params.id },
-      data: { manufacturer, model, powerWp, efficiency, dimensions, weight, datasheet, isActive, electricalData, unifilarSymbolRef }
+      data: { 
+        manufacturer, model, powerWp, efficiency, dimensions, weight, datasheet, isActive, 
+        electricalData, unifilarSymbolRef, bifacial, bifacialityFactor, noct, 
+        tempCoeffVoc, tempCoeffPmax, cellSizeClass, degradacaoAnual 
+      }
     });
     invalidateCache('catalog:modules');
     res.json({ success: true, data: module });
@@ -110,9 +126,17 @@ router.get('/inverters', authenticateToken, async (req, res) => {
 
 router.post('/inverters', authenticateToken, requireRole(['PLATFORM_ADMIN']), async (req, res) => {
   try {
-    const { manufacturer, model, nominalPowerW, maxInputV, mpptCount, efficiency, datasheet, isActive, electricalData, unifilarSymbolRef } = req.body;
+    const { 
+      manufacturer, model, nominalPowerW, maxInputV, mpptCount, efficiency, datasheet, isActive, 
+      electricalData, unifilarSymbolRef, Voc_max_hardware, Isc_max_hardware, coolingType, 
+      afci, rsd, portaria515Compliant 
+    } = req.body;
     const inverter = await prisma.inverterCatalog.create({
-      data: { manufacturer, model, nominalPowerW, maxInputV, mpptCount, efficiency, datasheet, isActive, electricalData, unifilarSymbolRef }
+      data: { 
+        manufacturer, model, nominalPowerW, maxInputV, mpptCount, efficiency, datasheet, isActive, 
+        electricalData, unifilarSymbolRef, Voc_max_hardware, Isc_max_hardware, coolingType, 
+        afci, rsd, portaria515Compliant 
+      }
     });
     invalidateCache('catalog:inverters');
     res.status(201).json({ success: true, data: inverter });
@@ -123,10 +147,18 @@ router.post('/inverters', authenticateToken, requireRole(['PLATFORM_ADMIN']), as
 
 router.put('/inverters/:id', authenticateToken, requireRole(['PLATFORM_ADMIN']), async (req, res) => {
   try {
-    const { manufacturer, model, nominalPowerW, maxInputV, mpptCount, efficiency, datasheet, isActive, electricalData, unifilarSymbolRef } = req.body;
+    const { 
+      manufacturer, model, nominalPowerW, maxInputV, mpptCount, efficiency, datasheet, isActive, 
+      electricalData, unifilarSymbolRef, Voc_max_hardware, Isc_max_hardware, coolingType, 
+      afci, rsd, portaria515Compliant 
+    } = req.body;
     const inverter = await prisma.inverterCatalog.update({
       where: { id: req.params.id },
-      data: { manufacturer, model, nominalPowerW, maxInputV, mpptCount, efficiency, datasheet, isActive, electricalData, unifilarSymbolRef }
+      data: { 
+        manufacturer, model, nominalPowerW, maxInputV, mpptCount, efficiency, datasheet, isActive, 
+        electricalData, unifilarSymbolRef, Voc_max_hardware, Isc_max_hardware, coolingType, 
+        afci, rsd, portaria515Compliant 
+      }
     });
     invalidateCache('catalog:inverters');
     res.json({ success: true, data: inverter });

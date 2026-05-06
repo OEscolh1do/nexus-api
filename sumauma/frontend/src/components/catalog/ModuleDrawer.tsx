@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X, Cpu, Thermometer, Info, Zap, Edit2, Save, Loader2, Trash2 } from 'lucide-react';
 import { useToggleEquipment, useDeleteEquipment, type ModuleEquipment } from '@/hooks/useCatalog';
 import { usePatchEquipment } from '@/hooks/usePatchEquipment';
+import { mergeTechnicalData, syncModuleData } from '@/lib/catalogSync';
 import TenantStatusBadge from '@/components/tenants/TenantStatusBadge';
 import { ShieldCheck, AlertTriangle, ShieldAlert, Shield } from 'lucide-react';
 
@@ -35,7 +36,14 @@ export default function ModuleDrawer({ moduleEquipment: m, onClose, onMutated }:
     powerWp: m.powerWp, 
     efficiency: m.efficiency || '',
     dimensions: m.dimensions || '',
-    weight: m.weight || ''
+    weight: m.weight || '',
+    // Technical parameters (Advanced Edit)
+    voc: (m.electricalData as any)?.voc || '',
+    isc: (m.electricalData as any)?.isc || '',
+    vmp: (m.electricalData as any)?.vmp || '',
+    imp: (m.electricalData as any)?.imp || '',
+    tempCoeffVoc: m.tempCoeffVoc || (m.electricalData as any)?.tempCoeffVoc || '',
+    tempCoeffPmax: m.tempCoeffPmax || (m.electricalData as any)?.tempCoeffPmax || '',
   });
 
   const { mutate: patch, loadingId: patchLoadingId } = usePatchEquipment('/catalog/modules', () => {
@@ -102,26 +110,27 @@ export default function ModuleDrawer({ moduleEquipment: m, onClose, onMutated }:
               <div className="flex-1 min-w-0">
                 <h2 className="text-lg font-bold text-white tracking-tight leading-tight">{m.model}</h2>
                 <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.1em] text-slate-500">{m.manufacturer}</p>
-                         <div className="flex flex-col items-end gap-2">
+              </div>
+              <div className="flex flex-col items-end gap-2 shrink-0">
                 <TenantStatusBadge status={m.isActive ? 'ACTIVE' : 'BLOCKED'} />
                 {m.bifacial && (
-                  <div className="rounded-sm bg-sky-500/10 px-2 py-1 text-[10px] font-bold tracking-wider text-sky-400 border border-sky-500/20">
+                  <div className="rounded-sm bg-sky-500/10 px-2 py-0.5 text-[9px] font-bold tracking-wider text-sky-400 border border-sky-500/20">
                     BIFACIAL
                   </div>
                 )}
                 {ed?.bankability && (
-                  <div className={`flex items-center gap-1.5 rounded-sm px-2 py-1 text-[10px] font-bold tracking-wider border ${
+                  <div className={`flex items-center gap-1.5 rounded-sm px-2 py-0.5 text-[9px] font-bold tracking-wider border ${
                     ed.bankability === 'BANKABLE'   ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
                     ed.bankability === 'ACCEPTABLE' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
                                                       'bg-red-500/10 text-red-400 border-red-500/20'
                   }`}>
-                    {ed.bankability === 'BANKABLE'   ? <ShieldCheck className="h-3 w-3" /> :
-                     ed.bankability === 'ACCEPTABLE' ? <Shield className="h-3 w-3" /> :
-                                                        <ShieldAlert className="h-3 w-3" />}
+                    {ed.bankability === 'BANKABLE'   ? <ShieldCheck className="h-2.5 w-2.5" /> :
+                     ed.bankability === 'ACCEPTABLE' ? <Shield className="h-2.5 w-2.5" /> :
+                                                        <ShieldAlert className="h-2.5 w-2.5" />}
                     {ed.bankability}
                   </div>
                 )}
-              </div>    </div>
+              </div>
             </div>
           </section>
 
@@ -230,19 +239,59 @@ export default function ModuleDrawer({ moduleEquipment: m, onClose, onMutated }:
               </div>
               <div className="bg-slate-900 p-3">
                 <p className="text-[10px] text-slate-500 mb-1 truncate">Tensão Voc</p>
-                <p className="text-sm font-mono text-slate-200 tabular-nums">{formatN(ed?.voc, 2)} V</p>
+                {isEditing ? (
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={formData.voc}
+                    onChange={e => setFormData(s => ({ ...s, voc: e.target.value }))}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-sm px-2 py-1 text-xs font-mono text-slate-200 focus:border-sky-500 focus:outline-none"
+                  />
+                ) : (
+                  <p className="text-sm font-mono text-slate-200 tabular-nums">{formatN(ed?.voc, 2)} V</p>
+                )}
               </div>
               <div className="bg-slate-900 p-3">
                 <p className="text-[10px] text-slate-500 mb-1 truncate">Corrente Isc</p>
-                <p className="text-sm font-mono text-slate-200 tabular-nums">{formatN(ed?.isc, 2)} A</p>
+                {isEditing ? (
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={formData.isc}
+                    onChange={e => setFormData(s => ({ ...s, isc: e.target.value }))}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-sm px-2 py-1 text-xs font-mono text-slate-200 focus:border-sky-500 focus:outline-none"
+                  />
+                ) : (
+                  <p className="text-sm font-mono text-slate-200 tabular-nums">{formatN(ed?.isc, 2)} A</p>
+                )}
               </div>
               <div className="bg-slate-900 p-3">
                 <p className="text-[10px] text-slate-500 mb-1 truncate">Tensão Vmp</p>
-                <p className="text-sm font-mono text-slate-200 tabular-nums">{formatN(ed?.vmp, 2)} V</p>
+                {isEditing ? (
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={formData.vmp}
+                    onChange={e => setFormData(s => ({ ...s, vmp: e.target.value }))}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-sm px-2 py-1 text-xs font-mono text-slate-200 focus:border-sky-500 focus:outline-none"
+                  />
+                ) : (
+                  <p className="text-sm font-mono text-slate-200 tabular-nums">{formatN(ed?.vmp, 2)} V</p>
+                )}
               </div>
               <div className="bg-slate-900 p-3">
                 <p className="text-[10px] text-slate-500 mb-1 truncate">Corrente Imp</p>
-                <p className="text-sm font-mono text-slate-200 tabular-nums">{formatN(ed?.imp, 2)} A</p>
+                {isEditing ? (
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={formData.imp}
+                    onChange={e => setFormData(s => ({ ...s, imp: e.target.value }))}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-sm px-2 py-1 text-xs font-mono text-slate-200 focus:border-sky-500 focus:outline-none"
+                  />
+                ) : (
+                  <p className="text-sm font-mono text-slate-200 tabular-nums">{formatN(ed?.imp, 2)} A</p>
+                )}
               </div>
             </div>
           </section>
@@ -256,15 +305,35 @@ export default function ModuleDrawer({ moduleEquipment: m, onClose, onMutated }:
             <div className="rounded-sm border border-slate-800 divide-y divide-slate-800 bg-slate-900/50">
               <div className="flex justify-between px-3 py-2.5">
                 <span className="text-[11px] text-slate-400">Coef. de Potência (muPmp)</span>
-                <span className="text-[11px] font-mono text-amber-400 tabular-nums">
-                  {formatN(m.tempCoeffPmax ?? ed?.tempCoeffPmax, 3)} %/°C
-                </span>
+                {isEditing ? (
+                  <input
+                    type="number"
+                    step="0.001"
+                    value={formData.tempCoeffPmax}
+                    onChange={e => setFormData(s => ({ ...s, tempCoeffPmax: e.target.value }))}
+                    className="h-6 w-24 bg-slate-950 border border-slate-700 rounded-sm px-2 text-[11px] font-mono text-amber-400 focus:border-sky-500 focus:outline-none"
+                  />
+                ) : (
+                  <span className="text-[11px] font-mono text-amber-400 tabular-nums">
+                    {formatN(m.tempCoeffPmax ?? ed?.tempCoeffPmax, 3)} %/°C
+                  </span>
+                )}
               </div>
               <div className="flex justify-between px-3 py-2.5">
                 <span className="text-[11px] text-slate-400">Coef. de Tensão (muVoc)</span>
-                <span className="text-[11px] font-mono text-amber-400 tabular-nums">
-                  {formatN(m.tempCoeffVoc ?? ed?.tempCoeffVoc, 3)} %/°C
-                </span>
+                {isEditing ? (
+                  <input
+                    type="number"
+                    step="0.001"
+                    value={formData.tempCoeffVoc}
+                    onChange={e => setFormData(s => ({ ...s, tempCoeffVoc: e.target.value }))}
+                    className="h-6 w-24 bg-slate-950 border border-slate-700 rounded-sm px-2 text-[11px] font-mono text-amber-400 focus:border-sky-500 focus:outline-none"
+                  />
+                ) : (
+                  <span className="text-[11px] font-mono text-amber-400 tabular-nums">
+                    {formatN(m.tempCoeffVoc ?? ed?.tempCoeffVoc, 3)} %/°C
+                  </span>
+                )}
               </div>
               <div className="flex justify-between px-3 py-2.5">
                 <span className="text-[11px] text-slate-400">Coef. de Corrente (muIsc)</span>
@@ -388,12 +457,31 @@ export default function ModuleDrawer({ moduleEquipment: m, onClose, onMutated }:
                 Cancelar
               </button>
               <button
-                onClick={() => patch(m.id, {
-                  powerWp: Number(formData.powerWp) || m.powerWp,
-                  efficiency: formData.efficiency ? Number(formData.efficiency) : null,
-                  dimensions: formData.dimensions || null,
-                  weight: formData.weight ? Number(formData.weight) : null,
-                })}
+                onClick={() => {
+                  const payload: any = {
+                    powerWp: Number(formData.powerWp) || m.powerWp,
+                    efficiency: formData.efficiency ? Number(formData.efficiency) : null,
+                    dimensions: formData.dimensions || null,
+                    weight: formData.weight ? Number(formData.weight) : null,
+                    tempCoeffPmax: formData.tempCoeffPmax ? Number(formData.tempCoeffPmax) : null,
+                    tempCoeffVoc: formData.tempCoeffVoc ? Number(formData.tempCoeffVoc) : null,
+                  };
+
+                  // Merge e Sincronização de Dados de Engenharia
+                  const currentED = (m.electricalData as any) || {};
+                  const updatedED = mergeTechnicalData(currentED, {
+                    voc: formData.voc ? Number(formData.voc) : currentED.voc,
+                    isc: formData.isc ? Number(formData.isc) : currentED.isc,
+                    vmp: formData.vmp ? Number(formData.vmp) : currentED.vmp,
+                    imp: formData.imp ? Number(formData.imp) : currentED.imp,
+                    tempCoeffVoc: payload.tempCoeffVoc,
+                    tempCoeffPmax: payload.tempCoeffPmax,
+                  });
+
+                  payload.electricalData = syncModuleData(payload, updatedED);
+                  
+                  patch(m.id, payload);
+                }}
                 disabled={isSaving}
                 className="flex-1 flex items-center justify-center gap-1.5 rounded-sm bg-sky-600 px-3 py-2 text-xs font-medium text-white hover:bg-sky-500 transition-colors disabled:opacity-50"
               >

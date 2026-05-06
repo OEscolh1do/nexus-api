@@ -36,17 +36,41 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
   const [pendingAvg, setPendingAvg] = React.useState<number | null>(null);
   const [ucToDeleteId, setUcToDeleteId] = React.useState<string | null>(null);
   const [editingUcId, setEditingUcId] = React.useState<string | null>(null);
-  
+
   const hasManualHistory = useMemo(() => {
     if (!activeInvoice || !activeInvoice.monthlyHistory) return false;
-    return activeInvoice.monthlyHistory.some(val => val !== activeInvoiceAvg);
+    // Precisão de 1 kWh para evitar disparos falsos por arredondamento
+    return activeInvoice.monthlyHistory.some(val => Math.abs(val - activeInvoiceAvg) > 1);
   }, [activeInvoice, activeInvoiceAvg]);
+
+  // --- LOCAL STATE PARA EDIÇÃO FLUIDA ---
+  const [localAvg, setLocalAvg] = React.useState<string>(
+    activeInvoiceAvg > 0 ? Math.round(activeInvoiceAvg).toString() : ''
+  );
+
+  // Sincroniza local -> store quando mudar de UC ou quando a média mudar externamente
+  useEffect(() => {
+    const roundedStore = Math.round(activeInvoiceAvg);
+    const currentLocal = localAvg === '' ? 0 : Number(localAvg);
+    
+    if (Math.abs(roundedStore - currentLocal) > 0.1) {
+      setLocalAvg(activeInvoiceAvg > 0 ? Math.round(activeInvoiceAvg).toString() : '');
+    }
+  }, [activeInvoiceAvg, activeInvoiceId]);
 
   const handleAverageChange = (newVal: number) => {
     if (hasManualHistory) {
       setPendingAvg(newVal);
     } else {
       updateActiveInvoice({ monthlyHistory: Array(12).fill(newVal) });
+    }
+  };
+
+  const onAvgBlur = () => {
+    const num = localAvg === '' ? 0 : Number(localAvg);
+    // Só dispara se houver mudança real
+    if (Math.abs(num - activeInvoiceAvg) > 0.1) {
+      handleAverageChange(num);
     }
   };
 
@@ -389,9 +413,22 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
                 type="number"
                 inputMode="numeric"
                 data-field="average-consumption"
-                value={activeInvoiceAvg ? Number(activeInvoiceAvg.toFixed(2)) : 0}
-                onChange={e => handleAverageChange(Number(e.target.value))}
-                className="bg-transparent text-emerald-200 font-mono font-black text-[12px] focus:outline-none w-16 text-center tabular-nums"
+                placeholder="0"
+                value={localAvg}
+                onChange={e => {
+                  setLocalAvg(e.target.value);
+                  // Live update apenas se NÃO houver histórico manual (UX fluida)
+                  if (!hasManualHistory && e.target.value !== '') {
+                    updateActiveInvoice({ monthlyHistory: Array(12).fill(Number(e.target.value)) });
+                  }
+                }}
+                onBlur={onAvgBlur}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    (e.target as HTMLInputElement).blur();
+                  }
+                }}
+                className="bg-transparent text-emerald-200 font-mono font-black text-[12px] focus:outline-none w-16 text-center tabular-nums placeholder:text-slate-800"
               />
               <span className="text-[9px] text-slate-500 font-bold ml-1">kWh</span>
             </div>

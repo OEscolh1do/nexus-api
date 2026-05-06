@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X, Battery, Zap, Activity, Edit2, Save, Loader2, Trash2, Maximize2, Weight, ArrowDownToLine, ArrowUpFromLine, Gauge, ShieldCheck, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { useToggleEquipment, useDeleteEquipment, type InverterEquipment } from '@/hooks/useCatalog';
 import { usePatchEquipment } from '@/hooks/usePatchEquipment';
+import { mergeTechnicalData, syncInverterData } from '@/lib/catalogSync';
 import TenantStatusBadge from '@/components/tenants/TenantStatusBadge';
 
 interface InverterDrawerProps {
@@ -28,7 +29,11 @@ export default function InverterDrawer({ inverterEquipment: m, onClose, onMutate
     width: m.width || '',
     height: m.height || '',
     depth: m.depth || '',
-    weight: m.weight || ''
+    weight: m.weight || '',
+    // Advanced fields
+    vMinMpp: (m.electricalData as any)?.vMinMpp || '',
+    vMaxMpp: (m.electricalData as any)?.vMaxMpp || '',
+    iMaxDC: (m.electricalData as any)?.iMaxDC || '',
   });
 
   const { mutate: patch, loadingId: patchLoadingId } = usePatchEquipment('/catalog/inverters', () => {
@@ -365,6 +370,33 @@ export default function InverterDrawer({ inverterEquipment: m, onClose, onMutate
                   />
                 </div>
                 <div className="space-y-1">
+                  <label className="text-[10px] text-slate-500">Vmin MPP (V)</label>
+                  <input
+                    type="number"
+                    value={formData.vMinMpp}
+                    onChange={e => setFormData(s => ({ ...s, vMinMpp: e.target.value }))}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-sm px-2 py-1 text-xs font-mono text-slate-200 focus:border-sky-500 focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] text-slate-500">Vmax MPP (V)</label>
+                  <input
+                    type="number"
+                    value={formData.vMaxMpp}
+                    onChange={e => setFormData(s => ({ ...s, vMaxMpp: e.target.value }))}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-sm px-2 py-1 text-xs font-mono text-slate-200 focus:border-sky-500 focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] text-slate-500">Imax DC (A)</label>
+                  <input
+                    type="number"
+                    value={formData.iMaxDC}
+                    onChange={e => setFormData(s => ({ ...s, iMaxDC: e.target.value }))}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-sm px-2 py-1 text-xs font-mono text-slate-200 focus:border-sky-500 focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
                   <label className="text-[10px] text-slate-500">Peso (kg)</label>
                   <input
                     type="number"
@@ -390,16 +422,32 @@ export default function InverterDrawer({ inverterEquipment: m, onClose, onMutate
                 Cancelar
               </button>
               <button
-                onClick={() => patch(m.id, {
-                  nominalPowerW: Number(formData.nominalPowerW),
-                  maxInputV: formData.maxInputV ? Number(formData.maxInputV) : null,
-                  mpptCount: formData.mpptCount ? Number(formData.mpptCount) : null,
-                  efficiency: formData.efficiency ? Number(formData.efficiency) : null,
-                  width: formData.width ? Number(formData.width) : null,
-                  height: formData.height ? Number(formData.height) : null,
-                  depth: formData.depth ? Number(formData.depth) : null,
-                  weight: formData.weight ? Number(formData.weight) : null,
-                })}
+                onClick={() => {
+                  const payload: any = {
+                    nominalPowerW: Number(formData.nominalPowerW),
+                    maxInputV: formData.maxInputV ? Number(formData.maxInputV) : null,
+                    Voc_max_hardware: formData.maxInputV ? Number(formData.maxInputV) : null,
+                    Isc_max_hardware: formData.iMaxDC ? Number(formData.iMaxDC) : null,
+                    mpptCount: formData.mpptCount ? Number(formData.mpptCount) : null,
+                    efficiency: formData.efficiency ? Number(formData.efficiency) : null,
+                    width: formData.width ? Number(formData.width) : null,
+                    height: formData.height ? Number(formData.height) : null,
+                    depth: formData.depth ? Number(formData.depth) : null,
+                    weight: formData.weight ? Number(formData.weight) : null,
+                  };
+
+                  // Merge e Sincronização de Dados de Engenharia
+                  const currentED = (m.electricalData as any) || {};
+                  const updatedED = mergeTechnicalData(currentED, {
+                    vMinMpp: formData.vMinMpp ? Number(formData.vMinMpp) : currentED.vMinMpp,
+                    vMaxMpp: formData.vMaxMpp ? Number(formData.vMaxMpp) : currentED.vMaxMpp,
+                    iMaxDC: formData.iMaxDC ? Number(formData.iMaxDC) : currentED.iMaxDC,
+                  });
+
+                  payload.electricalData = syncInverterData(payload, updatedED);
+                  
+                  patch(m.id, payload);
+                }}
                 disabled={isSaving}
                 className="flex-1 flex items-center justify-center gap-1.5 rounded-sm bg-sky-600 px-3 py-2 text-xs font-medium text-white hover:bg-sky-500 transition-colors disabled:opacity-50"
               >
