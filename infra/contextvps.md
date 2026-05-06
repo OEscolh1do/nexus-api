@@ -182,8 +182,10 @@ O `docker-compose.production.yml` lê este arquivo automaticamente.
 | `DB_ADMIN_USER` / `_PASSWORD` | ✅ | Usuário read-only cross-database |
 | `JWT_SECRET` | ✅ | Segredo HS256 (gerar com `openssl rand -base64 64`) |
 | `M2M_SERVICE_TOKEN` | ✅ | Token M2M inter-serviços (legado, em migração) |
-| `LOGTO_ENDPOINT` | ✅ | URL base do tenant Logto |
-| `LOGTO_JWKS_URI` | ✅ | Endpoint JWKS do Logto |
+| `ALLOWED_ORIGINS` | ✅ | Domínios permitidos no CORS (backend) |
+| `LOGTO_ENDPOINT` | ✅ | URL base do tenant Logto (ex: https://214fzz.logto.app) |
+| `VITE_LOGTO_APP_ID` | ✅ | ID da aplicação (Single Page App) no Logto |
+| `VITE_GOOGLE_MAPS_API_KEY` | ✅ | Chave da API do Google Cloud |
 | `LOGTO_M2M_CLIENT_ID` | ✅ | App ID da aplicação M2M no Logto |
 | `LOGTO_M2M_CLIENT_SECRET` | ✅ | Client Secret M2M do Logto |
 | `LOGTO_M2M_RESOURCE` | ✅ | URI do API Resource no Logto |
@@ -206,7 +208,8 @@ sudo nginx -t && sudo systemctl restart nginx
 ```bash
 # Frontend (com a URL correta de produção)
 cd /srv/ywara/kurupira/frontend
-VITE_API_URL=https://kurupira.neonorte-ywara.tech/api npm run build
+# Criar ou editar o arquivo .env.production
+npm run build
 
 # Backend (via Docker Compose)
 cd /srv/ywara

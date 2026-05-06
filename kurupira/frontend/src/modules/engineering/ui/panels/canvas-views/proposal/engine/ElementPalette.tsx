@@ -4,6 +4,7 @@ import {
   Type, Image, Star, Droplets, Minus, BarChart2, TrendingUp,
   Table, ListOrdered, Map, Zap, LayoutTemplate,
   Sun, CandlestickChart, Activity, PieChart, Layers, BarChart,
+  Braces,
 } from 'lucide-react';
 import type { CanvasElementType } from './types';
 import { DEFAULT_ELEMENT_PROPS } from './types';
@@ -24,6 +25,10 @@ const CONTENT_ITEMS: PaletteItem[] = [
   { type: 'payment-table',      label: 'Tab. Investimento', icon: <Table size={14} />,       defaultWidth: 340, defaultHeight: 180 },
   { type: 'schedule-timeline',  label: 'Cronograma',      icon: <ListOrdered size={14} />,   defaultWidth: 680, defaultHeight: 280 },
   { type: 'map-static',         label: 'Mapa Estático',   icon: <Map size={14} />,           defaultWidth: 320, defaultHeight: 200 },
+];
+
+const DYNAMIC_ITEMS: PaletteItem[] = [
+  { type: 'placeholder', label: 'Campo Dinâmico', icon: <Braces size={14} />, defaultWidth: 240, defaultHeight: 32 },
 ];
 
 const PROJECTION_ITEMS: PaletteItem[] = [
@@ -102,6 +107,13 @@ export function ElementPalette({ hasCustomLayout }: Props) {
 
       <div className="flex-1 overflow-y-auto py-2">
         <div className="px-3 py-1.5">
+          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Campos Dinâmicos</p>
+          {DYNAMIC_ITEMS.map((item) => (
+            <DraggableItem key={item.type} item={item} />
+          ))}
+        </div>
+
+        <div className="px-3 py-1.5 border-t border-slate-100">
           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Conteúdo</p>
           {CONTENT_ITEMS.map((item) => (
             <DraggableItem key={item.type} item={item} />

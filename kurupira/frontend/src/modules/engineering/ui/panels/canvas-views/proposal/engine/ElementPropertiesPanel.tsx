@@ -1,6 +1,7 @@
 import React from 'react';
 import { Lock, Unlock, Eye, EyeOff, ChevronUp, ChevronDown } from 'lucide-react';
 import type { CanvasElement } from './types';
+import { PLACEHOLDER_FIELDS, DEFAULT_PLACEHOLDER_FIELD } from './elements/PlaceholderElement';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -63,22 +64,19 @@ function ColorPropRow({ label, value, onChange }: { label: string; value: string
   );
 }
 
-function TextElementProps({ element, onUpdate }: Props) {
-  const p = element.props as Record<string, unknown>;
-  const update = (key: string, val: unknown) => onUpdate({ props: { ...p, [key]: val } });
+// Shared text style controls — used by TextElementProps and PlaceholderProps.
+interface TextStyleControlsProps {
+  p: Record<string, unknown>;
+  update: (key: string, val: unknown) => void;
+  defaultFontSize?: number;
+  showItalic?: boolean;
+}
 
+function TextStyleControls({ p, update, defaultFontSize = 16, showItalic = false }: TextStyleControlsProps) {
   return (
     <>
-      <FieldRow label="Conteúdo">
-        <textarea
-          value={String(p.content ?? '')}
-          onChange={(e) => update('content', e.target.value)}
-          rows={3}
-          className="flex-1 text-xs border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:border-blue-400 resize-none"
-        />
-      </FieldRow>
       <FieldRow label="Tamanho">
-        <NumInput value={Number(p.fontSize ?? 16)} onChange={(v) => update('fontSize', v)} min={8} />
+        <NumInput value={Number(p.fontSize ?? defaultFontSize)} onChange={(v) => update('fontSize', v)} min={8} />
       </FieldRow>
       <FieldRow label="Peso">
         <select
@@ -102,7 +100,37 @@ function TextElementProps({ element, onUpdate }: Props) {
           <option value="right">Direita</option>
         </select>
       </FieldRow>
+      {showItalic && (
+        <FieldRow label="Itálico">
+          <input
+            type="checkbox"
+            checked={Boolean(p.italic ?? false)}
+            onChange={(e) => update('italic', e.target.checked)}
+            className="cursor-pointer"
+          />
+          <span className="text-xs text-slate-500 ml-1">Ativado</span>
+        </FieldRow>
+      )}
       <ColorPropRow label="Cor" value={String(p.color ?? '#1a1a1a')} onChange={(v) => update('color', v)} />
+    </>
+  );
+}
+
+function TextElementProps({ element, onUpdate }: Props) {
+  const p = element.props as Record<string, unknown>;
+  const update = (key: string, val: unknown) => onUpdate({ props: { ...p, [key]: val } });
+
+  return (
+    <>
+      <FieldRow label="Conteúdo">
+        <textarea
+          value={String(p.content ?? '')}
+          onChange={(e) => update('content', e.target.value)}
+          rows={3}
+          className="flex-1 text-xs border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:border-blue-400 resize-none"
+        />
+      </FieldRow>
+      <TextStyleControls p={p} update={update} defaultFontSize={16} />
     </>
   );
 }
@@ -145,91 +173,66 @@ function DividerProps({ element, onUpdate }: Props) {
   );
 }
 
-// ── Projeção: título compartilhado ───────────────────────────────────────────
+// ─── Config-driven chart props ────────────────────────────────────────────────
+// One component handles all chart types. Each type supplies a config array
+// describing which color keys to expose and their defaults.
 
-function ChartTitleRow({ element, onUpdate }: Props) {
-  const p = element.props as Record<string, unknown>;
-  return (
-    <TextPropRow
-      label="Título"
-      value={String(p.title ?? '')}
-      onChange={(v) => onUpdate({ props: { ...p, title: v } })}
-    />
-  );
+interface ColorField { key: string; label: string; default: string }
+
+interface ChartPropsConfig {
+  colors: ColorField[];
+  showLegendToggle?: boolean;
 }
 
-// ── Geração vs Consumo ───────────────────────────────────────────────────────
+const CHART_PROPS_CONFIG: Partial<Record<string, ChartPropsConfig>> = {
+  'chart-gen-consumption': {
+    colors: [
+      { key: 'colorGen',  label: 'Geração',  default: '#0ea5e9' },
+      { key: 'colorCons', label: 'Consumo',  default: '#f59e0b' },
+    ],
+    showLegendToggle: true,
+  },
+  'chart-roi': {
+    colors: [{ key: 'colorArea', label: 'Área', default: '#10b981' }],
+  },
+  'chart-financial-balance': {
+    colors: [
+      { key: 'colorBase',      label: 'Base',      default: '#64748b' },
+      { key: 'colorAddition',  label: 'Acréscimo', default: '#f59e0b' },
+      { key: 'colorReduction', label: 'Redução',   default: '#10b981' },
+      { key: 'colorResult',    label: 'Resultado', default: '#6366f1' },
+    ],
+  },
+  'chart-credit-bank': {
+    colors: [
+      { key: 'colorDeposit',  label: 'Depósito', default: '#22c55e' },
+      { key: 'colorWithdraw', label: 'Saque',    default: '#f87171' },
+      { key: 'colorBalance',  label: 'Saldo',    default: '#0ea5e9' },
+    ],
+  },
+  'chart-daily': {
+    colors: [{ key: 'colorArea', label: 'Área', default: '#6366f1' }],
+  },
+};
 
-function ChartGenConsumptionProps({ element, onUpdate }: Props) {
+function ChartElementProps({ element, onUpdate }: Props) {
   const p = element.props as Record<string, unknown>;
   const update = (key: string, val: unknown) => onUpdate({ props: { ...p, [key]: val } });
+  const config = CHART_PROPS_CONFIG[element.type];
+
   return (
     <>
-      <ChartTitleRow element={element} onUpdate={onUpdate} />
-      <ColorPropRow label="Geração"  value={String(p.colorGen  ?? '#0ea5e9')} onChange={(v) => update('colorGen', v)}  />
-      <ColorPropRow label="Consumo"  value={String(p.colorCons ?? '#f59e0b')} onChange={(v) => update('colorCons', v)} />
-      <FieldRow label="Legenda">
-        <input type="checkbox" checked={p.showLegend !== false}
-          onChange={(e) => update('showLegend', e.target.checked)} className="cursor-pointer" />
-        <span className="text-xs text-slate-500 ml-1">Exibir</span>
-      </FieldRow>
-    </>
-  );
-}
-
-// ── ROI ──────────────────────────────────────────────────────────────────────
-
-function ChartROIProps({ element, onUpdate }: Props) {
-  const p = element.props as Record<string, unknown>;
-  const update = (key: string, val: unknown) => onUpdate({ props: { ...p, [key]: val } });
-  return (
-    <>
-      <ChartTitleRow element={element} onUpdate={onUpdate} />
-      <ColorPropRow label="Área" value={String(p.colorArea ?? '#10b981')} onChange={(v) => update('colorArea', v)} />
-    </>
-  );
-}
-
-// ── Balanço Financeiro ───────────────────────────────────────────────────────
-
-function ChartFinancialBalanceProps({ element, onUpdate }: Props) {
-  const p = element.props as Record<string, unknown>;
-  const update = (key: string, val: unknown) => onUpdate({ props: { ...p, [key]: val } });
-  return (
-    <>
-      <ChartTitleRow element={element} onUpdate={onUpdate} />
-      <ColorPropRow label="Base"      value={String(p.colorBase      ?? '#64748b')} onChange={(v) => update('colorBase', v)}      />
-      <ColorPropRow label="Acréscimo" value={String(p.colorAddition  ?? '#f59e0b')} onChange={(v) => update('colorAddition', v)}  />
-      <ColorPropRow label="Redução"   value={String(p.colorReduction ?? '#10b981')} onChange={(v) => update('colorReduction', v)} />
-      <ColorPropRow label="Resultado" value={String(p.colorResult    ?? '#6366f1')} onChange={(v) => update('colorResult', v)}    />
-    </>
-  );
-}
-
-// ── Banco de Créditos ────────────────────────────────────────────────────────
-
-function ChartCreditBankProps({ element, onUpdate }: Props) {
-  const p = element.props as Record<string, unknown>;
-  const update = (key: string, val: unknown) => onUpdate({ props: { ...p, [key]: val } });
-  return (
-    <>
-      <ChartTitleRow element={element} onUpdate={onUpdate} />
-      <ColorPropRow label="Depósito" value={String(p.colorDeposit  ?? '#22c55e')} onChange={(v) => update('colorDeposit', v)}  />
-      <ColorPropRow label="Saque"    value={String(p.colorWithdraw ?? '#f87171')} onChange={(v) => update('colorWithdraw', v)} />
-      <ColorPropRow label="Saldo"    value={String(p.colorBalance  ?? '#0ea5e9')} onChange={(v) => update('colorBalance', v)}  />
-    </>
-  );
-}
-
-// ── Geração Diária ───────────────────────────────────────────────────────────
-
-function ChartDailyProps({ element, onUpdate }: Props) {
-  const p = element.props as Record<string, unknown>;
-  const update = (key: string, val: unknown) => onUpdate({ props: { ...p, [key]: val } });
-  return (
-    <>
-      <ChartTitleRow element={element} onUpdate={onUpdate} />
-      <ColorPropRow label="Área" value={String(p.colorArea ?? '#6366f1')} onChange={(v) => update('colorArea', v)} />
+      <TextPropRow label="Título" value={String(p.title ?? '')} onChange={(v) => update('title', v)} />
+      {config?.colors.map(({ key, label, default: def }) => (
+        <ColorPropRow key={key} label={label} value={String(p[key] ?? def)} onChange={(v) => update(key, v)} />
+      ))}
+      {config?.showLegendToggle && (
+        <FieldRow label="Legenda">
+          <input type="checkbox" checked={p.showLegend !== false}
+            onChange={(e) => update('showLegend', e.target.checked)} className="cursor-pointer" />
+          <span className="text-xs text-slate-500 ml-1">Exibir</span>
+        </FieldRow>
+      )}
     </>
   );
 }
@@ -261,17 +264,59 @@ function KpiProjectionProps({ element, onUpdate }: Props) {
           ))}
         </select>
       </FieldRow>
-      <ColorPropRow label="Fundo"   value={String(p.bgColor    ?? '#f0fdf4')} onChange={(v) => update('bgColor', v)}    />
-      <ColorPropRow label="Texto"   value={String(p.textColor  ?? '#166534')} onChange={(v) => update('textColor', v)}  />
+      <ColorPropRow label="Fundo"    value={String(p.bgColor     ?? '#f0fdf4')} onChange={(v) => update('bgColor', v)}     />
+      <ColorPropRow label="Texto"    value={String(p.textColor   ?? '#166534')} onChange={(v) => update('textColor', v)}   />
       <ColorPropRow label="Destaque" value={String(p.accentColor ?? '#10b981')} onChange={(v) => update('accentColor', v)} />
     </>
   );
 }
 
-// ── Análise de Perdas / Tabela ────────────────────────────────────────────────
+// ── Placeholder ──────────────────────────────────────────────────────────────
 
-function ChartTitleOnlyProps({ element, onUpdate }: Props) {
-  return <ChartTitleRow element={element} onUpdate={onUpdate} />;
+const PLACEHOLDER_GROUPS = PLACEHOLDER_FIELDS.reduce<Record<string, typeof PLACEHOLDER_FIELDS>>(
+  (acc, f) => { (acc[f.group] ??= []).push(f); return acc; },
+  {},
+);
+
+function PlaceholderProps({ element, onUpdate }: Props) {
+  const p = element.props as Record<string, unknown>;
+  const update = (key: string, val: unknown) => onUpdate({ props: { ...p, [key]: val } });
+  const currentField = String(p.field ?? DEFAULT_PLACEHOLDER_FIELD);
+  const fieldDef = PLACEHOLDER_FIELDS.find((f) => f.field === currentField);
+
+  return (
+    <>
+      <FieldRow label="Campo">
+        <select
+          value={currentField}
+          onChange={(e) => update('field', e.target.value)}
+          className="flex-1 text-xs border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:border-blue-400"
+        >
+          {Object.entries(PLACEHOLDER_GROUPS).map(([group, fields]) => (
+            <optgroup key={group} label={group}>
+              {fields.map((f) => (
+                <option key={f.field} value={f.field}>{f.label}</option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+      </FieldRow>
+
+      {fieldDef && (
+        <div className="text-[9px] text-indigo-500 bg-indigo-50 border border-indigo-100 rounded px-2 py-1 mb-1 leading-relaxed">
+          <span className="font-semibold">Ex:</span> {fieldDef.example}
+        </div>
+      )}
+
+      <TextPropRow label="Prefixo" value={String(p.prefix ?? '')} onChange={(v) => update('prefix', v)} />
+      <TextPropRow label="Sufixo"  value={String(p.suffix  ?? '')} onChange={(v) => update('suffix',  v)} />
+
+      <div className="border-t border-slate-100 pt-2 mt-1">
+        <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mb-1">Estilo</p>
+        <TextStyleControls p={p} update={update} defaultFontSize={14} showItalic />
+      </div>
+    </>
+  );
 }
 
 export function ElementPropertiesPanel({ element, onUpdate }: Props) {
@@ -338,17 +383,15 @@ export function ElementPropertiesPanel({ element, onUpdate }: Props) {
         {!isPageBlock && (
           <div>
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Conteúdo</p>
-            {element.type === 'text'                    && <TextElementProps element={element} onUpdate={onUpdate} />}
-            {element.type === 'watermark'               && <WatermarkProps element={element} onUpdate={onUpdate} />}
-            {element.type === 'divider'                 && <DividerProps element={element} onUpdate={onUpdate} />}
-            {element.type === 'chart-gen-consumption'   && <ChartGenConsumptionProps element={element} onUpdate={onUpdate} />}
-            {element.type === 'chart-roi'               && <ChartROIProps element={element} onUpdate={onUpdate} />}
-            {element.type === 'chart-financial-balance' && <ChartFinancialBalanceProps element={element} onUpdate={onUpdate} />}
-            {element.type === 'chart-credit-bank'       && <ChartCreditBankProps element={element} onUpdate={onUpdate} />}
-            {element.type === 'chart-daily'             && <ChartDailyProps element={element} onUpdate={onUpdate} />}
-            {element.type === 'chart-loss-waterfall'    && <ChartTitleOnlyProps element={element} onUpdate={onUpdate} />}
-            {element.type === 'kpi-projection'          && <KpiProjectionProps element={element} onUpdate={onUpdate} />}
-            {element.type === 'table-analytics'         && <ChartTitleOnlyProps element={element} onUpdate={onUpdate} />}
+            {element.type === 'text'        && <TextElementProps element={element} onUpdate={onUpdate} />}
+            {element.type === 'watermark'   && <WatermarkProps element={element} onUpdate={onUpdate} />}
+            {element.type === 'divider'     && <DividerProps element={element} onUpdate={onUpdate} />}
+            {element.type === 'kpi-projection' && <KpiProjectionProps element={element} onUpdate={onUpdate} />}
+            {element.type === 'placeholder' && <PlaceholderProps element={element} onUpdate={onUpdate} />}
+            {element.type in CHART_PROPS_CONFIG && <ChartElementProps element={element} onUpdate={onUpdate} />}
+            {(element.type === 'chart-loss-waterfall' || element.type === 'table-analytics') && (
+              <ChartElementProps element={element} onUpdate={onUpdate} />
+            )}
           </div>
         )}
 

@@ -12,6 +12,7 @@ import {
 import { LossWaterfallChart } from '../../../projection/LossWaterfallChart';
 import { AnalyticsTable } from '../../../projection/AnalyticsTable';
 import { useProposalPageData } from '../useProposalPageData';
+import { formatBRL } from '@/modules/engineering/utils/formatters';
 import type { CanvasElement } from '../types';
 import { DAYS_IN_MONTH } from '@/modules/engineering/utils/projectionMath';
 
@@ -140,9 +141,6 @@ export function ChartFinancialBalanceElement({ element }: FinBalProps) {
     reduction: String(p.colorReduction ?? COLOR_MAP_DEFAULT.reduction),
     result:    String(p.colorResult    ?? COLOR_MAP_DEFAULT.result),
   };
-
-  const formatBRL = (v: number) =>
-    `R$ ${Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return (
     <ChartShell title={title}>

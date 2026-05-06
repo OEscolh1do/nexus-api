@@ -18,6 +18,7 @@ import {
   KpiProjectionElement,
   TableAnalyticsElement,
 } from './elements/ProjectionElements';
+import { PlaceholderElement } from './elements/PlaceholderElement';
 import { useProposalPageData } from './useProposalPageData';
 import type { CanvasElement } from './types';
 
@@ -40,8 +41,10 @@ function PageRenderer({ element }: Pick<Props, 'element'>) {
   }
 }
 
+const NOOP_PROPS_CHANGE = (_props: Record<string, unknown>) => {};
+
 export function CanvasElementRenderer({ element, isEditing = false, onPropsChange }: Props) {
-  const handlePropsChange = onPropsChange ?? (() => {});
+  const handlePropsChange = onPropsChange ?? NOOP_PROPS_CHANGE;
 
   if (element.type.startsWith('page-')) {
     return <PageRenderer element={element} />;
@@ -86,6 +89,8 @@ export function CanvasElementRenderer({ element, isEditing = false, onPropsChang
       return <KpiProjectionElement element={element} />;
     case 'table-analytics':
       return <TableAnalyticsElement element={element} />;
+    case 'placeholder':
+      return <PlaceholderElement element={element} />;
     default:
       return null;
   }

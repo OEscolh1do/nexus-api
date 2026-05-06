@@ -11,7 +11,7 @@ import {
 } from '@dnd-kit/core';
 import { useUIStore } from '@/core/state/uiStore';
 import { useSolarStore } from '@/core/state/solarStore';
-import { Settings2, FileText, LayoutTemplate, Pencil, Save, Layers, ChevronLeft, ChevronRight, Plus, Trash2, Grid3x3, Magnet, Target } from 'lucide-react';
+import { Settings2, FileText, LayoutTemplate, Pencil, Save, Layers, ChevronLeft, ChevronRight, Plus, Trash2, Grid3x3, Magnet, Target, PanelLeft, LayoutList } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 import { ProposalEditPanel } from './proposal/ProposalEditPanel';
@@ -20,6 +20,7 @@ import { ProposalBlockedScreen } from './proposal/ProposalBlockedScreen';
 import { ProposalTemplateGallery } from './proposal/ProposalTemplateGallery';
 import { ElementPalette } from './proposal/engine/ElementPalette';
 import { ElementPropertiesPanel } from './proposal/engine/ElementPropertiesPanel';
+import { LayersPanel } from './proposal/engine/LayersPanel';
 import { CanvasPage } from './proposal/engine/CanvasPage';
 import { CLASSIC_TEMPLATE } from './proposal/engine/templates/classicTemplate';
 import type { CanvasElement, CanvasPage as CanvasPageType, GridConfig } from './proposal/engine/types';
@@ -72,6 +73,7 @@ export const ProposalCanvasView: React.FC = () => {
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [activeDragType, setActiveDragType] = useState<string | null>(null);
   const [gridConfig, setGridConfig]         = useState<GridConfig>(DEFAULT_GRID_CONFIG);
+  const [sidebarTab, setSidebarTab]         = useState<'elements' | 'layers'>('elements');
 
   const updateGrid = (patch: Partial<GridConfig>) =>
     setGridConfig((prev) => ({ ...prev, ...patch }));
@@ -258,13 +260,65 @@ export const ProposalCanvasView: React.FC = () => {
 
             {/* Left sidebar */}
             <div className="w-[260px] shrink-0 flex flex-col overflow-hidden border-r border-slate-800 bg-white">
-              {selectedElement
-                ? <ElementPropertiesPanel
+              {selectedElement ? (
+                <>
+                  {/* Back button */}
+                  <div className="shrink-0 flex items-center gap-1 px-2 py-1.5 border-b border-slate-100 bg-slate-50">
+                    <button
+                      onClick={() => setSelectedElementId(null)}
+                      className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-800 transition-colors px-1.5 py-0.5 rounded hover:bg-slate-200"
+                    >
+                      <ChevronLeft size={11} />
+                      {sidebarTab === 'layers' ? 'Camadas' : 'Elementos'}
+                    </button>
+                  </div>
+                  <ElementPropertiesPanel
                     element={selectedElement}
                     onUpdate={(updates) => handleUpdateElement(selectedElement.id, updates)}
                   />
-                : <ElementPalette hasCustomLayout={!!activeLayout} />
-              }
+                </>
+              ) : (
+                <>
+                  {/* Tab switcher */}
+                  <div className="shrink-0 flex border-b border-slate-200">
+                    <button
+                      onClick={() => setSidebarTab('elements')}
+                      className={cn(
+                        'flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] font-medium transition-colors',
+                        sidebarTab === 'elements'
+                          ? 'text-blue-600 border-b-2 border-blue-500 bg-blue-50/50'
+                          : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50',
+                      )}
+                    >
+                      <PanelLeft size={12} />
+                      Elementos
+                    </button>
+                    <button
+                      onClick={() => setSidebarTab('layers')}
+                      className={cn(
+                        'flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] font-medium transition-colors',
+                        sidebarTab === 'layers'
+                          ? 'text-blue-600 border-b-2 border-blue-500 bg-blue-50/50'
+                          : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50',
+                      )}
+                    >
+                      <LayoutList size={12} />
+                      Camadas
+                    </button>
+                  </div>
+
+                  {sidebarTab === 'elements'
+                    ? <ElementPalette hasCustomLayout={!!activeLayout} />
+                    : <LayersPanel
+                        elements={currentPage?.elements ?? []}
+                        selectedId={selectedElementId}
+                        onSelect={setSelectedElementId}
+                        onUpdate={handleUpdateElement}
+                        onRemove={handleRemoveElement}
+                      />
+                  }
+                </>
+              )}
 
               {/* Page list at bottom */}
               <div className="shrink-0 border-t border-slate-200 bg-slate-50 px-3 py-2">

@@ -1,0 +1,11 @@
+neonorte@neonorte-vps:/srv/ywara$ # Gerar segredos aleatórios
+echo "JWT_SECRET:" && openssl rand -base64 64
+echo "M2M_TOKEN:" && openssl rand -hex 32
+echo "ROOT_PASS:" && openssl rand -base64 24
+JWT_SECRET:
+0Tp9R2YktG52JJ0b5CSCI2zA/mBJgt4vYD7ARp63QQ5EigEi5RNxT8fmzgiOTjsH
+wD8TF/kIsAU0sXsQ9UUk/A==
+M2M_TOKEN:
+073bdae50664c8715dbbe08165ed9664e568be50826f6e9d953c980469cf0b47
+ROOT_PASS:
+AFhFphZW9dCNJ4t8A1pZepTx9sMMHW06

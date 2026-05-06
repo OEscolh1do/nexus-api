@@ -26,7 +26,9 @@ export type CanvasElementType =
   | 'chart-credit-bank'
   | 'chart-loss-waterfall'
   | 'kpi-projection'
-  | 'table-analytics';
+  | 'table-analytics'
+  // Placeholder — campo dinâmico vinculado a dado do projeto
+  | 'placeholder';
 
 export interface CanvasElement {
   id: string;
@@ -114,4 +116,5 @@ export const DEFAULT_ELEMENT_PROPS: Record<CanvasElementType, Record<string, unk
   'chart-loss-waterfall':   { title: 'Análise de Perdas' },
   'kpi-projection':         { metric: 'totalGen', bgColor: '#f0fdf4', textColor: '#166534', accentColor: '#10b981' },
   'table-analytics':        { showEconomy: true, title: 'Tabela Analítica' },
+  'placeholder':            { field: 'client.name', prefix: '', suffix: '', fontSize: 14, fontWeight: 400, color: '#1a1a1a', textAlign: 'left', italic: false },
 };
