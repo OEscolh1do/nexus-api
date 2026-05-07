@@ -45,7 +45,7 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
           // para evitar o loop infinito de login automático do Logto
           if (isProvisioningError) {
             window.location.href = '/access-denied';
-            return;
+            throw new Error('Acesso negado: Usuário não provisionado.');
           }
 
           // Só exibe alerta se o usuário TENTOU usar um token e ele foi rejeitado
