@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { useUIStore, type FocusedBlock } from '@/core/state/uiStore';
 import { cn } from '@/lib/utils';
 import { 
-  MapPin, Zap, Sun, Cpu, Layout, TrendingUp, FileSignature, Lock 
+  MapPin, Zap, Sun, Cpu, TrendingUp, FileSignature, Lock 
 } from 'lucide-react';
 import { useSolarStore, selectModules, selectInverters } from '@/core/state/solarStore';
 import { useTechKPIs } from '../../hooks/useTechKPIs';

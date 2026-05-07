@@ -34,3 +34,5 @@ yarn-error.log*
 backend/uploads/
 !backend/uploads/.gitkeep
 .claude/
+githubtoken.txt
+ywaravps.txt
