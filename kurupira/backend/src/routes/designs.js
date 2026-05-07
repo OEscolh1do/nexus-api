@@ -12,21 +12,32 @@ const safeError = (err) =>
 const router = Router();
 
 router.get('/', authenticateToken, async (req, res) => {
+  console.log('[GET /designs] Entrou na rota. User:', JSON.stringify(req.user));
   try {
+    console.log('[GET /designs] Buscando no banco com tenantId:', req.user.tenantId);
     const designs = await prisma.technicalDesign.findMany({
       where: { tenantId: req.user.tenantId, status: { not: 'ARCHIVED' }, deletedAt: null },
       orderBy: { updatedAt: 'desc' },
       take: 50
     });
+    console.log(`[GET /designs] Designs encontrados: ${designs.length}`);
 
     // Enriquecimento com métricas calculadas do designData (Power, Consumption, etc)
-    const enrichedDesigns = designs.map(d => ({
-      ...d,
-      ...extractDesignMetrics(d.designData)
-    }));
+    const enrichedDesigns = designs.map((d, index) => {
+      console.log(`[GET /designs] Enriquecendo design [${index}] ID: ${d.id}...`);
+      try {
+        const metrics = extractDesignMetrics(d.designData);
+        return { ...d, ...metrics };
+      } catch (err) {
+        console.error(`[GET /designs] Erro ao extrair métricas do design ${d.id}:`, err.message);
+        return d;
+      }
+    });
 
+    console.log('[GET /designs] Enviando resposta...');
     res.json({ success: true, data: enrichedDesigns });
   } catch (error) {
+    console.error('[GET /designs] Erro fatal na rota:', error);
     res.status(500).json({ success: false, error: safeError(error) });
   }
 });
