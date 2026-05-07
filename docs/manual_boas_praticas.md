@@ -234,7 +234,19 @@ Mesmo definindo `ALLOWED_ORIGINS` no arquivo `.env`, o container do backend pode
       ALLOWED_ORIGINS: "${ALLOWED_ORIGINS}"
     ```
 2.  **Whitelist Dinâmica:** O backend deve converter a string `ALLOWED_ORIGINS` em um array e sanitizar os domínios (removendo barras finais) para evitar erros de comparação de string.
-3.  **Evitar URL Relativa no Build:** No build do frontend, a `VITE_API_URL` deve ser o domínio completo (`https://...`). Se o código já adiciona `/api/v1`, a variável **não** deve conter `/api` no final para evitar o erro de rota duplicada (`/api/api/v1`).
+
+### 4.2 Padronização de URLs de API (VITE_API_URL)
+**Cenário**: Erros de 404 por URLs duplicadas (ex: `/api/api/v1`).
+**Padrão**: A variável `VITE_API_URL` deve conter apenas o origin (ex: `https://kurupira.neonorte-ywara.tech`). O código do frontend é o único responsável por adicionar o prefixo `/api/v1` ou similares.
+**Consequência**: Evita que mudanças na configuração do Nginx quebrem o frontend.
+
+### 4.3 Proteção contra Zombie Tokens (Login Loop)
+**Cenário**: Usuário autenticado no SSO mas não provisionado no banco de dados local.
+**Padrão**: 
+1. Implementar rota pública `/access-denied`.
+2. O interceptor de API deve detectar erro 403 de provisionamento e redirecionar para esta página.
+3. A página deve forçar um `signOut()` global para limpar a sessão no Identity Provider.
+**Consequência**: Previne loops de redirecionamento infinito que "travam" o navegador do usuário.
 
 #### Regra de Ouro
 > "Nunca assuma que o Docker carregou seu .env global. Se o backend precisa da variável, ela deve estar listada no environment do serviço no compose."

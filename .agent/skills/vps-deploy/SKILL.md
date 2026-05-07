@@ -41,9 +41,9 @@ Verificar se arquivos críticos mudaram:
 ## Playbook 2 — Rebuild Kurupira (Frontend + Backend)
 
 ```bash
-# Frontend — sempre com a URL correta de produção
+# Frontend — sempre sem o /api no final (o código concatena /api/v1 internamente)
 cd /srv/ywara/kurupira/frontend
-VITE_API_URL=https://kurupira.neonorte-ywara.tech/api npm run build
+VITE_API_URL=https://kurupira.neonorte-ywara.tech npm run build
 
 # Backend — rebuild e restart via Docker Compose
 cd /srv/ywara
@@ -96,8 +96,8 @@ sudo systemctl status nginx
 cd /srv/ywara
 git pull origin main
 
-# Rebuild frontends
-cd kurupira/frontend && VITE_API_URL=https://kurupira.neonorte-ywara.tech/api npm run build
+# Rebuild frontends (Importante: VITE_API_URL sem /api no final)
+cd kurupira/frontend && VITE_API_URL=https://kurupira.neonorte-ywara.tech npm run build
 cd /srv/ywara/sumauma/frontend && npm run build
 
 # Rebuild e restart todos os backends
@@ -157,3 +157,5 @@ openssl rand -base64 64
 - [ ] `docker logs neonorte_kurupira --tail 20` — sem erros críticos
 - [ ] `docker logs neonorte_admin --tail 20` — sem erros críticos
 - [ ] Testar fluxo de login no Kurupira no browser
+- [ ] **Novo**: Verificar se Logto Console tem as Redirect URIs registradas
+- [ ] **Novo**: Validar que ALLOWED_ORIGINS no .env inclui o novo domínio

@@ -87,6 +87,7 @@ const logtoConfig: LogtoConfig = {
   endpoint: import.meta.env.VITE_LOGTO_ENDPOINT,
   appId: import.meta.env.VITE_LOGTO_APP_ID,
   scopes: ['openid', 'profile', 'email', 'offline_access'],
+  postLogoutRedirectUri: `${window.location.origin}/login`, // Padrão Ywara v7
 };
 
 <LogtoProvider config={logtoConfig}>
@@ -388,8 +389,16 @@ await signIn(`${window.location.origin}/callback`);
 ```
 
 ### 7.6 Token expirado
-
 Confirmar que `offline_access` está nos scopes do LogtoProvider — o SDK renova via refresh token automaticamente.
+
+### 7.7 Loop de Provisionamento (Zombie Token)
+**Sintoma:** O usuário é autenticado no Logto, mas o backend retorna 403 (não cadastrado) e o frontend entra em loop de login automático.
+
+**Solução (Padrão Ywara):**
+1. Criar rota pública `/access-denied`.
+2. Interceptor de API deve detectar erro 403 de provisionamento.
+3. Redirecionar para `/access-denied` em vez de `/login`.
+4. Na página, oferecer botão que chama `signOut()` global para limpar o SSO.
 
 ---
 

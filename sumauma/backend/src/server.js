@@ -41,8 +41,24 @@ app.set('trust proxy', 1);
 // MIDDLEWARE GLOBAL
 // =============================================================
 
+const envOrigins = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()) 
+  : [];
+
+const allowedOrigins = [
+  'http://localhost:5175',
+  process.env.ADMIN_FRONTEND_URL,
+  ...envOrigins
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.ADMIN_FRONTEND_URL || 'http://localhost:5175',
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS: ' + origin));
+    }
+  },
   credentials: true,
 }));
 

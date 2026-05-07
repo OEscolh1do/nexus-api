@@ -20,7 +20,9 @@ const teamRouter = require('./routes/team');
 const app = express();
 const PORT = process.env.PORT || 3002;
 
-const envOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [];
+const envOrigins = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()) 
+  : [];
 
 const allowedOrigins = [
   'http://localhost:5173', // Dev Kurupira

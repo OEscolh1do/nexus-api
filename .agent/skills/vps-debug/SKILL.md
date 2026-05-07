@@ -15,6 +15,10 @@ docker compose -f /srv/ywara/docker-compose.production.yml ps   # containers rod
 sudo systemctl status nginx                                       # nginx de pé?
 free -h                                                           # memória disponível?
 df -h                                                             # disco livre?
+
+# Checklist de URLs e CORS (Novo)
+# 1. Abra o F12 -> Network: A URL tem /api/api? Se sim, VITE_API_URL no .env está suja.
+# 2. Erro "Not allowed by CORS"? Verifique se ALLOWED_ORIGINS no docker-compose tem o domínio atual.
 ```
 
 ---
@@ -198,6 +202,11 @@ docker logs neonorte_admin --tail 50 | grep -i "logto\|m2m\|token\|unauthorized"
 
 # 3. Validar variáveis de ambiente no container
 docker exec neonorte_admin env | grep LOGTO
+
+# 4. Loop de Login (Zombie Token)
+# Se o usuário cai em loop infinito de login automático:
+# - Causa: 403 no backend (não provisionado) -> redireciona /login -> SSO loga de novo.
+# - Fix: Redirecionar para /access-denied e forçar signOut() global do Logto.
 ```
 
 ---
