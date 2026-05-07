@@ -20,26 +20,26 @@ export const ProposalModule: React.FC = () => {
     const needsGate = !hasClient || !hasModules;
 
     return (
-        <div className="flex flex-col h-full bg-slate-100 overflow-hidden">
+        <div className="flex flex-col h-full bg-slate-950 overflow-hidden text-slate-100">
             {/* 1. HEADER (Fixed, White, h-12) - Compact & Minimalist */}
-            <header className="flex-none h-12 bg-white border-b border-slate-200 px-4 flex items-center justify-between z-20 relative">
+            <header className="flex-none h-12 bg-slate-900 border-b border-slate-800 px-4 flex items-center justify-between z-20 relative">
                 
                 {/* Left: Branding */}
                 <div className="flex items-center gap-4 shrink-0">
                      <div className="flex items-center gap-3">
-                        <div className="w-2 h-2 rounded-full bg-neonorte-purple animate-pulse"></div>
-                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] hidden md:block">COMERCIAL</span>
+                        <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></div>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] hidden md:block">COMERCIAL</span>
                     </div>
                 </div>
 
                 {/* Center: Tabs Navigation (The 'Menu') - Text Only, Compact */}
-                <div className="hidden md:flex bg-slate-100 p-1 rounded-lg border border-slate-200 h-9 items-center">
+                <div className="hidden md:flex bg-slate-950 p-1 rounded-sm border border-slate-800 h-9 items-center">
                     <button
                         onClick={() => setActiveTab('diagnostico')}
-                        className={`flex items-center gap-2 px-3 h-full rounded-md text-xs font-bold transition-all ${
+                        className={`flex items-center gap-2 px-3 h-full rounded-sm text-[11px] font-black uppercase tracking-widest transition-all ${
                             activeTab === 'diagnostico'
-                                ? 'bg-white text-neonorte-purple shadow-sm'
-                                : 'text-slate-400 hover:text-slate-600'
+                                ? 'bg-indigo-500/10 text-indigo-400 shadow-sm border border-indigo-500/30'
+                                : 'text-slate-500 hover:text-slate-300'
                         }`}
                     >
                         <Activity size={14} />
@@ -48,12 +48,12 @@ export const ProposalModule: React.FC = () => {
                     <button
                         onClick={() => setActiveTab('presentation')}
                         disabled={needsGate}
-                        className={`flex items-center gap-2 px-3 h-full rounded-md text-xs font-bold transition-all ${
+                        className={`flex items-center gap-2 px-3 h-full rounded-sm text-[11px] font-black uppercase tracking-widest transition-all ${
                             activeTab === 'presentation'
-                                ? 'bg-white text-neonorte-purple shadow-sm'
+                                ? 'bg-indigo-500/10 text-indigo-400 shadow-sm border border-indigo-500/30'
                                 : needsGate
-                                ? 'text-slate-300 cursor-not-allowed'
-                                : 'text-slate-400 hover:text-slate-600'
+                                ? 'text-slate-700 cursor-not-allowed opacity-50'
+                                : 'text-slate-500 hover:text-slate-300'
                         }`}
                     >
                         <Eye size={14} />
@@ -62,12 +62,12 @@ export const ProposalModule: React.FC = () => {
                     <button
                         onClick={() => setActiveTab('pricing')}
                         disabled={needsGate}
-                        className={`flex items-center gap-2 px-3 h-full rounded-md text-xs font-bold transition-all ${
+                        className={`flex items-center gap-2 px-3 h-full rounded-sm text-[11px] font-black uppercase tracking-widest transition-all ${
                             activeTab === 'pricing'
-                                ? 'bg-white text-neonorte-purple shadow-sm'
+                                ? 'bg-indigo-500/10 text-indigo-400 shadow-sm border border-indigo-500/30'
                                 : needsGate
-                                ? 'text-slate-300 cursor-not-allowed'
-                                : 'text-slate-400 hover:text-slate-600'
+                                ? 'text-slate-700 cursor-not-allowed opacity-50'
+                                : 'text-slate-500 hover:text-slate-300'
                         }`}
                     >
                         <Settings2 size={14} />
@@ -76,12 +76,12 @@ export const ProposalModule: React.FC = () => {
                     <button
                         onClick={() => setActiveTab('contract')}
                         disabled={needsGate}
-                        className={`flex items-center gap-2 px-3 h-full rounded-md text-xs font-bold transition-all ${
+                        className={`flex items-center gap-2 px-3 h-full rounded-sm text-[11px] font-black uppercase tracking-widest transition-all ${
                             activeTab === 'contract'
-                                ? 'bg-white text-neonorte-purple shadow-sm'
+                                ? 'bg-indigo-500/10 text-indigo-400 shadow-sm border border-indigo-500/30'
                                 : needsGate
-                                ? 'text-slate-300 cursor-not-allowed'
-                                : 'text-slate-400 hover:text-slate-600'
+                                ? 'text-slate-700 cursor-not-allowed opacity-50'
+                                : 'text-slate-500 hover:text-slate-300'
                         }`}
                     >
                         <FileSignature size={14} />
@@ -91,9 +91,9 @@ export const ProposalModule: React.FC = () => {
                 
                 {/* Right: Actions */}
                 <div className="flex items-center gap-2 shrink-0">
-                    <div className="flex items-center gap-2 px-3 py-1 bg-slate-50 rounded border border-slate-100">
-                        <FileText size={14} className="text-slate-400" />
-                        <span className="text-xs font-bold text-slate-600">Proposta #001</span>
+                    <div className="flex items-center gap-2 px-3 py-1 bg-slate-950 border border-slate-800 rounded-sm">
+                        <FileText size={14} className="text-slate-500" />
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Proposta #001</span>
                     </div>
                 </div>
             </header>
@@ -102,7 +102,7 @@ export const ProposalModule: React.FC = () => {
             <ProposalStatusBar />
 
             {/* 3. MAIN CONTENT (Scrollable Tabs Content) */}
-            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar bg-muted/10 p-4 w-full relative">
+            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar bg-slate-950 p-4 w-full relative">
                  <div className="w-full max-w-7xl mx-auto flex flex-col animate-in fade-in slide-in-from-bottom-2 duration-300">
                     {activeTab === 'diagnostico' && <DiagnosticoTab />}
                     {activeTab === 'presentation' && <PresentationTab />}

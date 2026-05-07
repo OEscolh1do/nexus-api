@@ -149,14 +149,14 @@ export function LayersPanel({ elements, selectedIds, onSelect, onUpdate, onRemov
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="shrink-0 px-3 py-2 border-b border-slate-100 flex items-center justify-between">
-        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+      <div className="shrink-0 px-3 py-2 border-b border-slate-800 flex items-center justify-between bg-slate-900/20">
+        <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
           Camadas — {sorted.length} elemento{sorted.length !== 1 ? 's' : ''}
         </span>
       </div>
 
       {/* Layer rows */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
         {/* Render grouped elements */}
         {grouped.map(([groupId, members]) => {
           const allSelected = members.every((m) => selectedIds.includes(m.id));
@@ -169,15 +169,15 @@ export function LayersPanel({ elements, selectedIds, onSelect, onUpdate, onRemov
               <div
                 onClick={() => onSelect(members.map((m) => m.id))}
                 className={cn(
-                  'group flex items-center gap-2 px-2.5 py-1.5 cursor-pointer border-b border-slate-100 transition-colors bg-indigo-50/30',
-                  allSelected && 'bg-indigo-50 border-l-2 border-l-indigo-500',
-                  !allSelected && 'border-l-2 border-l-transparent hover:bg-slate-50',
+                  'group flex items-center gap-2 px-2.5 py-1.5 cursor-pointer border-b border-slate-800/40 transition-colors bg-indigo-500/5',
+                  allSelected && 'bg-indigo-500/10 border-l-2 border-l-indigo-500',
+                  !allSelected && 'border-l-2 border-l-transparent hover:bg-slate-800/40',
                 )}
               >
                 <span className={cn('shrink-0', allSelected ? 'text-indigo-500' : 'text-slate-400')}>
                   <Layers size={11} />
                 </span>
-                <span className={cn('flex-1 text-xs truncate', allSelected ? 'text-indigo-700 font-medium' : 'text-slate-600')}>
+                <span className={cn('flex-1 text-xs truncate', allSelected ? 'text-indigo-400 font-bold' : 'text-slate-400')}>
                   Grupo ({members.length} elementos)
                 </span>
                 <button
@@ -199,17 +199,17 @@ export function LayersPanel({ elements, selectedIds, onSelect, onUpdate, onRemov
                     key={el.id}
                     onClick={() => handleSelectElement(el)}
                     className={cn(
-                      'group flex items-center gap-2 pl-6 pr-2.5 py-1.5 cursor-pointer border-b border-slate-100 transition-colors',
+                      'group flex items-center gap-2 pl-6 pr-2.5 py-1.5 cursor-pointer border-b border-slate-800/40 transition-colors',
                       isSelected
-                        ? 'bg-blue-50 border-l-2 border-l-blue-500'
-                        : 'hover:bg-slate-50 border-l-2 border-l-transparent',
+                        ? 'bg-blue-500/10 border-l-2 border-l-blue-500'
+                        : 'hover:bg-slate-800/40 border-l-2 border-l-transparent',
                       !el.visible && 'opacity-50',
                     )}
                   >
                     <span className={cn('shrink-0', isSelected ? 'text-blue-500' : 'text-slate-400')}>
                       {meta.icon}
                     </span>
-                    <span className={cn('flex-1 text-xs truncate', isSelected ? 'text-blue-700 font-medium' : 'text-slate-600')}>
+                    <span className={cn('flex-1 text-xs truncate', isSelected ? 'text-blue-400 font-bold' : 'text-slate-500')}>
                       {meta.label}
                     </span>
                     <div className={cn('flex items-center gap-0.5 shrink-0 transition-opacity', isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100')}>
@@ -239,17 +239,17 @@ export function LayersPanel({ elements, selectedIds, onSelect, onUpdate, onRemov
               key={el.id}
               onClick={() => handleSelectElement(el)}
               className={cn(
-                'group flex items-center gap-2 px-2.5 py-1.5 cursor-pointer border-b border-slate-100 transition-colors',
+                'group flex items-center gap-2 px-2.5 py-1.5 cursor-pointer border-b border-slate-800/40 transition-colors',
                 isSelected
-                  ? 'bg-blue-50 border-l-2 border-l-blue-500'
-                  : 'hover:bg-slate-50 border-l-2 border-l-transparent',
+                  ? 'bg-blue-500/10 border-l-2 border-l-blue-500'
+                  : 'hover:bg-slate-800/40 border-l-2 border-l-transparent',
                 !el.visible && 'opacity-50',
               )}
             >
               <span className={cn('shrink-0', isSelected ? 'text-blue-500' : 'text-slate-400')}>
                 {meta.icon}
               </span>
-              <span className={cn('flex-1 text-xs truncate', isSelected ? 'text-blue-700 font-medium' : 'text-slate-600')}>
+              <span className={cn('flex-1 text-xs truncate', isSelected ? 'text-blue-400 font-bold' : 'text-slate-500')}>
                 {meta.label}
               </span>
               <div className={cn('flex items-center gap-0.5 shrink-0 transition-opacity', isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100')}>
@@ -275,8 +275,8 @@ export function LayersPanel({ elements, selectedIds, onSelect, onUpdate, onRemov
       </div>
 
       {/* Footer hint */}
-      <div className="shrink-0 px-3 py-1.5 border-t border-slate-100 bg-slate-50">
-        <p className="text-[9px] text-slate-400 leading-relaxed">
+      <div className="shrink-0 px-3 py-1.5 border-t border-slate-800 bg-slate-900/40">
+        <p className="text-[9px] text-slate-500 leading-relaxed font-mono uppercase tracking-widest">
           ↑ Frente · ↓ Fundo · Clique para selecionar
         </p>
       </div>

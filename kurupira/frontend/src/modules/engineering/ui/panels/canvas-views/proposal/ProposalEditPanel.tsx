@@ -117,10 +117,10 @@ export const ProposalEditPanel: React.FC = () => {
         <div className="relative">
           <button 
             onClick={() => setIsPageMenuOpen(!isPageMenuOpen)}
-            className="w-full flex items-center justify-between p-3 border border-slate-700/50 bg-slate-950/50 rounded-sm hover:border-indigo-500/50 transition-colors"
+            className="w-full flex items-center justify-between p-3 border border-slate-800/50 bg-slate-950/50 rounded-sm hover:border-indigo-500/50 transition-colors"
           >
             <div className="flex items-center gap-2 sm:gap-3">
-              <span className="w-4 h-4 rounded-sm bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[10px] sm:text-xs font-black">
+              <span className="w-4 h-4 rounded-sm bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[10px] sm:text-xs font-black tabular-nums">
                 {activePage + 1}
               </span>
               <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-slate-200">
@@ -136,7 +136,7 @@ export const ProposalEditPanel: React.FC = () => {
           </button>
 
           {isPageMenuOpen && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-[#0a0f1a] border border-slate-700 rounded-sm shadow-2xl z-50 flex flex-col py-1">
+            <div className="absolute top-full left-0 right-0 mt-1 bg-slate-950 border border-slate-800 rounded-sm shadow-2xl z-50 flex flex-col py-1">
               {PAGE_LABELS.map((label, i) => {
                 const isExcluded = proposalData.excludedPages?.includes(i);
                 const isActive = activePage === i;
@@ -150,7 +150,7 @@ export const ProposalEditPanel: React.FC = () => {
                       )}
                     >
                       <span className={cn(
-                        "w-4 h-4 rounded-sm flex items-center justify-center text-[10px] sm:text-xs font-black",
+                        "w-4 h-4 rounded-sm flex items-center justify-center text-[10px] sm:text-xs font-black tabular-nums",
                         isActive ? "bg-indigo-500/20 text-indigo-400" : "bg-slate-800 text-slate-500",
                         isExcluded && !isActive && "opacity-40"
                       )}>
@@ -191,7 +191,7 @@ export const ProposalEditPanel: React.FC = () => {
       </div>
 
       {/* ── Contextual Fields ──────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto p-3 sm:p-4 flex flex-col gap-2 sm:gap-3 scrollbar-hide sm:custom-scrollbar">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-4 flex flex-col gap-2 sm:gap-3 custom-scrollbar">
 
         {/* PAGE 0 — Capa (read-only) */}
         {activePage === 0 && (
@@ -330,7 +330,7 @@ export const ProposalEditPanel: React.FC = () => {
 
               {(proposalData.paymentStages || []).length > 0 && (
                 <div className={cn(
-                  "text-xs font-black uppercase tracking-widest text-right px-2",
+                  "text-xs font-black uppercase tracking-widest text-right px-2 tabular-nums",
                   percentageValid ? "text-emerald-500" : "text-red-400"
                 )}>
                   Total: {totalPercentage}% {!percentageValid && '(deve ser 100%)'}
@@ -499,7 +499,7 @@ export const ProposalEditPanel: React.FC = () => {
 
 
       {/* ── Export Footer ──────────────────────────────────────────── */}
-      <div className="p-4 border-t border-slate-800 bg-[#0a0f1a] flex flex-col gap-2 sm:gap-3">
+      <div className="p-4 border-t border-slate-800 bg-slate-950 flex flex-col gap-2 sm:gap-3">
 
         {/* Badge Strip de Visibilidade */}
         <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-1">
@@ -539,7 +539,7 @@ export const ProposalEditPanel: React.FC = () => {
               {isExportingPdf ? 'Gerando PDF...' : 'Exportar PDF'}
             </span>
             {!isExportingPdf && (
-              <span className="text-xs text-indigo-200 font-bold mt-0.5">
+              <span className="text-xs text-indigo-200 font-bold mt-0.5 tabular-nums">
                 {PAGE_LABELS.length - (proposalData.excludedPages?.length || 0)}/{PAGE_LABELS.length} PÁGINAS SELECIONADAS
               </span>
             )}

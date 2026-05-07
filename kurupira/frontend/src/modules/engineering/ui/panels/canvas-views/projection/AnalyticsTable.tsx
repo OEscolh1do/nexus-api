@@ -70,7 +70,7 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
           ))}
         </tbody>
         <tfoot className="sticky bottom-0 z-20">
-          <tr className="bg-slate-900 shadow-[0_-1px_0_rgba(255,255,255,0.05)] border-t-2 border-slate-700">
+          <tr className="bg-slate-900 shadow-[0_-1px_0_rgba(255,255,255,0.05)] border-t-2 border-slate-800">
             <td className="sticky left-0 z-30 bg-slate-900 px-4 py-3 font-black text-slate-300 border-r border-slate-800/60 shadow-[2px_0_5px_rgba(0,0,0,0.3)] uppercase tracking-wider">
               TOTAL
             </td>

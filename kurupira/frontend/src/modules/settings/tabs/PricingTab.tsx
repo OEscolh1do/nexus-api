@@ -13,9 +13,9 @@ export const PricingTab: React.FC<TabProps> = ({ settings, onChange }) => {
     <div className="space-y-6">
       
       {/* 1. MODELO DE PRECIFICAÇÃO */}
-      <DenseCard className="p-6 border-l-4 border-l-emerald-500">
-        <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-            <DollarSign className="text-emerald-500" />
+      <DenseCard className="p-6 border-l-4 border-l-emerald-500/50">
+        <h3 className="text-[11px] font-black text-slate-100 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <DollarSign size={14} className="text-emerald-400" />
             Estratégia de Precificação
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -74,9 +74,9 @@ export const PricingTab: React.FC<TabProps> = ({ settings, onChange }) => {
       </DenseCard>
 
       {/* 2. CUSTOS DE HARDWARE & KIT */}
-      <DenseCard className="p-6 border-l-4 border-l-blue-500">
-        <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-            <Package className="text-blue-500" />
+      <DenseCard className="p-6 border-l-4 border-l-blue-500/50">
+        <h3 className="text-[11px] font-black text-slate-100 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <Package size={14} className="text-blue-400" />
             Custos de Hardware & Kits
         </h3>
         
@@ -116,7 +116,7 @@ export const PricingTab: React.FC<TabProps> = ({ settings, onChange }) => {
 
       {/* 3. CUSTOS DE SERVIÇO (Instalação) */}
       <DenseCard className="p-6">
-        <h3 className="text-lg font-bold text-slate-800 mb-4">Custos de Serviço (Mão de Obra)</h3>
+        <h3 className="text-[11px] font-black text-slate-100 uppercase tracking-widest mb-4">Custos de Serviço (Mão de Obra)</h3>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
              <DenseInput 

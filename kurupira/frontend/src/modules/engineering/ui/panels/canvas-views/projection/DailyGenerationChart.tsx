@@ -11,7 +11,6 @@ const TOOLTIP_STYLE = {
     color: '#f8fafc',
     fontSize: '10px',
     fontWeight: 'bold',
-    border: '1px solid rgba(245, 158, 11, 0.2)',
     boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
   },
   itemStyle: { padding: '2px 0' },

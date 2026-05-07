@@ -52,10 +52,10 @@ export const PerformanceTab: React.FC<PerformanceTabProps> = ({ settings, onChan
           <input 
             type="number"
             className={cn(
-              "w-full h-8 px-2 pl-2 text-right font-mono text-xs font-bold text-slate-700 bg-white border rounded outline-none focus:ring-1 transition-all",
+              "w-full h-8 px-2 pl-2 text-right font-mono text-[11px] font-bold text-slate-100 bg-slate-950/40 border rounded-sm outline-none transition-all",
               isEfficiency 
-                ? "border-blue-200 focus:border-blue-500 focus:ring-blue-100 bg-blue-50/10" 
-                : "border-slate-200 focus:border-neonorte-purple focus:ring-purple-100 placeholder:text-transparent"
+                ? "border-blue-500/30 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/10 bg-blue-500/5" 
+                : "border-slate-800 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/10 placeholder:text-transparent"
             )}
             value={value} 
             onChange={(e) => handleLossChange(config.key, e.target.value)}
@@ -75,27 +75,27 @@ export const PerformanceTab: React.FC<PerformanceTabProps> = ({ settings, onChan
     <div className="h-full flex flex-col md:flex-row gap-6">
       
       {/* LEFT COLUMN: Physical & Electrical Losses Grid */}
-      <DenseCard className="flex-[3] bg-white p-5 h-min">
-        <div className="flex items-center justify-between border-b pb-3 mb-4">
-            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-widest flex items-center gap-2">
-            <Database size={14} className="text-slate-400" />
+      <DenseCard className="flex-[3] p-5 h-min">
+        <div className="flex items-center justify-between border-b border-slate-800/50 pb-3 mb-4">
+            <h3 className="text-[11px] font-black text-slate-100 uppercase tracking-widest flex items-center gap-2">
+            <Database size={14} className="text-slate-500" />
             Matriz de Perdas Globais do Sistema
             </h3>
             
             {/* PR HUD COMPACT */}
-            <div className="flex items-center gap-3 bg-slate-50 border px-3 py-1.5 rounded-lg">
+            <div className="flex items-center gap-3 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-sm">
                 <div className="flex flex-col">
-                    <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest leading-none">PR Global</span>
+                    <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest leading-none">PR Global</span>
                     <button 
                         onClick={toggleMode}
-                        className="text-[9px] text-blue-500 font-medium hover:text-blue-700 transition-colors text-left flex gap-1 items-center"
+                        className="text-[9px] text-indigo-400 font-black uppercase tracking-tighter hover:text-indigo-300 transition-colors text-left flex gap-1 items-center"
                         title={`Mudar Base (Secundário: ${secondaryPR}%)`}
                     >
                     <ArrowRightLeft size={8} /> {primaryLabel}
                     </button>
                 </div>
-                <div className="text-xl font-black tabular-nums tracking-tighter text-slate-800">
-                    {primaryPR}<span className="text-sm font-bold opacity-40 ml-0.5">%</span>
+                <div className="text-xl font-black tabular-nums tracking-tighter text-slate-100">
+                    {primaryPR}<span className="text-sm font-bold opacity-40 ml-0.5 text-slate-500">%</span>
                 </div>
             </div>
         </div>
@@ -136,9 +136,9 @@ export const PerformanceTab: React.FC<PerformanceTabProps> = ({ settings, onChan
       </DenseCard>
 
       {/* RIGHT COLUMN: Fatores de Correção */}
-      <DenseCard className="flex-[1] bg-white p-5 h-min">
-        <h3 className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-4 flex items-center gap-2 border-b pb-2">
-          <Activity size={14} className="text-slate-400" />
+      <DenseCard className="flex-[1] p-5 h-min">
+        <h3 className="text-[11px] font-black text-slate-100 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-800/50 pb-2">
+          <Activity size={14} className="text-slate-500" />
           Módulos (Orientação)
         </h3>
         
@@ -155,9 +155,9 @@ export const PerformanceTab: React.FC<PerformanceTabProps> = ({ settings, onChan
                     type="number" step="0.01" min="0" max="1"
                     value={val}
                     onChange={(e) => onChange(`orientationFactors.${key}`, parseFloat(e.target.value))}
-                    className="w-full h-8 px-2 text-right font-mono text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded outline-none focus:ring-1 focus:border-neonorte-purple focus:ring-purple-100 transition-all cursor-text hover:bg-white"
+                    className="w-full h-8 px-2 text-right font-mono text-[11px] font-bold text-slate-100 bg-slate-950/40 border border-slate-800 rounded-sm outline-none focus:ring-1 focus:border-indigo-500/50 focus:ring-indigo-500/10 transition-all cursor-text hover:bg-slate-900"
                     />
-                     <span className="absolute left-2 top-2 text-[10px] font-black text-slate-300 pointer-events-none">x</span>
+                     <span className="absolute left-2 top-2 text-[10px] font-black text-slate-700 pointer-events-none">x</span>
                 </div>
             </div>
             ))}

@@ -24,7 +24,7 @@ const BlockStatusRow: React.FC<BlockStatusRowProps> = ({ label, icon, status, on
         >
             <div className={cn(
                 "w-6 h-6 rounded flex items-center justify-center border",
-                isComplete ? "bg-emerald-500/20 border-emerald-500/30" : "bg-slate-800 border-slate-700"
+                isComplete ? "bg-emerald-500/20 border-emerald-500/30" : "bg-slate-800 border-slate-800"
             )}>
                 {icon}
             </div>

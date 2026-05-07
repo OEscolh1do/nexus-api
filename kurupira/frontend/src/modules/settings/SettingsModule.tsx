@@ -87,9 +87,9 @@ export const SettingsModule: React.FC = () => {
   const TabButton: React.FC<{ id: TabType; label: string; icon: React.ReactNode }> = ({ id, label, icon }) => (
     <button
       onClick={() => setActiveTab(id)}
-      className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === id
-          ? 'bg-neonorte-purple/10 text-neonorte-purple shadow-sm border border-neonorte-purple/20'
-          : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200'
+      className={`flex items-center gap-2 px-3 py-1.5 rounded-sm text-[11px] font-black uppercase tracking-widest transition-all ${activeTab === id
+          ? 'bg-indigo-500/10 text-indigo-400 shadow-sm border border-indigo-500/30'
+          : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
         }`}
     >
       {icon}
@@ -98,12 +98,12 @@ export const SettingsModule: React.FC = () => {
   );
 
   return (
-    <div className="h-full flex flex-col bg-slate-50">
+    <div className="h-full flex flex-col bg-slate-950">
       {/* Header Standardized (h-12) with Integrated Tabs */}
-      <header className="bg-white border-b border-slate-200 px-4 py-0 flex items-center justify-between shrink-0 h-12">
+      <header className="bg-slate-900 border-b border-slate-800 px-4 py-0 flex items-center justify-between shrink-0 h-12">
         <div className="flex items-center gap-4 overflow-x-auto no-scrollbar">
           {/* Tabs moved to header for compact layout */}
-          <div className="flex bg-slate-100 p-1 rounded-lg items-center shrink-0">
+          <div className="flex bg-slate-950 p-1 rounded-sm items-center shrink-0 border border-slate-800">
             <TabButton id="performance" label="Engenharia" icon={<Activity size={12} />} />
             <TabButton id="equipamentos" label="Equipamentos" icon={<Database size={12} />} />
             <TabButton id="comercial" label="Preços" icon={<DollarSign size={12} />} />

@@ -25,7 +25,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   const balance = geracao - consumo;
 
   return (
-    <div className="bg-slate-900 border border-slate-700 rounded-sm p-3 text-[11px] shadow-2xl backdrop-blur-md z-50 min-w-[180px]">
+    <div className="bg-slate-900 border border-slate-800 rounded-sm p-3 text-[11px] shadow-2xl backdrop-blur-md z-50 min-w-[180px]">
       <p className="text-slate-500 font-bold mb-2 uppercase tracking-widest font-mono border-b border-slate-800 pb-1.5">{label}</p>
       <div className="flex flex-col gap-1.5">
         <div className="flex justify-between gap-6">

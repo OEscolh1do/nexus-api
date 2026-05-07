@@ -29,13 +29,16 @@ function rotationStyle(rotation: number): React.CSSProperties {
 
 export function TextElement({ element, isEditing, onPropsChange }: Props) {
   const {
-    content    = 'Texto aqui',
-    fontSize   = 16,
-    fontWeight = 400,
-    color      = '#1a1a1a',
-    textAlign  = 'left',
-    fontFamily = 'system',
-    rotation   = 0,
+    content       = 'Texto aqui',
+    fontSize      = 16,
+    fontWeight    = 400,
+    color         = '#1a1a1a',
+    textAlign     = 'left',
+    fontFamily    = 'system',
+    rotation      = 0,
+    letterSpacing = '',
+    textTransform = 'none',
+    lineHeight    = '',
   } = element.props as Record<string, unknown>;
 
   const ref = useRef<HTMLDivElement>(null);
@@ -61,16 +64,19 @@ export function TextElement({ element, isEditing, onPropsChange }: Props) {
       style={{
         width:      '100%',
         height:     '100%',
-        fontSize:   `${fontSize}px`,
-        fontWeight: fontWeight as number,
-        color:      color as string,
-        textAlign:  textAlign as React.CSSProperties['textAlign'],
-        fontFamily: FONT_FAMILY_MAP[fontFamily as string] ?? FONT_FAMILY_MAP.system,
-        outline:    'none',
-        cursor:     isEditing ? 'text' : 'default',
-        whiteSpace: 'pre-wrap',
-        wordBreak:  'break-word',
-        userSelect: isEditing ? 'text' : 'none',
+        fontSize:      `${fontSize}px`,
+        fontWeight:    fontWeight as number,
+        color:         color as string,
+        textAlign:     textAlign as React.CSSProperties['textAlign'],
+        fontFamily:    FONT_FAMILY_MAP[fontFamily as string] ?? FONT_FAMILY_MAP.system,
+        letterSpacing: String(letterSpacing) || undefined,
+        textTransform: (textTransform as React.CSSProperties['textTransform']) ?? 'none',
+        lineHeight:    String(lineHeight) || undefined,
+        outline:       'none',
+        cursor:        isEditing ? 'text' : 'default',
+        whiteSpace:    'pre-wrap',
+        wordBreak:     'break-word',
+        userSelect:    isEditing ? 'text' : 'none',
         display:    'flex',
         alignItems: 'center',
         justifyContent:

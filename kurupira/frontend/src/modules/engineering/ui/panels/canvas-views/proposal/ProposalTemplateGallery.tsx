@@ -30,8 +30,8 @@ function TemplateCard({
   return (
     <div
       className={cn(
-        'relative border-2 rounded-xl overflow-hidden bg-white group transition-all',
-        isActive ? 'border-blue-500 shadow-blue-100 shadow-lg' : 'border-slate-200 hover:border-slate-300 hover:shadow-md'
+        'relative border rounded-sm overflow-hidden bg-slate-900/40 group transition-all',
+        isActive ? 'border-indigo-500 shadow-indigo-900/20 shadow-lg' : 'border-slate-800 hover:border-slate-700 hover:shadow-md'
       )}
     >
       {/* Preview area */}
@@ -56,7 +56,7 @@ function TemplateCard({
         </div>
 
         {isActive && (
-          <div className="absolute top-2 right-2 bg-blue-500 text-white rounded-full p-0.5">
+          <div className="absolute top-2 right-2 bg-indigo-500 text-white rounded-full p-0.5">
             <CheckCircle2 size={14} />
           </div>
         )}
@@ -70,11 +70,13 @@ function TemplateCard({
 
       {/* Info */}
       <div className="px-4 py-3">
-        <p className="text-sm font-semibold text-slate-800 truncate">{template.name}</p>
+        <p className="text-sm font-semibold text-slate-200 truncate">{template.name}</p>
         {template.description && (
-          <p className="text-xs text-slate-400 mt-0.5 line-clamp-2">{template.description}</p>
+          <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{template.description}</p>
         )}
-        <p className="text-[10px] text-slate-400 mt-1">{pageCount} {pageCount === 1 ? 'página' : 'páginas'} · {createdAt}</p>
+        <p className="text-[10px] text-slate-600 mt-1 uppercase tracking-widest font-black tabular-nums">
+          {pageCount} {pageCount === 1 ? 'página' : 'páginas'} · {createdAt}
+        </p>
       </div>
 
       {/* Actions */}
@@ -82,21 +84,21 @@ function TemplateCard({
         <button
           onClick={onUse}
           className={cn(
-            'flex-1 text-xs font-medium rounded-lg py-1.5 transition-colors',
+            'flex-1 text-[10px] font-black uppercase tracking-widest rounded-sm py-1.5 transition-colors',
             isActive
-              ? 'bg-blue-50 text-blue-600 border border-blue-200'
-              : 'bg-slate-800 text-white hover:bg-slate-700'
+              ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+              : 'bg-indigo-600 text-white hover:bg-indigo-500'
           )}
         >
           {isActive ? 'Em uso' : 'Usar template'}
         </button>
         {onRename && (
-          <button onClick={onRename} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
+          <button onClick={onRename} className="p-1.5 text-slate-500 hover:text-slate-200 hover:bg-slate-800 rounded-sm">
             <Pencil size={13} />
           </button>
         )}
         {onDelete && (
-          <button onClick={onDelete} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg">
+          <button onClick={onDelete} className="p-1.5 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-sm">
             <Trash2 size={13} />
           </button>
         )}
@@ -156,15 +158,15 @@ export function ProposalTemplateGallery({ onUseTemplate }: Props) {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <div className="px-6 py-5 border-b border-slate-200 shrink-0">
+      <div className="px-6 py-5 border-b border-slate-800 shrink-0 bg-slate-900/20">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-base font-semibold text-slate-800">Templates de Proposta</h3>
+            <h3 className="text-base font-semibold text-slate-200">Templates de Proposta</h3>
             <p className="text-xs text-slate-500 mt-0.5">Escolha um template ou crie do zero</p>
           </div>
           <button
             onClick={handleCreateBlank}
-            className="flex items-center gap-1.5 text-xs font-medium bg-slate-800 text-white px-3 py-2 rounded-lg hover:bg-slate-700 transition-colors"
+            className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest bg-indigo-600 text-white px-3 py-2 rounded-sm hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-950/20"
           >
             <Plus size={13} />
             Criar do zero
@@ -172,21 +174,21 @@ export function ProposalTemplateGallery({ onUseTemplate }: Props) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
         {renamingId && (
-          <div className="mb-4 flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <LayoutTemplate size={14} className="text-blue-500 shrink-0" />
+          <div className="mb-4 flex items-center gap-2 p-3 bg-indigo-500/10 border border-indigo-500/30 rounded-sm">
+            <LayoutTemplate size={14} className="text-indigo-400 shrink-0" />
             <input
               type="text"
               value={renameValue}
               onChange={(e) => setRenameValue(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') confirmRename(); if (e.key === 'Escape') setRenamingId(null); }}
               autoFocus
-              className="flex-1 text-sm border border-blue-300 rounded px-2 py-1 focus:outline-none"
+              className="flex-1 text-sm bg-slate-950 border border-indigo-500/30 rounded-sm px-2 py-1 text-white focus:outline-none focus:border-indigo-500"
               placeholder="Nome do template"
             />
-            <button onClick={confirmRename} className="text-xs font-medium text-blue-600 hover:underline">Salvar</button>
-            <button onClick={() => setRenamingId(null)} className="text-xs text-slate-400 hover:underline">Cancelar</button>
+            <button onClick={confirmRename} className="text-xs font-bold text-indigo-400 hover:underline">Salvar</button>
+            <button onClick={() => setRenamingId(null)} className="text-xs text-slate-500 hover:underline">Cancelar</button>
           </div>
         )}
 
@@ -204,10 +206,10 @@ export function ProposalTemplateGallery({ onUseTemplate }: Props) {
         </div>
 
         {customTemplates.length === 0 && (
-          <div className="mt-6 text-center text-sm text-slate-400">
-            <LayoutTemplate size={28} className="mx-auto mb-2 opacity-30" />
-            <p>Seus templates salvos aparecerão aqui.</p>
-            <p className="text-xs mt-1">Use "Salvar como template" no editor para criar um.</p>
+          <div className="mt-6 text-center text-sm text-slate-600">
+            <LayoutTemplate size={28} className="mx-auto mb-2 opacity-20" />
+            <p className="font-bold uppercase tracking-widest text-[10px]">Templates Personalizados</p>
+            <p className="text-[10px] mt-1 opacity-60">Use "Salvar como template" no editor para criar um.</p>
           </div>
         )}
       </div>

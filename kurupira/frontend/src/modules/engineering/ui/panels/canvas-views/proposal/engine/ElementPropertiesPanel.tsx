@@ -27,7 +27,7 @@ function NumInput({ value, onChange, min }: { value: number; onChange: (v: numbe
       value={Math.round(value)}
       min={min}
       onChange={(e) => onChange(Number(e.target.value))}
-      className="w-full text-xs border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:border-blue-400"
+      className="w-full text-xs border border-slate-800 rounded px-2 py-1 bg-slate-900 text-slate-200 focus:outline-none focus:border-indigo-500/50"
     />
   );
 }
@@ -39,7 +39,7 @@ function TextPropRow({ label, value, onChange }: { label: string; value: string;
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="flex-1 text-xs border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:border-blue-400"
+        className="flex-1 text-xs border border-slate-800 rounded px-2 py-1 bg-slate-900 text-slate-200 focus:outline-none focus:border-indigo-500/50"
       />
     </FieldRow>
   );
@@ -59,7 +59,7 @@ function ColorPropRow({ label, value, onChange }: { label: string; value: string
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="flex-1 text-xs border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:border-blue-400"
+          className="flex-1 text-xs border border-slate-800 rounded px-2 py-1 bg-slate-900 text-slate-200 focus:outline-none focus:border-indigo-500/50"
         />
       </div>
     </FieldRow>
@@ -74,7 +74,7 @@ function TextAreaPropRow({ label, value, onChange, placeholder }: { label: strin
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         rows={3}
-        className="flex-1 text-xs border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:border-blue-400 resize-none"
+        className="flex-1 text-xs border border-slate-800 rounded px-2 py-1 bg-slate-900 text-slate-200 focus:outline-none focus:border-indigo-500/50 resize-none"
       />
     </FieldRow>
   );
@@ -111,7 +111,7 @@ function TextStyleControls({ p, update, defaultFontSize = 16, showItalic = false
         <select
           value={String(p.fontWeight ?? 400)}
           onChange={(e) => update('fontWeight', Number(e.target.value))}
-          className="flex-1 text-xs border border-slate-200 rounded px-2 py-1 bg-white"
+          className="flex-1 text-xs border border-slate-800 rounded px-2 py-1 bg-slate-900 text-slate-200 outline-none focus:border-indigo-500/50"
         >
           {[300, 400, 500, 600, 700, 800, 900].map((w) => (
             <option key={w} value={w}>{w}</option>
@@ -122,13 +122,27 @@ function TextStyleControls({ p, update, defaultFontSize = 16, showItalic = false
         <select
           value={String(p.textAlign ?? 'left')}
           onChange={(e) => update('textAlign', e.target.value)}
-          className="flex-1 text-xs border border-slate-200 rounded px-2 py-1 bg-white"
+          className="flex-1 text-xs border border-slate-800 rounded px-2 py-1 bg-slate-900 text-slate-200 outline-none focus:border-indigo-500/50"
         >
           <option value="left">Esquerda</option>
           <option value="center">Centro</option>
           <option value="right">Direita</option>
         </select>
       </FieldRow>
+      <FieldRow label="Maiúsculas">
+        <select
+          value={String(p.textTransform ?? 'none')}
+          onChange={(e) => update('textTransform', e.target.value)}
+          className="flex-1 text-xs border border-slate-800 rounded px-2 py-1 bg-slate-900 text-slate-200 outline-none focus:border-indigo-500/50"
+        >
+          <option value="none">Normal</option>
+          <option value="uppercase">MAIÚSCULAS</option>
+          <option value="lowercase">minúsculas</option>
+          <option value="capitalize">Capitalizado</option>
+        </select>
+      </FieldRow>
+      <TextPropRow label="Espaç. letras" value={String(p.letterSpacing ?? '')} onChange={(v) => update('letterSpacing', v)} />
+      <TextPropRow label="Alt. linha" value={String(p.lineHeight ?? '')} onChange={(v) => update('lineHeight', v)} />
       {showItalic && (
         <FieldRow label="Itálico">
           <input
@@ -137,7 +151,6 @@ function TextStyleControls({ p, update, defaultFontSize = 16, showItalic = false
             onChange={(e) => update('italic', e.target.checked)}
             className="cursor-pointer"
           />
-          <span className="text-xs text-slate-500 ml-1">Ativado</span>
         </FieldRow>
       )}
       <ColorPropRow label="Cor" value={String(p.color ?? '#1a1a1a')} onChange={(v) => update('color', v)} />
@@ -156,7 +169,7 @@ function TextElementProps({ element, onUpdate }: Props) {
           value={String(p.content ?? '')}
           onChange={(e) => update('content', e.target.value)}
           rows={3}
-          className="flex-1 text-xs border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:border-blue-400 resize-none"
+          className="flex-1 text-xs border border-slate-800 rounded px-2 py-1 bg-slate-900 text-slate-200 focus:outline-none focus:border-indigo-500/50 resize-none"
         />
       </FieldRow>
       <TextStyleControls p={p} update={update} defaultFontSize={16} />
@@ -164,7 +177,7 @@ function TextElementProps({ element, onUpdate }: Props) {
         <select
           value={String(p.rotation ?? 0)}
           onChange={(e) => update('rotation', Number(e.target.value))}
-          className="flex-1 text-xs border border-slate-200 rounded px-2 py-1 bg-white"
+          className="flex-1 text-xs border border-slate-800 rounded px-2 py-1 bg-slate-900 text-slate-200 outline-none focus:border-indigo-500/50"
         >
           <option value={0}>0° — Horizontal</option>
           <option value={90}>90° — Vertical ↓</option>
@@ -182,14 +195,25 @@ function BoxElementProps({ element, onUpdate }: Props) {
 
   return (
     <>
-      <ColorPropRow label="Fundo"      value={String(p.bgColor     ?? 'transparent')} onChange={(v) => update('bgColor', v)} />
-      <TextPropRow  label="Borda"      value={String(p.border      ?? '')}            onChange={(v) => update('border', v)} />
-      <TextPropRow  label="Borda topo" value={String(p.borderTop   ?? '')}            onChange={(v) => update('borderTop', v)} />
-      <TextPropRow  label="Borda dir." value={String(p.borderRight  ?? '')}           onChange={(v) => update('borderRight', v)} />
-      <TextPropRow  label="Borda baixo"value={String(p.borderBottom ?? '')}           onChange={(v) => update('borderBottom', v)} />
-      <TextPropRow  label="Borda esq." value={String(p.borderLeft   ?? '')}           onChange={(v) => update('borderLeft', v)} />
-      <FieldRow label="Arred.">
-        <NumInput value={Number(p.borderRadius ?? 0)} onChange={(v) => update('borderRadius', v)} min={0} />
+      <ColorPropRow label="Fundo"        value={String(p.bgColor     ?? 'transparent')} onChange={(v) => update('bgColor', v)} />
+      <TextPropRow  label="Gradiente"    value={String(p.gradient    ?? '')}            onChange={(v) => update('gradient', v)}
+      />
+      <TextPropRow  label="Borda"        value={String(p.border      ?? '')}            onChange={(v) => update('border', v)} />
+      <TextPropRow  label="Borda topo"   value={String(p.borderTop   ?? '')}            onChange={(v) => update('borderTop', v)} />
+      <TextPropRow  label="Borda dir."   value={String(p.borderRight  ?? '')}           onChange={(v) => update('borderRight', v)} />
+      <TextPropRow  label="Borda baixo"  value={String(p.borderBottom ?? '')}           onChange={(v) => update('borderBottom', v)} />
+      <TextPropRow  label="Borda esq."   value={String(p.borderLeft   ?? '')}           onChange={(v) => update('borderLeft', v)} />
+      {/* borderRadius aceita px (número) ou string CSS direta (ex: "4px 0 0 4px", "50%") */}
+      <TextPropRow  label="Arred."       value={String(p.borderRadius ?? '0')}          onChange={(v) => update('borderRadius', v)} />
+      <FieldRow label="Overflow">
+        <select
+          value={String(p.overflow ?? 'visible')}
+          onChange={(e) => update('overflow', e.target.value)}
+          className="flex-1 text-xs border border-slate-800 rounded px-2 py-1 bg-slate-900 text-slate-200 outline-none focus:border-indigo-500/50"
+        >
+          <option value="visible">Visível</option>
+          <option value="hidden">Oculto (clip)</option>
+        </select>
       </FieldRow>
       <FieldRow label="Opacidade">
         <input type="range" min={0} max={1} step={0.05} value={Number(p.opacity ?? 1)}
@@ -199,7 +223,6 @@ function BoxElementProps({ element, onUpdate }: Props) {
       <FieldRow label="Sombra">
         <input type="checkbox" checked={Boolean(p.shadow ?? false)}
           onChange={(e) => update('shadow', e.target.checked)} className="cursor-pointer" />
-        <span className="text-xs text-slate-500 ml-1">Ativada</span>
       </FieldRow>
     </>
   );
@@ -215,7 +238,7 @@ function IconElementProps({ element, onUpdate }: Props) {
         <select
           value={String(p.name ?? 'Zap')}
           onChange={(e) => update('name', e.target.value)}
-          className="flex-1 text-xs border border-slate-200 rounded px-2 py-1 bg-white"
+          className="flex-1 text-xs border border-slate-800 rounded px-2 py-1 bg-slate-900 text-slate-200 outline-none focus:border-indigo-500/50"
         >
           {Object.keys(ICON_CATALOG).map((name) => (
             <option key={name} value={name}>{name}</option>
@@ -230,6 +253,31 @@ function IconElementProps({ element, onUpdate }: Props) {
       <FieldRow label="Arred.">
         <NumInput value={Number(p.bgRadius ?? 4)} onChange={(v) => update('bgRadius', v)} min={0} />
       </FieldRow>
+    </>
+  );
+}
+
+function LogoElementProps({ element, onUpdate }: Props) {
+  const p = element.props as Record<string, unknown>;
+  const update = (key: string, val: unknown) => onUpdate({ props: { ...p, [key]: val } });
+
+  return (
+    <>
+      <FieldRow label="Variante">
+        <select
+          value={String(p.variant ?? 'verde')}
+          onChange={(e) => update('variant', e.target.value)}
+          className="flex-1 text-xs border border-slate-800 rounded px-2 py-1 bg-slate-900 text-slate-200 outline-none focus:border-indigo-500/50"
+        >
+          <option value="verde">Logo verde</option>
+          <option value="branco">Logo branco</option>
+          <option value="simbolo">Símbolo branco</option>
+          <option value="simbolo-circular">Símbolo circular</option>
+        </select>
+      </FieldRow>
+      {String(p.variant) === 'simbolo-circular' && (
+        <ColorPropRow label="Fundo circular" value={String(p.bgColor ?? '#4CAF50')} onChange={(v) => update('bgColor', v)} />
+      )}
     </>
   );
 }
@@ -359,7 +407,7 @@ function KpiProjectionProps({ element, onUpdate }: Props) {
         <select
           value={String(p.metric ?? 'totalGen')}
           onChange={(e) => update('metric', e.target.value)}
-          className="flex-1 text-xs border border-slate-200 rounded px-2 py-1 bg-white"
+          className="flex-1 text-xs border border-slate-800 rounded px-2 py-1 bg-slate-900 text-slate-200 outline-none focus:border-indigo-500/50"
         >
           {KPI_METRICS.map((m) => (
             <option key={m.value} value={m.value}>{m.label}</option>
@@ -392,7 +440,7 @@ function PlaceholderProps({ element, onUpdate }: Props) {
         <select
           value={currentField}
           onChange={(e) => update('field', e.target.value)}
-          className="flex-1 text-xs border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:border-blue-400"
+          className="flex-1 text-xs border border-slate-800 rounded px-2 py-1 bg-slate-900 text-slate-200 outline-none focus:border-indigo-500/50"
         >
           {Object.entries(PLACEHOLDER_GROUPS).map(([group, fields]) => (
             <optgroup key={group} label={group}>
@@ -405,8 +453,8 @@ function PlaceholderProps({ element, onUpdate }: Props) {
       </FieldRow>
 
       {fieldDef && (
-        <div className="text-[9px] text-indigo-500 bg-indigo-50 border border-indigo-100 rounded px-2 py-1 mb-1 leading-relaxed">
-          <span className="font-semibold">Ex:</span> {fieldDef.example}
+        <div className="text-[9px] text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 rounded px-2 py-1 mb-1 leading-relaxed">
+          <span className="font-bold">Ex:</span> {fieldDef.example}
         </div>
       )}
 
@@ -486,13 +534,13 @@ export function ElementPropertiesPanel({ element, onUpdate, onDecompose }: Props
   const isPageBlock = element.type.startsWith('page-');
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-white border-r border-slate-200">
-      <div className="px-4 py-3 border-b border-slate-200 shrink-0 flex items-center justify-between">
+    <div className="flex flex-col h-full overflow-hidden bg-slate-950 border-r border-slate-800">
+      <div className="px-4 py-3 border-b border-slate-800 shrink-0 flex items-center justify-between">
         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Propriedades</p>
         <div className="flex items-center gap-1">
           <button
             onClick={() => onUpdate({ visible: !element.visible })}
-            className={cn('p-1 rounded hover:bg-slate-100', !element.visible && 'text-slate-300')}
+            className={cn('p-1 rounded hover:bg-slate-800', !element.visible && 'text-slate-600')}
             title={element.visible ? 'Ocultar' : 'Mostrar'}
           >
             {element.visible ? <Eye size={13} /> : <EyeOff size={13} />}
@@ -500,7 +548,7 @@ export function ElementPropertiesPanel({ element, onUpdate, onDecompose }: Props
           {!isPageBlock && (
             <button
               onClick={() => onUpdate({ locked: !element.locked })}
-              className="p-1 rounded hover:bg-slate-100"
+              className="p-1 rounded hover:bg-slate-800"
               title={element.locked ? 'Desbloquear' : 'Bloquear'}
             >
               {element.locked ? <Lock size={13} /> : <Unlock size={13} />}
@@ -509,7 +557,7 @@ export function ElementPropertiesPanel({ element, onUpdate, onDecompose }: Props
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1 custom-scrollbar">
         {/* Position & size */}
         {!isPageBlock && (
           <div className="mb-3">
@@ -531,11 +579,11 @@ export function ElementPropertiesPanel({ element, onUpdate, onDecompose }: Props
             <FieldRow label="Z-index">
               <div className="flex items-center gap-1 flex-1">
                 <NumInput value={element.zIndex} onChange={(v) => onUpdate({ zIndex: v })} min={0} />
-                <button onClick={() => onUpdate({ zIndex: element.zIndex + 1 })} className="p-1 border border-slate-200 rounded hover:bg-slate-50">
-                  <ChevronUp size={12} />
+                <button onClick={() => onUpdate({ zIndex: element.zIndex + 1 })} className="p-1 border border-slate-800 rounded hover:bg-slate-800">
+                  <ChevronUp size={12} className="text-slate-500" />
                 </button>
-                <button onClick={() => onUpdate({ zIndex: Math.max(0, element.zIndex - 1) })} className="p-1 border border-slate-200 rounded hover:bg-slate-50">
-                  <ChevronDown size={12} />
+                <button onClick={() => onUpdate({ zIndex: Math.max(0, element.zIndex - 1) })} className="p-1 border border-slate-800 rounded hover:bg-slate-800">
+                  <ChevronDown size={12} className="text-slate-500" />
                 </button>
               </div>
             </FieldRow>
@@ -549,6 +597,7 @@ export function ElementPropertiesPanel({ element, onUpdate, onDecompose }: Props
             {element.type === 'text'        && <TextElementProps element={element} onUpdate={onUpdate} />}
             {element.type === 'box'         && <BoxElementProps element={element} onUpdate={onUpdate} />}
             {element.type === 'icon'        && <IconElementProps element={element} onUpdate={onUpdate} />}
+            {element.type === 'logo'        && <LogoElementProps element={element} onUpdate={onUpdate} />}
             {element.type === 'watermark'   && <WatermarkProps element={element} onUpdate={onUpdate} />}
             {element.type === 'divider'     && <DividerProps element={element} onUpdate={onUpdate} />}
             {element.type === 'kpi-projection' && <KpiProjectionProps element={element} onUpdate={onUpdate} />}
@@ -564,21 +613,21 @@ export function ElementPropertiesPanel({ element, onUpdate, onDecompose }: Props
 
         {isPageBlock && element.type === 'page-technical' && onDecompose && (
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-slate-600">
-              <FileText size={16} className="text-slate-400" />
+            <div className="flex items-center gap-2 text-slate-300">
+              <FileText size={16} className="text-slate-500" />
               <div>
                 <p className="text-xs font-semibold">Template clássico (bloqueado)</p>
-                <p className="text-[10px] text-slate-400 leading-relaxed">Página técnica completa</p>
+                <p className="text-[10px] text-slate-500 leading-relaxed">Página técnica completa</p>
               </div>
             </div>
             <button
               onClick={onDecompose}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-md transition-colors"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold uppercase tracking-widest rounded-sm transition-colors shadow-lg shadow-indigo-950/20"
             >
               <Edit3 size={13} />
               Editar esta página
             </button>
-            <div className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 leading-relaxed">
+            <div className="text-[10px] text-amber-500 bg-amber-500/10 border border-amber-500/30 rounded-sm px-2 py-1.5 leading-relaxed">
               <strong>Atenção:</strong> Esta ação substituirá o bloco único por elementos individuais editáveis. Você poderá mover, redimensionar e personalizar cada seção.
             </div>
           </div>

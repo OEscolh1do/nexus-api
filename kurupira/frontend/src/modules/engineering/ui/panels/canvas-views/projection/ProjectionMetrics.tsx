@@ -68,7 +68,8 @@ export const ProjectionMetrics: React.FC<ProjectionMetricsProps> = ({
   const treesSaved = totalGen * TREE_FACTOR;
 
   return (
-    <div className="shrink-0 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-px border-b border-slate-800/60 bg-slate-800/40 overflow-hidden">
+    <div className="shrink-0 flex items-center overflow-x-auto scrollbar-hide scroll-mask-h border-b border-slate-800/60 bg-slate-800/40">
+      <div className="flex shrink-0 gap-px">
       <KpiCard
         label="Geração Estimada"
         value={totalGen.toLocaleString('pt-BR')}
@@ -125,6 +126,7 @@ export const ProjectionMetrics: React.FC<ProjectionMetricsProps> = ({
         icon={<Cloud size={10} />}
         sub="Matriz Elétrica BR"
       />
+      </div>
     </div>
   );
 };

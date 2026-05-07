@@ -184,7 +184,7 @@ export const VoltageRangeChart: React.FC<VoltageRangeChartProps> = ({
                 title={`Voc Máximo: ${p.vocMax.toFixed(2)}V${vocOverLimit ? ' ⚠ Excede limite!' : ''}`}
                 style={{ left: getPercent(p.vocMax) }}
               >
-                <div className="hidden group-hover:flex absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 px-2 py-1 rounded text-[11px] font-mono text-slate-300 shadow-xl whitespace-nowrap z-50">
+                <div className="hidden group-hover:flex absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-800 px-2 py-1 rounded text-[11px] font-mono text-slate-300 shadow-xl whitespace-nowrap z-50">
                   Voc: <span className={vocOverLimit ? 'text-red-400 ml-1 font-bold' : 'text-sky-400 ml-1 font-bold'}>
                     {p.vocMax.toFixed(2)}V
                   </span>

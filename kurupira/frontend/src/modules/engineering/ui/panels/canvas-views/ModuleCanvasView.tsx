@@ -221,7 +221,7 @@ export const ModuleCanvasView: React.FC = () => {
       />
 
       {/* LEVEL 3: Main Content (Chart + Technical Profile) */}
-      <div className="flex-1 flex flex-col lg:flex-row min-h-0 bg-slate-950 overflow-y-auto lg:overflow-hidden @container p-3 gap-3">
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0 bg-slate-950 overflow-y-auto lg:overflow-hidden @container p-3 gap-3 custom-scrollbar">
         <div className="flex-1 flex flex-col min-h-[600px] lg:min-h-0 min-w-0 bg-slate-900/20 border border-slate-800/40 rounded-sm overflow-hidden shadow-2xl">
           <ModuleInsightsArea
             estimate={estimate}

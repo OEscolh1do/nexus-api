@@ -164,7 +164,7 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
           </div>
 
           {/* Abas de UC */}
-          <div className="flex-1 flex items-stretch overflow-x-auto custom-scrollbar h-full">
+          <div className="flex-1 flex items-stretch overflow-x-auto scrollbar-hide scroll-mask-h h-full">
             {invoices.map((inv, idx) => {
               const isActive = inv.id === activeInvoiceId;
               const isEditing = editingUcId === inv.id;

@@ -88,12 +88,12 @@ function DraggableItem({ item }: { item: PaletteItem }) {
       {...attributes}
       className={cn(
         'flex items-center gap-2 px-3 py-2 rounded-md border border-transparent',
-        'text-xs text-slate-600 cursor-grab select-none',
-        'hover:bg-slate-100 hover:border-slate-200 active:cursor-grabbing',
+        'text-xs text-slate-400 cursor-grab select-none',
+        'hover:bg-slate-800/60 hover:border-slate-800 active:cursor-grabbing',
         isDragging && 'opacity-40'
       )}
     >
-      <span className="text-slate-400">{item.icon}</span>
+      <span className="text-slate-500">{item.icon}</span>
       <span>{item.label}</span>
     </div>
   );
@@ -130,14 +130,14 @@ function DraggablePreset({ preset }: { preset: CanvasPreset }) {
       title={preset.description}
       className={cn(
         'flex items-center gap-2 px-3 py-2 rounded-md border border-transparent',
-        'text-xs text-slate-600 cursor-grab select-none',
-        'hover:bg-indigo-50 hover:border-indigo-200 active:cursor-grabbing',
+        'text-xs text-slate-400 cursor-grab select-none',
+        'hover:bg-indigo-500/10 hover:border-indigo-500/30 active:cursor-grabbing',
         isDragging && 'opacity-40'
       )}
     >
       <span className="text-indigo-400">{PRESET_ICONS[preset.id] ?? <LayoutGrid size={14} />}</span>
       <span className="flex-1">{preset.label}</span>
-      <span className="text-[9px] text-indigo-300 font-medium bg-indigo-50 px-1 rounded">
+      <span className="text-[9px] text-indigo-400 font-medium bg-indigo-500/10 px-1 rounded">
         {preset.elements.length} el.
       </span>
     </div>
@@ -152,22 +152,22 @@ interface Props {
 
 export function ElementPalette({ hasCustomLayout }: Props) {
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-white border-r border-slate-200">
-      <div className="px-4 py-3 border-b border-slate-200 shrink-0">
+    <div className="flex flex-col h-full overflow-hidden bg-slate-950 border-r border-slate-800">
+      <div className="px-4 py-3 border-b border-slate-800 shrink-0">
         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Elementos</p>
       </div>
 
       {!hasCustomLayout && (
-        <div className="mx-3 mt-3 p-3 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-700 shrink-0">
-          <div className="flex items-center gap-1.5 font-medium mb-1">
+        <div className="mx-3 mt-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-md text-xs text-amber-500/80 shrink-0">
+          <div className="flex items-center gap-1.5 font-bold mb-1 uppercase tracking-widest text-[10px]">
             <LayoutTemplate size={12} />
             Template Clássico ativo
           </div>
-          <p className="leading-relaxed">Arraste um item para a página. O template será clonado automaticamente.</p>
+          <p className="leading-relaxed opacity-80">Arraste um item para a página. O template será clonado automaticamente.</p>
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto py-2">
+      <div className="flex-1 overflow-y-auto py-2 custom-scrollbar">
 
         {/* Presets — composições de múltiplos elementos */}
         <div className="px-3 py-1.5">
@@ -181,7 +181,7 @@ export function ElementPalette({ hasCustomLayout }: Props) {
         </div>
 
         {/* Campos dinâmicos */}
-        <div className="px-3 py-1.5 border-t border-slate-100">
+        <div className="px-3 py-1.5 border-t border-slate-900">
           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Campos Dinâmicos</p>
           {DYNAMIC_ITEMS.map((item) => (
             <DraggableItem key={item.type} item={item} />
@@ -189,7 +189,7 @@ export function ElementPalette({ hasCustomLayout }: Props) {
         </div>
 
         {/* Design (primitivos) */}
-        <div className="px-3 py-1.5 border-t border-slate-100">
+        <div className="px-3 py-1.5 border-t border-slate-900">
           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Design</p>
           {DESIGN_ITEMS.map((item) => (
             <DraggableItem key={item.type} item={item} />
@@ -197,7 +197,7 @@ export function ElementPalette({ hasCustomLayout }: Props) {
         </div>
 
         {/* Projeção */}
-        <div className="px-3 py-1.5 border-t border-slate-100">
+        <div className="px-3 py-1.5 border-t border-slate-900">
           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Projeção</p>
           {PROJECTION_ITEMS.map((item) => (
             <DraggableItem key={item.type} item={item} />
@@ -205,7 +205,7 @@ export function ElementPalette({ hasCustomLayout }: Props) {
         </div>
 
         {/* Conteúdo */}
-        <div className="px-3 py-1.5 border-t border-slate-100">
+        <div className="px-3 py-1.5 border-t border-slate-900">
           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Conteúdo</p>
           {CONTENT_ITEMS.map((item) => (
             <DraggableItem key={item.type} item={item} />
@@ -213,8 +213,8 @@ export function ElementPalette({ hasCustomLayout }: Props) {
         </div>
 
         {/* Dimensionamento (atalhos monolíticos — legado) */}
-        <div className="px-3 py-1.5 border-t border-slate-100">
-          <p className="text-[10px] font-semibold text-slate-300 uppercase tracking-wider mb-1">Dimensionamento</p>
+        <div className="px-3 py-1.5 border-t border-slate-900">
+          <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider mb-1">Dimensionamento</p>
           {TECHNICAL_ITEMS.map((item) => (
             <DraggableItem key={item.type} item={item} />
           ))}

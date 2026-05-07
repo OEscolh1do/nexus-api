@@ -299,7 +299,7 @@ export const InverterHub: React.FC<InverterHubProps> = ({
       <div className="flex items-center flex-1 min-w-0 h-14 lg:h-full">
 
         {/* Chips */}
-        <div className="flex items-center gap-1.5 px-3 overflow-x-auto custom-scrollbar h-full">
+        <div className="flex items-center gap-1.5 px-3 overflow-x-auto scrollbar-hide scroll-mask-h h-full">
           {inverterChips.map(chip => {
             const isActive = chip.id === activeInverterId;
             return (
@@ -471,7 +471,7 @@ export const InverterHub: React.FC<InverterHubProps> = ({
 
       {/* KPI PILLS — separador + pills de validação */}
       {pills.length > 0 && (
-        <div className="flex items-center gap-2 px-4 h-14 lg:h-full border-t lg:border-t-0 lg:border-l border-slate-800 shrink-0 overflow-x-auto custom-scrollbar">
+        <div className="flex items-center gap-2 px-4 h-14 lg:h-full border-t lg:border-t-0 lg:border-l border-slate-800 shrink-0 overflow-x-auto scrollbar-hide scroll-mask-h">
           {pills.map((pill, i) => (
             <div
               key={i}

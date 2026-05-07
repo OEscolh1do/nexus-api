@@ -150,7 +150,7 @@ export const ProposalDocumentPreview: React.FC = () => {
       {/* 2. Main Content (The A4 Page) - Centered in remaining space */}
       <div className={cn(
         "flex-1 w-full flex justify-center min-h-0 relative",
-        zoomMode === 'fit' ? "items-center overflow-hidden" : "items-start overflow-y-auto pt-8 pb-8 scrollbar-hide sm:custom-scrollbar"
+        zoomMode === 'fit' ? "items-center overflow-hidden" : "items-start overflow-y-auto pt-8 pb-8 custom-scrollbar"
       )}>
         <div
           style={{

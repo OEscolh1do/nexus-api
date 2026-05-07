@@ -166,14 +166,16 @@ export function PlaceholderElement({ element }: Props) {
   const data = useProposalPageData();
   const p    = element.props as Record<string, unknown>;
 
-  const field      = String(p.field      ?? DEFAULT_PLACEHOLDER_FIELD) as PlaceholderField;
-  const prefix     = String(p.prefix     ?? '');
-  const suffix     = String(p.suffix     ?? '');
-  const fontSize   = Number(p.fontSize   ?? 14);
-  const fontWeight = Number(p.fontWeight ?? 400);
-  const color      = String(p.color      ?? '#1a1a1a');
-  const textAlign  = String(p.textAlign  ?? 'left') as React.CSSProperties['textAlign'];
-  const italic     = Boolean(p.italic    ?? false);
+  const field         = String(p.field         ?? DEFAULT_PLACEHOLDER_FIELD) as PlaceholderField;
+  const prefix        = String(p.prefix        ?? '');
+  const suffix        = String(p.suffix        ?? '');
+  const fontSize      = Number(p.fontSize      ?? 14);
+  const fontWeight    = Number(p.fontWeight    ?? 400);
+  const color         = String(p.color         ?? '#1a1a1a');
+  const textAlign     = String(p.textAlign     ?? 'left') as React.CSSProperties['textAlign'];
+  const italic        = Boolean(p.italic       ?? false);
+  const letterSpacing = String(p.letterSpacing ?? '');
+  const textTransform = String(p.textTransform ?? 'none') as React.CSSProperties['textTransform'];
 
   const value    = resolvePlaceholder(field, data);
   const fieldDef = PLACEHOLDER_FIELDS.find((f) => f.field === field);
@@ -197,11 +199,13 @@ export function PlaceholderElement({ element }: Props) {
           fontWeight,
           color,
           textAlign,
-          fontStyle: italic ? 'italic' : 'normal',
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          width: '100%',
-          lineHeight: 1.35,
+          fontStyle:     italic ? 'italic' : 'normal',
+          letterSpacing: letterSpacing || undefined,
+          textTransform,
+          whiteSpace:    'pre-wrap',
+          wordBreak:     'break-word',
+          width:         '100%',
+          lineHeight:    1.35,
         }}
       >
         {prefix}{value}{suffix}

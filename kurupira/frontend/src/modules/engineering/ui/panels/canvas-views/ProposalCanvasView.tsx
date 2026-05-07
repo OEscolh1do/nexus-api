@@ -311,7 +311,7 @@ export const ProposalCanvasView: React.FC = () => {
       {/* Top Mode Switcher */}
       <div className="shrink-0 bg-slate-900 border-b border-slate-800 flex items-center gap-1 px-4 py-1.5 justify-between">
         <div className="flex items-center gap-1">
-          {([
+            {([
             { id: 'templates', label: 'Templates', icon: <LayoutTemplate size={13} /> },
             { id: 'editor',    label: 'Editor',    icon: <Layers size={13} /> },
             { id: 'preview',   label: 'Prévia',    icon: <FileText size={13} /> },
@@ -322,8 +322,8 @@ export const ProposalCanvasView: React.FC = () => {
               className={cn(
                 'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
                 viewMode === tab.id
-                  ? 'bg-slate-700 text-white'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                  ? 'bg-slate-800 text-white'
+                  : 'text-slate-500 hover:text-slate-200 hover:bg-slate-800/60'
               )}
             >
               {tab.icon}
@@ -356,14 +356,14 @@ export const ProposalCanvasView: React.FC = () => {
           <div className="flex-1 flex overflow-hidden relative">
 
             {/* Left sidebar */}
-            <div className="w-[260px] shrink-0 flex flex-col overflow-hidden border-r border-slate-800 bg-white">
+            <div className="w-[260px] shrink-0 flex flex-col overflow-hidden border-r border-slate-800 bg-slate-950">
               {selectedElement ? (
                 <>
                   {/* Back button */}
-                  <div className="shrink-0 flex items-center gap-1 px-2 py-1.5 border-b border-slate-100 bg-slate-50">
+                  <div className="shrink-0 flex items-center gap-1 px-2 py-1.5 border-b border-slate-800 bg-slate-900/40">
                     <button
                       onClick={() => setSelectedIds([])}
-                      className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-800 transition-colors px-1.5 py-0.5 rounded hover:bg-slate-200"
+                      className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-200 transition-colors px-1.5 py-0.5 rounded hover:bg-slate-800"
                     >
                       <ChevronLeft size={11} />
                       {sidebarTab === 'layers' ? 'Camadas' : 'Elementos'}
@@ -375,10 +375,10 @@ export const ProposalCanvasView: React.FC = () => {
                     onDecompose={handleDecomposePage}
                   />
                   {selectedElement.groupId && (
-                    <div className="shrink-0 border-t border-slate-100 px-3 py-2">
+                    <div className="shrink-0 border-t border-slate-800 px-3 py-2">
                       <button
                         onClick={handleUngroupSelected}
-                        className="w-full text-xs text-amber-600 hover:bg-amber-50 border border-amber-200 rounded px-2 py-1.5 transition-colors"
+                        className="w-full text-xs text-amber-500 hover:bg-amber-500/10 border border-amber-500/30 rounded px-2 py-1.5 transition-colors"
                       >
                         Desagrupar ({currentPage?.elements.filter(e => e.groupId === selectedElement.groupId).length ?? 0} elementos)
                       </button>
@@ -400,12 +400,12 @@ export const ProposalCanvasView: React.FC = () => {
                   <div className="flex-1 flex flex-col items-center justify-center gap-3 p-4 text-center">
                     <Layers size={24} className="text-indigo-400 opacity-60" />
                     <div>
-                      <p className="text-xs font-semibold text-slate-700">Grupo selecionado</p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">{selectedIds.length} elementos agrupados</p>
+                      <p className="text-xs font-semibold text-slate-300">Grupo selecionado</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">{selectedIds.length} elementos agrupados</p>
                     </div>
                     <button
                       onClick={handleUngroupSelected}
-                      className="w-full text-xs text-amber-600 hover:bg-amber-50 border border-amber-200 rounded px-3 py-2 transition-colors font-medium"
+                      className="w-full text-xs text-amber-500 hover:bg-amber-500/10 border border-amber-500/30 rounded px-3 py-2 transition-colors font-medium"
                     >
                       Desagrupar elementos
                     </button>
@@ -414,14 +414,14 @@ export const ProposalCanvasView: React.FC = () => {
               ) : (
                 <>
                   {/* Tab switcher */}
-                  <div className="shrink-0 flex border-b border-slate-200">
+                  <div className="shrink-0 flex border-b border-slate-800 bg-slate-900/20">
                     <button
                       onClick={() => setSidebarTab('elements')}
                       className={cn(
                         'flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] font-medium transition-colors',
                         sidebarTab === 'elements'
-                          ? 'text-blue-600 border-b-2 border-blue-500 bg-blue-50/50'
-                          : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50',
+                          ? 'text-indigo-400 border-b-2 border-indigo-500 bg-indigo-500/5'
+                          : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/40',
                       )}
                     >
                       <PanelLeft size={12} />
@@ -432,8 +432,8 @@ export const ProposalCanvasView: React.FC = () => {
                       className={cn(
                         'flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] font-medium transition-colors',
                         sidebarTab === 'layers'
-                          ? 'text-blue-600 border-b-2 border-blue-500 bg-blue-50/50'
-                          : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50',
+                          ? 'text-indigo-400 border-b-2 border-indigo-500 bg-indigo-500/5'
+                          : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/40',
                       )}
                     >
                       <LayoutList size={12} />
@@ -455,20 +455,20 @@ export const ProposalCanvasView: React.FC = () => {
               )}
 
               {/* Page list at bottom */}
-              <div className="shrink-0 border-t border-slate-200 bg-slate-50 px-3 py-2">
+              <div className="shrink-0 border-t border-slate-800 bg-slate-900/40 px-3 py-2">
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Páginas</span>
-                  <button onClick={handleAddPage} className="p-0.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded">
+                  <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Páginas</span>
+                  <button onClick={handleAddPage} className="p-0.5 text-slate-500 hover:text-slate-200 hover:bg-slate-800 rounded">
                     <Plus size={12} />
                   </button>
                 </div>
-                <div className="flex flex-col gap-0.5 max-h-32 overflow-y-auto">
+                <div className="flex flex-col gap-0.5 max-h-32 overflow-y-auto custom-scrollbar">
                   {pages.map((page, idx) => (
                     <div
                       key={page.id}
                       className={cn(
                         'flex items-center justify-between px-2 py-1 rounded text-xs cursor-pointer group',
-                        idx === safePageIdx ? 'bg-blue-50 text-blue-700 font-medium' : 'text-slate-600 hover:bg-slate-100'
+                        idx === safePageIdx ? 'bg-indigo-500/10 text-indigo-400 font-medium' : 'text-slate-400 hover:bg-slate-800'
                       )}
                       onClick={() => { setCanvasPageIdx(idx); setSelectedIds([]); }}
                     >
@@ -476,7 +476,7 @@ export const ProposalCanvasView: React.FC = () => {
                       {pages.length > 1 && (
                         <button
                           onClick={(e) => { e.stopPropagation(); handleRemovePage(idx); }}
-                          className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-400 hover:text-red-500"
+                          className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-500 hover:text-rose-400"
                         >
                           <Trash2 size={10} />
                         </button>
@@ -612,7 +612,7 @@ export const ProposalCanvasView: React.FC = () => {
 
               {/* A4 Canvas */}
               <div
-                className="flex-1 overflow-auto flex items-start justify-center p-8"
+                className="flex-1 overflow-auto flex items-start justify-center p-8 custom-scrollbar"
                 onClick={() => setSelectedIds([])}
               >
                 {currentPage && (

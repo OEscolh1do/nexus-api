@@ -185,7 +185,7 @@ export const ModuleSelectorHub: React.FC<ModuleSelectorHubProps> = ({
         )}
 
         {/* Arrangement Chips */}
-        <div className="flex items-center gap-1.5 px-3 overflow-x-auto custom-scrollbar h-full">
+        <div className="flex items-center gap-1.5 px-3 overflow-x-auto scrollbar-hide scroll-mask-h h-full">
           {arrayChips.map(chip => {
             const isActive = chip.id === activeChipId;
             return (

@@ -288,7 +288,7 @@ export function CanvasElementWrapper({
         outline: isGrouped
           ? '1.5px dashed #818cf8'
           : isSelected
-            ? '2px solid #3b82f6'
+            ? '2px solid #6366f1'
             : 'none',
         outlineOffset: 1,
         cursor: isLocked || isPageBlock ? 'default' : (isTextEditing ? 'text' : 'move'),
@@ -317,7 +317,7 @@ export function CanvasElementWrapper({
                 width: 8,
                 height: 8,
                 background: '#ffffff',
-                border: '1.5px solid #3b82f6',
+                border: '1.5px solid #6366f1',
                 borderRadius: 2,
                 cursor: HANDLE_CURSORS[handle],
                 zIndex: 10,
@@ -335,15 +335,16 @@ export function CanvasElementWrapper({
               right: 0,
               display: 'flex',
               gap: 2,
-              background: '#1e293b',
-              borderRadius: 4,
+              background: '#0f172a',
+              border: '1px solid #1e293b',
+              borderRadius: 2,
               padding: '2px 4px',
               zIndex: 20,
               whiteSpace: 'nowrap',
             }}
           >
             {/* Coordenadas ao vivo */}
-            <span style={{ color: '#64748b', padding: '2px 4px', fontSize: 10, fontFamily: 'monospace' }}>
+            <span style={{ color: '#94a3b8', padding: '2px 4px', fontSize: 10, fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>
               {element.x},{element.y}
             </span>
             {isLocked && (
@@ -366,12 +367,14 @@ export function CanvasElementWrapper({
               position: 'absolute',
               bottom: -20,
               right: 0,
-              background: '#1e293b',
-              color: '#64748b',
+              background: '#0f172a',
+              border: '1px solid #1e293b',
+              color: '#94a3b8',
               padding: '1px 6px',
-              borderRadius: 3,
+              borderRadius: 2,
               fontSize: 10,
               fontFamily: 'monospace',
+              fontVariantNumeric: 'tabular-nums',
               pointerEvents: 'none',
               zIndex: 20,
             }}

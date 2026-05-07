@@ -32,7 +32,7 @@ const CustomConsumptionTooltip = ({ active, payload, label, tariffRate }: any) =
   const cost = tariffRate > 0 ? total * tariffRate : null;
 
   return (
-    <div className="bg-slate-900 border border-slate-700 rounded-sm p-4 text-[11px] shadow-2xl backdrop-blur-md z-50">
+    <div className="bg-slate-900 border border-slate-800 rounded-sm p-4 text-[11px] shadow-2xl backdrop-blur-md z-50">
       <p className="text-slate-500 font-bold mb-3 uppercase tracking-widest font-mono border-b border-slate-800 pb-2">{label}</p>
       <div className="flex flex-col gap-2.5">
         <div className="flex justify-between gap-8">

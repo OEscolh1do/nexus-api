@@ -97,7 +97,7 @@ export function CanvasPage({
         position: 'relative',
         boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
         flexShrink: 0,
-        outline: isOver ? '2px dashed #3b82f6' : 'none',
+        outline: isOver ? '2px dashed #6366f1' : 'none',
         outlineOffset: 2,
         overflow: 'hidden',
         background,
@@ -151,7 +151,7 @@ export function CanvasPage({
 
       {/* Overlay azul quando hover de drop */}
       {isOver && (
-        <div style={{ position: 'absolute', inset: 0, background: 'rgba(59,130,246,0.04)', pointerEvents: 'none', zIndex: 999 }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(99,102,241,0.05)', pointerEvents: 'none', zIndex: 999 }} />
       )}
     </div>
   );

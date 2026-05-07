@@ -88,7 +88,7 @@ export const DenseCard: React.FC<{
   className?: string;
   colSpan?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 }> = ({ children, className = '', colSpan = 12 }) => (
-  <div className={`col-span-${colSpan} bg-white rounded-xl border border-slate-200 p-4 ${className}`}>
+  <div className={`col-span-${colSpan} bg-slate-900/40 rounded-sm border border-slate-800/80 p-4 ${className}`}>
     {children}
   </div>
 );
@@ -140,13 +140,13 @@ export const DenseInput = forwardRef<HTMLInputElement, DenseInputProps>(
             ref={ref}
             {...props}
             className={`
-              w-full h-8 px-3 text-sm font-medium rounded-lg border transition-all outline-none
+              w-full h-8 px-3 text-sm font-medium rounded-sm border transition-all outline-none
               ${hasError
-                ? 'border-red-400 bg-red-50/50 focus:ring-2 focus:ring-red-200'
-                : 'border-slate-200 bg-white hover:border-slate-300 focus:border-neonorte-green focus:ring-2 focus:ring-neonorte-green/20'
+                ? 'border-red-500/50 bg-red-500/5 focus:ring-1 focus:ring-red-500/20'
+                : 'border-slate-800 bg-slate-950/40 hover:border-slate-700 focus:border-indigo-500/50 focus:bg-slate-900 focus:ring-1 focus:ring-indigo-500/10'
               }
-              ${props.disabled ? 'bg-slate-50 text-slate-400 cursor-not-allowed' : 'text-slate-800'}
-              placeholder:text-slate-400
+              ${props.disabled ? 'bg-slate-900/50 text-slate-600 cursor-not-allowed' : 'text-slate-100'}
+              placeholder:text-slate-700
             `}
           />
           {hasError && (
@@ -196,14 +196,14 @@ export const DenseSelect = forwardRef<HTMLSelectElement, DenseSelectProps>(
             ref={ref}
             {...props}
             className={`
-              w-full h-8 px-3 text-sm font-medium rounded-lg border transition-all outline-none appearance-none
-              bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394a3b8%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')]
+              w-full h-8 px-3 text-sm font-medium rounded-sm border transition-all outline-none appearance-none
+              bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23475569%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')]
               bg-no-repeat bg-[right_8px_center]
               ${hasError
-                ? 'border-red-400 bg-red-50/50 focus:ring-2 focus:ring-red-200'
-                : 'border-slate-200 bg-white hover:border-slate-300 focus:border-neonorte-green focus:ring-2 focus:ring-neonorte-green/20'
+                ? 'border-red-500/50 bg-red-500/5 focus:ring-1 focus:ring-red-500/20'
+                : 'border-slate-800 bg-slate-950/40 hover:border-slate-700 focus:border-indigo-500/50 focus:bg-slate-900 focus:ring-1 focus:ring-indigo-500/10'
               }
-              ${props.disabled ? 'bg-slate-50 text-slate-400 cursor-not-allowed' : 'text-slate-800'}
+              ${props.disabled ? 'bg-slate-900/50 text-slate-600 cursor-not-allowed' : 'text-slate-100'}
             `}
           >
             {placeholder && (
@@ -292,17 +292,17 @@ export const DenseStat: React.FC<DenseStatProps> = ({
   variant = 'default',
 }) => {
   const variantClasses = {
-    default: 'bg-slate-50 border-slate-200',
-    success: 'bg-neonorte-green/10 border-neonorte-green/30',
-    warning: 'bg-amber-50 border-amber-200',
-    danger: 'bg-red-50 border-red-200',
+    default: 'bg-slate-900 border-slate-800',
+    success: 'bg-emerald-500/10 border-emerald-500/30',
+    warning: 'bg-amber-500/10 border-amber-500/30',
+    danger: 'bg-red-500/10 border-red-500/30',
   };
 
   const textClasses = {
-    default: 'text-slate-800',
-    success: 'text-neonorte-darkGreen',
-    warning: 'text-amber-700',
-    danger: 'text-red-700',
+    default: 'text-slate-100',
+    success: 'text-emerald-400',
+    warning: 'text-amber-400',
+    danger: 'text-red-400',
   };
 
   return (
@@ -340,10 +340,10 @@ export const DenseButton: React.FC<DenseButtonProps> = ({
   const baseClasses = 'inline-flex items-center justify-center gap-2 font-bold rounded-lg transition-all outline-none focus:ring-2 focus:ring-offset-1';
 
   const variantClasses = {
-    primary: 'bg-neonorte-green text-white hover:bg-neonorte-green/90 focus:ring-neonorte-green/50',
-    secondary: 'bg-slate-100 text-slate-700 hover:bg-slate-200 focus:ring-slate-300',
-    ghost: 'bg-transparent text-slate-600 hover:bg-slate-100 focus:ring-slate-200',
-    danger: 'bg-red-500 text-white hover:bg-red-600 focus:ring-red-300',
+    primary: 'bg-indigo-600 text-white hover:bg-indigo-500 focus:ring-indigo-500/50',
+    secondary: 'bg-slate-800 text-slate-200 hover:bg-slate-700 focus:ring-slate-700',
+    ghost: 'bg-transparent text-slate-400 hover:bg-slate-800/50 focus:ring-slate-700',
+    danger: 'bg-red-600 text-white hover:bg-red-500 focus:ring-red-500/50',
   };
 
   const sizeClasses = {
@@ -379,8 +379,8 @@ export const DenseButton: React.FC<DenseButtonProps> = ({
 
 export const DenseDivider: React.FC<{ label?: string }> = ({ label }) => (
   <div className="col-span-12 flex items-center gap-3 my-1">
-    <div className="flex-1 h-px bg-slate-200" />
-    {label && <span className="text-[10px] text-slate-400 uppercase tracking-widest">{label}</span>}
-    <div className="flex-1 h-px bg-slate-200" />
+    <div className="flex-1 h-px bg-slate-800" />
+    {label && <span className="text-[10px] text-slate-600 uppercase tracking-widest">{label}</span>}
+    <div className="flex-1 h-px bg-slate-800" />
   </div>
 );
