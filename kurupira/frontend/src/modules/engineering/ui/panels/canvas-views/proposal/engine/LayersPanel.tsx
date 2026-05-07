@@ -8,9 +8,9 @@
 
 import React from 'react';
 import {
-  Eye, EyeOff, Lock, LockOpen, ArrowUp, ArrowDown, Trash2,
+  Eye, EyeOff, Lock, LockOpen, ArrowUp, ArrowDown, Trash2, Link2Off,
   Type, ImageIcon, Tag, Droplets, Minus, BarChart2, TrendingUp,
-  Table, Map, FileText, Braces, Layers, Sun, Wallet,
+  Table, Map as MapIcon, FileText, Braces, Layers, Sun, Wallet,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CanvasElement } from './types';
@@ -35,7 +35,7 @@ const TYPE_META: Partial<Record<string, TypeMeta>> = {
   'chart-financial':        { label: 'Gráfico Financ.',  icon: <TrendingUp     size={11} /> },
   'payment-table':          { label: 'Tabela Invest.',   icon: <Table          size={11} /> },
   'schedule-timeline':      { label: 'Cronograma',       icon: <FileText       size={11} /> },
-  'map-static':             { label: 'Mapa',             icon: <Map            size={11} /> },
+  'map-static':             { label: 'Mapa',             icon: <MapIcon        size={11} /> },
   'chart-gen-consumption':  { label: 'Ger. vs Consumo',  icon: <BarChart2      size={11} /> },
   'chart-roi':              { label: 'ROI Acumulado',    icon: <TrendingUp     size={11} /> },
   'chart-financial-balance':{ label: 'Saldo Financeiro', icon: <TrendingUp     size={11} /> },
@@ -94,22 +94,24 @@ export function LayersPanel({ elements, selectedIds, onSelect, onUpdate, onRemov
   // Sort descending by z-index: index 0 = frontmost element
   const sorted = [...elements].sort((a, b) => b.zIndex - a.zIndex);
 
-  // Group elements by groupId
-  const grouped: Array<[string, CanvasElement[]]> = [];
+  // Group elements by groupId — single-pass O(n) using a Map
+  const groupMap = new Map<string, CanvasElement[]>();
   const ungrouped: CanvasElement[] = [];
-  const seenGroups = new Set<string>();
 
   sorted.forEach((el) => {
     if (el.groupId) {
-      if (!seenGroups.has(el.groupId)) {
-        seenGroups.add(el.groupId);
-        const members = sorted.filter(e => e.groupId === el.groupId);
-        grouped.push([el.groupId, members]);
+      const existing = groupMap.get(el.groupId);
+      if (existing) {
+        existing.push(el);
+      } else {
+        groupMap.set(el.groupId, [el]);
       }
     } else {
       ungrouped.push(el);
     }
   });
+
+  const grouped = Array.from(groupMap.entries());
 
   const handleMove = (id: string, direction: 'up' | 'down') => {
     const updates = buildReorderUpdates(sorted, id, direction);
@@ -183,7 +185,7 @@ export function LayersPanel({ elements, selectedIds, onSelect, onUpdate, onRemov
                   onClick={(e) => { e.stopPropagation(); handleUngroupElements(groupId); }}
                   className="p-0.5 rounded text-slate-400 hover:text-amber-600 hover:bg-amber-50"
                 >
-                  <Trash2 size={11} />
+                  <Link2Off size={11} />
                 </button>
               </div>
 

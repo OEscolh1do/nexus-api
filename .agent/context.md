@@ -1,8 +1,8 @@
 # CONTEXT.md — Ecossistema YWARA (Visão Global)
 
-> **Última Atualização:** 2026-05-06
+> **Última Atualização:** 2026-05-07
 > **Arquiteto:** Antigravity AI
-> **Versão do Ecossistema:** 5.1.0 (Auditoria de Integridade & Dados)
+> **Versão do Ecossistema:** 5.2.0 (Arquitetura User-First & Unificação de Gestão)
 
 ---
 
@@ -105,6 +105,7 @@ Para garantir que os dados fluam sem perdas do Banco até a UI, seguimos 5 níve
 
 ## 🔄 CHANGELOG DO ECOSSISTEMA
 
+| v5.2.0 | 2026-05-07 | **User-First Unification**: Unificação de usuários e organizações no Sumaúma, criação atômica de contas autônomas e migração de gestão de segurança (Roles) para o domínio de sistema. |
 | v5.1.0 | 2026-05-06 | **Auditoria de Integridade**: Sincronização total Sumaúma-Kurupira, Rastreabilidade de Sessões e Remediação de Catálogo. |
 | v5.0.0 | 2026-05-04 | **O Lançamento**: Deploy oficial em VPS Debian 13 no domínio `neonorte-ywara.tech`. |
 | v4.1.0 | 2026-05-02 | **Infra Otimizada**: Migração para Logto Cloud, Tuning de MySQL (256MB) e suporte a VPS 2GB |

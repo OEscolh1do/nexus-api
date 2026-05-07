@@ -12,6 +12,7 @@ import { useUsers, type User } from '@/hooks/useUsers';
 import { useDebounce } from '@/hooks/useDebounce';
 import api from '@/lib/api';
 import UserDrawer from '@/components/users/UserDrawer';
+import CreateAccountDrawer from '@/components/accounts/CreateAccountDrawer';
 import RoleBadge from '@/components/users/RoleBadge';
 
 // ─── Filter bar ───────────────────────────────────────────────────────────────
@@ -19,6 +20,7 @@ import RoleBadge from '@/components/users/RoleBadge';
 interface Filters {
   q: string;
   tenantId: string;
+  tenantType: string;
 }
 
 interface TenantOption {
@@ -69,6 +71,18 @@ function FilterBar({
         {tenants.map(t => (
           <option key={t.id} value={t.id}>{t.name}</option>
         ))}
+      </select>
+
+      {/* Type filter */}
+      <select
+        id="users-filter-type"
+        value={filters.tenantType}
+        onChange={(e) => onChange({ tenantType: e.target.value })}
+        className="h-8 rounded-sm border border-slate-700 bg-slate-800 px-2 text-xs text-slate-300 focus:outline-none focus:border-sky-500/50 max-w-[140px]"
+      >
+        <option value="">Todos os tipos</option>
+        <option value="INDIVIDUAL">Autônomos</option>
+        <option value="CORPORATE">Empresas</option>
       </select>
 
 
@@ -155,6 +169,26 @@ function UserRow({
         </div>
       </td>
 
+      {/* Tipo e Plano */}
+      <td className="px-4 py-3">
+        <div className="flex flex-col gap-1">
+          {user.tenant?.type === 'INDIVIDUAL' ? (
+            <span className="inline-flex w-max rounded-sm bg-indigo-500/10 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-indigo-400 border border-indigo-500/20">
+              Autônomo
+            </span>
+          ) : user.tenant?.type === 'CORPORATE' ? (
+            <span className="inline-flex w-max rounded-sm bg-sky-500/10 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-sky-400 border border-sky-500/20">
+              Empresa
+            </span>
+          ) : (
+            <span className="text-[9px] text-slate-600">—</span>
+          )}
+          {user.tenant?.apiPlan && (
+            <span className="text-[9px] font-mono text-slate-500">{user.tenant.apiPlan}</span>
+          )}
+        </div>
+      </td>
+
       {/* Nível (Role) */}
       <td className="px-4 py-3">
         <RoleBadge role={user.role} />
@@ -202,8 +236,9 @@ function UserRow({
 const PAGE_SIZE = 20;
 
 const TABLE_COLS = [
-  { label: 'Usuário', cls: 'w-[220px]' },
-  { label: 'Organização', cls: 'w-[200px]' },
+  { label: 'Usuário', cls: 'w-[200px]' },
+  { label: 'Organização', cls: 'w-[180px]' },
+  { label: 'Tipo', cls: 'w-[100px]' },
   { label: 'Nível', cls: 'w-[110px]' },
   { label: 'Status', cls: 'w-[90px]' },
   { label: 'Cargo', cls: 'w-[140px]' },
@@ -214,7 +249,7 @@ const TABLE_COLS = [
 export default function UsersTab() {
   const [page, setPage] = useState(1);
   const [rawQ, setRawQ] = useState('');
-  const [filters, setFilters] = useState<Omit<Filters, 'q'>>({ tenantId: '' });
+  const [filters, setFilters] = useState<Omit<Filters, 'q'>>({ tenantId: '', tenantType: '' });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
 
@@ -248,7 +283,7 @@ export default function UsersTab() {
           className="flex shrink-0 items-center gap-1.5 rounded-sm border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-xs font-medium text-sky-400 hover:bg-sky-500/20 transition-colors"
         >
           <Plus className="h-3.5 w-3.5" />
-          Novo Usuário
+          Nova Conta
         </button>
       </div>
 
@@ -330,13 +365,11 @@ export default function UsersTab() {
         <UserDrawer userId={selectedId} onClose={() => setSelectedId(null)} onMutated={refetch} />
       )}
 
-      {/* Drawer — criar usuário (pré-seleciona org do filtro ativo, se houver) */}
+      {/* Drawer — criar nova conta unificada */}
       {createOpen && (
-        <UserDrawer
-          userId={null}
-          defaultTenantId={filters.tenantId || undefined}
+        <CreateAccountDrawer
           onClose={() => setCreateOpen(false)}
-          onMutated={() => { refetch(); setPage(1); }}
+          onCreated={() => { refetch(); setPage(1); }}
         />
       )}
     </div>

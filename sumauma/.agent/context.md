@@ -1,8 +1,8 @@
 # CONTEXT.md — Sumaúma (Backoffice do Operador)
 
-> **Última Atualização:** 2026-05-06
+> **Última Atualização:** 2026-05-07
 > **Arquiteto:** Antigravity AI
-> **Versão do Sistema:** 1.7.0 (Auditoria & Rastreabilidade Full-Stack)
+> **Versão do Sistema:** 1.8.0 (Unificação de Gestão & User-First)
 
 ---
 
@@ -10,9 +10,7 @@
 
 **Sumaúma** é o pilar central do ecossistema Ywara. Atua como o painel de gestão, controle e supervisão exclusivo dos operadores da Neonorte. Opera como **GOD-MODE** — a base estrutural que sustenta e conecta os demais serviços (Iaçã e Kurupira). **O Sumaúma é um sistema exclusivo para gestão do Ywara. Demais usuários do ecossistema Ywara não devem ter acesso ao Sumaúma.**
 
-Este módulo é **separado** dos sistemas de produto (Iaçã e Kurupira) e se comunica com eles via:
-- **Leitura direta** (Prisma read-only) para consultas, relatórios e auditoria.
-- **M2M HTTP** (Axios + OAuth2 Bearer) para mutações que requerem business logic.
+A gestão é **User-First**: identidades são a entidade primária. Organizações (Tenants) são geridas de forma contextual a partir dos usuários.
 
 | Aspecto | Detalhe |
 |---------|--------|
@@ -53,11 +51,10 @@ Este módulo é **separado** dos sistemas de produto (Iaçã e Kurupira) e se co
 | Módulo | Localização | Responsabilidade |
 |--------|------------|-----------------|
 | Dashboard | `frontend/src/pages/Dashboard.tsx` | KPIs de saúde da plataforma |
-| Tenants | `frontend/src/pages/Tenants.tsx` | Gestão de organizações e assinaturas |
-| Usuários | `frontend/src/pages/Users.tsx` | Gestão cross-tenant de usuários |
+| Contas & Acessos | `frontend/src/pages/Users.tsx` | Gestão unificada de usuários e organizações |
 | Catálogo | `frontend/src/pages/Catalog.tsx` | ModuleCatalog + InverterCatalog |
 | Auditoria | `frontend/src/pages/AuditLogs.tsx` | Timeline de AuditLogs |
-| Sistema | `frontend/src/pages/System.tsx` | Healthcheck, cron jobs, sessões |
+| Sistema | `frontend/src/pages/System.tsx` | Healthcheck, Cron, Sessões e **Perfis (Roles)** |
 
 ---
 
@@ -270,6 +267,13 @@ A exclusão de tenants e usuários era apenas lógica (soft delete) ou inexisten
 ---
 
 ## 🔄 CHANGELOG
+
+### v1.8.0 (2026-05-07) — Unificação de Gestão & User-First
+- ✅ **Atomic Onboarding**: Criação atômica de Usuário + Tenant para contas `INDIVIDUAL`.
+- ✅ **Contas & Acessos**: Unificação das telas de usuários e organizações em um hub central.
+- ✅ **Contextual Navigation**: Acesso à gestão de empresas via link "Ver Organização" no drawer do usuário.
+- ✅ **System Domain**: Migração do `RolesTab` para a página de Sistema & Segurança.
+- ✅ **Audit Integrity**: Adicionado `type` do tenant nos selects de listagem para badges dinâmicas.
 
 ### v1.7.0 (2026-05-06) — Auditoria & Rastreabilidade
 >

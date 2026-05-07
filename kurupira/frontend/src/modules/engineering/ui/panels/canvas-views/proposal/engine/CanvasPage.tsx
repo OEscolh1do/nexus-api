@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { CanvasElementWrapper } from './CanvasElementWrapper';
 import { GridOverlay } from './GridOverlay';
@@ -74,7 +74,20 @@ export function CanvasPage({
     return page.background.color ?? '#ffffff';
   })();
 
-  const sortedElements = [...page.elements].sort((a, b) => a.zIndex - b.zIndex);
+  const sortedElements = useMemo(
+    () => [...page.elements].sort((a, b) => a.zIndex - b.zIndex),
+    [page.elements],
+  );
+
+  // Pre-compute selected group IDs once per render (O(selectedIds) vs O(n×selectedIds) inline)
+  const selectedGroupIds = useMemo(() => {
+    const ids = new Set<string>();
+    selectedIds.forEach((id) => {
+      const el = page.elements.find((e) => e.id === id);
+      if (el?.groupId) ids.add(el.groupId);
+    });
+    return ids;
+  }, [selectedIds, page.elements]);
 
   return (
     <div
@@ -106,10 +119,7 @@ export function CanvasPage({
       {/* Elementos ordenados por z-index */}
       {sortedElements.map((element) => {
         const isSelected = selectedIds.includes(element.id);
-        const isGrouped  = !!element.groupId && selectedIds.some(id => {
-          const el = page.elements.find(e => e.id === id);
-          return el?.groupId === element.groupId;
-        });
+        const isGrouped  = !!element.groupId && selectedGroupIds.has(element.groupId);
         const others = sortedElements.filter((el) => el.id !== element.id && !el.type.startsWith('page-'));
         return (
           <CanvasElementWrapper
@@ -117,7 +127,6 @@ export function CanvasPage({
             element={element}
             isSelected={isSelected}
             isGrouped={isGrouped && selectedIds.length > 1}
-            selectedIds={selectedIds}
             canvasScale={scale}
             gridSize={gridConfig.size}
             snapEnabled={gridConfig.snap}

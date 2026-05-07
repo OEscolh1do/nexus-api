@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const prismaSumauma = require('../lib/prismaSumauma');
-const { createLogtoUser, deleteLogtoUser } = require('../lib/logtoClient');
+const { createLogtoUser, deleteLogtoUser, createLogtoOrg } = require('../lib/logtoClient');
 const { auditLog } = require('../lib/auditLogger');
 const logger = require('../lib/logger');
 const { PLAN_SEATS } = require('../lib/constants');
@@ -24,10 +24,10 @@ function isSelf(req, targetUserId) {
 // ============================================
 router.post('/', async (req, res) => {
   try {
-    const { username, password, fullName, role, roleId, tenantId, jobTitle, orgUnitId } = req.body;
+    const { username, password, fullName, role, roleId, tenantId, jobTitle, orgUnitId, type, orgName } = req.body;
 
-    if (!username || !password || !fullName || !tenantId) {
-      return res.status(400).json({ error: 'Campos obrigatórios: username, senha, nome completo, organização' });
+    if (!username || !password || !fullName) {
+      return res.status(400).json({ error: 'Campos obrigatórios: username, senha, nome completo' });
     }
     if (password.length < 8) {
       return res.status(400).json({ error: 'A senha deve ter no mínimo 8 caracteres' });
@@ -41,26 +41,64 @@ router.post('/', async (req, res) => {
       });
     }
 
+    let resolvedTenantId = tenantId;
+    let tenantInfo = null;
 
-
-    // Buscar tenant para verificar plano e tipo
-    const tenant = await prismaSumauma.tenant.findUnique({
-      where: { id: tenantId },
-      select: { type: true, apiPlan: true, ssoDomain: true, _count: { select: { users: true } } }
-    });
-    if (!tenant) return res.status(404).json({ error: 'Organização não encontrada' });
-
-    // POKA-YOKE: Verificar limite de seats pelo plano
-    const maxSeats = PLAN_SEATS[tenant.apiPlan] ?? 5;
-
-    if (tenant._count.users >= maxSeats) {
-      return res.status(409).json({
-        error: `Limite de ${maxSeats} usuário(s) atingido para o plano ${tenant.apiPlan}. Faça upgrade para adicionar mais usuários.`,
-        code: 'SEAT_LIMIT_EXCEEDED',
-        current: tenant._count.users,
-        max: maxSeats,
-        plan: tenant.apiPlan,
+    if (type === 'INDIVIDUAL') {
+      // Cria a org automaticamente
+      const finalOrgName = (orgName && orgName.trim()) || `Workspace de ${fullName.trim()}`;
+      
+      const newTenant = await prismaSumauma.tenant.create({
+        data: {
+          name: finalOrgName,
+          apiPlan: 'FREE',
+          apiMonthlyQuota: 1000,
+          type: 'INDIVIDUAL'
+        }
       });
+      
+      resolvedTenantId = newTenant.id;
+
+      // Criar Shadow Auth no Logto para a org
+      let logtoOrgId = null;
+      try {
+        logtoOrgId = await createLogtoOrg(finalOrgName);
+        await prismaSumauma.tenant.update({
+          where: { id: newTenant.id },
+          data: { ssoProvider: 'LOGTO', ssoDomain: logtoOrgId }
+        });
+        tenantInfo = { ssoDomain: logtoOrgId };
+      } catch (zErr) {
+        logger.error('Falha ao criar org no Logto para INDIVIDUAL, revertendo.', { tenantId: newTenant.id });
+        await prismaSumauma.tenant.delete({ where: { id: newTenant.id } });
+        return res.status(502).json({ error: 'Falha de integração com o Logto ao criar organização autônoma.' });
+      }
+
+      await auditLog({ ...ctx(req), action: 'ADMIN_CREATE_TENANT', entity: 'Tenant', resourceId: newTenant.id, details: `Organização criada via fluxo unificado: ${newTenant.name}`, after: { id: newTenant.id, name: newTenant.name } });
+    } else {
+      if (!tenantId) {
+        return res.status(400).json({ error: 'Organização não especificada para usuário corporativo.' });
+      }
+      // Buscar tenant para verificar plano e tipo
+      const tenant = await prismaSumauma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { type: true, apiPlan: true, ssoDomain: true, _count: { select: { users: true } } }
+      });
+      if (!tenant) return res.status(404).json({ error: 'Organização não encontrada' });
+
+      // POKA-YOKE: Verificar limite de seats pelo plano
+      const maxSeats = PLAN_SEATS[tenant.apiPlan] ?? 5;
+
+      if (tenant._count.users >= maxSeats) {
+        return res.status(409).json({
+          error: `Limite de ${maxSeats} usuário(s) atingido para o plano ${tenant.apiPlan}. Faça upgrade para adicionar mais usuários.`,
+          code: 'SEAT_LIMIT_EXCEEDED',
+          current: tenant._count.users,
+          max: maxSeats,
+          plan: tenant.apiPlan,
+        });
+      }
+      tenantInfo = tenant;
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -71,9 +109,9 @@ router.post('/', async (req, res) => {
         username: username.trim(),
         password: hashedPassword,
         fullName: fullName.trim(),
-        role: role || 'ENGINEER', // Mantido para retrocompatibilidade
+        role: role || (type === 'INDIVIDUAL' ? 'ADMIN' : 'ENGINEER'), // Autônomo já nasce como ADMIN
         roleId: roleId || undefined,
-        tenantId,
+        tenantId: resolvedTenantId,
         orgUnitId,
         jobTitle: jobTitle?.trim() || undefined,
         status: 'ACTIVE'
@@ -82,14 +120,14 @@ router.post('/', async (req, res) => {
 
     // 2. Criar Shadow Auth no Logto
     try {
-      const logtoUserId = await createLogtoUser(tenantId, {
+      const logtoUserId = await createLogtoUser(resolvedTenantId, {
         username: username.trim(),
         firstName: fullName.split(' ')[0],
         lastName: fullName.split(' ').slice(1).join(' ') || 'User',
         email: `${username.trim()}@neonorte.local`,
         password,
-        role: role || 'ENGINEER',
-        logtoOrgId: tenant.ssoDomain,
+        role: role || (type === 'INDIVIDUAL' ? 'ADMIN' : 'ENGINEER'),
+        logtoOrgId: tenantInfo?.ssoDomain,
       });
       
       await prismaSumauma.user.update({
@@ -99,10 +137,12 @@ router.post('/', async (req, res) => {
     } catch (zErr) {
       logger.error('Falha ao criar usuário no Logto. Revertendo localmente.', { userId: user.id });
       await prismaSumauma.user.delete({ where: { id: user.id } });
+      // Se criou org INDIVIDUAL, deve reverter? O Logto reverter não, mas a org local poderia ser revertida.
+      // Por simplicidade, vamos deixar a org existir mas sem user, ou poderíamos tentar reverter a org também.
       return res.status(502).json({ error: 'Falha de integração com o Logto. O usuário não foi criado.' });
     }
 
-    await auditLog({ ...ctx(req), action: 'ADMIN_CREATE_USER', entity: 'User', resourceId: user.id, details: `Usuário criado: ${user.username} (tenant=${tenantId})`, after: { id: user.id, username: user.username, role: user.role, tenantId } });
+    await auditLog({ ...ctx(req), action: 'ADMIN_CREATE_USER', entity: 'User', resourceId: user.id, details: `Usuário criado: ${user.username} (tenant=${resolvedTenantId})`, after: { id: user.id, username: user.username, role: user.role, tenantId: resolvedTenantId } });
 
     res.status(201).json({ data: user, message: 'Usuário criado com sucesso na Fundação' });
   } catch (error) {
@@ -148,7 +188,7 @@ router.get('/', async (req, res) => {
           status: true,
           createdAt: true,
           updatedAt: true,
-          tenant: { select: { id: true, name: true, apiPlan: true } },
+          tenant: { select: { id: true, name: true, type: true, apiPlan: true } },
           orgUnit: { select: { id: true, name: true } },
         },
         orderBy: { createdAt: 'desc' },

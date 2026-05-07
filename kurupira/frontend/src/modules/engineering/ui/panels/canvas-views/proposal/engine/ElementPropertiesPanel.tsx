@@ -89,7 +89,6 @@ function CheckboxRow({ label, value, onChange }: { label: string; value: boolean
         onChange={(e) => onChange(e.target.checked)}
         className="cursor-pointer"
       />
-      <span className="text-xs text-slate-500 ml-1">Ativado</span>
     </FieldRow>
   );
 }
@@ -310,9 +309,12 @@ const CHART_PROPS_CONFIG: Partial<Record<string, ChartPropsConfig>> = {
       { key: 'colorBalance',  label: 'Saldo',    default: '#0ea5e9' },
     ],
   },
-  'chart-daily': {
-    colors: [{ key: 'colorArea', label: 'Área', default: '#6366f1' }],
-  },
+  'chart-daily':            { colors: [{ key: 'colorArea', label: 'Área', default: '#6366f1' }] },
+  // Title-only chart types (no color customization beyond the title field)
+  'chart-loss-waterfall':   { colors: [] },
+  'chart-generation':       { colors: [], showLegendToggle: true },
+  'chart-financial':        { colors: [], showLegendToggle: true },
+  'table-analytics':        { colors: [] },
 };
 
 function ChartElementProps({ element, onUpdate }: Props) {
@@ -552,9 +554,6 @@ export function ElementPropertiesPanel({ element, onUpdate, onDecompose }: Props
             {element.type === 'kpi-projection' && <KpiProjectionProps element={element} onUpdate={onUpdate} />}
             {element.type === 'placeholder' && <PlaceholderProps element={element} onUpdate={onUpdate} />}
             {element.type in CHART_PROPS_CONFIG && <ChartElementProps element={element} onUpdate={onUpdate} />}
-            {(element.type === 'chart-loss-waterfall' || element.type === 'table-analytics') && (
-              <ChartElementProps element={element} onUpdate={onUpdate} />
-            )}
             {/* Technical elements */}
             {element.type === 'section-header'    && <SectionHeaderProps element={element} onUpdate={onUpdate} />}
             {element.type === 'kpi-capacity-badge' && <KpiCapacityBadgeProps element={element} onUpdate={onUpdate} />}

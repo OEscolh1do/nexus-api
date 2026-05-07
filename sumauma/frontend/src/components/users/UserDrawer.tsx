@@ -21,40 +21,18 @@ import {
   useDeleteUser,
 } from '@/hooks/useUsers';
 import ConfirmUserBlockModal from './ConfirmUserBlockModal';
-import CreateUserForm from './CreateUserForm';
+import TenantDrawer from '@/components/tenants/TenantDrawer';
 
 
 // ─── Main Drawer ──────────────────────────────────────────────────────────────
 
 interface UserDrawerProps {
-  userId: string | null;
+  userId: string;
   onClose: () => void;
   onMutated?: () => void;
-  /** Pré-seleciona e trava a organização no formulário de criação */
-  defaultTenantId?: string;
 }
 
-export default function UserDrawer({ userId, onClose, onMutated, defaultTenantId }: UserDrawerProps) {
-  // Modo create
-  if (userId === null) {
-    return (
-      <>
-        <div
-          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-[2px]"
-          onClick={onClose}
-          aria-hidden="true"
-        />
-        <div className="fixed right-0 top-0 z-40 flex h-full w-full max-w-md flex-col border-l border-slate-800 bg-slate-950 shadow-2xl">
-          <CreateUserForm
-            onClose={onClose}
-            onCreated={() => { onMutated?.(); onClose(); }}
-            defaultTenantId={defaultTenantId}
-          />
-        </div>
-      </>
-    );
-  }
-
+export default function UserDrawer({ userId, onClose, onMutated }: UserDrawerProps) {
   const { data: user, loading, refetch } = useUser(userId);
 
   const handleSuccess = () => {
@@ -70,6 +48,7 @@ export default function UserDrawer({ userId, onClose, onMutated, defaultTenantId
   const navigate = useNavigate();
 
   const [showBlock, setShowBlock] = useState(false);
+  const [showTenant, setShowTenant] = useState(false);
 
   const isSelf = useIsSelf(userId);
   const isBlocked = user?.status === 'BLOCKED';
@@ -140,7 +119,17 @@ export default function UserDrawer({ userId, onClose, onMutated, defaultTenantId
 
                 <div className="rounded-sm border border-slate-800 bg-slate-900 p-4 space-y-4">
                   <div className="space-y-1">
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wider">Organização</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wider">Organização</p>
+                      {user.tenant && (
+                        <button
+                          onClick={() => setShowTenant(true)}
+                          className="text-[10px] font-medium text-sky-400 hover:text-sky-300"
+                        >
+                          Ver Organização
+                        </button>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2">
                       <Building2 className="h-3.5 w-3.5 text-slate-400" />
                       <span className="text-sm font-medium text-slate-200">{user.tenant?.name || 'Sem tenant'}</span>
@@ -279,6 +268,15 @@ export default function UserDrawer({ userId, onClose, onMutated, defaultTenantId
           onConfirm={handleBlock}
           onCancel={() => setShowBlock(false)}
           loading={blocking}
+        />
+      )}
+
+      {/* Tenant Drawer */}
+      {showTenant && user?.tenantId && (
+        <TenantDrawer
+          tenantId={user.tenantId}
+          onClose={() => setShowTenant(false)}
+          onMutated={refetch}
         />
       )}
     </>

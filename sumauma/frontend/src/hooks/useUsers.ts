@@ -216,11 +216,13 @@ export function useCreateUser(onSuccess?: () => void) {
 
   const mutate = useCallback(
     (payload: {
+      type: 'INDIVIDUAL' | 'CORPORATE';
       username: string;
       password: string;
       fullName: string;
-      role: string;
-      tenantId: string;
+      role?: string;
+      tenantId?: string;
+      orgName?: string;
       jobTitle?: string;
     }) => {
       setLoading(true);

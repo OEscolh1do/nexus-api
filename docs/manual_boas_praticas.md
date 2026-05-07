@@ -41,6 +41,27 @@ Para resolver isso de forma definitiva e transparente para o usuário:
 #### Regra de Ouro
 > "Se um efeito colateral pós-login pode falhar e resetar o estado global, use guardas de componente para impedir loops infinitos. Nunca limpe a sessão local de forma agressiva antes de confirmar a falha do provedor de identidade, e sempre permita uma margem de manobra (clock skew) para validação de tempo."
 
+### 1.2. Barreira Definitiva contra "Estado Zumbi" no Boot
+**Data:** 07/05/2026
+**Módulo:** Sumaúma Frontend (Refatoração)
+
+#### O Problema
+Mesmo com interceptores de API configurados, o primeiro render da aplicação pode falhar se o Zustand hidratar um token expirado do LocalStorage. O `ProtectedRoute` vê `isAuthenticated: true` (baseado no token velho) e deixa o app carregar, disparando requisições que só então falharão no interceptor, causando redirecionamentos tardios e loops se o LoginPage não estiver perfeitamente sincronizado.
+
+#### A Solução (Padrão Adotado)
+Utilizar o hook `onRehydrateStorage` do middleware `persist` do Zustand para realizar uma **validação atômica e síncrona** antes da aplicação renderizar:
+
+1.  **Validação no Boot**: No momento em que o Zustand lê o LocalStorage, decodificamos o JWT e verificamos o campo `exp`.
+2.  **Descarte Imediato**: Se o token estiver expirado, o estado é resetado (`token: null`, `isAuthenticated: false`) **antes** de retornar o estado para a aplicação.
+3.  **Benefício**: O primeiro render já nasce com `isAuthenticated: false`, fazendo com que o `react-router` redirecione para o `/login` de forma limpa, sem disparar interceptores de API desnecessários.
+
+#### Regra de Ouro
+> "Nunca confie em um estado persistido no LocalStorage para o primeiro render. Valide a integridade e expiração de tokens críticos no hook de hidratação (`onRehydrateStorage`) para garantir que o 'Estado Zumbi' seja eliminado antes de afetar o ciclo de vida dos componentes."
+
+#### Referência
+- `sumauma/frontend/src/stores/authStore.ts`
+- `sumauma/frontend/src/pages/LoginPage.tsx` (Limpeza de flag antes do signOut)
+
 ---
 
 ## 2. Padrões de Interface de Engenharia (Engineering UI)
@@ -293,3 +314,36 @@ if (token) {
 
 #### Regra de Ouro
 > "Se o sistema M2M tem um fallback legacy, o receptor NUNCA deve rejeitar o Bearer sem antes checar se há um X-Service-Token válido no mesmo request. Remova a lógica de fallback apenas após confirmar que 100% das chamadas passam pelo OAuth2 sem erros."
+
+---
+
+## 10. Gestão de Identidades e Acessos (IAM)
+
+### 10.1. Onboarding Atômico e Interface "User-First"
+**Data:** 07/05/2026
+**Módulo:** Sumaúma Backend / Frontend
+
+#### O Problema
+Em plataformas multi-tenant, é comum forçar um fluxo "Tenant-First", onde o administrador precisa criar uma Organização antes de criar o Usuário. Para usuários autônomos (INDIVIDUAL), isso gera fricção desnecessária (múltiplas etapas e telas). Além disso, misturar Perfis de Acesso (Roles) técnicos com a listagem de usuários e manter uma página separada para Organizações gera fragmentação de contexto e alta carga cognitiva.
+
+#### A Solução (Padrão Adotado)
+Adotamos o modelo **User-First** para unificar a gestão de identidades e acessos:
+
+1.  **Criação Atômica (Backend)**: O endpoint de criação de usuários suporta um parâmetro `type: 'INDIVIDUAL'`. Quando presente, o backend realiza em um único request:
+    - Criação do Tenant local (com plano padrão).
+    - Provisionamento da Organização no Provedor de Identidade (Logto).
+    - Criação do Usuário vinculado a esse novo Tenant.
+    - Sincronização de IDs entre Logto e Banco Local.
+
+2.  **Unificação de Interface (Frontend)**:
+    - **Hub de Contas**: Substituímos as abas separadas por uma visão única de "Contas & Acessos", diferenciando autônomos de membros corporativos via badges e filtros.
+    - **Navegação Contextual**: Removemos a página global de Organizações do menu principal. O acesso à gestão da organização (planos, quotas) agora é feito via link contextual ("Ver Organização") dentro do drawer de detalhes do usuário.
+    - **Domínio de Sistema**: Movemos a gestão de **Perfis de Acesso (Roles)** para a área de **Sistema**, tratando-a como configuração de infraestrutura/segurança, e não como dado operacional diário.
+
+#### Regra de Ouro
+> "Se houver uma dependência 1:1 obrigatória entre entidades no onboarding (como Usuário Autônomo e sua Organização), implemente a criação atômica no backend. Unifique a interface sob a entidade primária (Usuário) e use navegação contextual (links em drawers) para acessar entidades secundárias, reduzindo a poluição no menu principal."
+
+#### Referência
+- `sumauma/backend/src/routes/users.js` (Lógica `type === 'INDIVIDUAL'`)
+- `sumauma/frontend/src/components/accounts/CreateAccountDrawer.tsx`
+- `sumauma/frontend/src/pages/SystemPage.tsx` (Nova morada do RolesTab)

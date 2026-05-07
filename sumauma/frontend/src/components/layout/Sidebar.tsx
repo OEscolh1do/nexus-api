@@ -1,7 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
-  Building2,
   Users,
   Package,
   ScrollText,
@@ -19,8 +18,8 @@ interface SidebarProps {
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { path: '/tenants', icon: Building2, label: 'Organizações' },
-  { path: '/users', icon: Users, label: 'Usuários' },
+  // { path: '/tenants', icon: Building2, label: 'Organizações' },
+  { path: '/users', icon: Users, label: 'Contas & Acessos' },
   { path: '/catalog', icon: Package, label: 'Catálogo FV' },
   { path: '/audit', icon: ScrollText, label: 'Auditoria' },
   { path: '/system', icon: Activity, label: 'Sistema' },

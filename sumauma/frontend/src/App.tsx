@@ -3,7 +3,7 @@ import { useAuthStore } from '@/stores/authStore';
 import AdminLayout from '@/components/layout/AdminLayout';
 import LoginPage from '@/pages/LoginPage';
 import DashboardPage from '@/pages/DashboardPage';
-import TenantsPage from '@/pages/TenantsPage';
+
 import UsersPage from '@/pages/UsersPage';
 import CatalogPage from '@/pages/CatalogPage';
 import AuditPage from '@/pages/AuditPage';
@@ -35,7 +35,6 @@ export default function App() {
         }
       >
         <Route path="/" element={<DashboardPage />} />
-        <Route path="/tenants" element={<TenantsPage />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/catalog" element={<CatalogPage />} />
         <Route path="/audit" element={<AuditPage />} />

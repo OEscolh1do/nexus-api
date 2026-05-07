@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, useState } from 'react';
+import React, { useRef, useCallback, useState, useEffect } from 'react';
 import { Lock, Trash2 } from 'lucide-react';
 import { CanvasElementRenderer } from './CanvasElementRenderer';
 import type { CanvasElement, GuideLines } from './types';
@@ -111,7 +111,6 @@ interface Props {
   element: CanvasElement;
   isSelected: boolean;
   isGrouped: boolean;
-  selectedIds: string[];
   canvasScale: number;
   gridSize: number;
   snapEnabled: boolean;
@@ -135,6 +134,10 @@ export function CanvasElementWrapper({
   const [isTextEditing, setIsTextEditing] = useState(false);
   const dragStartRef   = useRef<{ mouseX: number; mouseY: number; elemX: number; elemY: number } | null>(null);
   const resizeStartRef = useRef<{ mouseX: number; mouseY: number; elemX: number; elemY: number; elemW: number; elemH: number; handle: ResizeHandle } | null>(null);
+  const dragAbortRef   = useRef<AbortController | null>(null);
+
+  // Clean up any dangling window listeners when the element is removed mid-drag
+  useEffect(() => () => { dragAbortRef.current?.abort(); }, []);
 
   const isLocked    = element.locked;
   const isPageBlock = element.type.startsWith('page-');
@@ -145,6 +148,10 @@ export function CanvasElementWrapper({
 
   const handleMouseDownMove = useCallback((e: React.MouseEvent) => {
     // Group drag: when element is part of a multi-selection group
+    dragAbortRef.current?.abort();
+    dragAbortRef.current = new AbortController();
+    const { signal } = dragAbortRef.current;
+
     if (isGrouped && onGroupDragStart && onGroupDragDelta && onGroupDragEnd) {
       e.preventDefault();
       e.stopPropagation();
@@ -152,19 +159,13 @@ export function CanvasElementWrapper({
       const startX = e.clientX;
       const startY = e.clientY;
 
-      const onMove = (ev: MouseEvent) => {
-        const dx = (ev.clientX - startX) / canvasScale;
-        const dy = (ev.clientY - startY) / canvasScale;
-        onGroupDragDelta(dx, dy);
-      };
-      const onUp = () => {
+      window.addEventListener('mousemove', (ev: MouseEvent) => {
+        onGroupDragDelta((ev.clientX - startX) / canvasScale, (ev.clientY - startY) / canvasScale);
+      }, { signal });
+      window.addEventListener('mouseup', () => {
         onGroupDragEnd();
         onGuideChange({ x: [], y: [] });
-        window.removeEventListener('mousemove', onMove);
-        window.removeEventListener('mouseup', onUp);
-      };
-      window.addEventListener('mousemove', onMove);
-      window.addEventListener('mouseup', onUp);
+      }, { signal });
       return;
     }
 
@@ -180,7 +181,7 @@ export function CanvasElementWrapper({
       elemY: element.y,
     };
 
-    const onMove = (ev: MouseEvent) => {
+    window.addEventListener('mousemove', (ev: MouseEvent) => {
       if (!dragStartRef.current) return;
       const dx = (ev.clientX - dragStartRef.current.mouseX) / canvasScale;
       const dy = (ev.clientY - dragStartRef.current.mouseY) / canvasScale;
@@ -188,11 +189,9 @@ export function CanvasElementWrapper({
       let rawX = Math.max(0, Math.min(A4_WIDTH - element.width, dragStartRef.current.elemX + dx));
       let rawY = Math.max(0, Math.min(A4_HEIGHT - element.height, dragStartRef.current.elemY + dy));
 
-      // 1) Snap to grid
       rawX = snapToGrid(rawX, gridSize, snapEnabled);
       rawY = snapToGrid(rawY, gridSize, snapEnabled);
 
-      // 2) Smart guides (sobrescreve snap se alinhamento encontrado)
       const { x, y, guides } = applySmartGuides(
         rawX, rawY, element.width, element.height,
         otherElements, scaledThreshold, guidesEnabled,
@@ -200,17 +199,12 @@ export function CanvasElementWrapper({
 
       onGuideChange(guides);
       onUpdate({ x: Math.round(x), y: Math.round(y) });
-    };
+    }, { signal });
 
-    const onUp = () => {
+    window.addEventListener('mouseup', () => {
       dragStartRef.current = null;
       onGuideChange({ x: [], y: [] });
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+    }, { signal });
   }, [isGrouped, isLocked, isPageBlock, isTextEditing, element, canvasScale, gridSize, snapEnabled, guidesEnabled, otherElements, scaledThreshold, onSelect, onUpdate, onGuideChange, onGroupDragStart, onGroupDragDelta, onGroupDragEnd]);
 
   // ── Resize drag ────────────────────────────────────────────────────────────
@@ -230,9 +224,13 @@ export function CanvasElementWrapper({
       handle,
     };
 
+    dragAbortRef.current?.abort();
+    dragAbortRef.current = new AbortController();
+    const { signal } = dragAbortRef.current;
+
     const MIN_SIZE = 20;
 
-    const onMove = (ev: MouseEvent) => {
+    window.addEventListener('mousemove', (ev: MouseEvent) => {
       if (!resizeStartRef.current) return;
       const { mouseX, mouseY, elemX, elemY, elemW, elemH, handle: h } = resizeStartRef.current;
       const dx = (ev.clientX - mouseX) / canvasScale;
@@ -254,16 +252,11 @@ export function CanvasElementWrapper({
       }
 
       onUpdate({ x: Math.round(newX), y: Math.round(newY), width: Math.round(newW), height: Math.round(newH) });
-    };
+    }, { signal });
 
-    const onUp = () => {
+    window.addEventListener('mouseup', () => {
       resizeStartRef.current = null;
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+    }, { signal });
   }, [isLocked, element, canvasScale, gridSize, snapEnabled, onUpdate]);
 
   // ── Double click para editar texto ─────────────────────────────────────────
