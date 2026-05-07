@@ -145,6 +145,7 @@ const authenticateToken = async (req, res, next) => {
 
     next();
   } catch (dbErr) {
+    console.error('!!! ERRO CRÍTICO NO AUTH !!!', dbErr);
     logger.error('[Auth] Erro interno ao validar sessão no banco de dados', { error: dbErr.message, stack: dbErr.stack });
     return res.status(500).json({ success: false, error: 'Erro interno ao validar sessão.' });
   }
