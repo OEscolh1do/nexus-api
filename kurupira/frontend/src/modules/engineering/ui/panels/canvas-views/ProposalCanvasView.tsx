@@ -70,7 +70,7 @@ export const ProposalCanvasView: React.FC = () => {
   const [viewMode, setViewMode]             = useState<ViewMode>('preview');
   const [mobileMode, setMobileMode]         = useState<'editor' | 'document'>('document');
   const [canvasPageIdx, setCanvasPageIdx]   = useState(0);
-  const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds]       = useState<string[]>([]);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [activeDragType, setActiveDragType] = useState<string | null>(null);
   const [gridConfig, setGridConfig]         = useState<GridConfig>(DEFAULT_GRID_CONFIG);
@@ -93,8 +93,17 @@ export const ProposalCanvasView: React.FC = () => {
   const safePageIdx     = Math.min(canvasPageIdx, pages.length - 1);
   const currentPage     = pages[safePageIdx] ?? null;
 
-  // Selected element object
-  const selectedElement = currentPage?.elements.find((el) => el.id === selectedElementId) ?? null;
+  // Selected element object (single element)
+  const selectedElement = selectedIds.length === 1
+    ? currentPage?.elements.find((el) => el.id === selectedIds[0]) ?? null
+    : null;
+
+  // Detect if selected elements form a group
+  const selectedGroupId = (() => {
+    if (selectedIds.length < 2) return null;
+    const first = currentPage?.elements.find((e) => e.id === selectedIds[0]);
+    return first?.groupId ?? null;
+  })();
 
   // Resize observer for canvas scale
   useEffect(() => {
@@ -161,7 +170,7 @@ export const ProposalCanvasView: React.FC = () => {
 
     // ── Preset: adiciona múltiplos elementos de uma vez ────────────────────────
     if (data.isPreset) {
-      type PresetDef = { type: CanvasElement['type']; dx: number; dy: number; width: number; height: number; zIndex: number; props: Record<string, unknown> };
+      type PresetDef = { type: CanvasElement['type']; dx: number; dy: number; width: number; height: number; zIndex: number; groupId?: string; props: Record<string, unknown> };
       const defs = (data.presetElements as PresetDef[]) ?? [];
       defs.forEach((def, i) => {
         const el: CanvasElement = {
@@ -174,6 +183,7 @@ export const ProposalCanvasView: React.FC = () => {
           zIndex:  baseZIndex + def.zIndex,
           locked:  false,
           visible: true,
+          groupId: def.groupId ?? undefined,
           props:   { ...def.props },
         };
         addCanvasElement(currentPage.id, el);
@@ -196,8 +206,8 @@ export const ProposalCanvasView: React.FC = () => {
     };
 
     addCanvasElement(currentPage.id, newElement);
-    setSelectedElementId(newElement.id);
-  }, [currentPage, canvasScale, activeLayout, applyTemplate, addCanvasElement]);
+    setSelectedIds([newElement.id]);
+  }, [currentPage, canvasScale, gridConfig, activeLayout, applyTemplate, addCanvasElement]);
 
   // ─── Page management ───────────────────────────────────────────────────────
 
@@ -211,12 +221,14 @@ export const ProposalCanvasView: React.FC = () => {
     };
     addCanvasPage(newPage);
     setCanvasPageIdx(pages.length);
+    setSelectedIds([]);
   }, [activeLayout, applyTemplate, addCanvasPage, pages.length]);
 
   const handleRemovePage = useCallback((idx: number) => {
     if (pages.length <= 1) return;
     removeCanvasPage(pages[idx].id);
     setCanvasPageIdx((prev) => Math.min(prev, pages.length - 2));
+    setSelectedIds([]);
   }, [pages, removeCanvasPage]);
 
   // ─── Element handlers ──────────────────────────────────────────────────────
@@ -229,8 +241,23 @@ export const ProposalCanvasView: React.FC = () => {
   const handleRemoveElement = useCallback((elementId: string) => {
     if (!currentPage) return;
     removeCanvasElement(currentPage.id, elementId);
-    if (selectedElementId === elementId) setSelectedElementId(null);
-  }, [currentPage, removeCanvasElement, selectedElementId]);
+    if (selectedIds.includes(elementId)) setSelectedIds(selectedIds.filter(id => id !== elementId));
+  }, [currentPage, removeCanvasElement, selectedIds]);
+
+  // ─── Group handlers ────────────────────────────────────────────────────────
+
+  const handleGroupSelected = useCallback(() => {
+    if (!currentPage || selectedIds.length < 2) return;
+    if (!activeLayout) applyTemplate(CLASSIC_TEMPLATE);
+    const newGroupId = `grp-${Date.now()}`;
+    selectedIds.forEach((id) => updateCanvasElement(currentPage.id, id, { groupId: newGroupId }));
+  }, [currentPage, selectedIds, activeLayout, applyTemplate, updateCanvasElement]);
+
+  const handleUngroupSelected = useCallback(() => {
+    if (!currentPage) return;
+    selectedIds.forEach((id) => updateCanvasElement(currentPage.id, id, { groupId: undefined }));
+    setSelectedIds([]);
+  }, [currentPage, selectedIds, updateCanvasElement]);
 
   // ─── Decompose / Restore page handlers ─────────────────────────────────────
 
@@ -245,7 +272,7 @@ export const ProposalCanvasView: React.FC = () => {
     TECHNICAL_PAGE_ELEMENTS.forEach((el) => {
       addCanvasElement(currentPage.id, { ...el, id: `${el.id}-${Date.now()}` });
     });
-    setSelectedElementId(null);
+    setSelectedIds([]);
   }, [currentPage, activeLayout, applyTemplate, removeCanvasElement, addCanvasElement]);
 
   const handleRestorePage = useCallback(() => {
@@ -268,7 +295,7 @@ export const ProposalCanvasView: React.FC = () => {
       visible: true,
       props: {},
     });
-    setSelectedElementId(null);
+    setSelectedIds([]);
   }, [currentPage, activeLayout, removeCanvasElement, addCanvasElement]);
 
   // Detect if the current page is decomposed (no page-technical element)
@@ -335,7 +362,7 @@ export const ProposalCanvasView: React.FC = () => {
                   {/* Back button */}
                   <div className="shrink-0 flex items-center gap-1 px-2 py-1.5 border-b border-slate-100 bg-slate-50">
                     <button
-                      onClick={() => setSelectedElementId(null)}
+                      onClick={() => setSelectedIds([])}
                       className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-800 transition-colors px-1.5 py-0.5 rounded hover:bg-slate-200"
                     >
                       <ChevronLeft size={11} />
@@ -347,6 +374,42 @@ export const ProposalCanvasView: React.FC = () => {
                     onUpdate={(updates) => handleUpdateElement(selectedElement.id, updates)}
                     onDecompose={handleDecomposePage}
                   />
+                  {selectedElement.groupId && (
+                    <div className="shrink-0 border-t border-slate-100 px-3 py-2">
+                      <button
+                        onClick={handleUngroupSelected}
+                        className="w-full text-xs text-amber-600 hover:bg-amber-50 border border-amber-200 rounded px-2 py-1.5 transition-colors"
+                      >
+                        Desagrupar ({currentPage?.elements.filter(e => e.groupId === selectedElement.groupId).length ?? 0} elementos)
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : selectedGroupId ? (
+                <>
+                  {/* Back button */}
+                  <div className="shrink-0 flex items-center gap-1 px-2 py-1.5 border-b border-slate-100 bg-slate-50">
+                    <button
+                      onClick={() => setSelectedIds([])}
+                      className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-800 transition-colors px-1.5 py-0.5 rounded hover:bg-slate-200"
+                    >
+                      <ChevronLeft size={11} />
+                      {sidebarTab === 'layers' ? 'Camadas' : 'Elementos'}
+                    </button>
+                  </div>
+                  <div className="flex-1 flex flex-col items-center justify-center gap-3 p-4 text-center">
+                    <Layers size={24} className="text-indigo-400 opacity-60" />
+                    <div>
+                      <p className="text-xs font-semibold text-slate-700">Grupo selecionado</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">{selectedIds.length} elementos agrupados</p>
+                    </div>
+                    <button
+                      onClick={handleUngroupSelected}
+                      className="w-full text-xs text-amber-600 hover:bg-amber-50 border border-amber-200 rounded px-3 py-2 transition-colors font-medium"
+                    >
+                      Desagrupar elementos
+                    </button>
+                  </div>
                 </>
               ) : (
                 <>
@@ -382,8 +445,8 @@ export const ProposalCanvasView: React.FC = () => {
                     ? <ElementPalette hasCustomLayout={!!activeLayout} />
                     : <LayersPanel
                         elements={currentPage?.elements ?? []}
-                        selectedId={selectedElementId}
-                        onSelect={setSelectedElementId}
+                        selectedIds={selectedIds}
+                        onSelect={(ids) => setSelectedIds(ids)}
                         onUpdate={handleUpdateElement}
                         onRemove={handleRemoveElement}
                       />
@@ -407,7 +470,7 @@ export const ProposalCanvasView: React.FC = () => {
                         'flex items-center justify-between px-2 py-1 rounded text-xs cursor-pointer group',
                         idx === safePageIdx ? 'bg-blue-50 text-blue-700 font-medium' : 'text-slate-600 hover:bg-slate-100'
                       )}
-                      onClick={() => { setCanvasPageIdx(idx); setSelectedElementId(null); }}
+                      onClick={() => { setCanvasPageIdx(idx); setSelectedIds([]); }}
                     >
                       <span className="truncate">{page.label}</span>
                       {pages.length > 1 && (
@@ -432,7 +495,7 @@ export const ProposalCanvasView: React.FC = () => {
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     disabled={safePageIdx === 0}
-                    onClick={() => { setCanvasPageIdx((i) => i - 1); setSelectedElementId(null); }}
+                    onClick={() => { setCanvasPageIdx((i) => i - 1); setSelectedIds([]); }}
                     className="p-1 text-slate-400 hover:text-white disabled:opacity-30 hover:bg-slate-700 rounded"
                   >
                     <ChevronLeft size={13} />
@@ -442,12 +505,23 @@ export const ProposalCanvasView: React.FC = () => {
                   </span>
                   <button
                     disabled={safePageIdx >= pages.length - 1}
-                    onClick={() => { setCanvasPageIdx((i) => i + 1); setSelectedElementId(null); }}
+                    onClick={() => { setCanvasPageIdx((i) => i + 1); setSelectedIds([]); }}
                     className="p-1 text-slate-400 hover:text-white disabled:opacity-30 hover:bg-slate-700 rounded"
                   >
                     <ChevronRight size={13} />
                   </button>
                 </div>
+
+                {/* Group button when multiple elements selected */}
+                {selectedIds.length >= 2 && !selectedGroupId && (
+                  <button
+                    onClick={handleGroupSelected}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-blue-400 hover:bg-slate-800 transition-colors"
+                  >
+                    <Layers size={12} />
+                    Agrupar ({selectedIds.length})
+                  </button>
+                )}
 
                 {/* Restore default button (only when decomposed) */}
                 {isPageDecomposed && (
@@ -539,7 +613,7 @@ export const ProposalCanvasView: React.FC = () => {
               {/* A4 Canvas */}
               <div
                 className="flex-1 overflow-auto flex items-start justify-center p-8"
-                onClick={() => setSelectedElementId(null)}
+                onClick={() => setSelectedIds([])}
               >
                 {currentPage && (
                   <div
@@ -553,9 +627,9 @@ export const ProposalCanvasView: React.FC = () => {
                     <CanvasPage
                       page={currentPage}
                       scale={canvasScale}
-                      selectedId={selectedElementId}
+                      selectedIds={selectedIds}
                       gridConfig={gridConfig}
-                      onSelect={setSelectedElementId}
+                      onSelect={(ids) => setSelectedIds(ids)}
                       onUpdateElement={handleUpdateElement}
                       onRemoveElement={handleRemoveElement}
                     />

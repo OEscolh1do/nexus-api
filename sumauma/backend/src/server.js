@@ -34,6 +34,9 @@ const operatorsRouter = require('./routes/operators');
 const app = express();
 const PORT = process.env.PORT || 3003;
 
+// Confiar no Nginx Reverse Proxy para obter o IP real do cliente
+app.set('trust proxy', 1);
+
 // =============================================================
 // MIDDLEWARE GLOBAL
 // =============================================================
@@ -46,13 +49,16 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
 
-// Rate limiting: 100 req/min por IP
+// Rate limiting: 500 req/min por IP em produção (Dashboard faz ~10 chamadas no load)
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: process.env.NODE_ENV === 'development' ? 5000 : 100, // 5000 em dev, 100 em prod
+  windowMs: 1 * 60 * 1000, // 1 minuto
+  max: process.env.NODE_ENV === 'development' ? 5000 : 500, // 5000 em dev, 500 em prod
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Muitas requisições vindas deste IP, tente novamente após 15 minutos.' }
+  message: { 
+    error: 'Muitas requisições vindas deste IP. O limite administrativo é de 500 requisições por minuto.',
+    code: 'RATE_LIMIT_EXCEEDED'
+  }
 });
 app.use(limiter);
 

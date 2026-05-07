@@ -110,6 +110,8 @@ function applySmartGuides(
 interface Props {
   element: CanvasElement;
   isSelected: boolean;
+  isGrouped: boolean;
+  selectedIds: string[];
   canvasScale: number;
   gridSize: number;
   snapEnabled: boolean;
@@ -119,12 +121,16 @@ interface Props {
   onUpdate: (updates: Partial<CanvasElement>) => void;
   onDelete: () => void;
   onGuideChange: (guides: GuideLines) => void;
+  onGroupDragStart?: () => void;
+  onGroupDragDelta?: (dx: number, dy: number) => void;
+  onGroupDragEnd?: () => void;
 }
 
 export function CanvasElementWrapper({
-  element, isSelected, canvasScale,
+  element, isSelected, isGrouped, canvasScale,
   gridSize, snapEnabled, guidesEnabled, otherElements,
   onSelect, onUpdate, onDelete, onGuideChange,
+  onGroupDragStart, onGroupDragDelta, onGroupDragEnd,
 }: Props) {
   const [isTextEditing, setIsTextEditing] = useState(false);
   const dragStartRef   = useRef<{ mouseX: number; mouseY: number; elemX: number; elemY: number } | null>(null);
@@ -138,6 +144,30 @@ export function CanvasElementWrapper({
   // ── Move drag ──────────────────────────────────────────────────────────────
 
   const handleMouseDownMove = useCallback((e: React.MouseEvent) => {
+    // Group drag: when element is part of a multi-selection group
+    if (isGrouped && onGroupDragStart && onGroupDragDelta && onGroupDragEnd) {
+      e.preventDefault();
+      e.stopPropagation();
+      onGroupDragStart();
+      const startX = e.clientX;
+      const startY = e.clientY;
+
+      const onMove = (ev: MouseEvent) => {
+        const dx = (ev.clientX - startX) / canvasScale;
+        const dy = (ev.clientY - startY) / canvasScale;
+        onGroupDragDelta(dx, dy);
+      };
+      const onUp = () => {
+        onGroupDragEnd();
+        onGuideChange({ x: [], y: [] });
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+      };
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+      return;
+    }
+
     if (isLocked || isPageBlock || isTextEditing) return;
     e.preventDefault();
     e.stopPropagation();
@@ -181,7 +211,7 @@ export function CanvasElementWrapper({
 
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
-  }, [isLocked, isPageBlock, isTextEditing, element, canvasScale, gridSize, snapEnabled, guidesEnabled, otherElements, scaledThreshold, onSelect, onUpdate, onGuideChange]);
+  }, [isGrouped, isLocked, isPageBlock, isTextEditing, element, canvasScale, gridSize, snapEnabled, guidesEnabled, otherElements, scaledThreshold, onSelect, onUpdate, onGuideChange, onGroupDragStart, onGroupDragDelta, onGroupDragEnd]);
 
   // ── Resize drag ────────────────────────────────────────────────────────────
 
@@ -262,7 +292,11 @@ export function CanvasElementWrapper({
         height: element.height,
         zIndex: element.zIndex,
         opacity: element.visible ? 1 : 0.3,
-        outline: isSelected ? '2px solid #3b82f6' : 'none',
+        outline: isGrouped
+          ? '1.5px dashed #818cf8'
+          : isSelected
+            ? '2px solid #3b82f6'
+            : 'none',
         outlineOffset: 1,
         cursor: isLocked || isPageBlock ? 'default' : (isTextEditing ? 'text' : 'move'),
         userSelect: 'none',

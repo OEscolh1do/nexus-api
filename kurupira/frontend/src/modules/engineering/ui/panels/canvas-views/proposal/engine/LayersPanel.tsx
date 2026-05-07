@@ -82,21 +82,56 @@ function buildReorderUpdates(
 
 interface Props {
   elements: CanvasElement[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
+  selectedIds: string[];
+  onSelect: (ids: string[]) => void;
   onUpdate: (id: string, updates: Partial<CanvasElement>) => void;
   onRemove: (id: string) => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function LayersPanel({ elements, selectedId, onSelect, onUpdate, onRemove }: Props) {
+export function LayersPanel({ elements, selectedIds, onSelect, onUpdate, onRemove }: Props) {
   // Sort descending by z-index: index 0 = frontmost element
   const sorted = [...elements].sort((a, b) => b.zIndex - a.zIndex);
+
+  // Group elements by groupId
+  const grouped: Array<[string, CanvasElement[]]> = [];
+  const ungrouped: CanvasElement[] = [];
+  const seenGroups = new Set<string>();
+
+  sorted.forEach((el) => {
+    if (el.groupId) {
+      if (!seenGroups.has(el.groupId)) {
+        seenGroups.add(el.groupId);
+        const members = sorted.filter(e => e.groupId === el.groupId);
+        grouped.push([el.groupId, members]);
+      }
+    } else {
+      ungrouped.push(el);
+    }
+  });
 
   const handleMove = (id: string, direction: 'up' | 'down') => {
     const updates = buildReorderUpdates(sorted, id, direction);
     updates.forEach(({ id: elId, zIndex }) => onUpdate(elId, { zIndex }));
+  };
+
+  const handleSelectElement = (element: CanvasElement) => {
+    if (element.groupId) {
+      const groupMembers = elements
+        .filter((e) => e.groupId === element.groupId)
+        .map((e) => e.id);
+      onSelect(groupMembers);
+    } else {
+      onSelect([element.id]);
+    }
+  };
+
+  const handleUngroupElements = (groupId: string) => {
+    elements
+      .filter((e) => e.groupId === groupId)
+      .forEach((e) => onUpdate(e.id, { groupId: undefined }));
+    onSelect([]);
   };
 
   if (sorted.length === 0) {
@@ -120,16 +155,87 @@ export function LayersPanel({ elements, selectedId, onSelect, onUpdate, onRemove
 
       {/* Layer rows */}
       <div className="flex-1 overflow-y-auto">
-        {sorted.map((el, idx) => {
-          const meta      = getMeta(el.type);
-          const isSelected = el.id === selectedId;
-          const isFirst   = idx === 0;
-          const isLast    = idx === sorted.length - 1;
+        {/* Render grouped elements */}
+        {grouped.map(([groupId, members]) => {
+          const allSelected = members.every((m) => selectedIds.includes(m.id));
+          const firstMember = members[0];
+          if (!firstMember) return null;
+
+          return (
+            <div key={groupId}>
+              {/* Group header */}
+              <div
+                onClick={() => onSelect(members.map((m) => m.id))}
+                className={cn(
+                  'group flex items-center gap-2 px-2.5 py-1.5 cursor-pointer border-b border-slate-100 transition-colors bg-indigo-50/30',
+                  allSelected && 'bg-indigo-50 border-l-2 border-l-indigo-500',
+                  !allSelected && 'border-l-2 border-l-transparent hover:bg-slate-50',
+                )}
+              >
+                <span className={cn('shrink-0', allSelected ? 'text-indigo-500' : 'text-slate-400')}>
+                  <Layers size={11} />
+                </span>
+                <span className={cn('flex-1 text-xs truncate', allSelected ? 'text-indigo-700 font-medium' : 'text-slate-600')}>
+                  Grupo ({members.length} elementos)
+                </span>
+                <button
+                  title="Desagrupar"
+                  onClick={(e) => { e.stopPropagation(); handleUngroupElements(groupId); }}
+                  className="p-0.5 rounded text-slate-400 hover:text-amber-600 hover:bg-amber-50"
+                >
+                  <Trash2 size={11} />
+                </button>
+              </div>
+
+              {/* Group members (indented) */}
+              {members.map((el) => {
+                const meta = getMeta(el.type);
+                const isSelected = selectedIds.includes(el.id);
+
+                return (
+                  <div
+                    key={el.id}
+                    onClick={() => handleSelectElement(el)}
+                    className={cn(
+                      'group flex items-center gap-2 pl-6 pr-2.5 py-1.5 cursor-pointer border-b border-slate-100 transition-colors',
+                      isSelected
+                        ? 'bg-blue-50 border-l-2 border-l-blue-500'
+                        : 'hover:bg-slate-50 border-l-2 border-l-transparent',
+                      !el.visible && 'opacity-50',
+                    )}
+                  >
+                    <span className={cn('shrink-0', isSelected ? 'text-blue-500' : 'text-slate-400')}>
+                      {meta.icon}
+                    </span>
+                    <span className={cn('flex-1 text-xs truncate', isSelected ? 'text-blue-700 font-medium' : 'text-slate-600')}>
+                      {meta.label}
+                    </span>
+                    <div className={cn('flex items-center gap-0.5 shrink-0 transition-opacity', isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100')}>
+                      <button title={el.visible ? 'Ocultar' : 'Mostrar'} onClick={(e) => { e.stopPropagation(); onUpdate(el.id, { visible: !el.visible }); }} className="p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200">
+                        {el.visible ? <Eye size={11} /> : <EyeOff size={11} />}
+                      </button>
+                      <button title={el.locked ? 'Desbloquear' : 'Bloquear'} onClick={(e) => { e.stopPropagation(); onUpdate(el.id, { locked: !el.locked }); }} className="p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200">
+                        {el.locked ? <Lock size={11} /> : <LockOpen size={11} />}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+
+        {/* Render ungrouped elements */}
+        {ungrouped.map((el, idx) => {
+          const meta = getMeta(el.type);
+          const isSelected = selectedIds.includes(el.id);
+          const isFirst = idx === 0 && grouped.length === 0;
+          const isLast = idx === ungrouped.length - 1;
 
           return (
             <div
               key={el.id}
-              onClick={() => onSelect(el.id)}
+              onClick={() => handleSelectElement(el)}
               className={cn(
                 'group flex items-center gap-2 px-2.5 py-1.5 cursor-pointer border-b border-slate-100 transition-colors',
                 isSelected
@@ -138,68 +244,26 @@ export function LayersPanel({ elements, selectedId, onSelect, onUpdate, onRemove
                 !el.visible && 'opacity-50',
               )}
             >
-              {/* Type icon */}
               <span className={cn('shrink-0', isSelected ? 'text-blue-500' : 'text-slate-400')}>
                 {meta.icon}
               </span>
-
-              {/* Label */}
-              <span className={cn(
-                'flex-1 text-xs truncate',
-                isSelected ? 'text-blue-700 font-medium' : 'text-slate-600',
-              )}>
+              <span className={cn('flex-1 text-xs truncate', isSelected ? 'text-blue-700 font-medium' : 'text-slate-600')}>
                 {meta.label}
               </span>
-
-              {/* Controls — visible on hover or when selected */}
-              <div className={cn(
-                'flex items-center gap-0.5 shrink-0 transition-opacity',
-                isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
-              )}>
-                {/* Move up (toward front) */}
-                <button
-                  title="Mover para frente"
-                  disabled={isFirst}
-                  onClick={(e) => { e.stopPropagation(); handleMove(el.id, 'up'); }}
-                  className="p-0.5 rounded text-slate-400 hover:text-slate-700 disabled:opacity-20 hover:bg-slate-200"
-                >
+              <div className={cn('flex items-center gap-0.5 shrink-0 transition-opacity', isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100')}>
+                <button title="Mover para frente" disabled={isFirst} onClick={(e) => { e.stopPropagation(); handleMove(el.id, 'up'); }} className="p-0.5 rounded text-slate-400 hover:text-slate-700 disabled:opacity-20 hover:bg-slate-200">
                   <ArrowUp size={11} />
                 </button>
-
-                {/* Move down (toward back) */}
-                <button
-                  title="Mover para trás"
-                  disabled={isLast}
-                  onClick={(e) => { e.stopPropagation(); handleMove(el.id, 'down'); }}
-                  className="p-0.5 rounded text-slate-400 hover:text-slate-700 disabled:opacity-20 hover:bg-slate-200"
-                >
+                <button title="Mover para trás" disabled={isLast} onClick={(e) => { e.stopPropagation(); handleMove(el.id, 'down'); }} className="p-0.5 rounded text-slate-400 hover:text-slate-700 disabled:opacity-20 hover:bg-slate-200">
                   <ArrowDown size={11} />
                 </button>
-
-                {/* Visibility toggle */}
-                <button
-                  title={el.visible ? 'Ocultar' : 'Mostrar'}
-                  onClick={(e) => { e.stopPropagation(); onUpdate(el.id, { visible: !el.visible }); }}
-                  className="p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200"
-                >
+                <button title={el.visible ? 'Ocultar' : 'Mostrar'} onClick={(e) => { e.stopPropagation(); onUpdate(el.id, { visible: !el.visible }); }} className="p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200">
                   {el.visible ? <Eye size={11} /> : <EyeOff size={11} />}
                 </button>
-
-                {/* Lock toggle */}
-                <button
-                  title={el.locked ? 'Desbloquear' : 'Bloquear'}
-                  onClick={(e) => { e.stopPropagation(); onUpdate(el.id, { locked: !el.locked }); }}
-                  className="p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200"
-                >
+                <button title={el.locked ? 'Desbloquear' : 'Bloquear'} onClick={(e) => { e.stopPropagation(); onUpdate(el.id, { locked: !el.locked }); }} className="p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200">
                   {el.locked ? <Lock size={11} /> : <LockOpen size={11} />}
                 </button>
-
-                {/* Delete */}
-                <button
-                  title="Excluir elemento"
-                  onClick={(e) => { e.stopPropagation(); onRemove(el.id); }}
-                  className="p-0.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50"
-                >
+                <button title="Excluir elemento" onClick={(e) => { e.stopPropagation(); onRemove(el.id); }} className="p-0.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50">
                   <Trash2 size={11} />
                 </button>
               </div>

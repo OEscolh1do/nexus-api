@@ -72,7 +72,10 @@ function attachInterceptors(client, serviceName) {
     const token = await getM2MToken();
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
-      delete config.headers['X-Service-Token'];
+      // Keep X-Service-Token during migration window as fallback for Kurupira
+      if (process.env.M2M_SERVICE_TOKEN) {
+        config.headers['X-Service-Token'] = process.env.M2M_SERVICE_TOKEN;
+      }
     } else if (process.env.M2M_SERVICE_TOKEN) {
       config.headers['X-Service-Token'] = process.env.M2M_SERVICE_TOKEN;
     }

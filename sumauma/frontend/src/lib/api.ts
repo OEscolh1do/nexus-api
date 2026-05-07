@@ -37,30 +37,32 @@ function isTokenExpiredOrExpiringSoon(token: string, marginSeconds = 60): boolea
 
 // Interceptor: injeta JWT em toda requisição e verifica expiração proativa
 api.interceptors.request.use((config) => {
-  const { token, logout } = useAuthStore.getState();
-  
-  // Se a requisição já traz seu próprio Authorization (ex: no LoginPage), confiamos nela
+  // ✅ PRIMEIRA checagem: se a requisição já carrega seu próprio Authorization,
+  // confiamos nela e não tocamos no estado do Zustand. Ex: LoginPage passando rawIdToken.
   if (config.headers.Authorization) {
     return config;
   }
+
+  const { token, logout } = useAuthStore.getState();
 
   if (token) {
     if (isTokenExpiredOrExpiringSoon(token)) {
       console.warn('[API] Token expirado detectado no interceptor de request');
       logout();
-      
+
       // Só sinaliza "Force Logout" (que limpa o SSO) se NÃO estivermos já na página de login
       if (!window.location.pathname.includes('/login')) {
         sessionStorage.setItem('sumauma_force_logout', 'true');
         window.location.href = '/login';
       }
-      
+
       return Promise.reject(new Error('Sessão expirada'));
     }
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
+
 
 // Interceptor: trata erros de auth e rede
 api.interceptors.response.use(

@@ -83,6 +83,12 @@ const validateM2M = async (req, res, next) => {
       await verifyLogtoToken(token);
       return next();
     } catch (err) {
+      // During migration window: Bearer failed, try legacy X-Service-Token before rejecting
+      logger.warn('Bearer M2M token failed — trying legacy X-Service-Token fallback', {
+        err: err.message,
+      });
+      if (verifyLegacyToken(req)) return next();
+
       return res.status(401).json({ 
         error: 'Invalid M2M token',
         details: process.env.NODE_ENV === 'development' ? err.message : undefined 

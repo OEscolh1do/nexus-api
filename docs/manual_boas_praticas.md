@@ -36,10 +36,10 @@ Para resolver isso de forma definitiva e transparente para o usuário:
     - Se a auditoria falhar, o sistema deve interromper o fluxo e forçar o logout do SSO para limpar a sessão no provedor de identidade.
 
 5.  **Tolerância de Relógio (Clock Skew):**
-    - Em ambientes Docker/WSL, é comum haver dessincronização de relógios. Utilize uma `clockTolerance` (ex: 60s) na verificação de JWT no backend para evitar que tokens recém-emitidos sejam considerados expirados.
+    - Em ambientes Docker/WSL, é comum haver dessincronização de relógios. Utilize uma `clockTolerance` (ex: 60s) na verificação de JWT no backend e frontend para evitar que tokens recém-emitidos sejam considerados expirados antes mesmo de chegarem ao cliente.
 
 #### Regra de Ouro
-> "Se um efeito colateral pós-login pode falhar e resetar o estado global, use guardas de componente para impedir loops infinitos e sempre permita uma margem de manobra (clock skew) para validação de tempo no backend."
+> "Se um efeito colateral pós-login pode falhar e resetar o estado global, use guardas de componente para impedir loops infinitos. Nunca limpe a sessão local de forma agressiva antes de confirmar a falha do provedor de identidade, e sempre permita uma margem de manobra (clock skew) para validação de tempo."
 
 ---
 
@@ -131,6 +131,22 @@ Variáveis de ambiente prefixadas com `VITE_` são injetadas estaticamente no c�
 #### Regra de Ouro
 > "Se você alterou uma URL de API ou chave de serviço no frontend e nada mudou, você esqueceu de refazer o build. Variáveis Vite são estáticas após o build."
 
+### 3.2. Gestão de Permissões em Volumes Docker (Erro EACCES)
+**Data:** 06/05/2026
+**Módulo:** Infraestrutura / Deploy VPS
+
+#### O Problema
+Ao utilizar Docker com volumes mapeados para o host (ex: `-v /srv/ywara/frontend:/app`), arquivos criados dentro do container (como a pasta `dist` ou `node_modules`) podem ter a posse atribuída ao usuário `root`. 
+**Consequência:** Quando o usuário da VPS (`neonorte`) tenta realizar um build manual posterior, o comando falha com `EACCES: Permission denied` ao tentar limpar a pasta `dist/assets` ou sobrescrever arquivos.
+
+#### A Solução (Padrão Adotado)
+1. **Handover de Permissão:** Antes de cada build manual na VPS, execute um comando de correção de posse: `sudo chown -R $USER:$USER ./dist`.
+2. **Docker User Mapping:** Sempre que possível, configure o container Docker para rodar com o UID/GID do usuário do host, mas como solução pragmática de deploy, a correção de permissão pré-build é o método mais resiliente.
+3. **Limpeza Profunda:** Se o erro persistir, remova a pasta `dist` com `sudo rm -rf dist` antes de iniciar o `npm run build`.
+
+#### Regra de Ouro
+> "Se o build falhar por 'Permission Denied' em um servidor que usa Docker, você está sofrendo de conflito de UID. Retome a posse dos arquivos com `chown` antes de tentar novamente."
+
 ---
 
 ## 4. Conectividade e CORS em Microserviços
@@ -181,3 +197,99 @@ Implementar o padrão de **Sincronização Unidirecional de Metadados (Metadata 
 
 #### Regra de Ouro
 > "A UI é a fonte da verdade para o usuário, mas o JSON é a fonte da verdade para o motor técnico. No momento do salvamento, a UI deve sempre ter precedência e sobrescrever os metadados JSON correspondentes."
+
+---
+
+## 8. Recuperação de Produção Após Reset Destrutivo de Banco
+
+### 8.1. Elevação de Privilégios MySQL para `db push --force-reset`
+**Data:** 06/05/2026
+**Módulo:** Infraestrutura / Deploy VPS
+
+#### O Problema
+Ao executar `npx prisma db push --force-reset` em produção via Docker, o usuário de aplicação (`user_admin`) frequentemente não possui privilégios de `DROP FOREIGN KEY` e `ALTER TABLE` em bancos de terceiros (`db_kurupira`, `db_iaca`). O Prisma falha com `ALTER command denied` sem fallback, bloqueando a sincronização de schema.
+
+#### A Solução (Padrão Adotado)
+1. **Identificar a senha root** do MySQL: `cat /srv/ywara/.env | grep MYSQL_ROOT_PASSWORD`
+2. **GRANT via senha inline** (sem prompt interativo — essencial em scripts e sessões SSH):
+   ```bash
+   docker exec -it neonorte_db mysql -u root -p<SENHA_SEM_ESPAÇO> -e \
+     "GRANT ALL PRIVILEGES ON *.* TO 'user_admin'@'%'; FLUSH PRIVILEGES;"
+   ```
+3. **Executar o reset** normalmente após o GRANT:
+   ```bash
+   docker compose -f docker-compose.production.yml run --rm sumauma-backend \
+     npx prisma db push --force-reset --schema=prisma/schema-kurupira.prisma
+   ```
+
+**Atenção:** `-p` sem espaço é obrigatório para senhas com caracteres especiais passadas inline. `-p <senha>` (com espaço) é interpretado como senha vazia + argumento.
+
+### 8.2. Bootstrap do Usuário Admin Após Reset do `db_sumauma`
+**Data:** 06/05/2026
+**Módulo:** Sumaúma Backend / db_sumauma
+
+#### O Problema
+Após `db push --force-reset`, todos os registros da tabela `User` são apagados. O operador de plataforma perde acesso imediatamente (403 Forbidden), pois o middleware `platformAuth.js` busca o usuário por `authProviderId` (Logto `sub`) e não o encontra mais.
+
+#### A Solução (Padrão Adotado)
+Inserir os registros de fundação diretamente via SQL, respeitando o schema PascalCase do Prisma:
+
+```sql
+USE db_sumauma;
+
+-- 1. Tenant Master (obrigatório — User tem FK para Tenant)
+INSERT IGNORE INTO Tenant (id, name, type, status, createdAt, updatedAt)
+VALUES ('master-tenant', 'Neonorte Global', 'MASTER', 'ACTIVE', NOW(3), NOW(3));
+
+-- 2. Role de Plataforma
+INSERT IGNORE INTO Role (id, name, level, tenantId, createdAt, updatedAt)
+VALUES ('platform-admin-role', 'PLATFORM_ADMIN', 'PLATFORM', 'master-tenant', NOW(3), NOW(3));
+
+-- 3. Usuário Admin (authProviderId = Logto sub do operador)
+INSERT INTO User (id, username, password, fullName, role, roleId, tenantId, authProviderId, status, createdAt, updatedAt)
+VALUES ('admin-user-001', 'admin_neonorte', 'placeholder', 'Admin Neonorte',
+        'PLATFORM_ADMIN', 'platform-admin-role', 'master-tenant',
+        '<LOGTO_SUB_DO_OPERADOR>', 'ACTIVE', NOW(3), NOW(3));
+```
+
+**Como encontrar o Logto sub:** `docker logs neonorte_admin --tail 50` — procure por `"sub":"..."` nos logs de warn de acesso negado.
+
+**Atenção Prisma:** O schema do Sumaúma gera tabelas com nomes **PascalCase singular** (`Role`, `User`, `Tenant`). SQL contra esses bancos deve usar os nomes exatos — nunca `roles` ou `operators`.
+
+#### Regra de Ouro
+> "Após qualquer `force-reset` em produção, o primeiro passo é recriar os registros de fundação (Tenant Master → Role PLATFORM → User Admin) antes de tentar acessar o painel. O campo crítico é `authProviderId`, não `email` ou `username`."
+
+---
+
+## 9. Autenticação M2M Entre Serviços (Sumaúma → Kurupira)
+
+### 9.1. Padrão Duplo Header Durante Janela de Migração OAuth2
+**Data:** 06/05/2026
+**Módulo:** Sumaúma Backend (`m2mClient.js`) / Kurupira Backend (`validateM2M.js`)
+
+#### O Problema
+Durante a migração do M2M legado (`X-Service-Token`) para OAuth2 Client Credentials (Logto), o serviço emissor (Sumaúma) pode obter com sucesso um Bearer token do Logto, mas o receptor (Kurupira) rejeita esse token por divergência de `audience` (`LOGTO_M2M_RESOURCE` diferente entre os dois serviços). O middleware original retornava `401` imediatamente sem tentar o fallback legacy, bloqueando toda a comunicação inter-serviços.
+
+#### A Solução (Padrão Adotado)
+**Lado Emissor (Sumaúma `m2mClient.js`):** Enviar ambos os headers simultaneamente durante a janela de migração:
+```js
+if (token) {
+  config.headers['Authorization'] = `Bearer ${token}`;
+  // Backup durante migração — remover após confirmar Logto M2M estável
+  if (process.env.M2M_SERVICE_TOKEN) {
+    config.headers['X-Service-Token'] = process.env.M2M_SERVICE_TOKEN;
+  }
+}
+```
+
+**Lado Receptor (Kurupira `validateM2M.js`):** Tentar o legacy antes de rejeitar:
+```js
+} catch (err) {
+  // Durante migração: Bearer falhou → tentar X-Service-Token antes de 401
+  if (verifyLegacyToken(req)) return next();
+  return res.status(401).json({ error: 'Invalid M2M token' });
+}
+```
+
+#### Regra de Ouro
+> "Se o sistema M2M tem um fallback legacy, o receptor NUNCA deve rejeitar o Bearer sem antes checar se há um X-Service-Token válido no mesmo request. Remova a lógica de fallback apenas após confirmar que 100% das chamadas passam pelo OAuth2 sem erros."

@@ -16,6 +16,18 @@ interface AuthState {
   logout: () => void;
 }
 
+/** Verifica se um JWT (sem biblioteca) está expirado. */
+function isJwtExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    if (!payload?.exp) return false;
+    // Margem de 30s para evitar falsos positivos por clock skew
+    return payload.exp * 1000 < Date.now() - 30_000;
+  } catch {
+    return false;
+  }
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
@@ -33,9 +45,9 @@ export const useAuthStore = create<AuthState>()(
           try {
             fetch('/admin/auth/logout', {
               method: 'POST',
-              headers: { 
+              headers: {
                 'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json' 
+                'Content-Type': 'application/json',
               },
             });
           } catch (err) {
@@ -48,6 +60,17 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'neonorte-admin-auth',
+      // Ao hidratar o store do localStorage, descarta imediatamente tokens expirados.
+      // Isso garante que isAuthenticated=false no primeiro render, evitando o loop
+      // que ocorre quando o usuário volta horas depois com o token expirado persistido.
+      onRehydrateStorage: () => (state) => {
+        if (state?.token && isJwtExpired(state.token)) {
+          console.info('[AuthStore] Token expirado detectado no boot — limpando sessão.');
+          state.token = null;
+          state.operator = null;
+          state.isAuthenticated = false;
+        }
+      },
     }
   )
 );

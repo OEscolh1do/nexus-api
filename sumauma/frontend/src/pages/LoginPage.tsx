@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Zap, AlertCircle, Loader2, KeyRound } from 'lucide-react';
-import { useAuthStore } from '@/stores/authStore';
 import { useLogto, useHandleSignInCallback } from '@logto/react';
+import { useAuthStore } from '@/stores/authStore';
 import api from '@/lib/api';
 
 export default function LoginPage() {
@@ -22,35 +22,35 @@ export default function LoginPage() {
   const [localLoading, setLocalLoading] = useState(false);
   const [localError, setLocalError] = useState('');
 
+  // Ref para garantir que signOut só é tentado UMA VEZ por ciclo de vida do componente,
+  // evitando loops residuais em caso de re-renders rápidos durante o redirect do Logto.
+  const signOutAttempted = useRef(false);
+
   useEffect(() => {
     const isForceLogout = sessionStorage.getItem('sumauma_force_logout') === 'true';
 
-    // 1. Limpeza proativa: Se estamos no login mas não autenticados no Logto,
-    // garantimos que o Zustand não tenha lixo (token expirado) de sessões anteriores.
-    if (!isAuthenticated && !isLoading && !isCallbackLoading && !isForceLogout) {
-      const { token, logout } = useAuthStore.getState();
-      if (token) {
-        console.log('[Login] Limpando sessão zumbi detectada no Zustand.');
-        logout();
-      }
-    }
-
-    // 2. Quebra do loop infinito: se o backend rejeitou o token (401)
+    // Guard: quebra de loop. Se a flag de force logout está ativa e o Logto ainda
+    // considera o usuário autenticado, precisamos fazer o signOut.
     if (isForceLogout) {
-      if (isAuthenticated) {
-        console.warn('[Login] Loop detectado ou Audit falhou. Forçando logout do Logto para limpar sessão...');
+      if (isAuthenticated && !signOutAttempted.current) {
+        signOutAttempted.current = true;
+        console.warn('[Login] Loop detectado. Forçando logout do Logto para limpar sessão...');
+        // ✅ CRÍTICO: limpar a flag ANTES de chamar signOut.
+        // O Logto vai redirecionar de volta para /login — quando a página recarregar,
+        // a flag já estará limpa e o loop não recomeça.
+        sessionStorage.removeItem('sumauma_force_logout');
         logto.signOut(window.location.origin + '/login');
-      } else {
-        // Usuário já está deslogado do Logto, podemos limpar a flag e permitir novos logins
+      } else if (!isAuthenticated && !isLoading) {
+        // Logto já deslogou — limpar a flag e liberar novos logins
         sessionStorage.removeItem('sumauma_force_logout');
         setAuditFailed(false);
       }
       return;
     }
 
-    if (!isAuthenticated || isLoading || isAuditing || auditFailed) return;
+    if (!isAuthenticated || isLoading || isCallbackLoading || isAuditing || auditFailed) return;
 
-    // 3. Sucesso no login: extraímos o Token e os claims
+    // Sucesso no login: extraímos o Token e os claims
     Promise.all([logto.getIdToken(), logto.getIdTokenClaims()]).then(([rawIdToken, claims]) => {
       if (!claims || !rawIdToken) return;
 
@@ -64,8 +64,8 @@ export default function LoginPage() {
       // Atualizamos o store global IMEDIATAMENTE
       loginStore(rawIdToken, operator);
 
-      // Notificar o backend sobre o login via SSO para auditoria
-      // Passamos o token explicitamente no header para que o interceptor ignore lixos eventuais no store
+      // Notificar o backend sobre o login via SSO para auditoria.
+      // Passamos o token explicitamente — o interceptor vai passá-lo direto sem checar o Zustand.
       setIsAuditing(true);
       api.post('/auth/audit-login', {}, {
         headers: { Authorization: `Bearer ${rawIdToken}` }
@@ -77,15 +77,16 @@ export default function LoginPage() {
         setAuditFailed(true);
         const errorMsg = err.response?.data?.error || err.message;
         const details = err.response?.data?.details || '';
-        
-        if (errorMsg.includes('expirado')) {
-          console.warn(`[Login] Auditoria rejeitada: Token expirado. Detalhes: ${details}`);
+
+        if (errorMsg?.includes('expirado')) {
+          console.warn(`[Login] Auditoria ignorada: Sessão expirada no interceptor (provável refresh/race condition)`);
         } else {
           console.warn('Falha ao auditar login SSO', errorMsg, details);
         }
       });
     });
-  }, [isAuthenticated, isLoading, isCallbackLoading, logto, loginStore, navigate]);
+  }, [isAuthenticated, isLoading, isCallbackLoading, logto, loginStore, navigate, isAuditing, auditFailed]);
+
 
   const handleLogtoClick = () => {
     signIn(`${window.location.origin}/login`);

@@ -48,6 +48,7 @@ export interface CanvasElement {
   zIndex: number;
   locked: boolean;
   visible: boolean;
+  groupId?: string;
   props: Record<string, unknown>;
 }
 
