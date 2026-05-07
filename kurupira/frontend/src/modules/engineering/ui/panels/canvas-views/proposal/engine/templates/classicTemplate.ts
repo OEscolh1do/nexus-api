@@ -1,10 +1,25 @@
 import type { ProposalTemplate } from '../types';
 import { A4_WIDTH, A4_HEIGHT } from '../types';
 
+function makePageBlock(id: string, type: 'page-technical') {
+  return {
+    id,
+    type,
+    x: 0,
+    y: 0,
+    width: A4_WIDTH,
+    height: A4_HEIGHT,
+    zIndex: 0,
+    locked: true,
+    visible: true,
+    props: {},
+  } as const;
+}
+
 export const CLASSIC_TEMPLATE: ProposalTemplate = {
   id: 'classic',
   name: 'Clássico Neonorte',
-  description: 'Página de dimensionamento técnico do sistema fotovoltaico.',
+  description: 'Layout completo de 5 páginas da proposta comercial.',
   isBuiltIn: true,
   createdAt: '2025-01-01T00:00:00.000Z',
   theme: {
@@ -17,20 +32,7 @@ export const CLASSIC_TEMPLATE: ProposalTemplate = {
       id: 'classic-p0',
       label: 'Dimensionamento',
       background: { color: '#ffffff' },
-      elements: [
-        {
-          id: 'classic-p0-main',
-          type: 'page-technical',
-          x: 0,
-          y: 0,
-          width: A4_WIDTH,
-          height: A4_HEIGHT,
-          zIndex: 0,
-          locked: true,
-          visible: true,
-          props: {},
-        },
-      ],
+      elements: [makePageBlock('classic-p0-main', 'page-technical')],
     },
   ],
 };

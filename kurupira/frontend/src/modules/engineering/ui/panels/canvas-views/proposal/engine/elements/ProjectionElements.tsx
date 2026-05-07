@@ -213,10 +213,17 @@ export function ChartDailyElement({ element }: DailyProps) {
   const colorArea = String(p.colorArea ?? '#6366f1');
   const title = p.title ? String(p.title) : undefined;
 
-  // Build daily profile for month with average HSP-based generation
-  const avgBarEntry = stats.barData[0]; // representative: Jan
-  const hoursInDay = DAYS_IN_MONTH[0];
-  const avgGenPerDay = avgBarEntry ? avgBarEntry.gen / hoursInDay : 0;
+  // Use the month whose generation is closest to the annual average — more
+  // representative than hardcoding January (index 0).
+  const avgMonthlyGen = stats.totalGen / 12;
+  const repBarEntry = stats.barData.length > 0
+    ? stats.barData.reduce((best, cur) =>
+        Math.abs(cur.gen - avgMonthlyGen) < Math.abs(best.gen - avgMonthlyGen) ? cur : best,
+      stats.barData[0])
+    : null;
+  const repMonthIdx  = repBarEntry ? stats.barData.indexOf(repBarEntry) : 0;
+  const hoursInDay   = DAYS_IN_MONTH[repMonthIdx] ?? 30;
+  const avgGenPerDay = repBarEntry ? repBarEntry.gen / hoursInDay : 0;
 
   const dailyData = useMemo(() => {
     // Synthetic hourly profile based on bell curve (solar peak around noon)

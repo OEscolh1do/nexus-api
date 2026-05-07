@@ -25,7 +25,7 @@ export default function Header() {
     
     // 2. Se estiver autenticado via Logto, fazer o sign out total no provedor
     if (isLogtoAuth) {
-      signOut(window.location.origin);
+      signOut();
     } else {
       // Fallback para login local
       window.location.href = '/login';

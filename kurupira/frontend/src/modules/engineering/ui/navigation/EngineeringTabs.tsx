@@ -114,7 +114,7 @@ export const EngineeringTabs: React.FC = () => {
             onClick={() => !locked && setTab(tab.id)}
             onKeyDown={(e) => handleKeyDown(e, i)}
             className={cn(
-              "relative flex flex-col items-start justify-center min-w-[110px] px-5 h-full transition-all duration-300 outline-none group border-r border-slate-800/20 pt-1 overflow-hidden",
+              "relative flex flex-col items-start justify-center min-w-[90px] flex-shrink-1 px-4 h-full transition-all duration-300 outline-none group border-r border-slate-800/20 pt-1 overflow-hidden",
               isActive 
                 ? "bg-gradient-to-r from-indigo-500/10 via-indigo-500/5 to-transparent" 
                 : locked 
@@ -127,11 +127,11 @@ export const EngineeringTabs: React.FC = () => {
               <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-[60%] bg-indigo-500 rounded-r-full shadow-[2px_0_15px_rgba(99,102,241,0.6)] animate-in slide-in-from-left-full duration-500" />
             )}
 
-            <div className="flex items-center gap-2 mb-0.5 ml-1">
+            <div className="flex items-center gap-2 mb-1 ml-1">
               {locked ? (
-                <Lock size={10} className="text-slate-700" />
+                <Lock size={11} className="text-slate-700" />
               ) : (
-                <Icon size={12} className={cn(
+                <Icon size={13} className={cn(
                   "transition-all duration-300 transform group-hover:scale-110 group-hover:-translate-y-0.5",
                   isActive 
                     ? "text-indigo-400 drop-shadow-[0_0_10px_rgba(129,140,248,0.6)]" 
@@ -139,7 +139,7 @@ export const EngineeringTabs: React.FC = () => {
                 )} />
               )}
               <span className={cn(
-                "text-[9px] font-black uppercase tracking-[0.2em] leading-none whitespace-nowrap transition-colors",
+                "text-[10px] font-black uppercase tracking-[0.2em] leading-none whitespace-nowrap transition-colors",
                 isActive ? "text-white" : "text-slate-600 group-hover:text-slate-300",
                 locked && "text-slate-700"
               )}>
@@ -149,16 +149,16 @@ export const EngineeringTabs: React.FC = () => {
 
             {/* MASTER KPI INDICATOR */}
             <div className={cn(
-              "flex items-baseline gap-0.5 transition-colors ml-1",
+              "flex items-baseline gap-1 transition-colors ml-1",
               isActive ? "text-indigo-400" : "text-slate-600 group-hover:text-slate-500",
               indicator === '--' && "opacity-20",
               locked && "opacity-10"
             )}>
-              <span className="text-[8px] font-bold font-mono tabular-nums leading-none tracking-tighter">
+              <span className="text-[12px] font-black font-mono tabular-nums leading-none tracking-tight">
                 {indicator}
               </span>
               {indicator !== '--' && !locked && (
-                 <span className="text-[7px] font-medium opacity-50 lowercase">{tab.unit || ''}</span>
+                 <span className="text-[8px] font-bold opacity-50 uppercase tracking-tighter">{tab.unit || ''}</span>
               )}
             </div>
           </button>

@@ -278,6 +278,40 @@ function LogoElementProps({ element, onUpdate }: Props) {
       {String(p.variant) === 'simbolo-circular' && (
         <ColorPropRow label="Fundo circular" value={String(p.bgColor ?? '#4CAF50')} onChange={(v) => update('bgColor', v)} />
       )}
+      <FieldRow label="Ajuste">
+        <select
+          value={String(p.objectFit ?? 'contain')}
+          onChange={(e) => update('objectFit', e.target.value)}
+          className="flex-1 text-xs border border-slate-800 rounded px-2 py-1 bg-slate-900 text-slate-200 outline-none focus:border-indigo-500/50"
+        >
+          <option value="contain">Conter</option>
+          <option value="cover">Preencher</option>
+          <option value="fill">Esticar</option>
+        </select>
+      </FieldRow>
+    </>
+  );
+}
+
+function ImageElementProps({ element, onUpdate }: Props) {
+  const p = element.props as Record<string, unknown>;
+  const update = (key: string, val: unknown) => onUpdate({ props: { ...p, [key]: val } });
+
+  return (
+    <>
+      <TextPropRow label="URL" value={String(p.url ?? '')} onChange={(v) => update('url', v)} />
+      <FieldRow label="Ajuste">
+        <select
+          value={String(p.objectFit ?? 'contain')}
+          onChange={(e) => update('objectFit', e.target.value)}
+          className="flex-1 text-xs border border-slate-800 rounded px-2 py-1 bg-slate-900 text-slate-200 outline-none focus:border-indigo-500/50"
+        >
+          <option value="contain">Conter (contain)</option>
+          <option value="cover">Preencher (cover)</option>
+          <option value="fill">Esticar (fill)</option>
+          <option value="none">Original (none)</option>
+        </select>
+      </FieldRow>
     </>
   );
 }
@@ -595,6 +629,7 @@ export function ElementPropertiesPanel({ element, onUpdate, onDecompose }: Props
           <div>
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Conteúdo</p>
             {element.type === 'text'        && <TextElementProps element={element} onUpdate={onUpdate} />}
+            {element.type === 'image'       && <ImageElementProps element={element} onUpdate={onUpdate} />}
             {element.type === 'box'         && <BoxElementProps element={element} onUpdate={onUpdate} />}
             {element.type === 'icon'        && <IconElementProps element={element} onUpdate={onUpdate} />}
             {element.type === 'logo'        && <LogoElementProps element={element} onUpdate={onUpdate} />}

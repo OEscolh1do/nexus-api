@@ -2,7 +2,7 @@
 
 > **Última Atualização:** 2026-05-07
 > **Arquiteto:** Antigravity AI
-> **Versão do Sistema:** 1.8.0 (Unificação de Gestão & User-First)
+> **Versão do Sistema:** 1.8.1 (OIDC Logout Fix)
 
 ---
 
@@ -267,6 +267,10 @@ A exclusão de tenants e usuários era apenas lógica (soft delete) ou inexisten
 ---
 
 ## 🔄 CHANGELOG
+
+### v1.8.1 (2026-05-07) — OIDC Logout Fix
+- ✅ **Logout Normalization**: Remoção de trailing slash no `LOGTO_ENDPOINT` e definição explícita de `postLogoutRedirectUri` no `LogtoConfig` para evitar erro de "URI not registered".
+- ✅ **SignOut Logic**: Refatoração das chamadas de `signOut()` para usar o padrão configurado no provedor, eliminando inconsistências de string.
 
 ### v1.8.0 (2026-05-07) — Unificação de Gestão & User-First
 - ✅ **Atomic Onboarding**: Criação atômica de Usuário + Tenant para contas `INDIVIDUAL`.

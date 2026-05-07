@@ -11,7 +11,7 @@ import {
 } from '@dnd-kit/core';
 import { useUIStore } from '@/core/state/uiStore';
 import { useSolarStore } from '@/core/state/solarStore';
-import { Settings2, FileText, LayoutTemplate, Pencil, Save, Layers, ChevronLeft, ChevronRight, Plus, Trash2, Grid3x3, Magnet, Target, PanelLeft, LayoutList, RotateCcw, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { Settings2, FileText, LayoutTemplate, Pencil, Save, Layers, ChevronLeft, ChevronRight, Plus, Trash2, Grid3x3, Magnet, Target, PanelLeft, LayoutList, RotateCcw, ZoomIn, ZoomOut, Maximize2, Undo2, Redo2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 import { ProposalEditPanel } from './proposal/ProposalEditPanel';
@@ -25,6 +25,8 @@ import { CanvasPage } from './proposal/engine/CanvasPage';
 import { CLASSIC_TEMPLATE } from './proposal/engine/templates/classicTemplate';
 import { TECHNICAL_PAGE_ELEMENTS } from './proposal/engine/templates/technicalPageDecomposed';
 import type { CanvasElement, CanvasPage as CanvasPageType, GridConfig } from './proposal/engine/types';
+// CanvasPage[] is used for undo/redo history snapshots
+type CanvasPageSnapshot = CanvasPageType[];
 import { A4_WIDTH, A4_HEIGHT, DEFAULT_ELEMENT_PROPS, DEFAULT_GRID_CONFIG } from './proposal/engine/types';
 
 type ViewMode = 'templates' | 'editor' | 'preview';
@@ -78,6 +80,10 @@ export const ProposalCanvasView: React.FC = () => {
   const [gridConfig, setGridConfig]         = useState<GridConfig>(DEFAULT_GRID_CONFIG);
   const [sidebarTab, setSidebarTab]         = useState<'elements' | 'layers'>('elements');
 
+  // ── Undo / Redo ────────────────────────────────────────────────────────────
+  const [undoStack, setUndoStack] = useState<CanvasPageSnapshot[]>([]);
+  const [redoStack, setRedoStack] = useState<CanvasPageSnapshot[]>([]);
+
   const updateGrid = (patch: Partial<GridConfig>) =>
     setGridConfig((prev) => ({ ...prev, ...patch }));
 
@@ -127,12 +133,37 @@ export const ProposalCanvasView: React.FC = () => {
     return () => obs.disconnect();
   }, []);
 
+  // ── Undo / Redo helpers ───────────────────────────────────────────────────
+
+  const pushToHistory = useCallback(() => {
+    setUndoStack((prev) => [...prev.slice(-30), effectiveLayout.pages]);
+    setRedoStack([]);
+  }, [effectiveLayout]);
+
+  const handleUndo = useCallback(() => {
+    if (undoStack.length === 0) return;
+    const prev = undoStack[undoStack.length - 1];
+    setRedoStack((r) => [effectiveLayout.pages, ...r.slice(0, 29)]);
+    setUndoStack((s) => s.slice(0, -1));
+    applyTemplate({ ...effectiveLayout, pages: prev });
+  }, [undoStack, effectiveLayout, applyTemplate]);
+
+  const handleRedo = useCallback(() => {
+    if (redoStack.length === 0) return;
+    const next = redoStack[0];
+    setUndoStack((s) => [...s.slice(-29), effectiveLayout.pages]);
+    setRedoStack((r) => r.slice(1));
+    applyTemplate({ ...effectiveLayout, pages: next });
+  }, [redoStack, effectiveLayout, applyTemplate]);
+
   // Keyboard shortcuts (Delete/Backspace = excluir seleção, Escape = desselecionar)
   useEffect(() => {
     if (viewMode !== 'editor') return;
     const onKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); handleUndo(); return; }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); handleRedo(); return; }
       if (e.key === 'Escape') {
         setSelectedIds([]);
         return;
@@ -144,7 +175,7 @@ export const ProposalCanvasView: React.FC = () => {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [viewMode, selectedIds, currentPage, removeCanvasElement]);
+  }, [viewMode, selectedIds, currentPage, removeCanvasElement, handleUndo, handleRedo]);
 
   const isApproved = projectStatus === 'approved';
 
@@ -198,6 +229,7 @@ export const ProposalCanvasView: React.FC = () => {
 
     // ── Preset: adiciona múltiplos elementos de uma vez ────────────────────────
     if (data.isPreset) {
+      pushToHistory();
       type PresetDef = { type: CanvasElement['type']; dx: number; dy: number; width: number; height: number; zIndex: number; groupId?: string; props: Record<string, unknown> };
       const defs = (data.presetElements as PresetDef[]) ?? [];
       defs.forEach((def, i) => {
@@ -220,6 +252,7 @@ export const ProposalCanvasView: React.FC = () => {
     }
 
     // ── Elemento único ─────────────────────────────────────────────────────────
+    pushToHistory();
     const newElement: CanvasElement = {
       id:      `el-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       type:    data.elementType as CanvasElement['type'],
@@ -235,7 +268,7 @@ export const ProposalCanvasView: React.FC = () => {
 
     addCanvasElement(currentPage.id, newElement);
     setSelectedIds([newElement.id]);
-  }, [currentPage, canvasScale, gridConfig, activeLayout, applyTemplate, addCanvasElement]);
+  }, [currentPage, canvasScale, gridConfig, activeLayout, applyTemplate, addCanvasElement, pushToHistory]);
 
   // ─── Page management ───────────────────────────────────────────────────────
 
@@ -268,9 +301,10 @@ export const ProposalCanvasView: React.FC = () => {
 
   const handleRemoveElement = useCallback((elementId: string) => {
     if (!currentPage) return;
+    pushToHistory();
     removeCanvasElement(currentPage.id, elementId);
     if (selectedIds.includes(elementId)) setSelectedIds(selectedIds.filter(id => id !== elementId));
-  }, [currentPage, removeCanvasElement, selectedIds]);
+  }, [currentPage, removeCanvasElement, selectedIds, pushToHistory]);
 
   // ─── Group handlers ────────────────────────────────────────────────────────
 
@@ -665,6 +699,26 @@ export const ProposalCanvasView: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Undo / Redo */}
+                <div className="flex items-center gap-0.5 bg-slate-800 rounded-lg px-1 py-1">
+                  <button
+                    onClick={handleUndo}
+                    disabled={undoStack.length === 0}
+                    title="Desfazer (Ctrl+Z)"
+                    className="p-1 text-slate-400 hover:text-white disabled:opacity-30 hover:bg-slate-700 rounded transition-colors"
+                  >
+                    <Undo2 size={12} />
+                  </button>
+                  <button
+                    onClick={handleRedo}
+                    disabled={redoStack.length === 0}
+                    title="Refazer (Ctrl+Y)"
+                    className="p-1 text-slate-400 hover:text-white disabled:opacity-30 hover:bg-slate-700 rounded transition-colors"
+                  >
+                    <Redo2 size={12} />
+                  </button>
+                </div>
+
                 {/* Zoom controls + dica */}
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-[10px] text-slate-600 hidden lg:flex items-center gap-1">
@@ -744,6 +798,7 @@ export const ProposalCanvasView: React.FC = () => {
                       onSelect={(ids) => setSelectedIds(ids)}
                       onUpdateElement={handleUpdateElement}
                       onRemoveElement={handleRemoveElement}
+                      onMutationStart={pushToHistory}
                     />
                   </div>
                 )}

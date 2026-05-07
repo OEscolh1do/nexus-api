@@ -2,7 +2,7 @@
 
 > **Última Atualização:** 2026-05-07
 > **Arquiteto:** Antigravity AI
-> **Versão do Sistema:** 6.0.0 (Engineering Cockpit v6.0)
+> **Versão do Sistema:** 6.0.1 (OIDC Logout Fix)
 
 ---
 
@@ -152,6 +152,11 @@ O Pin de localização é o elemento central de ancoragem visual e interatividad
 ---
 
 ## 🔄 CHANGELOG
+
+### v6.0.1 (2026-05-07) — OIDC Logout Fix
+
+- ✅ **Logout Normalization**: Definição explícita de `postLogoutRedirectUri` no `LogtoConfig` apontando para `window.location.origin`.
+- ✅ **SignOut Refactor**: Chamadas de `logtoSignOut()` agora utilizam a configuração padrão do provider para evitar erros de registro de URI no Logto Cloud.
 
 ### v6.0.0 (2026-05-07) — Engineering Cockpit: Unified High-Density Navigation
 

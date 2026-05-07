@@ -39,7 +39,7 @@ export default function LoginPage() {
         // O Logto vai redirecionar de volta para /login — quando a página recarregar,
         // a flag já estará limpa e o loop não recomeça.
         sessionStorage.removeItem('sumauma_force_logout');
-        logto.signOut(window.location.origin + '/login');
+        logto.signOut();
       } else if (!isAuthenticated && !isLoading) {
         // Logto já deslogou — limpar a flag e liberar novos logins
         sessionStorage.removeItem('sumauma_force_logout');

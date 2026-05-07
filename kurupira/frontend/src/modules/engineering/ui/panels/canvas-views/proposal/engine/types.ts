@@ -2,11 +2,7 @@ export const A4_WIDTH = 794;
 export const A4_HEIGHT = 1123;
 
 export type CanvasElementType =
-  | 'page-cover'
-  | 'page-investment'
   | 'page-technical'
-  | 'page-schedule'
-  | 'page-contact'
   | 'text'
   | 'image'
   | 'logo'
@@ -100,11 +96,7 @@ export const DEFAULT_GRID_CONFIG: GridConfig = {
 };
 
 export const DEFAULT_ELEMENT_PROPS: Record<CanvasElementType, Record<string, unknown>> = {
-  'page-cover':      {},
-  'page-investment': {},
   'page-technical':  {},
-  'page-schedule':   {},
-  'page-contact':    {},
   text:              { content: 'Texto aqui', fontSize: 16, fontWeight: 400, color: '#1a1a1a', textAlign: 'left', fontFamily: 'system', rotation: 0, letterSpacing: '', textTransform: 'none', lineHeight: '' },
   image:             { url: '', objectFit: 'contain' },
   logo:              { variant: 'verde', bgColor: '' },

@@ -15,6 +15,7 @@ const logtoConfig: LogtoConfig = {
   appId: import.meta.env.VITE_LOGTO_APP_ID || '',
   scopes: ['openid', 'profile', 'email', 'offline_access', 'roles'],
   resources: ['https://api.ywara.com.br'],
+  postLogoutRedirectUri: window.location.origin,
 };
 
 const root = ReactDOM.createRoot(rootElement);

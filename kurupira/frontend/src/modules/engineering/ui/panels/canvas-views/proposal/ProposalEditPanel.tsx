@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useSolarStore } from '@/core/state/solarStore';
 import {
   FileText, Eye, EyeOff, Download, Loader2,
@@ -57,6 +57,19 @@ export const ProposalEditPanel: React.FC = () => {
   const setExportingPdf = useSolarStore(s => s.setExportingPdf);
 
   const [isPageMenuOpen, setIsPageMenuOpen] = useState(false);
+  const [draggingLineItem, setDraggingLineItem] = useState<string | null>(null);
+  const pageMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isPageMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (pageMenuRef.current && !pageMenuRef.current.contains(e.target as Node)) {
+        setIsPageMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [isPageMenuOpen]);
 
   // Payment stages validation
   const totalPercentage = (proposalData.paymentStages || []).reduce((s, p) => s + (p.percentage || 0), 0);
@@ -105,8 +118,8 @@ export const ProposalEditPanel: React.FC = () => {
           </div>
         </div>
 
-        <div className="relative">
-          <button 
+        <div className="relative" ref={pageMenuRef}>
+          <button
             onClick={() => setIsPageMenuOpen(!isPageMenuOpen)}
             className="w-full flex items-center justify-between p-3 border border-slate-800/50 bg-slate-950/50 rounded-sm hover:border-indigo-500/50 transition-colors"
           >
@@ -219,8 +232,29 @@ export const ProposalEditPanel: React.FC = () => {
               </div>
 
               {(proposalData.lineItems || []).map((item) => (
-                <div key={item.id} className="flex items-start gap-2 sm:gap-3 p-3 sm:p-3 bg-slate-900/60 border border-slate-800 rounded-sm">
-                  <GripVertical size={12} className="text-slate-700 mt-1.5 cursor-grab shrink-0" />
+                <div
+                  key={item.id}
+                  draggable
+                  onDragStart={() => setDraggingLineItem(item.id)}
+                  onDragEnd={() => setDraggingLineItem(null)}
+                  onDragOver={(e) => { e.preventDefault(); }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (!draggingLineItem || draggingLineItem === item.id) return;
+                    const items = [...(proposalData.lineItems || [])];
+                    const fromIdx = items.findIndex((i) => i.id === draggingLineItem);
+                    const toIdx = items.findIndex((i) => i.id === item.id);
+                    const [moved] = items.splice(fromIdx, 1);
+                    items.splice(toIdx, 0, moved);
+                    updateProposalData({ lineItems: items });
+                    setDraggingLineItem(null);
+                  }}
+                  className={cn(
+                    'flex items-start gap-2 sm:gap-3 p-3 sm:p-3 bg-slate-900/60 border border-slate-800 rounded-sm transition-opacity',
+                    draggingLineItem === item.id && 'opacity-40'
+                  )}
+                >
+                  <GripVertical size={12} className="text-slate-500 mt-1.5 cursor-grab shrink-0 active:cursor-grabbing" />
                   <div className="flex-1 flex flex-col gap-1.5">
                     <input
                       className="w-full bg-transparent border-b border-slate-800 text-xs sm:text-sm text-slate-300 font-bold outline-none focus:border-indigo-500/50 pb-1"

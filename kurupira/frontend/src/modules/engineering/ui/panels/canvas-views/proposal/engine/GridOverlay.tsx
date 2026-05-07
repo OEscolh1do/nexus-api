@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { A4_WIDTH, A4_HEIGHT } from './types';
 
 interface Props {
@@ -5,13 +6,13 @@ interface Props {
 }
 
 export function GridOverlay({ size }: Props) {
+  const uid = useId().replace(/:/g, '');
   const majorSize = size * 4;
   const minorColor = 'rgba(148,163,184,0.25)';  // slate-400/25
   const majorColor = 'rgba(148,163,184,0.45)';  // slate-400/45
 
-  // IDs únicos para evitar colisão se múltiplas instâncias existirem
-  const minorId = `grid-minor-${size}`;
-  const majorId = `grid-major-${size}`;
+  const minorId = `grid-minor-${uid}`;
+  const majorId = `grid-major-${uid}`;
 
   return (
     <svg

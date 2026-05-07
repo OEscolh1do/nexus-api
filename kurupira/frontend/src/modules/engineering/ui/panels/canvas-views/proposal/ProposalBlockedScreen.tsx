@@ -47,6 +47,8 @@ export const ProposalBlockedScreen: React.FC<{ onGoToProjection: () => void; onN
     const { consumptionBlock, arrangementBlock } = useSystemComposition();
     const modules = useSolarStore(selectModules);
     const hasModules = modules.length > 0;
+    const irradiation = useSolarStore(s => s.clientData.monthlyIrradiation);
+    const hasProjection = hasModules && Array.isArray(irradiation) && irradiation.some(v => v > 0);
 
     return (
         <div className="w-full h-full flex flex-col items-center justify-center bg-slate-950/90 backdrop-blur-sm z-50 p-6 text-center">
@@ -85,10 +87,10 @@ export const ProposalBlockedScreen: React.FC<{ onGoToProjection: () => void; onN
                     status={arrangementBlock.status} 
                     onClick={() => onNavigate('arrangement')}
                 />
-                <BlockStatusRow 
-                    label="Projeção" 
-                    icon={<TrendingUp size={12} />} 
-                    status="empty" 
+                <BlockStatusRow
+                    label="Projeção"
+                    icon={<TrendingUp size={12} />}
+                    status={hasProjection ? 'complete' : 'empty'}
                     onClick={() => onNavigate('projection')}
                 />
             </div>

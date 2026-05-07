@@ -62,6 +62,33 @@ Utilizar o hook `onRehydrateStorage` do middleware `persist` do Zustand para rea
 - `sumauma/frontend/src/stores/authStore.ts`
 - `sumauma/frontend/src/pages/LoginPage.tsx` (Limpeza de flag antes do signOut)
 
+### 1.3. Normalização de Logout OIDC e URIs de Redirecionamento
+**Data:** 07/05/2026
+**Módulo:** Kurupira Frontend / Sumaúma Frontend / Logto Cloud
+
+#### O Problema
+Em ecossistemas multi-app que compartilham o mesmo App ID no provedor de identidade (Logto), surgem falhas intermitentes no logout com o erro `post_logout_redirect_uri not registered`. Isso ocorre devido a:
+1.  **Divergência de String**: Variações como `http://localhost:5174` (sem barra) vs `http://localhost:5174/` (com barra) são tratadas como URIs diferentes pelo OIDC.
+2.  **Inconsistência de Endpoint**: Endpoints com barras finais no `.env` (`LOGTO_ENDPOINT=.../`) podem causar construções de URL malformadas internamente na biblioteca.
+3.  **Manual SignOut Construction**: Tentar passar a URI manualmente na chamada `signOut(uri)` aumenta o risco de erro humano e dessincronia com o console.
+
+#### A Solução (Padrão Adotado)
+Adotamos a **Centralização de Origem via Configuração**:
+
+1.  **Explícitos em LogtoConfig**: Definimos `postLogoutRedirectUri: window.location.origin` diretamente no objeto `LogtoConfig` no root da aplicação (`main.tsx`). Isso garante que o valor seja dinâmico mas consistente com a origem real.
+2.  **SignOut sem Argumentos**: Refatoramos as chamadas para `signOut()` (sem parâmetros). O SDK do Logto utiliza automaticamente o valor definido na configuração, garantindo que a URI enviada seja exatamente a que foi inicializada.
+3.  **Sanitização de `.env`**: Removemos barras finais de todas as variáveis `LOGTO_ENDPOINT` para garantir que o SDK construa os caminhos de descoberta (`/.well-known/...`) de forma limpa.
+4.  **Alinhamento com o Console**: As URIs no Logto Console devem ser cadastradas **sem barra final**, combinando com a saída de `window.location.origin`.
+
+#### Regra de Ouro
+> "Para evitar erros de registro de logout em ambientes OIDC, nunca passe a URI manualmente na função de saída. Defina-a uma única vez no `LogtoConfig` usando `window.location.origin` e chame `signOut()` sem argumentos. Mantenha o console do provedor e as variáveis de ambiente livres de barras finais (`/`) redundantes."
+
+#### Referência
+- `kurupira/frontend/src/main.tsx`
+- `sumauma/frontend/src/main.tsx`
+- `kurupira/frontend/src/core/auth/AuthProvider.tsx`
+- `sumauma/frontend/.env.local`
+
 ---
 
 ## 2. Padrões de Interface de Engenharia (Engineering UI)

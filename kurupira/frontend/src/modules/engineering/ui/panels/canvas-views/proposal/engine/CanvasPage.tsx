@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { CanvasElementWrapper } from './CanvasElementWrapper';
 import { GridOverlay } from './GridOverlay';
@@ -14,24 +14,27 @@ interface Props {
   onSelect: (ids: string[]) => void;
   onUpdateElement: (elementId: string, updates: Partial<CanvasElement>) => void;
   onRemoveElement: (elementId: string) => void;
+  onMutationStart?: () => void;
 }
 
 export function CanvasPage({
   page, scale, selectedIds, gridConfig,
-  onSelect, onUpdateElement, onRemoveElement,
+  onSelect, onUpdateElement, onRemoveElement, onMutationStart,
 }: Props) {
   const pageRef = useRef<HTMLDivElement>(null);
   const [activeGuides, setActiveGuides] = useState<GuideLines>({ x: [], y: [] });
   const groupDragStartRef = useRef<Map<string, { x: number; y: number }> | null>(null);
+  const [rubberBand, setRubberBand] = useState<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
+  const rubberBandAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => { rubberBandAbortRef.current?.abort(); };
+  }, []);
 
   const { setNodeRef, isOver } = useDroppable({
     id: `droppable-${page.id}`,
     data: { pageId: page.id },
   });
-
-  const handlePageClick = useCallback(() => {
-    onSelect([]);
-  }, [onSelect]);
 
   const handleElementSelect = useCallback((element: CanvasElement) => {
     if (element.groupId) {
@@ -79,6 +82,11 @@ export function CanvasPage({
     [page.elements],
   );
 
+  const nonPageElements = useMemo(
+    () => sortedElements.filter((el) => !el.type.startsWith('page-')),
+    [sortedElements],
+  );
+
   // Pre-compute selected group IDs once per render (O(selectedIds) vs O(n×selectedIds) inline)
   const selectedGroupIds = useMemo(() => {
     const ids = new Set<string>();
@@ -102,7 +110,50 @@ export function CanvasPage({
         overflow: 'hidden',
         background,
       }}
-      onClick={handlePageClick}
+      onMouseDown={(e) => {
+        if (e.target !== e.currentTarget) return;
+        e.preventDefault();
+        const rect = e.currentTarget.getBoundingClientRect();
+        const startX = (e.clientX - rect.left) / scale;
+        const startY = (e.clientY - rect.top) / scale;
+        setRubberBand({ startX, startY, endX: startX, endY: startY });
+
+        const controller = new AbortController();
+        const { signal } = controller;
+        rubberBandAbortRef.current = controller;
+
+        const onMove = (ev: MouseEvent) => {
+          const endX = (ev.clientX - rect.left) / scale;
+          const endY = (ev.clientY - rect.top) / scale;
+          setRubberBand((prev) => prev ? { ...prev, endX, endY } : null);
+        };
+        const onUp = () => {
+          controller.abort();
+          setRubberBand((rb) => {
+            if (!rb) return null;
+            const selX = Math.min(rb.startX, rb.endX);
+            const selY = Math.min(rb.startY, rb.endY);
+            const selW = Math.abs(rb.endX - rb.startX);
+            const selH = Math.abs(rb.endY - rb.startY);
+            if (selW > 4 && selH > 4) {
+              const selected = page.elements
+                .filter((el) => !el.type.startsWith('page-') && el.visible)
+                .filter((el) =>
+                  el.x < selX + selW && el.x + el.width > selX &&
+                  el.y < selY + selH && el.y + el.height > selY
+                )
+                .map((el) => el.id);
+              if (selected.length > 0) onSelect(selected);
+              else onSelect([]);
+            } else {
+              onSelect([]);
+            }
+            return null;
+          });
+        };
+        window.addEventListener('mousemove', onMove, { signal });
+        window.addEventListener('mouseup', onUp, { signal });
+      }}
     >
       {/* Drop zone invisível (@dnd-kit) */}
       <div
@@ -120,7 +171,7 @@ export function CanvasPage({
       {sortedElements.map((element) => {
         const isSelected = selectedIds.includes(element.id);
         const isGrouped  = !!element.groupId && selectedGroupIds.has(element.groupId);
-        const others = sortedElements.filter((el) => el.id !== element.id && !el.type.startsWith('page-'));
+        const others = nonPageElements.filter((el) => el.id !== element.id);
         return (
           <CanvasElementWrapper
             key={element.id}
@@ -142,6 +193,7 @@ export function CanvasPage({
             onGroupDragStart={() => handleGroupDragStart(selectedIds)}
             onGroupDragDelta={(dx, dy) => handleGroupDragDelta(dx, dy, selectedIds)}
             onGroupDragEnd={handleGroupDragEnd}
+            onMutationStart={onMutationStart}
           />
         );
       })}
@@ -153,6 +205,21 @@ export function CanvasPage({
       {isOver && (
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(99,102,241,0.05)', pointerEvents: 'none', zIndex: 999 }} />
       )}
+
+      {/* Rubber-band selection rectangle */}
+      {rubberBand && (() => {
+        const x = Math.min(rubberBand.startX, rubberBand.endX);
+        const y = Math.min(rubberBand.startY, rubberBand.endY);
+        const w = Math.abs(rubberBand.endX - rubberBand.startX);
+        const h = Math.abs(rubberBand.endY - rubberBand.startY);
+        return (
+          <div style={{
+            position: 'absolute', left: x, top: y, width: w, height: h,
+            border: '1px solid #6366f1', background: 'rgba(99,102,241,0.08)',
+            pointerEvents: 'none', zIndex: 998,
+          }} />
+        );
+      })()}
     </div>
   );
 }

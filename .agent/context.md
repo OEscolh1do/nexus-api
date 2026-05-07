@@ -2,7 +2,7 @@
 
 > **Última Atualização:** 2026-05-07
 > **Arquiteto:** Antigravity AI
-> **Versão do Ecossistema:** 5.3.0 (Cockpit v6.0 & Full Center Canvas)
+> **Versão do Ecossistema:** 5.3.1 (OIDC Normalization)
 
 ---
 
@@ -105,6 +105,7 @@ Para garantir que os dados fluam sem perdas do Banco até a UI, seguimos 5 níve
 
 ## 🔄 CHANGELOG DO ECOSSISTEMA
 
+| v5.3.1 | 2026-05-07 | **OIDC Normalization**: Padronização global dos endpoints Logto e definições explícitas de Post-Logout Redirect URIs para eliminar falhas de redirecionamento no logout. |
 | v5.3.0 | 2026-05-07 | **Engineering Cockpit v6.0**: Refatoração do cockpit Kurupira para layout de coluna única, indicadores verticais laterais e erradicação do RightInspector lateral. |
 | v5.2.0 | 2026-05-07 | **User-First Unification**: Unificação de usuários e organizações no Sumaúma, criação atômica de contas autônomas e migração de gestão de segurança (Roles) para o domínio de sistema. |
 | v5.1.0 | 2026-05-06 | **Auditoria de Integridade**: Sincronização total Sumaúma-Kurupira, Rastreabilidade de Sessões e Remediação de Catálogo. |

@@ -228,11 +228,13 @@ export function LayersPanel({ elements, selectedIds, onSelect, onUpdate, onRemov
         })}
 
         {/* Render ungrouped elements */}
-        {ungrouped.map((el, idx) => {
+        {ungrouped.map((el) => {
           const meta = getMeta(el.type);
           const isSelected = selectedIds.includes(el.id);
-          const isFirst = idx === 0 && grouped.length === 0;
-          const isLast = idx === ungrouped.length - 1;
+          // Position in the full sorted stack (includes grouped elements)
+          const sortedIdx = sorted.findIndex((s) => s.id === el.id);
+          const isFirst = sortedIdx === 0;
+          const isLast  = sortedIdx === sorted.length - 1;
 
           return (
             <div

@@ -106,7 +106,7 @@ export function resolvePlaceholder(
     case 'client.connectionType':
       return formatConnectionType(clientData.connectionType);
     case 'client.tariff':
-      return `R$ ${(clientData.tariffRate || 0).toFixed(4).replace('.', ',')}`;
+      return `R$ ${(clientData.tariffRate || 0).toFixed(2).replace('.', ',')}`;
     case 'client.consumption':
       return `${Math.round(clientData.averageConsumption || 0).toLocaleString('pt-BR')} kWh`;
 

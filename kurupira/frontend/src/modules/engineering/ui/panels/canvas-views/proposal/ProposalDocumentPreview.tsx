@@ -24,7 +24,10 @@ export const ProposalDocumentPreview: React.FC = () => {
 
   const inverters = useTechStore(s => s.inverters.entities);
   const inverterIds = useTechStore(s => s.inverters.ids);
-  const techState = useTechStore(s => s);
+  const prCalculationMode = useTechStore(s => s.prCalculationMode);
+  const getAdditivePerformanceRatio = useTechStore(s => s.getAdditivePerformanceRatio);
+  const getPerformanceRatio = useTechStore(s => s.getPerformanceRatio);
+  const cosip = useTechStore(s => s.cosip);
 
   // Derived calculations
   const totalPowerKwp = modules.reduce((acc, m) => acc + (m.power * (m.quantity || 1)), 0) / 1000;
@@ -33,9 +36,9 @@ export const ProposalDocumentPreview: React.FC = () => {
   const firstInverter = inverterIds.length > 0 ? inverters[inverterIds[0]] : null;
 
   const stats = useMemo(() => {
-    const prDecimal = techState.prCalculationMode === 'additive'
-      ? techState.getAdditivePerformanceRatio()
-      : techState.getPerformanceRatio();
+    const prDecimal = prCalculationMode === 'additive'
+      ? getAdditivePerformanceRatio()
+      : getPerformanceRatio();
 
     const simulatedAddedLoad = getSimulatedTotal();
     const additionalLoadsMonthly = Array(12).fill(simulatedAddedLoad);
@@ -48,9 +51,9 @@ export const ProposalDocumentPreview: React.FC = () => {
       prDecimal: prDecimal || 0.75,
       tariffRate: clientData.tariffRate || 0.92,
       connectionType: clientData.connectionType,
-      cosip: techState.cosip,
+      cosip,
     });
-  }, [modules, clientData, techState, getSimulatedTotal]);
+  }, [modules, clientData, prCalculationMode, getAdditivePerformanceRatio, getPerformanceRatio, cosip, getSimulatedTotal, totalPowerKwp]);
 
   const monthlyGenAvg = Math.round(stats.totalGen / 12);
 
@@ -110,20 +113,19 @@ export const ProposalDocumentPreview: React.FC = () => {
   // ── MOTOR DE IMPRESSÃO NATIVO (Browser Print) ────────────────────
   React.useEffect(() => {
     if (!isExportingPdf) return;
-
     const handlePrint = async () => {
-      
-      // Aguarda os componentes carregarem no Portal
       await new Promise(resolve => setTimeout(resolve, 1500));
-
-      // Dispara a impressão
       window.print();
-
-      // O reset do estado ocorre logo após o diálogo de impressão fechar
-      setExportingPdf(false);
     };
-
+    const handleAfterPrint = () => {
+      setExportingPdf(false);
+      window.removeEventListener('afterprint', handleAfterPrint);
+    };
+    window.addEventListener('afterprint', handleAfterPrint);
     handlePrint();
+    return () => {
+      window.removeEventListener('afterprint', handleAfterPrint);
+    };
   }, [isExportingPdf, setExportingPdf]);
   // ─────────────────────────────────────────────────────────────────
   // ─────────────────────────────────────────────────────────────────

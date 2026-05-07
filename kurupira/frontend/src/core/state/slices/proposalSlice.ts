@@ -301,7 +301,11 @@ export const createProposalSlice: StateCreator<
   // ── Navigation ───────────────────────────────────────────────────────────
 
   setProposalActivePage: (page) =>
-    set({ proposalActivePage: Math.max(0, Math.min(4, page)) }),
+    set((state) => {
+      const layout = state.proposalData.activeLayout;
+      const maxPage = layout ? Math.max(0, layout.pages.length - 1) : 0;
+      return { proposalActivePage: Math.max(0, Math.min(maxPage, page)) };
+    }),
 
   setExportingPdf: (val) => set({ isExportingPdf: val }),
 

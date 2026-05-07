@@ -28,17 +28,17 @@ const KPIItem: React.FC<KPIItemProps> = ({ label, value, unit, severity = 'neutr
 
   return (
     <div className="flex flex-col justify-center px-4 border-r border-slate-800/60 last:border-0 group cursor-help transition-colors hover:bg-slate-900/40" title={tooltip}>
-      <div className="flex items-center gap-1.5 mb-0.5">
-        <span className={cn("text-[9px] font-black uppercase tracking-widest text-slate-500 group-hover:text-slate-400 transition-colors")}>
+      <div className="flex items-center gap-1.5 mb-1">
+        <span className={cn("text-[10px] font-black uppercase tracking-widest text-slate-500 group-hover:text-slate-400 transition-colors")}>
           {label}
         </span>
         <div className={cn("w-1 h-1 rounded-full", dotClass)} />
       </div>
-      <div className="flex items-baseline gap-1">
-        <span className={cn("text-[13px] font-mono font-black tabular-nums leading-none", colorClass)}>
+      <div className="flex items-baseline gap-1.5">
+        <span className={cn("text-[15px] font-mono font-black tabular-nums leading-none", colorClass)}>
           {value}
         </span>
-        {unit && <span className="text-[9px] font-bold text-slate-600 uppercase tracking-tight">{unit}</span>}
+        {unit && <span className="text-[10px] font-bold text-slate-600 uppercase tracking-tight">{unit}</span>}
       </div>
     </div>
   );
@@ -59,18 +59,18 @@ export const EngineeringKPIStrip: React.FC<{ compact?: boolean }> = ({ compact }
 
   if (compact) {
     return (
-      <div className="flex items-center gap-4 px-2">
-        <div className="flex items-baseline gap-1" title="Potência Instalada">
-          <span className="text-[11px] font-black text-slate-100 font-mono tabular-nums">
+      <div className="flex items-center gap-5 px-3">
+        <div className="flex items-baseline gap-1.5" title="Potência Instalada">
+          <span className="text-[13px] font-black text-slate-100 font-mono tabular-nums">
             {totalKWp.toFixed(1)}
           </span>
-          <span className="text-[8px] font-bold text-slate-600 uppercase">kWp</span>
+          <span className="text-[9px] font-bold text-slate-600 uppercase">kWp</span>
         </div>
-        <div className="flex items-baseline gap-1" title="ROI Estimado">
-           <span className="text-[11px] font-black text-indigo-400 font-mono tabular-nums">
+        <div className="flex items-baseline gap-1.5" title="ROI Estimado">
+           <span className="text-[13px] font-black text-indigo-400 font-mono tabular-nums">
             {financials.roi.toFixed(0)}
           </span>
-          <span className="text-[8px] font-bold text-indigo-600 uppercase">%</span>
+          <span className="text-[9px] font-bold text-indigo-600 uppercase">%</span>
         </div>
         <div className={cn(
           "w-1.5 h-1.5 rounded-full",

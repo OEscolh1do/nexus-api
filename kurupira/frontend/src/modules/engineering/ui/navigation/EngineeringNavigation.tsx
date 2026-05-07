@@ -30,15 +30,15 @@ export const EngineeringNavigation: React.FC = () => {
         {/* 1. BRANDING & PROJECT */}
         <div className="flex items-center gap-3 shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-6 h-6 bg-indigo-600 rounded-sm flex items-center justify-center shadow-lg shadow-indigo-500/20">
+            <div className="w-6 h-6 bg-indigo-600 rounded-sm flex items-center justify-center shadow-lg shadow-indigo-500/20 shrink-0">
               <span className="text-[10px] font-black text-white italic">K</span>
             </div>
-            <div className="hidden lg:flex flex-col leading-none">
-              <span className="text-[11px] font-black text-slate-100 uppercase tracking-tighter truncate max-w-[140px]">
+            <div className="hidden xl:flex flex-col leading-none">
+              <span className="text-[11px] font-black text-slate-100 uppercase tracking-tighter truncate max-w-[100px]">
                 {projectName || 'PROJETO_NOVO'}
               </span>
               <span className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-0.5">
-                K-ENGINE v3
+                ENGINE v6
               </span>
             </div>
           </div>
@@ -59,7 +59,7 @@ export const EngineeringNavigation: React.FC = () => {
         <div className="flex items-center gap-3 shrink-0">
           
           {/* Compact KPI Cluster */}
-          <div className="hidden xl:flex items-center h-8 bg-slate-900/50 rounded-sm border border-slate-800/50 px-1">
+          <div className="hidden 2xl:flex items-center h-8 bg-slate-900/50 rounded-sm border border-slate-800/50 px-1">
             <EngineeringKPIStrip compact />
           </div>
 

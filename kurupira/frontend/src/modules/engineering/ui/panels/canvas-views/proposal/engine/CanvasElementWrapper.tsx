@@ -151,13 +151,14 @@ interface Props {
   onGroupDragStart?: () => void;
   onGroupDragDelta?: (dx: number, dy: number) => void;
   onGroupDragEnd?: () => void;
+  onMutationStart?: () => void;
 }
 
 export function CanvasElementWrapper({
   element, isSelected, isGrouped, canvasScale,
   gridSize, snapEnabled, guidesEnabled, otherElements,
   onSelect, onUpdate, onDelete, onGuideChange,
-  onGroupDragStart, onGroupDragDelta, onGroupDragEnd,
+  onGroupDragStart, onGroupDragDelta, onGroupDragEnd, onMutationStart,
 }: Props) {
   const [isTextEditing, setIsTextEditing] = useState(false);
   const dragStartRef   = useRef<{ mouseX: number; mouseY: number; elemX: number; elemY: number } | null>(null);
@@ -175,12 +176,14 @@ export function CanvasElementWrapper({
   // ── Move drag ──────────────────────────────────────────────────────────────
 
   const handleMouseDownMove = useCallback((e: React.MouseEvent) => {
+    onMutationStart?.();
     // Group drag: when element is part of a multi-selection group
     dragAbortRef.current?.abort();
     dragAbortRef.current = new AbortController();
     const { signal } = dragAbortRef.current;
 
     if (isGrouped && onGroupDragStart && onGroupDragDelta && onGroupDragEnd) {
+      dragStartRef.current = null;
       e.preventDefault();
       e.stopPropagation();
       onGroupDragStart();
@@ -233,12 +236,13 @@ export function CanvasElementWrapper({
       dragStartRef.current = null;
       onGuideChange({ x: [], y: [] });
     }, { signal });
-  }, [isGrouped, isLocked, isPageBlock, isTextEditing, element, canvasScale, gridSize, snapEnabled, guidesEnabled, otherElements, scaledThreshold, onSelect, onUpdate, onGuideChange, onGroupDragStart, onGroupDragDelta, onGroupDragEnd]);
+  }, [isGrouped, isLocked, isPageBlock, isTextEditing, element, canvasScale, gridSize, snapEnabled, guidesEnabled, otherElements, scaledThreshold, onSelect, onUpdate, onGuideChange, onGroupDragStart, onGroupDragDelta, onGroupDragEnd, onMutationStart]);
 
   // ── Resize drag ────────────────────────────────────────────────────────────
 
   const handleResizeMouseDown = useCallback((e: React.MouseEvent, handle: ResizeHandle) => {
     if (isLocked) return;
+    onMutationStart?.();
     e.preventDefault();
     e.stopPropagation();
 
@@ -288,7 +292,7 @@ export function CanvasElementWrapper({
     window.addEventListener('mouseup', () => {
       resizeStartRef.current = null;
     }, { signal });
-  }, [isLocked, element, canvasScale, gridSize, snapEnabled, onUpdate]);
+  }, [isLocked, element, canvasScale, gridSize, snapEnabled, onUpdate, onMutationStart]);
 
   // ── Double click para editar texto ─────────────────────────────────────────
 
@@ -359,10 +363,13 @@ export function CanvasElementWrapper({
           ))}
 
           {/* Mini toolbar */}
+          {(() => {
+            const toolbarOnTop = element.y >= 36;
+            return (
           <div
             style={{
               position: 'absolute',
-              top: -28,
+              ...(toolbarOnTop ? { top: -28 } : { bottom: -28 }),
               right: 0,
               display: 'flex',
               gap: 2,
@@ -391,6 +398,8 @@ export function CanvasElementWrapper({
               <Trash2 size={11} />
             </button>
           </div>
+            );
+          })()}
 
           {/* Dimensões ao vivo no canto inferior direito */}
           <div
