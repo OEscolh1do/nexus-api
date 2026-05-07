@@ -15,9 +15,9 @@ const logtoConfig: LogtoConfig = {
   appId: import.meta.env.VITE_LOGTO_APP_ID || '',
   scopes: ['openid', 'profile', 'email', 'offline_access', 'roles'],
   resources: ['https://api.ywara.com.br'],
-  // @ts-ignore - postLogoutRedirectUri is supported by Logto React SDK but may not be in older type definitions
+  // @ts-ignore - Propriedade válida no SDK mas pode faltar na tipagem local
   postLogoutRedirectUri: window.location.origin,
-};
+} as any;
 
 const root = ReactDOM.createRoot(rootElement);
 root.render(
