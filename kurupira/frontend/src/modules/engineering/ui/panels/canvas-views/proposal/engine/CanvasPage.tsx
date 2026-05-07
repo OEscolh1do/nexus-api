@@ -13,13 +13,12 @@ interface Props {
   gridConfig: GridConfig;
   onSelect: (ids: string[]) => void;
   onUpdateElement: (elementId: string, updates: Partial<CanvasElement>) => void;
-  onRemoveElement: (elementId: string) => void;
   onMutationStart?: () => void;
 }
 
 export function CanvasPage({
   page, scale, selectedIds, gridConfig,
-  onSelect, onUpdateElement, onRemoveElement, onMutationStart,
+  onSelect, onUpdateElement, onMutationStart,
 }: Props) {
   const pageRef = useRef<HTMLDivElement>(null);
   const [activeGuides, setActiveGuides] = useState<GuideLines>({ x: [], y: [] });
@@ -185,10 +184,6 @@ export function CanvasPage({
             otherElements={others}
             onSelect={() => handleElementSelect(element)}
             onUpdate={(updates) => onUpdateElement(element.id, updates)}
-            onDelete={() => {
-              onRemoveElement(element.id);
-              if (selectedIds.includes(element.id)) onSelect(selectedIds.filter(id => id !== element.id));
-            }}
             onGuideChange={setActiveGuides}
             onGroupDragStart={() => handleGroupDragStart(selectedIds)}
             onGroupDragDelta={(dx, dy) => handleGroupDragDelta(dx, dy, selectedIds)}

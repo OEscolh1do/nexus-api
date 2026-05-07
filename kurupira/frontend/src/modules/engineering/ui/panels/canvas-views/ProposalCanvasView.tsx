@@ -797,7 +797,6 @@ export const ProposalCanvasView: React.FC = () => {
                       gridConfig={gridConfig}
                       onSelect={(ids) => setSelectedIds(ids)}
                       onUpdateElement={handleUpdateElement}
-                      onRemoveElement={handleRemoveElement}
                       onMutationStart={pushToHistory}
                     />
                   </div>

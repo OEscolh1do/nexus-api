@@ -105,6 +105,7 @@ Para garantir que os dados fluam sem perdas do Banco até a UI, seguimos 5 níve
 
 ## 🔄 CHANGELOG DO ECOSSISTEMA
 
+| v5.3.2 | 2026-05-07 | **Arranjo Deferido**: Ocultação da aba "Arranjo" no cockpit Kurupira para simplificação da jornada técnica até a estabilização do motor 3D. |
 | v5.3.1 | 2026-05-07 | **OIDC Normalization**: Padronização global dos endpoints Logto e definições explícitas de Post-Logout Redirect URIs para eliminar falhas de redirecionamento no logout. |
 | v5.3.0 | 2026-05-07 | **Engineering Cockpit v6.0**: Refatoração do cockpit Kurupira para layout de coluna única, indicadores verticais laterais e erradicação do RightInspector lateral. |
 | v5.2.0 | 2026-05-07 | **User-First Unification**: Unificação de usuários e organizações no Sumaúma, criação atômica de contas autônomas e migração de gestão de segurança (Roles) para o domínio de sistema. |

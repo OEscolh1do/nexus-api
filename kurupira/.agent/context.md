@@ -2,7 +2,7 @@
 
 > **Última Atualização:** 2026-05-07
 > **Arquiteto:** Antigravity AI
-> **Versão do Sistema:** 6.0.1 (OIDC Logout Fix)
+> **Versão do Sistema:** 6.0.2 (Arranjo Deferido)
 
 ---
 

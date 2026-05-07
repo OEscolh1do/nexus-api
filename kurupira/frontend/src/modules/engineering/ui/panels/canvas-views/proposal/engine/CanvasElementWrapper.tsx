@@ -1,5 +1,5 @@
 import React, { useRef, useCallback, useState, useEffect } from 'react';
-import { Lock, Trash2 } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { CanvasElementRenderer } from './CanvasElementRenderer';
 import type { CanvasElement, GuideLines } from './types';
 import { A4_WIDTH, A4_HEIGHT } from './types';
@@ -146,7 +146,6 @@ interface Props {
   otherElements: CanvasElement[];
   onSelect: () => void;
   onUpdate: (updates: Partial<CanvasElement>) => void;
-  onDelete: () => void;
   onGuideChange: (guides: GuideLines) => void;
   onGroupDragStart?: () => void;
   onGroupDragDelta?: (dx: number, dy: number) => void;
@@ -157,7 +156,7 @@ interface Props {
 export function CanvasElementWrapper({
   element, isSelected, isGrouped, canvasScale,
   gridSize, snapEnabled, guidesEnabled, otherElements,
-  onSelect, onUpdate, onDelete, onGuideChange,
+  onSelect, onUpdate, onGuideChange,
   onGroupDragStart, onGroupDragDelta, onGroupDragEnd, onMutationStart,
 }: Props) {
   const [isTextEditing, setIsTextEditing] = useState(false);
@@ -362,65 +361,6 @@ export function CanvasElementWrapper({
             />
           ))}
 
-          {/* Mini toolbar */}
-          {(() => {
-            const toolbarOnTop = element.y >= 36;
-            return (
-          <div
-            style={{
-              position: 'absolute',
-              ...(toolbarOnTop ? { top: -28 } : { bottom: -28 }),
-              right: 0,
-              display: 'flex',
-              gap: 2,
-              background: '#0f172a',
-              border: '1px solid #1e293b',
-              borderRadius: 2,
-              padding: '2px 4px',
-              zIndex: 20,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {/* Coordenadas ao vivo */}
-            <span style={{ color: '#94a3b8', padding: '2px 4px', fontSize: 10, fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>
-              x:{element.x} y:{element.y}
-            </span>
-            {isLocked && (
-              <div style={{ color: '#94a3b8', padding: '2px 4px', display: 'flex', alignItems: 'center' }}>
-                <Lock size={11} />
-              </div>
-            )}
-            <button
-              style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', padding: '2px 4px', display: 'flex', alignItems: 'center' }}
-              onMouseDown={(e) => { e.stopPropagation(); onDelete(); }}
-              title="Remover elemento"
-            >
-              <Trash2 size={11} />
-            </button>
-          </div>
-            );
-          })()}
-
-          {/* Dimensões ao vivo no canto inferior direito */}
-          <div
-            style={{
-              position: 'absolute',
-              bottom: -20,
-              right: 0,
-              background: '#0f172a',
-              border: '1px solid #1e293b',
-              color: '#94a3b8',
-              padding: '1px 6px',
-              borderRadius: 2,
-              fontSize: 10,
-              fontFamily: 'monospace',
-              fontVariantNumeric: 'tabular-nums',
-              pointerEvents: 'none',
-              zIndex: 20,
-            }}
-          >
-            {element.width}×{element.height}
-          </div>
         </>
       )}
 

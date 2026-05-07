@@ -21,7 +21,7 @@ const TABS: TabItem[] = [
   { id: 'consumption', label: 'Consumo', icon: Zap, unit: 'kwh' },
   { id: 'module', label: 'Módulos', icon: Sun, unit: 'kwh' },
   { id: 'inverter', label: 'Inversores', icon: Cpu, unit: 'fdi' },
-  { id: 'arrangement', label: 'Arranjo', icon: Layout, unit: '' },
+  // { id: 'arrangement', label: 'Arranjo', icon: Layout, unit: '' },
   { id: 'projection', label: 'Projeção', icon: TrendingUp, unit: 'mwh' },
   { id: 'proposal', label: 'Proposta', icon: FileSignature, unit: 'anos' },
 ];
