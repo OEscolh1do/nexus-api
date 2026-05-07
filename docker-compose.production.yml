@@ -46,6 +46,7 @@ services:
       LOGTO_ENDPOINT: "${LOGTO_ENDPOINT}"
       LOGTO_JWKS_URI: "${LOGTO_JWKS_URI}"
       LOGTO_M2M_RESOURCE: "${LOGTO_M2M_RESOURCE}"
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS}"
     depends_on:
       nexus-db:
         condition: service_healthy
@@ -78,6 +79,7 @@ services:
       LOGTO_M2M_CLIENT_ID: "${LOGTO_M2M_CLIENT_ID}"
       LOGTO_M2M_CLIENT_SECRET: "${LOGTO_M2M_CLIENT_SECRET}"
       LOGTO_M2M_RESOURCE: "${LOGTO_M2M_RESOURCE}"
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS}"
       PORT: 3003
       NODE_ENV: production
     depends_on:

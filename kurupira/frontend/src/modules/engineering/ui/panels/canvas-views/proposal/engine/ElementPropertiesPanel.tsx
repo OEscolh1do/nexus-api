@@ -20,12 +20,18 @@ function FieldRow({ label, children }: { label: string; children: React.ReactNod
   );
 }
 
-function NumInput({ value, onChange, min }: { value: number; onChange: (v: number) => void; min?: number }) {
+function NumInput({ value, onChange, min, 'aria-label': ariaLabel }: {
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+  'aria-label'?: string;
+}) {
   return (
     <input
       type="number"
       value={Math.round(value)}
       min={min}
+      aria-label={ariaLabel}
       onChange={(e) => onChange(Number(e.target.value))}
       className="w-full text-xs border border-slate-800 rounded px-2 py-1 bg-slate-900 text-slate-200 focus:outline-none focus:border-indigo-500/50"
     />
@@ -52,12 +58,14 @@ function ColorPropRow({ label, value, onChange }: { label: string; value: string
         <input
           type="color"
           value={value}
+          aria-label={label}
           onChange={(e) => onChange(e.target.value)}
-          className="w-6 h-6 rounded cursor-pointer border-0 p-0"
+          className="w-7 h-7 rounded cursor-pointer border-0 p-0"
         />
         <input
           type="text"
           value={value}
+          aria-label={`${label} (hex)`}
           onChange={(e) => onChange(e.target.value)}
           className="flex-1 text-xs border border-slate-800 rounded px-2 py-1 bg-slate-900 text-slate-200 focus:outline-none focus:border-indigo-500/50"
         />
@@ -296,10 +304,58 @@ function LogoElementProps({ element, onUpdate }: Props) {
 function ImageElementProps({ element, onUpdate }: Props) {
   const p = element.props as Record<string, unknown>;
   const update = (key: string, val: unknown) => onUpdate({ props: { ...p, [key]: val } });
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string;
+      if (dataUrl) update('url', dataUrl);
+    };
+    reader.readAsDataURL(file);
+    // Reset input so the same file can be re-selected
+    e.target.value = '';
+  };
 
   return (
     <>
-      <TextPropRow label="URL" value={String(p.url ?? '')} onChange={(v) => update('url', v)} />
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={handleFileChange}
+      />
+
+      {/* Upload button */}
+      <FieldRow label="Arquivo">
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          style={{
+            flex: 1,
+            fontSize: 11,
+            padding: '4px 10px',
+            background: '#1e293b',
+            border: '1px solid #334155',
+            borderRadius: 4,
+            color: '#94a3b8',
+            cursor: 'pointer',
+            textAlign: 'center',
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#6366f1')}
+          onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#334155')}
+        >
+          {p.url ? '🖼 Trocar imagem' : '📁 Selecionar imagem'}
+        </button>
+      </FieldRow>
+
+      {/* URL text input (secondary, for pasting links) */}
+      <TextPropRow label="ou URL" value={String(p.url ?? '')} onChange={(v) => update('url', v)} />
+
+      {/* objectFit select */}
       <FieldRow label="Ajuste">
         <select
           value={String(p.objectFit ?? 'contain')}
@@ -312,6 +368,25 @@ function ImageElementProps({ element, onUpdate }: Props) {
           <option value="none">Original (none)</option>
         </select>
       </FieldRow>
+
+      {/* Clear image button — only when there is a URL */}
+      {p.url && (
+        <FieldRow label="">
+          <button
+            onClick={() => update('url', '')}
+            style={{
+              fontSize: 11,
+              color: '#f87171',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '2px 0',
+            }}
+          >
+            ✕ Remover imagem
+          </button>
+        </FieldRow>
+      )}
     </>
   );
 }
@@ -495,7 +570,7 @@ function PlaceholderProps({ element, onUpdate }: Props) {
       <TextPropRow label="Prefixo" value={String(p.prefix ?? '')} onChange={(v) => update('prefix', v)} />
       <TextPropRow label="Sufixo"  value={String(p.suffix  ?? '')} onChange={(v) => update('suffix',  v)} />
 
-      <div className="border-t border-slate-100 pt-2 mt-1">
+      <div className="border-t border-slate-800 pt-2 mt-1">
         <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mb-1">Estilo</p>
         <TextStyleControls p={p} update={update} defaultFontSize={14} showItalic />
       </div>
@@ -576,6 +651,7 @@ export function ElementPropertiesPanel({ element, onUpdate, onDecompose }: Props
             onClick={() => onUpdate({ visible: !element.visible })}
             className={cn('p-1 rounded hover:bg-slate-800', !element.visible && 'text-slate-600')}
             title={element.visible ? 'Ocultar' : 'Mostrar'}
+            aria-label={element.visible ? 'Ocultar elemento' : 'Mostrar elemento'}
           >
             {element.visible ? <Eye size={13} /> : <EyeOff size={13} />}
           </button>
@@ -584,6 +660,7 @@ export function ElementPropertiesPanel({ element, onUpdate, onDecompose }: Props
               onClick={() => onUpdate({ locked: !element.locked })}
               className="p-1 rounded hover:bg-slate-800"
               title={element.locked ? 'Desbloquear' : 'Bloquear'}
+              aria-label={element.locked ? 'Desbloquear elemento' : 'Bloquear elemento'}
             >
               {element.locked ? <Lock size={13} /> : <Unlock size={13} />}
             </button>
@@ -598,16 +675,16 @@ export function ElementPropertiesPanel({ element, onUpdate, onDecompose }: Props
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Posição e Tamanho</p>
             <div className="grid grid-cols-2 gap-x-2">
               <FieldRow label="X">
-                <NumInput value={element.x} onChange={(v) => onUpdate({ x: v })} min={0} />
+                <NumInput value={element.x} onChange={(v) => onUpdate({ x: v })} min={0} aria-label="Posição X" />
               </FieldRow>
               <FieldRow label="Y">
-                <NumInput value={element.y} onChange={(v) => onUpdate({ y: v })} min={0} />
+                <NumInput value={element.y} onChange={(v) => onUpdate({ y: v })} min={0} aria-label="Posição Y" />
               </FieldRow>
               <FieldRow label="Largura">
-                <NumInput value={element.width} onChange={(v) => onUpdate({ width: v })} min={10} />
+                <NumInput value={element.width} onChange={(v) => onUpdate({ width: v })} min={10} aria-label="Largura" />
               </FieldRow>
               <FieldRow label="Altura">
-                <NumInput value={element.height} onChange={(v) => onUpdate({ height: v })} min={10} />
+                <NumInput value={element.height} onChange={(v) => onUpdate({ height: v })} min={10} aria-label="Altura" />
               </FieldRow>
             </div>
             <FieldRow label="Z-index">

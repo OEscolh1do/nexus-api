@@ -181,7 +181,7 @@ export function ElementPalette({ hasCustomLayout }: Props) {
         </div>
 
         {/* Campos dinâmicos */}
-        <div className="px-3 py-1.5 border-t border-slate-900">
+        <div className="px-3 py-1.5 border-t border-slate-800">
           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Campos Dinâmicos</p>
           {DYNAMIC_ITEMS.map((item) => (
             <DraggableItem key={item.type} item={item} />
@@ -189,7 +189,7 @@ export function ElementPalette({ hasCustomLayout }: Props) {
         </div>
 
         {/* Design (primitivos) */}
-        <div className="px-3 py-1.5 border-t border-slate-900">
+        <div className="px-3 py-1.5 border-t border-slate-800">
           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Design</p>
           {DESIGN_ITEMS.map((item) => (
             <DraggableItem key={item.type} item={item} />
@@ -197,7 +197,7 @@ export function ElementPalette({ hasCustomLayout }: Props) {
         </div>
 
         {/* Projeção */}
-        <div className="px-3 py-1.5 border-t border-slate-900">
+        <div className="px-3 py-1.5 border-t border-slate-800">
           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Projeção</p>
           {PROJECTION_ITEMS.map((item) => (
             <DraggableItem key={item.type} item={item} />
@@ -205,7 +205,7 @@ export function ElementPalette({ hasCustomLayout }: Props) {
         </div>
 
         {/* Conteúdo */}
-        <div className="px-3 py-1.5 border-t border-slate-900">
+        <div className="px-3 py-1.5 border-t border-slate-800">
           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Conteúdo</p>
           {CONTENT_ITEMS.map((item) => (
             <DraggableItem key={item.type} item={item} />
@@ -213,8 +213,11 @@ export function ElementPalette({ hasCustomLayout }: Props) {
         </div>
 
         {/* Dimensionamento (atalhos monolíticos — legado) */}
-        <div className="px-3 py-1.5 border-t border-slate-900">
-          <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider mb-1">Dimensionamento</p>
+        <div className="px-3 py-1.5 border-t border-slate-800">
+          <div className="flex items-center gap-1.5 mb-1">
+            <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Dimensionamento</p>
+            <span className="text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 bg-slate-800 text-slate-500 rounded">legado</span>
+          </div>
           {TECHNICAL_ITEMS.map((item) => (
             <DraggableItem key={item.type} item={item} />
           ))}

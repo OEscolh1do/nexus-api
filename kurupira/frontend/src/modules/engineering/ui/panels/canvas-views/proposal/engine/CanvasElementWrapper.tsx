@@ -1,4 +1,5 @@
 import React, { useRef, useCallback, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Lock } from 'lucide-react';
 import { CanvasElementRenderer } from './CanvasElementRenderer';
 import type { CanvasElement, GuideLines } from './types';
@@ -144,13 +145,15 @@ interface Props {
   snapEnabled: boolean;
   guidesEnabled: boolean;
   otherElements: CanvasElement[];
-  onSelect: () => void;
+  onSelect: (shiftKey?: boolean) => void;
   onUpdate: (updates: Partial<CanvasElement>) => void;
   onGuideChange: (guides: GuideLines) => void;
   onGroupDragStart?: () => void;
   onGroupDragDelta?: (dx: number, dy: number) => void;
   onGroupDragEnd?: () => void;
   onMutationStart?: () => void;
+  onDuplicate?: () => void;
+  onRemove?: () => void;
 }
 
 export function CanvasElementWrapper({
@@ -158,14 +161,35 @@ export function CanvasElementWrapper({
   gridSize, snapEnabled, guidesEnabled, otherElements,
   onSelect, onUpdate, onGuideChange,
   onGroupDragStart, onGroupDragDelta, onGroupDragEnd, onMutationStart,
+  onDuplicate, onRemove,
 }: Props) {
   const [isTextEditing, setIsTextEditing] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [resizeTooltip, setResizeTooltip] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const dragStartRef   = useRef<{ mouseX: number; mouseY: number; elemX: number; elemY: number } | null>(null);
   const resizeStartRef = useRef<{ mouseX: number; mouseY: number; elemX: number; elemY: number; elemW: number; elemH: number; handle: ResizeHandle } | null>(null);
   const dragAbortRef   = useRef<AbortController | null>(null);
 
   // Clean up any dangling window listeners when the element is removed mid-drag
   useEffect(() => () => { dragAbortRef.current?.abort(); }, []);
+
+  // Close context menu on outside click or Escape
+  useEffect(() => {
+    if (!contextMenu) return;
+    const close = () => setContextMenu(null);
+    const timerId = setTimeout(() => {
+      window.addEventListener('click', close, { once: true });
+    }, 0);
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setContextMenu(null); };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      clearTimeout(timerId);
+      window.removeEventListener('click', close);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [contextMenu]);
 
   const isLocked    = element.locked;
   const isPageBlock = element.type.startsWith('page-');
@@ -213,6 +237,7 @@ export function CanvasElementWrapper({
 
     window.addEventListener('mousemove', (ev: MouseEvent) => {
       if (!dragStartRef.current) return;
+      setIsDragging(true);
       const dx = (ev.clientX - dragStartRef.current.mouseX) / canvasScale;
       const dy = (ev.clientY - dragStartRef.current.mouseY) / canvasScale;
 
@@ -232,6 +257,7 @@ export function CanvasElementWrapper({
     }, { signal });
 
     window.addEventListener('mouseup', () => {
+      setIsDragging(false);
       dragStartRef.current = null;
       onGuideChange({ x: [], y: [] });
     }, { signal });
@@ -244,6 +270,9 @@ export function CanvasElementWrapper({
     onMutationStart?.();
     e.preventDefault();
     e.stopPropagation();
+
+    const lockAspect = e.shiftKey;
+    const aspectRatio = element.width / element.height;
 
     // Clear any in-progress move drag before starting resize
     dragStartRef.current = null;
@@ -285,11 +314,32 @@ export function CanvasElementWrapper({
         newY = elemY + elemH - newH;
       }
 
+      if (lockAspect) {
+        const isCorner = ['nw', 'ne', 'sw', 'se'].includes(handle);
+        const movesW = ['nw', 'ne', 'sw', 'se', 'w', 'e'].includes(handle);
+        const movesH = ['nw', 'ne', 'sw', 'se', 'n', 's'].includes(handle);
+        if (isCorner) {
+          const deltaW = Math.abs(newW - element.width);
+          const deltaH = Math.abs(newH - element.height);
+          if (deltaW > deltaH) {
+            newH = Math.round(newW / aspectRatio);
+          } else {
+            newW = Math.round(newH * aspectRatio);
+          }
+        } else if (movesW && !movesH) {
+          newH = Math.round(newW / aspectRatio);
+        } else if (movesH && !movesW) {
+          newW = Math.round(newH * aspectRatio);
+        }
+      }
+
+      setResizeTooltip({ x: ev.clientX + 12, y: ev.clientY + 12, w: Math.round(newW), h: Math.round(newH) });
       onUpdate({ x: Math.round(newX), y: Math.round(newY), width: Math.round(newW), height: Math.round(newH) });
     }, { signal });
 
     window.addEventListener('mouseup', () => {
       resizeStartRef.current = null;
+      setTimeout(() => setResizeTooltip(null), 800);
     }, { signal });
   }, [isLocked, element, canvasScale, gridSize, snapEnabled, onUpdate, onMutationStart]);
 
@@ -310,6 +360,7 @@ export function CanvasElementWrapper({
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
+    <>
     <div
       style={{
         position: 'absolute',
@@ -323,16 +374,33 @@ export function CanvasElementWrapper({
           ? '1.5px dashed #818cf8'
           : isSelected
             ? '2px solid #6366f1'
-            : 'none',
+            : isHovered && !isPageBlock
+              ? '1px solid rgba(99,102,241,0.4)'
+              : 'none',
         outlineOffset: 1,
-        cursor: isLocked || isPageBlock ? 'default' : (isTextEditing ? 'text' : 'move'),
+        cursor: isLocked || isPageBlock
+          ? 'default'
+          : isTextEditing
+            ? 'text'
+            : isDragging
+              ? 'grabbing'
+              : 'grab',
         userSelect: 'none',
         boxSizing: 'border-box',
         overflow: isPageBlock ? 'visible' : 'hidden',
       }}
       onMouseDown={handleMouseDownMove}
-      onClick={(e) => { e.stopPropagation(); onSelect(); }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onClick={(e) => { e.stopPropagation(); onSelect(e.shiftKey); }}
       onDoubleClick={handleDoubleClick}
+      onContextMenu={(e) => {
+        if (isPageBlock) return;
+        e.preventDefault();
+        e.stopPropagation();
+        onSelect(e.shiftKey);
+        setContextMenu({ x: e.clientX, y: e.clientY });
+      }}
     >
       <CanvasElementRenderer
         element={element}
@@ -356,6 +424,12 @@ export function CanvasElementWrapper({
                 cursor: HANDLE_CURSORS[handle],
                 zIndex: 10,
                 ...HANDLE_POSITIONS[handle],
+                // Scale handles to stay 8px screen-size regardless of canvas zoom
+                // Merge with any existing transform from HANDLE_POSITIONS (edge-midpoint handles)
+                transform: HANDLE_POSITIONS[handle].transform
+                  ? `${HANDLE_POSITIONS[handle].transform} scale(${1 / canvasScale})`
+                  : `scale(${1 / canvasScale})`,
+                transformOrigin: 'center',
               }}
               onMouseDown={(e) => handleResizeMouseDown(e, handle)}
             />
@@ -388,5 +462,107 @@ export function CanvasElementWrapper({
         </div>
       )}
     </div>
+
+    {resizeTooltip && createPortal(
+      <div style={{
+        position: 'fixed',
+        left: resizeTooltip.x,
+        top: resizeTooltip.y,
+        background: '#0f172a',
+        border: '1px solid #1e293b',
+        color: '#94a3b8',
+        padding: '2px 6px',
+        borderRadius: 3,
+        fontSize: 10,
+        fontFamily: 'monospace',
+        fontVariantNumeric: 'tabular-nums',
+        pointerEvents: 'none',
+        zIndex: 99999,
+        whiteSpace: 'nowrap',
+      }}>
+        {resizeTooltip.w} × {resizeTooltip.h}
+      </div>,
+      document.body,
+    )}
+
+    {contextMenu && !isPageBlock && createPortal(
+      <div
+        role="menu"
+        aria-label="Ações do elemento"
+        style={{
+          position: 'fixed',
+          left: contextMenu.x,
+          top: contextMenu.y,
+          background: '#1e293b',
+          border: '1px solid #334155',
+          borderRadius: 6,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+          zIndex: 99999,
+          minWidth: 160,
+          overflow: 'hidden',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Bring to front */}
+        <button
+          role="menuitem"
+          tabIndex={-1}
+          autoFocus
+          style={{ width: '100%', textAlign: 'left', padding: '7px 12px', fontSize: 12, color: '#cbd5e1', background: 'none', border: 'none', cursor: 'pointer', display: 'block' }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = '#334155')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+          onClick={() => {
+            const maxZ = otherElements.length > 0 ? Math.max(...otherElements.map(e => e.zIndex)) : element.zIndex;
+            onUpdate({ zIndex: maxZ + 1 });
+            setContextMenu(null);
+          }}
+        >
+          Trazer para frente
+        </button>
+        {/* Send to back */}
+        <button
+          role="menuitem"
+          tabIndex={-1}
+          style={{ width: '100%', textAlign: 'left', padding: '7px 12px', fontSize: 12, color: '#cbd5e1', background: 'none', border: 'none', cursor: 'pointer', display: 'block' }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = '#334155')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+          onClick={() => {
+            const minZ = otherElements.length > 0 ? Math.min(...otherElements.map(e => e.zIndex)) : element.zIndex;
+            onUpdate({ zIndex: minZ - 1 });
+            setContextMenu(null);
+          }}
+        >
+          Enviar para trás
+        </button>
+        {/* Divider */}
+        <div style={{ height: 1, background: '#334155', margin: '2px 0' }} />
+        {/* Duplicate */}
+        <button
+          role="menuitem"
+          tabIndex={-1}
+          style={{ width: '100%', textAlign: 'left', padding: '7px 12px', fontSize: 12, color: '#cbd5e1', background: 'none', border: 'none', cursor: 'pointer', display: 'block' }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = '#334155')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+          onClick={() => { onDuplicate?.(); setContextMenu(null); }}
+        >
+          Duplicar
+        </button>
+        {/* Delete */}
+        {!isLocked && (
+          <button
+            role="menuitem"
+            tabIndex={-1}
+            style={{ width: '100%', textAlign: 'left', padding: '7px 12px', fontSize: 12, color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', display: 'block' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#3f1212')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+            onClick={() => { onRemove?.(); setContextMenu(null); }}
+          >
+            Excluir
+          </button>
+        )}
+      </div>,
+      document.body,
+    )}
+    </>
   );
 }

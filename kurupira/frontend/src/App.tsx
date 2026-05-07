@@ -19,6 +19,7 @@ import { useAuth } from './core/auth/useAuth';
 import { NeonorteLoader } from './components/ui/NeonorteLoader';
 import CallbackPage from './pages/CallbackPage';
 import LoginPage from './pages/LoginPage';
+import AccessDeniedPage from './pages/AccessDeniedPage';
 
 const AuthGuard: React.FC = () => {
   const { loading, user } = useAuth();
@@ -47,6 +48,7 @@ const App: React.FC = () => {
       <Routes>
         <Route path="/callback" element={<CallbackPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/access-denied" element={<AccessDeniedPage />} />
         <Route path="*" element={
           <AuthProvider>
             <AuthGuard />

@@ -11,7 +11,7 @@ import {
 } from '@dnd-kit/core';
 import { useUIStore } from '@/core/state/uiStore';
 import { useSolarStore } from '@/core/state/solarStore';
-import { FileText, LayoutTemplate, Pencil, Save, Layers, ChevronLeft, ChevronRight, Plus, Trash2, Grid3x3, Magnet, Target, PanelLeft, LayoutList, RotateCcw, ZoomIn, ZoomOut, Maximize2, Undo2, Redo2 } from 'lucide-react';
+import { FileText, LayoutTemplate, Pencil, Save, Layers, ChevronLeft, ChevronRight, Plus, Trash2, Grid3x3, Magnet, Target, PanelLeft, LayoutList, RotateCcw, ZoomIn, ZoomOut, Maximize2, Undo2, Redo2, Copy, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 import { ProposalDocumentPreview } from './proposal/ProposalDocumentPreview';
@@ -31,6 +31,24 @@ import { A4_WIDTH, A4_HEIGHT, DEFAULT_ELEMENT_PROPS, DEFAULT_GRID_CONFIG } from 
 type ViewMode = 'templates' | 'editor' | 'preview';
 
 const ZOOM_STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1.0, 1.1, 1.25, 1.5, 2.0];
+
+const DRAG_GHOST_META: Record<string, { label: string; icon: string }> = {
+  'text':               { label: 'Texto',              icon: '𝐓' },
+  'image':              { label: 'Imagem',              icon: '🖼' },
+  'logo':               { label: 'Logo',               icon: '✦' },
+  'watermark':          { label: 'Marca d\'água',       icon: '⬡' },
+  'divider':            { label: 'Divisória',           icon: '—' },
+  'box':                { label: 'Caixa',               icon: '▭' },
+  'icon':               { label: 'Ícone',               icon: '★' },
+  'placeholder':        { label: 'Campo dinâmico',      icon: '{}' },
+  'kpi-box':            { label: 'KPI',                 icon: '◈' },
+  'chart-generation':   { label: 'Gráfico Geração',     icon: '▦' },
+  'chart-financial':    { label: 'Gráfico Financeiro',  icon: '▦' },
+  'chart-irradiance':   { label: 'Gráfico Irradiância', icon: '☀' },
+  'payment-table':      { label: 'Tabela Investimento', icon: '⊟' },
+  'schedule-timeline':  { label: 'Cronograma',          icon: '⊞' },
+  'map-static':         { label: 'Mapa',                icon: '⊙' },
+};
 
 function SaveTemplateDialog({ onSave, onCancel }: { onSave: (name: string) => void; onCancel: () => void }) {
   const [name, setName] = useState('Meu Template');
@@ -65,18 +83,28 @@ export const ProposalCanvasView: React.FC = () => {
   const addCanvasElement    = useSolarStore((s) => s.addCanvasElement);
   const updateCanvasElement = useSolarStore((s) => s.updateCanvasElement);
   const removeCanvasElement = useSolarStore((s) => s.removeCanvasElement);
-  const addCanvasPage       = useSolarStore((s) => s.addCanvasPage);
-  const removeCanvasPage    = useSolarStore((s) => s.removeCanvasPage);
-  const saveCurrentAsTemplate = useSolarStore((s) => s.saveCurrentAsTemplate);
-  const applyTemplate       = useSolarStore((s) => s.applyTemplate);
+  const addCanvasPage            = useSolarStore((s) => s.addCanvasPage);
+  const removeCanvasPage         = useSolarStore((s) => s.removeCanvasPage);
+  const saveCurrentAsTemplate    = useSolarStore((s) => s.saveCurrentAsTemplate);
+  const applyTemplate            = useSolarStore((s) => s.applyTemplate);
+  const updateCanvasPageBackground = useSolarStore((s) => s.updateCanvasPageBackground);
 
   const [viewMode, setViewMode]             = useState<ViewMode>('preview');
   const [canvasPageIdx, setCanvasPageIdx]   = useState(0);
   const [selectedIds, setSelectedIds]       = useState<string[]>([]);
+  const [clipboard, setClipboard]           = useState<CanvasElement[]>([]);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [activeDragType, setActiveDragType] = useState<string | null>(null);
   const [gridConfig, setGridConfig]         = useState<GridConfig>(DEFAULT_GRID_CONFIG);
   const [sidebarTab, setSidebarTab]         = useState<'elements' | 'layers'>('elements');
+  const [renamingPageId, setRenamingPageId] = useState<string | null>(null);
+  const [renamingPageLabel, setRenamingPageLabel] = useState<string>('');
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    const saved = localStorage.getItem('kurupira-proposal-sidebar-w');
+    return saved ? Math.max(200, Math.min(420, Number(saved))) : 260;
+  });
+  const [deleteToast, setDeleteToast] = useState<string | null>(null);
+  const deleteToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Undo / Redo ────────────────────────────────────────────────────────────
   const [undoStack, setUndoStack] = useState<CanvasPageSnapshot[]>([]);
@@ -85,7 +113,8 @@ export const ProposalCanvasView: React.FC = () => {
   const updateGrid = (patch: Partial<GridConfig>) =>
     setGridConfig((prev) => ({ ...prev, ...patch }));
 
-  const canvasAreaRef = useRef<HTMLDivElement>(null);
+  const canvasAreaRef       = useRef<HTMLDivElement>(null);
+  const lastHistoryPushRef  = useRef<number>(0);
   const [fitScale, setFitScale]       = useState(0.6);
   const [manualScale, setManualScale] = useState<number | null>(null);
   const canvasScale = manualScale ?? fitScale;
@@ -100,6 +129,7 @@ export const ProposalCanvasView: React.FC = () => {
   const pages           = effectiveLayout.pages;
   const safePageIdx     = Math.min(canvasPageIdx, pages.length - 1);
   const currentPage     = pages[safePageIdx] ?? null;
+  const currentPageId   = currentPage?.id ?? '';
 
   // Selected element object (single element)
   const selectedElement = selectedIds.length === 1
@@ -138,6 +168,12 @@ export const ProposalCanvasView: React.FC = () => {
     setRedoStack([]);
   }, [effectiveLayout]);
 
+  const showDeleteToast = useCallback((count: number) => {
+    if (deleteToastTimerRef.current) clearTimeout(deleteToastTimerRef.current);
+    setDeleteToast(`${count} elemento${count !== 1 ? 's' : ''} excluído${count !== 1 ? 's' : ''} • Ctrl+Z para desfazer`);
+    deleteToastTimerRef.current = setTimeout(() => setDeleteToast(null), 3500);
+  }, []);
+
   const handleUndo = useCallback(() => {
     if (undoStack.length === 0) return;
     const prev = undoStack[undoStack.length - 1];
@@ -159,21 +195,112 @@ export const ProposalCanvasView: React.FC = () => {
     if (viewMode !== 'editor') return;
     const onKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable) return;
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); handleUndo(); return; }
       if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); handleRedo(); return; }
+
+      // Ctrl+A — select all non-page-block visible elements
+      if (e.key === 'a' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        const allIds = currentPage?.elements
+          .filter((el) => !el.type.startsWith('page-') && el.visible)
+          .map((el) => el.id) ?? [];
+        setSelectedIds(allIds);
+        return;
+      }
+
+      // Ctrl+D — duplicate selected element(s)
+      if (e.key === 'd' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        if (selectedIds.length === 0 || !currentPage) return;
+        pushToHistory();
+        const ts = Date.now();
+        const newIds: string[] = [];
+        selectedIds.forEach((id, idx) => {
+          const el = currentPage.elements.find((e) => e.id === id);
+          if (!el || el.locked) return;
+          const newEl = {
+            ...el,
+            id: `${el.id}-dup-${ts}-${idx}`,
+            x: Math.min(el.x + 16, A4_WIDTH - el.width),
+            y: Math.min(el.y + 16, A4_HEIGHT - el.height),
+            zIndex: el.zIndex + 1,
+            groupId: undefined,
+          };
+          addCanvasElement(currentPage.id, newEl);
+          newIds.push(newEl.id);
+        });
+        setSelectedIds(newIds);
+        return;
+      }
+
+      // Arrow keys — nudge selected elements
+      const NUDGE = e.shiftKey ? 10 : 1;
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && selectedIds.length > 0 && currentPage) {
+        e.preventDefault();
+        pushToHistory();
+        selectedIds.forEach((id) => {
+          const el = currentPage.elements.find((e) => e.id === id);
+          if (!el || el.locked) return;
+          const dx = e.key === 'ArrowLeft' ? -NUDGE : e.key === 'ArrowRight' ? NUDGE : 0;
+          const dy = e.key === 'ArrowUp'   ? -NUDGE : e.key === 'ArrowDown'  ? NUDGE : 0;
+          updateCanvasElement(currentPage.id, id, {
+            x: Math.max(0, Math.min(A4_WIDTH  - el.width,  el.x + dx)),
+            y: Math.max(0, Math.min(A4_HEIGHT - el.height, el.y + dy)),
+          });
+        });
+        return;
+      }
+
+      // Ctrl+C — copy selected elements to clipboard
+      if (e.key === 'c' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        if (!currentPage || selectedIds.length === 0) return;
+        const toCopy = selectedIds
+          .map(id => currentPage.elements.find(el => el.id === id))
+          .filter(Boolean) as CanvasElement[];
+        // Strip groupId so pasted elements aren't accidentally in a group
+        setClipboard(toCopy.map(el => ({ ...el, groupId: undefined })));
+        return;
+      }
+
+      // Ctrl+V — paste elements from clipboard
+      if (e.key === 'v' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        if (!currentPage || clipboard.length === 0) return;
+        pushToHistory();
+        const ts = Date.now();
+        const newIds: string[] = [];
+        clipboard.forEach((el, idx) => {
+          const newEl: CanvasElement = {
+            ...el,
+            id: `${el.id}-paste-${ts}-${idx}`,
+            x: Math.min(el.x + 16, A4_WIDTH - el.width),
+            y: Math.min(el.y + 16, A4_HEIGHT - el.height),
+            zIndex: el.zIndex + 1,
+          };
+          addCanvasElement(currentPage.id, newEl);
+          newIds.push(newEl.id);
+        });
+        setSelectedIds(newIds);
+        return;
+      }
+
       if (e.key === 'Escape') {
         setSelectedIds([]);
         return;
       }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIds.length > 0 && currentPage) {
+        pushToHistory();
+        const count = selectedIds.length;
         selectedIds.forEach((id) => removeCanvasElement(currentPage.id, id));
         setSelectedIds([]);
+        showDeleteToast(count);
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [viewMode, selectedIds, currentPage, removeCanvasElement, handleUndo, handleRedo]);
+  }, [viewMode, selectedIds, clipboard, currentPage, removeCanvasElement, handleUndo, handleRedo, pushToHistory, addCanvasElement, updateCanvasElement, showDeleteToast]);
 
   const isApproved = projectStatus === 'approved';
 
@@ -290,12 +417,41 @@ export const ProposalCanvasView: React.FC = () => {
     setSelectedIds([]);
   }, [pages, removeCanvasPage]);
 
+  const handleDuplicatePage = useCallback((pageId: string) => {
+    const layout = activeLayout;
+    if (!layout) return;
+    const src = layout.pages.find((p) => p.id === pageId);
+    if (!src) return;
+    const ts = Date.now();
+    const newPage = {
+      ...src,
+      id: `page-dup-${ts}`,
+      label: `${src.label} (cópia)`,
+      elements: src.elements.map((el, i) => ({ ...el, id: `${el.id}-dup-${ts}-${i}` })),
+    };
+    addCanvasPage(newPage);
+  }, [activeLayout, addCanvasPage]);
+
+  const handleRenamePage = useCallback((pageId: string, newLabel: string) => {
+    const layout = activeLayout;
+    if (!layout) return;
+    applyTemplate({
+      ...layout,
+      pages: layout.pages.map((p) => p.id === pageId ? { ...p, label: newLabel } : p),
+    });
+  }, [activeLayout, applyTemplate]);
+
   // ─── Element handlers ──────────────────────────────────────────────────────
 
   const handleUpdateElement = useCallback((elementId: string, updates: Partial<CanvasElement>) => {
     if (!currentPage) return;
+    const now = Date.now();
+    if (now - lastHistoryPushRef.current > 500) {
+      pushToHistory();
+      lastHistoryPushRef.current = now;
+    }
     updateCanvasElement(currentPage.id, elementId, updates);
-  }, [currentPage, updateCanvasElement]);
+  }, [currentPage, updateCanvasElement, pushToHistory]);
 
   const handleRemoveElement = useCallback((elementId: string) => {
     if (!currentPage) return;
@@ -379,6 +535,90 @@ export const ProposalCanvasView: React.FC = () => {
 
   const handleZoomFit = useCallback(() => setManualScale(null), []);
 
+  // CHANGE 3 — Ctrl+scroll zoom
+  const handleCanvasWheel = useCallback((e: React.WheelEvent) => {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    const direction = e.deltaY < 0 ? 'in' : 'out';
+    setManualScale((prev) => {
+      const current = prev ?? fitScale;
+      const idx = ZOOM_STEPS.findIndex((s) => s >= current);
+      const newIdx = direction === 'in'
+        ? Math.min(ZOOM_STEPS.length - 1, (idx < 0 ? ZOOM_STEPS.length - 1 : idx) + 1)
+        : Math.max(0, (idx < 0 ? 0 : idx) - 1);
+      return ZOOM_STEPS[newIdx] ?? current;
+    });
+  }, [fitScale]);
+
+  // Non-passive wheel listener for Ctrl+scroll — attached to window so zoom works regardless of cursor position
+  useEffect(() => {
+    if (viewMode !== 'editor') return;
+    const handler = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const direction = e.deltaY < 0 ? 'in' : 'out';
+      setManualScale((prev) => {
+        const current = prev ?? fitScale;
+        const idx = ZOOM_STEPS.findIndex((s) => s >= current);
+        const newIdx = direction === 'in'
+          ? Math.min(ZOOM_STEPS.length - 1, (idx < 0 ? ZOOM_STEPS.length - 1 : idx) + 1)
+          : Math.max(0, (idx < 0 ? 0 : idx) - 1);
+        return ZOOM_STEPS[newIdx] ?? current;
+      });
+    };
+    window.addEventListener('wheel', handler, { passive: false });
+    return () => window.removeEventListener('wheel', handler);
+  }, [viewMode, fitScale]);
+
+  // CHANGE 4 — Alignment handler
+  const handleAlign = useCallback((direction: 'left' | 'center-h' | 'right' | 'top' | 'center-v' | 'bottom' | 'distribute-h' | 'distribute-v') => {
+    if (!currentPage || selectedIds.length < 2) return;
+    pushToHistory();
+    const els = currentPage.elements.filter((e) => selectedIds.includes(e.id) && !e.locked);
+    if (els.length < 2) return;
+
+    const minX    = Math.min(...els.map((e) => e.x));
+    const maxX    = Math.max(...els.map((e) => e.x + e.width));
+    const minY    = Math.min(...els.map((e) => e.y));
+    const maxY    = Math.max(...els.map((e) => e.y + e.height));
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    if (direction === 'distribute-h') {
+      const sorted = [...els].sort((a, b) => a.x - b.x);
+      const totalW = sorted.reduce((s, e) => s + e.width, 0);
+      const gap = (maxX - minX - totalW) / (sorted.length - 1);
+      let cursor = minX;
+      sorted.forEach((el) => {
+        updateCanvasElement(currentPageId, el.id, { x: Math.round(cursor) });
+        cursor += el.width + gap;
+      });
+      return;
+    }
+    if (direction === 'distribute-v') {
+      const sorted = [...els].sort((a, b) => a.y - b.y);
+      const totalH = sorted.reduce((s, e) => s + e.height, 0);
+      const gap = (maxY - minY - totalH) / (sorted.length - 1);
+      let cursor = minY;
+      sorted.forEach((el) => {
+        updateCanvasElement(currentPageId, el.id, { y: Math.round(cursor) });
+        cursor += el.height + gap;
+      });
+      return;
+    }
+
+    els.forEach((el) => {
+      const updates: Partial<CanvasElement> = {};
+      if (direction === 'left')     updates.x = minX;
+      if (direction === 'right')    updates.x = maxX - el.width;
+      if (direction === 'center-h') updates.x = Math.round(centerX - el.width / 2);
+      if (direction === 'top')      updates.y = minY;
+      if (direction === 'bottom')   updates.y = maxY - el.height;
+      if (direction === 'center-v') updates.y = Math.round(centerY - el.height / 2);
+      updateCanvasElement(currentPageId, el.id, updates);
+    });
+  }, [currentPage, currentPageId, selectedIds, pushToHistory, updateCanvasElement]);
+
   // Detect if the current page is decomposed (no page-technical element)
   const isPageDecomposed = currentPage
     ? !currentPage.elements.some((e) => e.type === 'page-technical')
@@ -437,7 +677,7 @@ export const ProposalCanvasView: React.FC = () => {
           <div className="flex-1 flex overflow-hidden relative">
 
             {/* Left sidebar */}
-            <div className="w-[260px] shrink-0 flex flex-col overflow-hidden border-r border-slate-800 bg-slate-950">
+            <div style={{ width: sidebarWidth, minWidth: sidebarWidth }} className="shrink-0 flex flex-col overflow-hidden bg-slate-950">
               {selectedElement ? (
                 <>
                   {/* Back button */}
@@ -532,6 +772,22 @@ export const ProposalCanvasView: React.FC = () => {
                         onRemove={handleRemoveElement}
                       />
                   }
+
+                  {/* Page background panel — shown when nothing is selected */}
+                  {selectedIds.length === 0 && currentPage && (
+                    <div className="shrink-0 border-t border-slate-800 px-3 py-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-2">Página</span>
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs text-slate-400 flex-1">Cor de fundo</label>
+                        <input
+                          type="color"
+                          value={currentPage.background.color ?? '#ffffff'}
+                          onChange={(e) => updateCanvasPageBackground(currentPageId, { color: e.target.value })}
+                          className="w-8 h-8 rounded cursor-pointer border border-slate-700 bg-transparent"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
 
@@ -553,20 +809,70 @@ export const ProposalCanvasView: React.FC = () => {
                       )}
                       onClick={() => { setCanvasPageIdx(idx); setSelectedIds([]); }}
                     >
-                      <span className="truncate">{page.label}</span>
-                      {pages.length > 1 && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleRemovePage(idx); }}
-                          className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-500 hover:text-rose-400"
+                      {renamingPageId === page.id ? (
+                        <input
+                          autoFocus
+                          value={renamingPageLabel}
+                          placeholder="Nome da página"
+                          onChange={(e) => setRenamingPageLabel(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          onBlur={() => { handleRenamePage(page.id, renamingPageLabel); setRenamingPageId(null); }}
+                          onKeyDown={(e) => {
+                            e.stopPropagation();
+                            if (e.key === 'Enter') { handleRenamePage(page.id, renamingPageLabel); setRenamingPageId(null); }
+                            if (e.key === 'Escape') setRenamingPageId(null);
+                          }}
+                          className="flex-1 bg-slate-800 text-slate-200 text-xs px-1 py-0.5 rounded outline-none border border-indigo-500/50"
+                        />
+                      ) : (
+                        <span
+                          className="truncate flex-1"
+                          onDoubleClick={(e) => { e.stopPropagation(); setRenamingPageId(page.id); setRenamingPageLabel(page.label); }}
                         >
-                          <Trash2 size={10} />
-                        </button>
+                          {page.label}
+                        </span>
                       )}
+                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDuplicatePage(page.id); }}
+                          className="p-1 text-slate-500 hover:text-indigo-400"
+                          title="Duplicar página"
+                        >
+                          <Copy size={12} />
+                        </button>
+                        {pages.length > 1 && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleRemovePage(idx); }}
+                            className="p-1 text-slate-500 hover:text-rose-400"
+                            title="Remover página"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
+
+            {/* Sidebar resize handle */}
+            <div
+              className="w-[3px] shrink-0 cursor-col-resize bg-slate-800 hover:bg-indigo-500/50 active:bg-indigo-500/80 transition-colors"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                const startX = e.clientX;
+                const startW = sidebarWidth;
+                const ctrl = new AbortController();
+                const { signal } = ctrl;
+                window.addEventListener('mousemove', (ev: MouseEvent) => {
+                  const newW = Math.max(200, Math.min(420, startW + (ev.clientX - startX)));
+                  setSidebarWidth(newW);
+                  localStorage.setItem('kurupira-proposal-sidebar-w', String(newW));
+                }, { signal });
+                window.addEventListener('mouseup', () => ctrl.abort(), { signal, once: true });
+              }}
+            />
 
             {/* Canvas area */}
             <div ref={canvasAreaRef} className="flex-1 flex flex-col overflow-hidden bg-slate-900/80">
@@ -605,11 +911,29 @@ export const ProposalCanvasView: React.FC = () => {
                         Agrupar ({selectedIds.length})
                       </button>
                     )}
+                    {selectedIds.length >= 2 && (
+                      <>
+                        <div className="w-px h-5 bg-slate-700 mx-1" />
+                        <button onClick={() => handleAlign('left')}         title="Alinhar à esquerda"          className="p-1 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"><AlignStartVertical size={14} /></button>
+                        <button onClick={() => handleAlign('center-h')}    title="Centralizar horizontal"      className="p-1 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"><AlignCenterVertical size={14} /></button>
+                        <button onClick={() => handleAlign('right')}        title="Alinhar à direita"           className="p-1 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"><AlignEndVertical size={14} /></button>
+                        <div className="w-px h-4 bg-slate-800 mx-0.5" />
+                        <button onClick={() => handleAlign('top')}          title="Alinhar ao topo"             className="p-1 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"><AlignStartHorizontal size={14} /></button>
+                        <button onClick={() => handleAlign('center-v')}    title="Centralizar vertical"        className="p-1 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"><AlignCenterHorizontal size={14} /></button>
+                        <button onClick={() => handleAlign('bottom')}       title="Alinhar à base"              className="p-1 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"><AlignEndHorizontal size={14} /></button>
+                        <div className="w-px h-4 bg-slate-800 mx-0.5" />
+                        <button onClick={() => handleAlign('distribute-h')} title="Distribuir horizontalmente"  className="p-1 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"><AlignHorizontalDistributeCenter size={14} /></button>
+                        <button onClick={() => handleAlign('distribute-v')} title="Distribuir verticalmente"    className="p-1 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"><AlignVerticalDistributeCenter size={14} /></button>
+                      </>
+                    )}
                     <button
                       onClick={() => {
                         if (!currentPage) return;
+                        pushToHistory();
+                        const count = selectedIds.length;
                         selectedIds.forEach((id) => removeCanvasElement(currentPage.id, id));
                         setSelectedIds([]);
+                        showDeleteToast(count);
                       }}
                       title="Excluir selecionados (Delete)"
                       className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-rose-400 hover:bg-slate-800 transition-colors"
@@ -734,18 +1058,9 @@ export const ProposalCanvasView: React.FC = () => {
                       <ZoomOut size={12} />
                     </button>
 
-                    <button
-                      onClick={handleZoomFit}
-                      title={manualScale !== null ? 'Ajustar à tela (fit)' : 'Zoom automático (ativo)'}
-                      className={cn(
-                        'px-2 py-0.5 text-[10px] font-mono rounded transition-colors min-w-[44px] text-center',
-                        manualScale === null
-                          ? 'text-emerald-400 hover:bg-slate-700'
-                          : 'text-slate-300 hover:bg-slate-700'
-                      )}
-                    >
+                    <span className="px-2 py-0.5 text-[10px] font-mono min-w-[44px] text-center text-slate-300 tabular-nums select-none">
                       {Math.round(canvasScale * 100)}%
-                    </button>
+                    </span>
 
                     <button
                       onClick={handleZoomIn}
@@ -778,6 +1093,7 @@ export const ProposalCanvasView: React.FC = () => {
               <div
                 className="flex-1 overflow-auto flex items-start justify-center p-8 custom-scrollbar"
                 onClick={() => setSelectedIds([])}
+                onWheel={handleCanvasWheel}
               >
                 {currentPage && (
                   <div
@@ -796,6 +1112,24 @@ export const ProposalCanvasView: React.FC = () => {
                       onSelect={(ids) => setSelectedIds(ids)}
                       onUpdateElement={handleUpdateElement}
                       onMutationStart={pushToHistory}
+                      onDuplicateElement={(elementId) => {
+                        if (!currentPage) return;
+                        const el = currentPage.elements.find((e) => e.id === elementId);
+                        if (!el || el.locked) return;
+                        pushToHistory();
+                        const ts = Date.now();
+                        const newEl: CanvasElement = {
+                          ...el,
+                          id: `${el.id}-dup-${ts}`,
+                          x: Math.min(el.x + 16, A4_WIDTH - el.width),
+                          y: Math.min(el.y + 16, A4_HEIGHT - el.height),
+                          zIndex: el.zIndex + 1,
+                          groupId: undefined,
+                        };
+                        addCanvasElement(currentPage.id, newEl);
+                        setSelectedIds([newEl.id]);
+                      }}
+                      onRemoveElement={handleRemoveElement}
                     />
                   </div>
                 )}
@@ -803,12 +1137,33 @@ export const ProposalCanvasView: React.FC = () => {
             </div>
 
             {/* Drag overlay ghost */}
-            <DragOverlay>
-              {activeDragType && (
-                <div className="bg-blue-500/20 border-2 border-blue-400 border-dashed rounded text-blue-400 text-xs flex items-center justify-center px-3 py-2 pointer-events-none">
-                  {activeDragType}
-                </div>
-              )}
+            <DragOverlay dropAnimation={null}>
+              {activeDragType && (() => {
+                const meta = DRAG_GHOST_META[activeDragType] ?? { label: activeDragType, icon: '◻' };
+                return (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '6px 12px',
+                      background: 'rgba(99,102,241,0.95)',
+                      border: '1.5px solid rgba(129,140,248,0.8)',
+                      borderRadius: 6,
+                      boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+                      color: '#fff',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      pointerEvents: 'none',
+                      userSelect: 'none',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    <span style={{ fontSize: 16, lineHeight: 1 }}>{meta.icon}</span>
+                    <span>{meta.label}</span>
+                  </div>
+                );
+              })()}
             </DragOverlay>
           </div>
 
@@ -818,12 +1173,36 @@ export const ProposalCanvasView: React.FC = () => {
               onCancel={() => setShowSaveDialog(false)}
             />
           )}
+
+          {/* Delete toast */}
+          {deleteToast && (
+            <div
+              style={{
+                position: 'absolute',
+                bottom: 24,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                background: '#1e293b',
+                border: '1px solid #334155',
+                color: '#cbd5e1',
+                fontSize: 12,
+                padding: '8px 16px',
+                borderRadius: 8,
+                boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+                zIndex: 9999,
+                whiteSpace: 'nowrap',
+                pointerEvents: 'none',
+              }}
+            >
+              {deleteToast}
+            </div>
+          )}
         </DndContext>
       )}
 
       {/* ── PREVIEW MODE ─────────────────────────────────────────────────── */}
       {viewMode === 'preview' && (
-        <div className="flex-1 bg-[#05080e] flex flex-col overflow-hidden">
+        <div className="flex-1 bg-slate-950 flex flex-col overflow-hidden">
           <ProposalDocumentPreview />
         </div>
       )}

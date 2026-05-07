@@ -14,11 +14,14 @@ interface Props {
   onSelect: (ids: string[]) => void;
   onUpdateElement: (elementId: string, updates: Partial<CanvasElement>) => void;
   onMutationStart?: () => void;
+  onDuplicateElement?: (elementId: string) => void;
+  onRemoveElement?: (elementId: string) => void;
 }
 
 export function CanvasPage({
   page, scale, selectedIds, gridConfig,
   onSelect, onUpdateElement, onMutationStart,
+  onDuplicateElement, onRemoveElement,
 }: Props) {
   const pageRef = useRef<HTMLDivElement>(null);
   const [activeGuides, setActiveGuides] = useState<GuideLines>({ x: [], y: [] });
@@ -35,8 +38,15 @@ export function CanvasPage({
     data: { pageId: page.id },
   });
 
-  const handleElementSelect = useCallback((element: CanvasElement) => {
-    if (element.groupId) {
+  const handleElementSelect = useCallback((element: CanvasElement, shiftKey: boolean) => {
+    if (shiftKey) {
+      const alreadySelected = selectedIds.includes(element.id);
+      if (alreadySelected) {
+        onSelect(selectedIds.filter((id) => id !== element.id));
+      } else {
+        onSelect([...selectedIds, element.id]);
+      }
+    } else if (element.groupId) {
       const groupMembers = page.elements
         .filter((e) => e.groupId === element.groupId)
         .map((e) => e.id);
@@ -44,7 +54,7 @@ export function CanvasPage({
     } else {
       onSelect([element.id]);
     }
-  }, [page.elements, onSelect]);
+  }, [page.elements, onSelect, selectedIds]);
 
   const handleGroupDragStart = useCallback((selectedIds: string[]) => {
     groupDragStartRef.current = new Map();
@@ -106,7 +116,7 @@ export function CanvasPage({
         flexShrink: 0,
         outline: isOver ? '2px dashed #6366f1' : 'none',
         outlineOffset: 2,
-        overflow: 'hidden',
+        overflow: 'visible',
         background,
       }}
       onMouseDown={(e) => {
@@ -182,16 +192,65 @@ export function CanvasPage({
             snapEnabled={gridConfig.snap}
             guidesEnabled={gridConfig.guides}
             otherElements={others}
-            onSelect={() => handleElementSelect(element)}
+            onSelect={(shiftKey) => handleElementSelect(element, shiftKey ?? false)}
             onUpdate={(updates) => onUpdateElement(element.id, updates)}
             onGuideChange={setActiveGuides}
             onGroupDragStart={() => handleGroupDragStart(selectedIds)}
             onGroupDragDelta={(dx, dy) => handleGroupDragDelta(dx, dy, selectedIds)}
             onGroupDragEnd={handleGroupDragEnd}
             onMutationStart={onMutationStart}
+            onDuplicate={() => onDuplicateElement?.(element.id)}
+            onRemove={() => onRemoveElement?.(element.id)}
           />
         );
       })}
+
+      {/* Empty state — visível quando não há elementos livres */}
+      {nonPageElements.length === 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 10,
+            pointerEvents: 'none',
+            zIndex: 1,
+          }}
+        >
+          <div style={{ fontSize: 40, opacity: 0.12, color: '#6366f1', lineHeight: 1 }}>+</div>
+          <p style={{ fontSize: 13, color: '#475569', fontWeight: 500, margin: 0 }}>
+            Arraste elementos da paleta para começar
+          </p>
+        </div>
+      )}
+
+      {/* Unified selection bounding box (multi-select) */}
+      {selectedIds.length >= 2 && (() => {
+        const selected = page.elements.filter(el => selectedIds.includes(el.id));
+        if (selected.length === 0) return null;
+        const minX = Math.min(...selected.map(e => e.x));
+        const minY = Math.min(...selected.map(e => e.y));
+        const maxX = Math.max(...selected.map(e => e.x + e.width));
+        const maxY = Math.max(...selected.map(e => e.y + e.height));
+        return (
+          <div
+            style={{
+              position: 'absolute',
+              left: minX - 2,
+              top: minY - 2,
+              width: maxX - minX + 4,
+              height: maxY - minY + 4,
+              border: '1.5px dashed rgba(99,102,241,0.6)',
+              borderRadius: 2,
+              pointerEvents: 'none',
+              zIndex: 997,
+            }}
+          />
+        );
+      })()}
 
       {/* Smart guides — sobrepostas a tudo */}
       {gridConfig.guides && <SmartGuides guides={activeGuides} />}

@@ -3,6 +3,7 @@ import { useAuthStore } from '@/stores/authStore';
 import AdminLayout from '@/components/layout/AdminLayout';
 import LoginPage from '@/pages/LoginPage';
 import DashboardPage from '@/pages/DashboardPage';
+import AccessDeniedPage from '@/pages/AccessDeniedPage';
 
 import UsersPage from '@/pages/UsersPage';
 import CatalogPage from '@/pages/CatalogPage';
@@ -25,6 +26,7 @@ export default function App() {
     <Routes>
       {/* Public */}
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/access-denied" element={<AccessDeniedPage />} />
 
       {/* Protected */}
       <Route

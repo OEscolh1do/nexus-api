@@ -179,6 +179,27 @@ Variáveis de ambiente prefixadas com `VITE_` são injetadas estaticamente no c�
 #### Regra de Ouro
 > "Se você alterou uma URL de API ou chave de serviço no frontend e nada mudou, você esqueceu de refazer o build. Variáveis Vite são estáticas após o build."
 
+### 3.3. Escape de Cifrão em Docker Compose ($$ vs $)
+**Data:** 07/05/2026
+**Módulo:** Infraestrutura / Docker Compose
+
+#### O Problema
+No Docker Compose, o caractere `$` é reservado para interpolação de variáveis do ambiente host ou do arquivo `.env`. Para passar um cifrão literal para dentro do container (ex: em um script shell), usa-se o escape `$$`. 
+**O Erro:** Se você usar `$$` em uma string de conexão (ex: `DATABASE_URL: "mysql://$${DB_USER}..."`), o Docker injetará a string literal `$DB_USER` no container em vez do valor da variável. Bibliotecas como o Prisma não expandem essas variáveis internamente, resultando em erros de "Authentication failed for user ${DB_USER}".
+
+#### A Solução (Padrão Adotado)
+Utilize apenas um único `$` para permitir que o Docker Compose realize a interpolação **antes** de criar o container:
+```yaml
+environment:
+  DATABASE_URL: "mysql://${DB_USER}:${DB_PASS}@host:3306/db"
+```
+
+#### Regra de Ouro
+> "No `docker-compose.yml`, use `$` (único) para injetar valores do `.env`. Use `$$` (duplo) apenas se precisar que o caractere cifrão literal chegue ao processo dentro do container. Se o Prisma reclamar de um usuário que parece o nome de uma variável, você errou o escape."
+
+#### Referência
+- `docker-compose.production.yml`
+
 ### 3.2. Gestão de Permissões em Volumes Docker (Erro EACCES)
 **Data:** 06/05/2026
 **Módulo:** Infraestrutura / Deploy VPS
@@ -306,6 +327,29 @@ VALUES ('admin-user-001', 'admin_neonorte', 'placeholder', 'Admin Neonorte',
 
 #### Regra de Ouro
 > "Após qualquer `force-reset` em produção, o primeiro passo é recriar os registros de fundação (Tenant Master → Role PLATFORM → User Admin) antes de tentar acessar o painel. O campo crítico é `authProviderId`, não `email` ou `username`."
+
+### 8.3. Baseline de Migrações em Bancos Populados (Erro P3005)
+**Data:** 07/05/2026
+**Módulo:** Prisma / Banco de Dados
+
+#### O Problema
+Ao tentar rodar `prisma migrate deploy` em um banco de produção que já possui tabelas (ex: inicializado por um dump SQL ou `init.sql`) mas não possui a tabela de histórico do Prisma (`_prisma_migrations`), o comando falha com o erro `P3005: The database schema is not empty`. O Prisma bloqueia a operação para evitar perda de dados.
+
+#### A Solução (Padrão Adotado)
+Utilizar o comando `resolve --applied` para "ensinar" ao Prisma em que ponto o banco já está:
+
+1. **Identificar Migrações Antigas:** Liste as migrações no projeto e identifique quais já estão refletidas na estrutura atual do banco.
+2. **Aplicar Baseline:** Para cada migração antiga, execute:
+   ```bash
+   npx prisma migrate resolve --applied <NOME_DA_MIGRACAO>
+   ```
+3. **Executar Deploy:** Após o resolve, o `migrate deploy` funcionará para as migrações que realmente são novas.
+
+#### Regra de Ouro
+> "Se o banco de produção já tem tabelas mas o Prisma não sabe disso, não use `db push` (que pode ser destrutivo). Use `migrate resolve --applied` sequencialmente para criar o baseline de histórico e permitir que o deploy de migrações futuras seja seguro."
+
+#### Referência
+- `sumauma/backend/prisma/migrations`
 
 ---
 

@@ -30,26 +30,34 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}));
-    if (response.status === 401 || response.status === 403) {
-      const hadToken = !!getAuthToken();
-      const isManualLogoutInProgress = sessionStorage.getItem('just_logged_out') === 'true';
-      
-      console.warn('[NexusClient] 401/403 recebido do backend. Limpando tokens.');
-      sessionStorage.removeItem('kurupira_token');
-      localStorage.removeItem('token');
-      
-      // Se o usuário está clicando em sair, não interrompa o logtoSignOut
-      if (!isManualLogoutInProgress) {
-        // Só exibe alerta se o usuário TENTOU usar um token e ele foi rejeitado
-        if (hadToken) {
-          alert(`Erro de Sessão: ${errorBody.error || 'Inválida ou expirada'}`);
+      if (response.status === 401 || response.status === 403) {
+        const hadToken = !!getAuthToken();
+        const isManualLogoutInProgress = sessionStorage.getItem('just_logged_out') === 'true';
+        const isProvisioningError = errorBody.error?.includes('provisionado');
+        
+        console.warn('[NexusClient] 401/403 recebido do backend. Limpando tokens.');
+        sessionStorage.removeItem('kurupira_token');
+        localStorage.removeItem('token');
+        
+        // Se o usuário está clicando em sair, não interrompa o logtoSignOut
+        if (!isManualLogoutInProgress) {
+          // Se for erro de provisionamento, mandamos para uma página de erro dedicada
+          // para evitar o loop infinito de login automático do Logto
+          if (isProvisioningError) {
+            window.location.href = '/access-denied';
+            return;
+          }
+
+          // Só exibe alerta se o usuário TENTOU usar um token e ele foi rejeitado
+          if (hadToken) {
+            alert(`Erro de Sessão: ${errorBody.error || 'Inválida ou expirada'}`);
+          }
+          // Sinaliza para o LoginPage não redirecionar de volta no mesmo loop
+          sessionStorage.setItem('just_logged_out', 'true');
+          window.location.href = '/login';
         }
-        // Sinaliza para o LoginPage não redirecionar de volta no mesmo loop
-        sessionStorage.setItem('just_logged_out', 'true');
-        window.location.href = '/login';
       }
-    }
-    throw new Error(errorBody.error || `API Error: ${response.status}`);
+      throw new Error(errorBody.error || `API Error: ${response.status}`);
   }
 
   const json = await response.json();

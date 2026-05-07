@@ -69,9 +69,33 @@ docker logs neonorte_kurupira 2>&1 | grep -i "mysql\|ECONNREFUSED\|connect"
 # 3. Erro de porta já em uso
 docker logs neonorte_kurupira 2>&1 | grep -i "EADDRINUSE\|already in use"
 
+# 4. Erro de interpolação de variável (Cifrão duplo)
+# Se o log mostrar literalmente "${VARIAVEL}", verifique se há "$$" no docker-compose.yml
+docker logs neonorte_kurupira 2>&1 | grep -F "${"
+
 # Se for ordem de inicialização (MySQL não estava pronto):
 cd /srv/ywara
 docker compose -f docker-compose.production.yml restart
+```
+
+---
+
+### Falha de Migração Prisma (P3005 / P3009)
+
+O backend crasha ou retorna erro de coluna inexistente logo após um deploy.
+
+```bash
+# 1. Tentar rodar o deploy manual
+docker exec -it neonorte_admin npx prisma migrate deploy
+
+# 2. Se falhar com P3005 (Schema not empty), fazer baseline:
+# Listar migrações
+ls sumauma/backend/prisma/migrations
+# Marcar como aplicadas as que já existem no banco
+docker exec -it neonorte_admin npx prisma migrate resolve --applied <nome_da_migracao>
+
+# 3. Se falhar com erro de coluna inexistente (email, etc):
+# Significa que a migração não rodou. Execute o passo 1.
 ```
 
 ---
@@ -155,6 +179,25 @@ docker exec -it neonorte_db mysql -u root -p -e "SHOW PROCESSLIST;"
 
 # Se o MySQL não inicializar (volume corrompido — CUIDADO):
 docker logs neonorte_db 2>&1 | grep -i "error\|crash\|innodb"
+```
+
+---
+
+### Falha de Integração Logto (M2M / SSO)
+
+Erros 401, 403 ou 502 em rotas que dependem do Logto (ex: listagem de usuários, criação de tenant).
+
+```bash
+# 1. Verificar logs do backend em busca de erros M2M
+docker logs neonorte_admin --tail 50 | grep -i "logto\|m2m\|token\|unauthorized"
+
+# 2. Erros comuns:
+# - "user.email_already_in_use": Tentativa de criar usuário com email que já existe no Logto.
+# - "invalid_audience" ou "invalid_token": Divergência em LOGTO_M2M_RESOURCE no .env.
+# - "Unauthorized": LOGTO_M2M_CLIENT_SECRET incorreto ou app M2M sem permissão no Console.
+
+# 3. Validar variáveis de ambiente no container
+docker exec neonorte_admin env | grep LOGTO
 ```
 
 ---

@@ -92,7 +92,15 @@ api.interceptors.response.use(
     }
 
     if (error.response?.status === 403) {
-      console.warn(`[API] 403 em ${url} — permissão insuficiente`);
+      const serverMsg = error.response.data?.error || '';
+      console.warn(`[API] 403 em ${url} — ${serverMsg}`);
+      
+      // Se for erro de acesso restrito (usuário logado no Logto mas sem role de Admin no DB)
+      if (serverMsg.includes('operadores') || serverMsg.includes('provisionado')) {
+        window.location.href = '/access-denied';
+        return Promise.reject(error);
+      }
+
       return Promise.reject(new Error('Você não tem permissão para realizar esta ação.'));
     }
 
