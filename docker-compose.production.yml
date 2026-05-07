@@ -37,8 +37,8 @@ services:
     ports:
       - "127.0.0.1:3002:3002"
     environment:
-      DATABASE_URL: "mysql://$${DB_KURUPIRA_USER}:$${DB_KURUPIRA_PASSWORD}@nexus-db:3306/db_kurupira"
-      DATABASE_URL_SUMAUMA_RO: "mysql://$${DB_ADMIN_USER}:$${DB_ADMIN_PASSWORD}@nexus-db:3306/db_sumauma"
+      DATABASE_URL: "mysql://${DB_KURUPIRA_USER}:${DB_KURUPIRA_PASSWORD}@nexus-db:3306/db_kurupira"
+      DATABASE_URL_SUMAUMA_RO: "mysql://${DB_ADMIN_USER}:${DB_ADMIN_PASSWORD}@nexus-db:3306/db_sumauma"
       JWT_SECRET: "${JWT_SECRET}"
       M2M_SERVICE_TOKEN: "${M2M_SERVICE_TOKEN}"
       PORT: 3002
@@ -66,8 +66,9 @@ services:
     ports:
       - "127.0.0.1:3003:3003"
     environment:
-      DATABASE_URL: "mysql://$${DB_SUMAUMA_USER}:$${DB_SUMAUMA_PASSWORD}@nexus-db:3306/db_sumauma"
-      DATABASE_URL_KURUPIRA_RO: "mysql://$${DB_ADMIN_USER}:$${DB_ADMIN_PASSWORD}@nexus-db:3306/db_kurupira"
+      DATABASE_URL: "mysql://${DB_SUMAUMA_USER}:${DB_SUMAUMA_PASSWORD}@nexus-db:3306/db_sumauma"
+      DATABASE_URL_KURUPIRA_RO: "mysql://${DB_ADMIN_USER}:${DB_ADMIN_PASSWORD}@nexus-db:3306/db_kurupira"
+      KURUPIRA_INTERNAL_URL: "${KURUPIRA_INTERNAL_URL}"
       JWT_SECRET: "${JWT_SECRET}"
       M2M_SERVICE_TOKEN: "${M2M_SERVICE_TOKEN}"
       ADMIN_FRONTEND_URL: "https://admin.neonorte-ywara.tech"
