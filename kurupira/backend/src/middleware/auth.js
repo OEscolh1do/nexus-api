@@ -11,13 +11,16 @@ async function fetchJwksKeys() {
   const uri = process.env.LOGTO_JWKS_URI;
   if (!uri) return null;
   try {
+    console.log(`[Auth] Buscando JWKS em: ${uri}...`);
     const res = await fetch(uri, { signal: AbortSignal.timeout(10000) });
+    console.log(`[Auth] Resposta JWKS status: ${res.status}`);
     if (!res.ok) {
       const text = await res.text();
       logger.error(`[Auth] Erro HTTP ao buscar JWKS (${res.status}): ${text}`);
       return null;
     }
     const { keys } = await res.json();
+    console.log(`[Auth] JWKS obtido com ${keys?.length || 0} chaves.`);
     return keys || null;
   } catch (err) {
     logger.error(`[Auth] Falha de rede/timeout ao buscar JWKS em ${uri}:`, { error: err.message });
@@ -56,16 +59,24 @@ async function getPublicKeyForKid(kid) {
 // Tenta verificar como RS256 (Logto) e, se não houver JWKS configurado,
 // cai para HS256 (JWT_SECRET local — útil em dev sem Logto).
 async function verifyToken(token) {
+  console.log('[Auth] Iniciando verifyToken...');
   const header = jwt.decode(token, { complete: true })?.header;
+  console.log(`[Auth] Token kid: ${header?.kid}, alg: ${header?.alg}`);
 
   // Caminho Logto (JWKS: RS256, ES384, etc)
   if (header?.kid) {
+    console.log('[Auth] Buscando chave pública para o kid...');
     const publicKey = await getPublicKeyForKid(header.kid);
+    console.log('[Auth] Chave pública obtida?', !!publicKey);
     if (!publicKey) throw new Error('JWKS key não encontrada para kid=' + header.kid);
-    return jwt.verify(token, publicKey, { 
+    
+    console.log('[Auth] Executando jwt.verify...');
+    const result = jwt.verify(token, publicKey, { 
       algorithms: ['RS256', 'ES384', 'ES256'],
       clockTolerance: 60 
     });
+    console.log('[Auth] jwt.verify concluído com sucesso.');
+    return result;
   }
 
   throw new Error(`Método de verificação inválido para o token (alg: ${header?.alg}). Apenas tokens do provedor de identidade (Logto) são permitidos em produção.`);
