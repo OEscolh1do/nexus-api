@@ -84,23 +84,36 @@ docker compose -f docker-compose.production.yml restart
 
 ---
 
-### Falha de Migração Prisma (P3005 / P3009)
+### Falha de Migração Prisma (P3005 / P3009 / P2022)
 
 O backend crasha ou retorna erro de coluna inexistente logo após um deploy.
 
 ```bash
 # 1. Tentar rodar o deploy manual
-docker exec -it neonorte_admin npx prisma migrate deploy
+docker exec -it neonorte_kurupira npx prisma migrate deploy
 
-# 2. Se falhar com P3005 (Schema not empty), fazer baseline:
-# Listar migrações
-ls sumauma/backend/prisma/migrations
-# Marcar como aplicadas as que já existem no banco
-docker exec -it neonorte_admin npx prisma migrate resolve --applied <nome_da_migracao>
+# 2. Se falhar com P3005 (Schema not empty) e você estiver em produção:
+# Sincronize o banco diretamente com o schema (CUIDADO: não renomeie tabelas)
+docker exec -it neonorte_kurupira npx prisma db push
 
-# 3. Se falhar com erro de coluna inexistente (email, etc):
-# Significa que a migração não rodou. Execute o passo 1.
+# 3. Se o frontend der 500 e o log mostrar P2022 (Column does not exist):
+# Significa que o código é mais novo que o banco. Execute o passo 2.
+
+# 4. Se falhar com P3005 e você quiser manter o histórico de migrações:
+# Marque como aplicadas as que já existem no banco
+docker exec -it neonorte_kurupira npx prisma migrate resolve --applied <nome_da_migracao>
 ```
+
+---
+
+### Fatal Crash Silencioso (Node morre sem Log)
+
+Se o Nginx retornar 502/504 e o log do Docker parar subitamente após um evento (ex: login):
+
+1. **Suspeite de Native Modules**: Criptografia (JWT) ou Prisma (Binary Engine).
+2. **Injete Trace Granular**: Adicione `console.log` em cada linha do middleware ou rota suspeita.
+3. **Identifique a Linha da Morte**: A última linha logada antes do silêncio é o ponto onde o processo do Node sofreu um crash fatal (Segfault).
+4. **Resolução**: Verifique versões de bibliotecas nativas ou compatibilidade de arquitetura do container.
 
 ---
 

@@ -28,9 +28,21 @@ Execute os 5 níveis em sequência. Cada nível audita uma camada. Documente os 
 
 ---
 
-### Level 0 — Banco de Dados (Schema como Verdade Absoluta)
+### Level -1 — Database Drift (Sincronia Código vs Banco Físico)
 
-**Ferramentas**: `view_file` nos arquivos `schema.prisma` de todos os serviços.
+**Ferramentas**: `vps-debug` (executar comandos Prisma na VPS).
+
+**O que verificar:**
+- O banco de dados físico em produção possui as mesmas colunas que o `schema.prisma` no código?
+- **Sintoma Crítico**: Erro `P2022` (Column does not exist) no backend, mesmo que o health check passe.
+- **Como validar**: Tentar rodar `npx prisma migrate deploy`. Se retornar `P3005`, o banco está em Drift.
+- **Resolução**: Usar `npx prisma db push` para sincronizar forçadamente em casos de emergência.
+
+**Saída esperada**: Confirmação de que o banco físico reflete o schema atual.
+
+---
+
+### Level 0 — Banco de Dados (Schema como Verdade Absoluta)
 
 **Ywara tem múltiplos schemas:**
 | Arquivo | Serviço | Acesso |

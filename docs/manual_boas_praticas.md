@@ -137,6 +137,29 @@ Edições manuais rápidas em schemas complexos de validação (ex: Zod) podem c
 #### Regra de Ouro
 > "Se a validação falhar com um erro interno da biblioteca (ex: '_zod' is undefined), o problema está na definição do seu schema (código), não no payload do usuário. Proteja seu middleware com try/catch para não derrubar o servidor por erro de sintaxe no schema."
 
+### 6.2. Diagnóstico de Drift em Banco de Dados de Produção (P2022 / P3005)
+**Data:** 07/05/2026
+**Módulo:** Prisma / Banco de Dados / Produção
+
+#### O Problema
+Em ambientes de produção, o backend pode retornar erro 500 (Internal Server Error) com a mensagem `Column X does not exist` (P2022) mesmo após um deploy de sucesso. Isso ocorre porque o código e o Prisma Client foram atualizados, mas o banco físico não acompanhou a mudança (Drift). Tentar rodar `prisma migrate deploy` pode falhar com `P3005` (Database not empty), criando um impasse onde o banco não aceita a migração mas o código exige a coluna nova.
+
+#### A Solução (Padrão Adotado)
+Adotamos o protocolo de **Recuperação por Sincronização Direta (`db push`)**:
+
+1. **Isolamento via Trace**: Injetar logs granulares (`console.log`) em cada linha do middleware de autenticação e da rota para confirmar se o crash ocorre exatamente na chamada ao banco.
+2. **Identificação de Fatal Crash**: Se os logs pararem subitamente sem disparar o `catch`, o processo do Node sofreu um crash fatal (Segfault) causado por dessincronia entre o binário do Prisma Client e a estrutura do banco.
+3. **Sincronização de Emergência**: Se o `migrate deploy` falhar por `P3005` em um banco que deveria estar sincronizado, use `npx prisma db push`. Isso sincroniza o banco com o schema ignorando o histórico de migrações (use apenas se não houver renomeação de colunas/tabelas).
+4. **Prevenção (Audit Level -1)**: Validar a presença física de colunas novas na VPS antes de liberar o acesso, especialmente em tabelas centrais como `TechnicalDesign`.
+
+#### Regra de Ouro
+> "Nunca assuma que um deploy de sucesso no container significa que o banco de dados físico foi atualizado. Se o log acusar 'Column does not exist', use `db push` para forçar a sincronia em produção quando o histórico de migrações estiver corrompido ou ausente."
+
+#### Referência
+- `kurupira/backend/src/middleware/auth.js` (Lógica de rastro)
+- Skill: `vps-debug`
+- Skill: `data-integrity-auditor`
+
 ---
 
 ## 7. Estabilidade de Renderização Geoespacial (Geospatial Stability)
