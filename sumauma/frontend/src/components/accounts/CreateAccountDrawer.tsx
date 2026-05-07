@@ -14,6 +14,7 @@ export default function CreateAccountDrawer({ onClose, onCreated }: CreateAccoun
   
   // Shared fields
   const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -34,10 +35,8 @@ export default function CreateAccountDrawer({ onClose, onCreated }: CreateAccoun
 
   // Auto-generate username and orgName
   useEffect(() => {
-    if (!fullName) return;
-    
     // Auto-generate username if empty
-    if (!username) {
+    if (!username && fullName) {
       const generated = fullName
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
@@ -48,7 +47,7 @@ export default function CreateAccountDrawer({ onClose, onCreated }: CreateAccoun
     }
     
     // Auto-generate orgName for INDIVIDUAL if empty
-    if (type === 'INDIVIDUAL' && !orgName) {
+    if (type === 'INDIVIDUAL' && fullName && !orgName) {
       setOrgName(`Workspace de ${fullName.trim()}`);
     }
   }, [fullName, username, orgName, type]);
@@ -59,12 +58,13 @@ export default function CreateAccountDrawer({ onClose, onCreated }: CreateAccoun
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!fullName || !username || !password) return;
+    if (!fullName || !email || !username || !password) return;
     if (type === 'CORPORATE' && (!tenantId || isTenantFull)) return;
     
     create({ 
       type,
       fullName, 
+      email,
       username, 
       password, 
       role: type === 'INDIVIDUAL' ? undefined : role, 
@@ -74,7 +74,7 @@ export default function CreateAccountDrawer({ onClose, onCreated }: CreateAccoun
     }).catch(() => {});
   }
 
-  const isValid = fullName.trim() && username.trim() && password.length >= 8 && 
+  const isValid = fullName.trim() && email.includes('@') && username.trim() && password.length >= 8 && 
     (type === 'INDIVIDUAL' ? orgName.trim().length > 0 : (tenantId && !isTenantFull));
 
   return (
@@ -153,6 +153,19 @@ export default function CreateAccountDrawer({ onClose, onCreated }: CreateAccoun
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="Ex: Carlos Souza"
                   autoFocus
+                  className="w-full rounded-sm border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:border-sky-500/50 focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
+                  E-mail Profissional <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="carlos.souza@empresa.com.br"
                   className="w-full rounded-sm border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:border-sky-500/50 focus:outline-none"
                 />
               </div>

@@ -142,8 +142,8 @@ export default function UserDrawer({ userId, onClose, onMutated }: UserDrawerPro
                   </div>
 
                   <div className="space-y-1">
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wider">E-mail de Login</p>
-                    <p className="text-xs text-slate-400 font-mono">{user.username}@neonorte.local</p>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider">E-mail Profissional</p>
+                    <p className="text-xs text-slate-400 font-mono">{user.email || '—'}</p>
                   </div>
                 </div>
               </section>

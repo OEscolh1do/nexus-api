@@ -55,8 +55,6 @@ export const ProposalDocumentPreview: React.FC = () => {
     });
   }, [modules, clientData, prCalculationMode, getAdditivePerformanceRatio, getPerformanceRatio, cosip, getSimulatedTotal, totalPowerKwp]);
 
-  const monthlyGenAvg = Math.round(stats.totalGen / 12);
-
   // Common data passed to page components
   const pageData = {
     clientData,
@@ -68,7 +66,6 @@ export const ProposalDocumentPreview: React.FC = () => {
     firstInverter,
     inverterIds,
     stats,
-    monthlyGenAvg,
     isExportingPdf,
   };
 

@@ -58,6 +58,7 @@ model OrgUnit {
 model User {
   id             String    @id @default(cuid())
   username       String    @unique
+  email          String?   @unique
   password       String
   fullName       String
   role           String    // PLATFORM_ADMIN, TENANT_ADMIN, ENGINEER, VIEWER (Legacy)

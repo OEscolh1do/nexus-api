@@ -37,7 +37,7 @@ async function assertNotMaster(id, res) {
 // ============================================
 router.post('/', async (req, res) => {
   try {
-    const { name, apiPlan, apiMonthlyQuota, ownerFullName, ownerUsername, ownerPassword, type } = req.body;
+    const { name, apiPlan, apiMonthlyQuota, ownerFullName, ownerUsername, ownerEmail, ownerPassword, type } = req.body;
     
     const tenantType = type === 'INDIVIDUAL' ? 'INDIVIDUAL' : 'CORPORATE';
     let finalName = name;
@@ -89,6 +89,7 @@ router.post('/', async (req, res) => {
         createdUser = await prismaSumauma.user.create({
           data: {
             username: ownerUsername.trim(),
+            email: ownerEmail?.trim().toLowerCase() || `${ownerUsername.trim()}@neonorte.local`,
             password: hashedPassword,
             fullName: ownerFullName.trim(),
             role: 'ADMIN', // Dono da org
@@ -102,7 +103,7 @@ router.post('/', async (req, res) => {
             username: ownerUsername.trim(),
             firstName: ownerFullName.split(' ')[0],
             lastName: ownerFullName.split(' ').slice(1).join(' ') || 'User',
-            email: `${ownerUsername.trim()}@neonorte.local`,
+            email: ownerEmail?.trim().toLowerCase() || `${ownerUsername.trim()}@neonorte.local`,
             password: ownerPassword,
             role: 'ADMIN',
             logtoOrgId,
@@ -215,10 +216,15 @@ router.get('/:id', async (req, res) => {
       include: {
         users: {
           select: { id: true, username: true, fullName: true, role: true, createdAt: true },
-          take: 50,
+          take: 10,
           orderBy: { createdAt: 'desc' },
         },
-        _count: { select: { users: true } },
+        auditLogs: {
+          take: 10,
+          orderBy: { timestamp: 'desc' },
+          include: { user: { select: { username: true } } }
+        },
+        _count: { select: { users: true, auditLogs: true } },
       },
     });
 

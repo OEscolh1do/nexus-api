@@ -11,6 +11,15 @@ export interface TenantUser {
   createdAt: string;
 }
 
+export interface AuditLog {
+  id: string;
+  action: string;
+  entity: string;
+  timestamp: string;
+  user?: { username: string };
+  details?: string;
+}
+
 export interface Tenant {
   id: string;
   name: string;
@@ -28,6 +37,7 @@ export interface Tenant {
 
 export interface TenantDetail extends Tenant {
   users: TenantUser[];
+  auditLogs: AuditLog[];
 }
 
 export interface TenantsListParams {
@@ -203,7 +213,7 @@ export function useCreateTenant(onSuccess?: (id: string, name: string) => void) 
   const [error, setError] = useState<string | null>(null);
 
   const mutate = useCallback(
-    (payload: { name: string; apiPlan?: string; apiMonthlyQuota?: number; type?: string; ownerFullName?: string; ownerUsername?: string; ownerPassword?: string }) => {
+    (payload: { name: string; apiPlan?: string; apiMonthlyQuota?: number; type?: string; ownerFullName?: string; ownerEmail?: string; ownerUsername?: string; ownerPassword?: string }) => {
       setLoading(true);
       setError(null);
       return api

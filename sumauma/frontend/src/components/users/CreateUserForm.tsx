@@ -19,6 +19,7 @@ interface CreateUserFormProps {
 
 export default function CreateUserForm({ onClose, onCreated, defaultTenantId }: CreateUserFormProps) {
   const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -29,6 +30,7 @@ export default function CreateUserForm({ onClose, onCreated, defaultTenantId }: 
   const { mutate: create, loading, error } = useCreateUser(() => {
     onCreated();
     setFullName('');
+    setEmail('');
     setUsername('');
     setPassword('');
     setTenantId(defaultTenantId || '');
@@ -53,11 +55,20 @@ export default function CreateUserForm({ onClose, onCreated, defaultTenantId }: 
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!fullName || !username || !password || !tenantId || isTenantFull) return;
-    create({ fullName, username, password, role, tenantId, jobTitle: jobTitle || undefined }).catch(() => {});
+    if (!fullName || !username || !password || !tenantId || !email || isTenantFull) return;
+    create({ 
+      type: 'CORPORATE',
+      fullName, 
+      email,
+      username, 
+      password, 
+      role, 
+      tenantId, 
+      jobTitle: jobTitle || undefined 
+    }).catch(() => {});
   }
 
-  const isValid = fullName.trim() && username.trim() && password.length >= 8 && tenantId && !isTenantFull;
+  const isValid = fullName.trim() && email.trim() && username.trim() && password.length >= 8 && tenantId && !isTenantFull;
 
   return (
     <form onSubmit={handleSubmit} className="flex h-full flex-col">
@@ -115,6 +126,21 @@ export default function CreateUserForm({ onClose, onCreated, defaultTenantId }: 
             onChange={(e) => setFullName(e.target.value)}
             placeholder="Ex: Carlos Souza"
             autoFocus
+            className="w-full rounded-sm border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:border-sky-500/50 focus:outline-none"
+          />
+        </div>
+
+        {/* E-mail */}
+        <div className="space-y-1.5">
+          <label className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
+            E-mail <span className="text-red-400">*</span>
+          </label>
+          <input
+            id="create-user-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="carlos@empresa.com"
             className="w-full rounded-sm border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:border-sky-500/50 focus:outline-none"
           />
         </div>

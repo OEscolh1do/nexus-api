@@ -2,7 +2,7 @@
 
 > **Última Atualização:** 2026-05-07
 > **Arquiteto:** Antigravity AI
-> **Versão do Sistema:** 1.8.1 (OIDC Logout Fix)
+> **Versão do Sistema:** 1.9.0 (Atomic Org Creation)
 
 ---
 
@@ -254,6 +254,15 @@ A exclusão de tenants e usuários era apenas lógica (soft delete) ou inexisten
 
 ---
 
+### Criação Atômica de Organizações (Atomic Org)
+
+**Data**: 2026-05-07 | **Status**: ✅ Concluído
+- **Desacoplamento**: A criação de empresas (`CORPORATE`) foi separada da criação de usuários. Agora, uma organização pode ser criada como uma entidade isolada no banco e no Logto.
+- **UX Simplificada**: Removida a redundância de tipos no modal de "Nova Organização". O fluxo de autônomos foi movido definitivamente para o módulo de "Usuários".
+- **Validação de Identidade**: Introduzido o campo obrigatório de **E-mail** em todos os fluxos de criação de usuários para garantir a paridade com o Logto e prevenir falhas de comunicação.
+
+---
+
 ## 🚀 INFRAESTRUTURA DE PRODUÇÃO (VPS)
 
 | Componente | Detalhe |
@@ -267,6 +276,12 @@ A exclusão de tenants e usuários era apenas lógica (soft delete) ou inexisten
 ---
 
 ## 🔄 CHANGELOG
+
+### v1.9.0 (2026-05-07) — Atomic Org Creation
+- ✅ **Atomic Refactor**: Desacoplamento total da criação de empresas da criação de usuários administradores.
+- ✅ **UX Unification**: Remoção de redundâncias no `CreateTenantForm` e redirecionamento do fluxo de autônomos para o módulo de usuários.
+- ✅ **Email Validation**: Implementação do campo e-mail em todos os fluxos de identidade (Paridade com Logto).
+- ✅ **Hook Type Safety**: Atualização do hook `useCreateTenant` para suportar campos opcionais de proprietário.
 
 ### v1.8.1 (2026-05-07) — OIDC Logout Fix
 - ✅ **Logout Normalization**: Remoção de trailing slash no `LOGTO_ENDPOINT` e definição explícita de `postLogoutRedirectUri` no `LogtoConfig` para evitar erro de "URI not registered".

@@ -157,7 +157,8 @@ function UserRow({
           <p className={`text-xs font-medium ${isBlocked ? 'text-slate-500 line-through' : 'text-slate-200'}`}>
             {user.fullName || user.username}
           </p>
-          <p className="text-[10px] text-slate-500">{user.username}</p>
+          <p className="text-[10px] text-slate-400 truncate max-w-[180px]">{user.email}</p>
+          <p className="text-[9px] text-slate-600 font-mono italic">@{user.username}</p>
         </div>
       </td>
 

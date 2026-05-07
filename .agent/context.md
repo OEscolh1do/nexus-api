@@ -2,7 +2,7 @@
 
 > **Última Atualização:** 2026-05-07
 > **Arquiteto:** Antigravity AI
-> **Versão do Ecossistema:** 5.3.1 (OIDC Normalization)
+> **Versão do Ecossistema:** 5.4.0 (Atomic Org Control)
 
 ---
 
@@ -105,6 +105,7 @@ Para garantir que os dados fluam sem perdas do Banco até a UI, seguimos 5 níve
 
 ## 🔄 CHANGELOG DO ECOSSISTEMA
 
+| v5.4.0 | 2026-05-07 | **Atomic Org Control**: Refatoração do fluxo de criação de empresas no Sumaúma para permitir criação atômica (sem usuários iniciais) e inclusão de validação de e-mail nos fluxos individuais. |
 | v5.3.2 | 2026-05-07 | **Arranjo Deferido**: Ocultação da aba "Arranjo" no cockpit Kurupira para simplificação da jornada técnica até a estabilização do motor 3D. |
 | v5.3.1 | 2026-05-07 | **OIDC Normalization**: Padronização global dos endpoints Logto e definições explícitas de Post-Logout Redirect URIs para eliminar falhas de redirecionamento no logout. |
 | v5.3.0 | 2026-05-07 | **Engineering Cockpit v6.0**: Refatoração do cockpit Kurupira para layout de coluna única, indicadores verticais laterais e erradicação do RightInspector lateral. |

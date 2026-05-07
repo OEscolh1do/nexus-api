@@ -21,6 +21,7 @@ export interface AuditLog {
 export interface User {
   id: string;
   username: string;
+  email: string | null;
   fullName: string | null;
   role: string;
   jobTitle: string | null;
@@ -218,6 +219,7 @@ export function useCreateUser(onSuccess?: () => void) {
     (payload: {
       type: 'INDIVIDUAL' | 'CORPORATE';
       username: string;
+      email: string;
       password: string;
       fullName: string;
       role?: string;

@@ -415,6 +415,33 @@ export default function TenantDrawer({ tenantId, onClose, onMutated }: TenantDra
                   </div>
                 </section>
               )}
+              
+              {/* Audit Logs */}
+              {tenant.auditLogs && tenant.auditLogs.length > 0 && (
+                <section className="space-y-2">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
+                    Histórico Recente (AuditLog)
+                  </p>
+                  <div className="rounded-sm border border-slate-800 divide-y divide-slate-800">
+                    {tenant.auditLogs.map((log) => (
+                      <div key={log.id} className="flex flex-col gap-1 px-3 py-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-slate-300">{log.action}</span>
+                          <span className="font-tabular text-[10px] text-slate-500">
+                            {new Date(log.timestamp).toLocaleString('pt-BR', {
+                              day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+                            })}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] text-slate-500">
+                          <span>Entidade: {log.entity}</span>
+                          {log.user && <span>Por: {log.user.username}</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
 
               {/* Metadata */}
               <section className="text-[11px] text-slate-600 space-y-0.5">

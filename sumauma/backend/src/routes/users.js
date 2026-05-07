@@ -24,10 +24,10 @@ function isSelf(req, targetUserId) {
 // ============================================
 router.post('/', async (req, res) => {
   try {
-    const { username, password, fullName, role, roleId, tenantId, jobTitle, orgUnitId, type, orgName } = req.body;
+    const { username, email, password, fullName, role, roleId, tenantId, jobTitle, orgUnitId, type, orgName } = req.body;
 
-    if (!username || !password || !fullName) {
-      return res.status(400).json({ error: 'Campos obrigatórios: username, senha, nome completo' });
+    if (!username || !email || !password || !fullName) {
+      return res.status(400).json({ error: 'Campos obrigatórios: username, email, senha, nome completo' });
     }
     if (password.length < 8) {
       return res.status(400).json({ error: 'A senha deve ter no mínimo 8 caracteres' });
@@ -107,6 +107,7 @@ router.post('/', async (req, res) => {
     const user = await prismaSumauma.user.create({
       data: {
         username: username.trim(),
+        email: email.trim().toLowerCase(),
         password: hashedPassword,
         fullName: fullName.trim(),
         role: role || (type === 'INDIVIDUAL' ? 'ADMIN' : 'ENGINEER'), // Autônomo já nasce como ADMIN
@@ -124,7 +125,7 @@ router.post('/', async (req, res) => {
         username: username.trim(),
         firstName: fullName.split(' ')[0],
         lastName: fullName.split(' ').slice(1).join(' ') || 'User',
-        email: `${username.trim()}@neonorte.local`,
+        email: email.trim().toLowerCase(),
         password,
         role: role || (type === 'INDIVIDUAL' ? 'ADMIN' : 'ENGINEER'),
         logtoOrgId: tenantInfo?.ssoDomain,
@@ -180,6 +181,7 @@ router.get('/', async (req, res) => {
         select: {
           id: true,
           username: true,
+          email: true,
           fullName: true,
           role: true,
           roleRef: { select: { id: true, name: true, level: true } },
@@ -221,6 +223,7 @@ router.get('/:id', async (req, res) => {
       select: {
         id: true,
         username: true,
+        email: true,
         fullName: true,
         role: true,
         roleRef: { select: { id: true, name: true, level: true, permissions: { select: { permission: { select: { slug: true } } } } } },

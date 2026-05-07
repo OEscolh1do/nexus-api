@@ -11,10 +11,9 @@ import {
 } from '@dnd-kit/core';
 import { useUIStore } from '@/core/state/uiStore';
 import { useSolarStore } from '@/core/state/solarStore';
-import { Settings2, FileText, LayoutTemplate, Pencil, Save, Layers, ChevronLeft, ChevronRight, Plus, Trash2, Grid3x3, Magnet, Target, PanelLeft, LayoutList, RotateCcw, ZoomIn, ZoomOut, Maximize2, Undo2, Redo2 } from 'lucide-react';
+import { FileText, LayoutTemplate, Pencil, Save, Layers, ChevronLeft, ChevronRight, Plus, Trash2, Grid3x3, Magnet, Target, PanelLeft, LayoutList, RotateCcw, ZoomIn, ZoomOut, Maximize2, Undo2, Redo2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-import { ProposalEditPanel } from './proposal/ProposalEditPanel';
 import { ProposalDocumentPreview } from './proposal/ProposalDocumentPreview';
 import { ProposalBlockedScreen } from './proposal/ProposalBlockedScreen';
 import { ProposalTemplateGallery } from './proposal/ProposalTemplateGallery';
@@ -72,7 +71,6 @@ export const ProposalCanvasView: React.FC = () => {
   const applyTemplate       = useSolarStore((s) => s.applyTemplate);
 
   const [viewMode, setViewMode]             = useState<ViewMode>('preview');
-  const [mobileMode, setMobileMode]         = useState<'editor' | 'document'>('document');
   const [canvasPageIdx, setCanvasPageIdx]   = useState(0);
   const [selectedIds, setSelectedIds]       = useState<string[]>([]);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
@@ -825,38 +823,8 @@ export const ProposalCanvasView: React.FC = () => {
 
       {/* ── PREVIEW MODE ─────────────────────────────────────────────────── */}
       {viewMode === 'preview' && (
-        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden pb-16 lg:pb-0">
-          <div className={cn(
-            'w-full lg:w-[40%] xl:w-[35%] 2xl:w-[30%] min-w-[380px] max-w-[700px] shrink-0 border-r border-slate-800 bg-[#0a0f1a] flex-col overflow-hidden',
-            mobileMode === 'editor' ? 'flex h-full' : 'hidden lg:flex lg:h-full'
-          )}>
-            <ProposalEditPanel />
-          </div>
-          <div className={cn(
-            'flex-1 bg-[#05080e] flex flex-col overflow-hidden',
-            mobileMode === 'document' ? 'flex' : 'hidden lg:flex'
-          )}>
-            <ProposalDocumentPreview />
-          </div>
-
-          {/* Mobile nav (preview mode only) */}
-          <div className="lg:hidden absolute bottom-0 left-0 right-0 h-16 bg-slate-950/90 backdrop-blur-md border-t border-slate-800 flex items-center justify-center gap-2 px-4 z-50">
-            <button
-              onClick={() => setMobileMode('editor')}
-              className={cn('flex-1 flex flex-col items-center justify-center gap-1 h-full transition-colors', mobileMode === 'editor' ? 'text-indigo-400' : 'text-slate-500')}
-            >
-              <Settings2 size={18} />
-              <span className="text-[10px] font-black uppercase tracking-widest">Editor</span>
-            </button>
-            <div className="w-px h-8 bg-slate-800" />
-            <button
-              onClick={() => setMobileMode('document')}
-              className={cn('flex-1 flex flex-col items-center justify-center gap-1 h-full transition-colors', mobileMode === 'document' ? 'text-emerald-400' : 'text-slate-500')}
-            >
-              <FileText size={18} />
-              <span className="text-[10px] font-black uppercase tracking-widest">Documento</span>
-            </button>
-          </div>
+        <div className="flex-1 bg-[#05080e] flex flex-col overflow-hidden">
+          <ProposalDocumentPreview />
         </div>
       )}
     </div>
