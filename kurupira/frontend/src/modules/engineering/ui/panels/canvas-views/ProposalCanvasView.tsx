@@ -11,7 +11,7 @@ import {
 } from '@dnd-kit/core';
 import { useUIStore } from '@/core/state/uiStore';
 import { useSolarStore } from '@/core/state/solarStore';
-import { Settings2, FileText, LayoutTemplate, Pencil, Save, Layers, ChevronLeft, ChevronRight, Plus, Trash2, Grid3x3, Magnet, Target, PanelLeft, LayoutList, RotateCcw } from 'lucide-react';
+import { Settings2, FileText, LayoutTemplate, Pencil, Save, Layers, ChevronLeft, ChevronRight, Plus, Trash2, Grid3x3, Magnet, Target, PanelLeft, LayoutList, RotateCcw, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 import { ProposalEditPanel } from './proposal/ProposalEditPanel';
@@ -28,6 +28,8 @@ import type { CanvasElement, CanvasPage as CanvasPageType, GridConfig } from './
 import { A4_WIDTH, A4_HEIGHT, DEFAULT_ELEMENT_PROPS, DEFAULT_GRID_CONFIG } from './proposal/engine/types';
 
 type ViewMode = 'templates' | 'editor' | 'preview';
+
+const ZOOM_STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1.0, 1.1, 1.25, 1.5, 2.0];
 
 function SaveTemplateDialog({ onSave, onCancel }: { onSave: (name: string) => void; onCancel: () => void }) {
   const [name, setName] = useState('Meu Template');
@@ -80,7 +82,9 @@ export const ProposalCanvasView: React.FC = () => {
     setGridConfig((prev) => ({ ...prev, ...patch }));
 
   const canvasAreaRef = useRef<HTMLDivElement>(null);
-  const [canvasScale, setCanvasScale] = useState(0.6);
+  const [fitScale, setFitScale]       = useState(0.6);
+  const [manualScale, setManualScale] = useState<number | null>(null);
+  const canvasScale = manualScale ?? fitScale;
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -98,25 +102,49 @@ export const ProposalCanvasView: React.FC = () => {
     ? currentPage?.elements.find((el) => el.id === selectedIds[0]) ?? null
     : null;
 
-  // Detect if selected elements form a group
+  // A group is selected only when ALL selected elements share the same groupId.
+  // Using only selectedIds[0] would wrongly show "Grupo" when elements from
+  // different groups are selected together via the LayersPanel.
   const selectedGroupId = (() => {
-    if (selectedIds.length < 2) return null;
-    const first = currentPage?.elements.find((e) => e.id === selectedIds[0]);
-    return first?.groupId ?? null;
+    if (selectedIds.length < 2 || !currentPage) return null;
+    const groupIds = selectedIds.map(
+      (id) => currentPage.elements.find((e) => e.id === id)?.groupId ?? null,
+    );
+    const first = groupIds[0];
+    return first && groupIds.every((g) => g === first) ? first : null;
   })();
 
-  // Resize observer for canvas scale
+  // Resize observer — keeps the "fit" scale in sync with the container
   useEffect(() => {
     if (!canvasAreaRef.current) return;
     const obs = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect;
       const scaleW = (width - 64) / A4_WIDTH;
       const scaleH = (height - 80) / A4_HEIGHT;
-      setCanvasScale(Math.min(scaleW, scaleH, 1));
+      setFitScale(Math.min(scaleW, scaleH, 1));
     });
     obs.observe(canvasAreaRef.current);
     return () => obs.disconnect();
   }, []);
+
+  // Keyboard shortcuts (Delete/Backspace = excluir seleção, Escape = desselecionar)
+  useEffect(() => {
+    if (viewMode !== 'editor') return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+      if (e.key === 'Escape') {
+        setSelectedIds([]);
+        return;
+      }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIds.length > 0 && currentPage) {
+        selectedIds.forEach((id) => removeCanvasElement(currentPage.id, id));
+        setSelectedIds([]);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [viewMode, selectedIds, currentPage, removeCanvasElement]);
 
   const isApproved = projectStatus === 'approved';
 
@@ -268,9 +296,10 @@ export const ProposalCanvasView: React.FC = () => {
     // Remove the locked page-technical element
     const pageTechEl = currentPage.elements.find((e) => e.type === 'page-technical');
     if (pageTechEl) removeCanvasElement(currentPage.id, pageTechEl.id);
-    // Add all decomposed elements
-    TECHNICAL_PAGE_ELEMENTS.forEach((el) => {
-      addCanvasElement(currentPage.id, { ...el, id: `${el.id}-${Date.now()}` });
+    // Add all decomposed elements — capture timestamp + index to guarantee unique IDs
+    const ts = Date.now();
+    TECHNICAL_PAGE_ELEMENTS.forEach((el, i) => {
+      addCanvasElement(currentPage.id, { ...el, id: `${el.id}-${ts}-${i}` });
     });
     setSelectedIds([]);
   }, [currentPage, activeLayout, applyTemplate, removeCanvasElement, addCanvasElement]);
@@ -278,9 +307,11 @@ export const ProposalCanvasView: React.FC = () => {
   const handleRestorePage = useCallback(() => {
     if (!currentPage) return;
     if (!activeLayout) return;
-    // Remove all non-page elements
+    // Remove everything that is not a page block AND remove any stray page-* elements
+    // that don't belong to this page (e.g. if page-cover was dragged in manually).
+    // Only the page-technical block should remain — everything else is cleared.
     [...currentPage.elements].forEach((el) => {
-      if (!el.type.startsWith('page-')) removeCanvasElement(currentPage.id, el.id);
+      removeCanvasElement(currentPage.id, el.id);
     });
     // Add back the locked page-technical element
     addCanvasElement(currentPage.id, {
@@ -297,6 +328,24 @@ export const ProposalCanvasView: React.FC = () => {
     });
     setSelectedIds([]);
   }, [currentPage, activeLayout, removeCanvasElement, addCanvasElement]);
+
+  // ─── Zoom controls ────────────────────────────────────────────────────────────
+
+  const handleZoomIn  = useCallback(() => {
+    setManualScale((prev) => {
+      const cur = prev ?? fitScale;
+      return ZOOM_STEPS.find((s) => s > cur + 0.01) ?? cur;
+    });
+  }, [fitScale]);
+
+  const handleZoomOut = useCallback(() => {
+    setManualScale((prev) => {
+      const cur = prev ?? fitScale;
+      return [...ZOOM_STEPS].reverse().find((s) => s < cur - 0.01) ?? cur;
+    });
+  }, [fitScale]);
+
+  const handleZoomFit = useCallback(() => setManualScale(null), []);
 
   // Detect if the current page is decomposed (no page-technical element)
   const isPageDecomposed = currentPage
@@ -387,11 +436,11 @@ export const ProposalCanvasView: React.FC = () => {
                 </>
               ) : selectedGroupId ? (
                 <>
-                  {/* Back button */}
-                  <div className="shrink-0 flex items-center gap-1 px-2 py-1.5 border-b border-slate-100 bg-slate-50">
+                  {/* Back button — dark theme consistent with the rest of the editor */}
+                  <div className="shrink-0 flex items-center gap-1 px-2 py-1.5 border-b border-slate-800 bg-slate-900/40">
                     <button
                       onClick={() => setSelectedIds([])}
-                      className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-800 transition-colors px-1.5 py-0.5 rounded hover:bg-slate-200"
+                      className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-200 transition-colors px-1.5 py-0.5 rounded hover:bg-slate-800"
                     >
                       <ChevronLeft size={11} />
                       {sidebarTab === 'layers' ? 'Camadas' : 'Elementos'}
@@ -512,15 +561,31 @@ export const ProposalCanvasView: React.FC = () => {
                   </button>
                 </div>
 
-                {/* Group button when multiple elements selected */}
-                {selectedIds.length >= 2 && !selectedGroupId && (
-                  <button
-                    onClick={handleGroupSelected}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-blue-400 hover:bg-slate-800 transition-colors"
-                  >
-                    <Layers size={12} />
-                    Agrupar ({selectedIds.length})
-                  </button>
+                {/* Actions when elements are selected */}
+                {selectedIds.length > 0 && (
+                  <div className="flex items-center gap-1">
+                    {selectedIds.length >= 2 && !selectedGroupId && (
+                      <button
+                        onClick={handleGroupSelected}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-blue-400 hover:bg-slate-800 transition-colors"
+                      >
+                        <Layers size={12} />
+                        Agrupar ({selectedIds.length})
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        if (!currentPage) return;
+                        selectedIds.forEach((id) => removeCanvasElement(currentPage.id, id));
+                        setSelectedIds([]);
+                      }}
+                      title="Excluir selecionados (Delete)"
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-rose-400 hover:bg-slate-800 transition-colors"
+                    >
+                      <Trash2 size={12} />
+                      {selectedIds.length > 1 ? `Excluir (${selectedIds.length})` : 'Excluir'}
+                    </button>
+                  </div>
                 )}
 
                 {/* Restore default button (only when decomposed) */}
@@ -600,13 +665,60 @@ export const ProposalCanvasView: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Zoom e dica */}
+                {/* Zoom controls + dica */}
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-[10px] text-slate-600 hidden lg:flex items-center gap-1">
                     <Pencil size={10} />
                     Arraste para a página
                   </span>
-                  <span className="text-xs text-slate-500 font-mono">{Math.round(canvasScale * 100)}%</span>
+
+                  <div className="flex items-center gap-0.5 bg-slate-800 rounded-lg px-1 py-1">
+                    <button
+                      onClick={handleZoomOut}
+                      title="Diminuir zoom (−)"
+                      disabled={canvasScale <= 0.25}
+                      className="p-1 text-slate-400 hover:text-white disabled:opacity-30 hover:bg-slate-700 rounded transition-colors"
+                    >
+                      <ZoomOut size={12} />
+                    </button>
+
+                    <button
+                      onClick={handleZoomFit}
+                      title={manualScale !== null ? 'Ajustar à tela (fit)' : 'Zoom automático (ativo)'}
+                      className={cn(
+                        'px-2 py-0.5 text-[10px] font-mono rounded transition-colors min-w-[44px] text-center',
+                        manualScale === null
+                          ? 'text-emerald-400 hover:bg-slate-700'
+                          : 'text-slate-300 hover:bg-slate-700'
+                      )}
+                    >
+                      {Math.round(canvasScale * 100)}%
+                    </button>
+
+                    <button
+                      onClick={handleZoomIn}
+                      title="Aumentar zoom (+)"
+                      disabled={canvasScale >= 2.0}
+                      className="p-1 text-slate-400 hover:text-white disabled:opacity-30 hover:bg-slate-700 rounded transition-colors"
+                    >
+                      <ZoomIn size={12} />
+                    </button>
+
+                    <div className="w-px h-4 bg-slate-700 mx-0.5" />
+
+                    <button
+                      onClick={handleZoomFit}
+                      title="Ajustar à tela"
+                      className={cn(
+                        'p-1 rounded transition-colors',
+                        manualScale === null
+                          ? 'text-emerald-400 bg-slate-700'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                      )}
+                    >
+                      <Maximize2 size={12} />
+                    </button>
+                  </div>
                 </div>
               </div>
 

@@ -12,7 +12,11 @@ export function useProposalPageData() {
 
   const inverters    = useTechStore((s) => s.inverters.entities);
   const inverterIds  = useTechStore((s) => s.inverters.ids);
-  const techState    = useTechStore((s) => s);
+  // Select only the fields needed for projection — avoids re-render on any tech store change
+  const prCalculationMode          = useTechStore((s) => s.prCalculationMode);
+  const getAdditivePerformanceRatio = useTechStore((s) => s.getAdditivePerformanceRatio);
+  const getPerformanceRatio        = useTechStore((s) => s.getPerformanceRatio);
+  const cosip                      = useTechStore((s) => s.cosip);
 
   const totalPowerKwp = modules.reduce((acc, m) => acc + (m.power * (m.quantity || 1)), 0) / 1000;
   const totalModules  = modules.reduce((acc, m) => acc + (m.quantity || 1), 0);
@@ -20,9 +24,9 @@ export function useProposalPageData() {
   const firstInverter = inverterIds.length > 0 ? (inverters[inverterIds[0]] ?? null) : null;
 
   const stats = useMemo(() => {
-    const prDecimal = techState.prCalculationMode === 'additive'
-      ? techState.getAdditivePerformanceRatio()
-      : techState.getPerformanceRatio();
+    const prDecimal = prCalculationMode === 'additive'
+      ? getAdditivePerformanceRatio()
+      : getPerformanceRatio();
 
     const simulatedAddedLoad    = getSimulatedTotal();
     const additionalLoadsMonthly = Array(12).fill(simulatedAddedLoad) as number[];
@@ -35,9 +39,9 @@ export function useProposalPageData() {
       prDecimal: prDecimal || 0.75,
       tariffRate: clientData.tariffRate || 0.92,
       connectionType: clientData.connectionType,
-      cosip: techState.cosip,
+      cosip,
     });
-  }, [modules, clientData, techState, getSimulatedTotal, totalPowerKwp]);
+  }, [modules, clientData, prCalculationMode, getAdditivePerformanceRatio, getPerformanceRatio, cosip, getSimulatedTotal, totalPowerKwp]);
 
   const monthlyGenAvg = Math.round(stats.totalGen / 12);
 

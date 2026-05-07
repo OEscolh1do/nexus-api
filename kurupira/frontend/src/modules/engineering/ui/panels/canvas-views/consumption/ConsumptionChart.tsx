@@ -339,7 +339,7 @@ export const ConsumptionChart: React.FC = () => {
       </div>
 
       {/* ── ÁREA DO GRÁFICO (FLEXÍVEL) ────────────────────────────────── */}
-      <div className="flex-1 relative min-h-[140px] max-h-none">
+      <div className="flex-1 relative min-h-[200px] w-full">
         {isEmpty ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 pointer-events-auto">
             <div className="flex flex-col items-center gap-2">

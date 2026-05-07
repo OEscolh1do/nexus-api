@@ -347,3 +347,25 @@ Adotamos o modelo **User-First** para unificar a gestão de identidades e acesso
 - `sumauma/backend/src/routes/users.js` (Lógica `type === 'INDIVIDUAL'`)
 - `sumauma/frontend/src/components/accounts/CreateAccountDrawer.tsx`
 - `sumauma/frontend/src/pages/SystemPage.tsx` (Nova morada do RolesTab)
+
+### 2.2. Cockpit de Alta Densidade: Indicadores Verticais em Abas de Navegação
+**Data:** 07/05/2026
+**Módulo:** Kurupira Frontend (Engineering Navigation)
+
+#### O Problema
+Em interfaces de "cockpit" onde o usuário gerencia múltiplos painéis e mapas, indicadores de seleção horizontais (pills na base das abas) tendem a "poluir" a linha de horizonte visual e competir com o conteúdo do canvas logo abaixo. Além disso, a estética horizontal tradicional remete a aplicações web de consumo (B2C), distanciando o software da percepção de uma ferramenta de engenharia profissional (IDE).
+
+#### A Solução (Padrão Adotado)
+Adotamos o paradigma de **Navegação Vertical em Eixo Horizontal**:
+
+1. **Indicador Lateral (Indicator Bar)**: A aba ativa é marcada por uma barra vertical de `3px` de largura e `60%` de altura, posicionada no canto esquerdo (`absolute left-0`).
+2. **Glow Emissivo**: O indicador possui um glow indigo (`shadow-indigo-500/60`) que reforça a profundidade e a clareza da seleção mesmo em ambientes de baixa luminosidade (Dark Mode).
+3. **Alinhamento ao Eixo**: O conteúdo da aba (ícone + label + KPI) deixa de ser centralizado e passa a ser alinhado à esquerda (`items-start`), criando um fluxo de leitura linear que nasce do indicador.
+4. **Gradiente de Preenchimento**: A aba ativa recebe um gradiente horizontal sutil (`bg-gradient-to-r`) que se origina no indicador vertical, guiando o olhar para o conteúdo.
+
+#### Regra de Ouro
+> "Se você está construindo uma interface de cockpit de alta densidade, utilize indicadores verticais laterais em vez de horizontais. Isso mantém a linha de base limpa para o conteúdo principal (mapas/gráficos) e confere à ferramenta uma estética de 'IDE Profissional', aumentando a confiança técnica do usuário especialista."
+
+#### Referência
+- `kurupira/frontend/src/modules/engineering/ui/navigation/EngineeringTabs.tsx`
+- `kurupira/frontend/src/modules/engineering/ui/navigation/EngineeringNavigation.tsx`

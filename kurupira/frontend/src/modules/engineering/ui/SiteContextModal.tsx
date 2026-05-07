@@ -23,7 +23,6 @@ import { ProjectSiteMarker } from '../components/ProjectSiteMarker';
 import 'leaflet/dist/leaflet.css';
 import { MapCore } from '@/modules/engineering/components/MapCore';
 import { KurupiraClient } from '@/services/NexusClient';
-import { calcKWpAlvo } from '@/core/state/slices/journeySlice';
 import { useUIStore } from '@/core/state/uiStore';
 import { NeonorteLoader } from '@/components/ui/NeonorteLoader';
 import { fetchWeatherAnalysis } from '@/services/weatherService';
@@ -96,34 +95,27 @@ export const SiteContextModal: React.FC<SiteContextModalProps> = ({
         const data = await KurupiraClient.designs.get(projectId);
         
         if (isMounted) {
-          // Robust parsing: if designData is a string (rare but safe), parse it.
+          // Parsing seguro do designData para estruturas internas (invoices/histórico)
           let dd = data.designData;
           if (typeof dd === 'string') {
             try { dd = JSON.parse(dd); } catch (e) { dd = {}; }
           }
           
-          const clientData = dd?.solar?.clientData || dd?.clientData || data?.leadContext || {};
-          const invoices = clientData.invoices || dd?.invoices || [];
-          const mainInvoice = invoices[0] || {};
-          const history = mainInvoice.monthlyHistory || dd?.monthlyHistory || Array(12).fill(0);
+          const clientData = dd?.solar?.clientData || {};
+          const mainInvoice = clientData.invoices?.[0] || {};
+          const rawHistory = mainInvoice.monthlyHistory || Array(12).fill(0).map((_, i) => dd?.monthlyHistory?.[i] || 0);
 
-          let voltage = '—';
-          if (mainInvoice.voltage || clientData.voltage) {
-            const v = mainInvoice.voltage || clientData.voltage;
-            voltage = String(v).includes('V') ? String(v) : `${v}V`;
-          }
-
-          const monthlyIrradiation = clientData.monthlyIrradiation || dd?.weatherData?.monthlyHsp || Array(12).fill(5.0);
+          // PRIORIDADE: Dados enriquecidos pelo Backend
+          const targetPowerKwp = data.targetPowerKwp || 0;
+          const averageConsumptionKwh = data.averageConsumptionKwh || 0;
+          const voltage = data.voltage ? (String(data.voltage).includes('V') ? String(data.voltage) : `${data.voltage}V`) : '—';
           
-          const rawHistory = Array.isArray(history) ? history.map(v => Number(v) || 0) : Array(12).fill(0);
-          const estimatedPower = data.targetPowerKwp || dd?.solar?.project?.targetPowerKwp || calcKWpAlvo(rawHistory, monthlyIrradiation, 0) || 0;
+          const lat = data.lat || 0;
+          const lng = data.lng || 0;
+          const city = data.city || data.leadContext?.city || '—';
+          const state = data.state || data.leadContext?.state || '—';
 
-          const lat = clientData.lat || data.lat || 0;
-          const lng = clientData.lng || data.lng || 0;
-          const city = clientData.city || data.city || '—';
-          const state = clientData.state || data.state || '—';
-
-          // Busca dados meteorológicos reais (CRESESB / NASA)
+          // Busca dados meteorológicos baseados nas coordenadas consolidadas
           let weatherInfo = { hsp_avg: 5.0, ambient_temp_avg: 27.5, irradiation_source: 'Dados Padrão' };
           if (lat !== 0 && lng !== 0) {
             try {
@@ -140,18 +132,18 @@ export const SiteContextModal: React.FC<SiteContextModalProps> = ({
 
           setContext({
             projectId: data.id,
-            clientName: clientData.clientName || data.clientName || data.name || 'Projeto sem título',
+            clientName: data.clientName || data.name || 'Projeto sem título',
             city,
             state,
-            street: clientData.street || data.leadContext?.city || 'Endereço não informado',
+            street: clientData.street || 'Endereço não informado',
             lat,
             lng,
             voltage: voltage,
-            connectionType: clientData.connectionType || mainInvoice.connectionType || '—',
-            averageConsumptionKwh: clientData.averageConsumption || data.averageConsumptionKwh || (rawHistory.reduce((a: number, b: number) => a + b, 0) / 12) || 0,
+            connectionType: data.connectionType || clientData.connectionType || '—',
+            averageConsumptionKwh,
             monthlyHistory: rawHistory,
             tariffRate: clientData.tariffRate || 0.92,
-            targetPowerKwp: estimatedPower,
+            targetPowerKwp,
             technicalStatus: data.status || 'DRAFT',
             hspAvg: weatherInfo.hsp_avg,
             ambientTempAvg: weatherInfo.ambient_temp_avg,

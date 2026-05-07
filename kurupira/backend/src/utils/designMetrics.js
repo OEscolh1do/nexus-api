@@ -14,7 +14,7 @@ function extractDesignMetrics(designData) {
       return {
         targetPowerKwp: 0, averageConsumptionKwh: 0,
         lat: null, lng: null, clientName: null, city: null, state: null,
-        moduleCount: 0, inverterCount: 0, voltage: null
+        moduleCount: 0, inverterCount: 0, voltage: null, connectionType: null
       };
     }
 
@@ -26,6 +26,7 @@ function extractDesignMetrics(designData) {
     const city = cd.city || null;
     const state = cd.state || null;
     const voltage = cd.voltage || (cd.invoices && cd.invoices[0]?.voltage) || null;
+    const connectionType = cd.connectionType || (cd.invoices && cd.invoices[0]?.connectionType) || null;
 
     let kWpAlvo = data.tech?.kWpAlvo || 0;
     if (kWpAlvo === 0 && avgConsumption > 0) {
@@ -60,14 +61,14 @@ function extractDesignMetrics(designData) {
       lat: lat && lat !== 0 ? lat : null,
       lng: lng && lng !== 0 ? lng : null,
       clientName, city, state,
-      moduleCount: finalModuleCount, inverterCount, voltage
+      moduleCount: finalModuleCount, inverterCount, voltage, connectionType
     };
   } catch (error) {
     logger.error('designMetrics extraction failed', { err: error.message });
     return {
       targetPowerKwp: 0, averageConsumptionKwh: 0,
       lat: null, lng: null, clientName: null, city: null, state: null,
-      moduleCount: 0, inverterCount: 0, voltage: null
+      moduleCount: 0, inverterCount: 0, voltage: null, connectionType: null
     };
   }
 }

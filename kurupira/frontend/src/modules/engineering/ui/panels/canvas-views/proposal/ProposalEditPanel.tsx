@@ -56,13 +56,7 @@ export const ProposalEditPanel: React.FC = () => {
   const isExportingPdf = useSolarStore(s => s.isExportingPdf);
   const setExportingPdf = useSolarStore(s => s.setExportingPdf);
 
-  const [isSaving, setIsSaving] = useState(false);
   const [isPageMenuOpen, setIsPageMenuOpen] = useState(false);
-
-  const handleSave = () => {
-    setIsSaving(true);
-    setTimeout(() => setIsSaving(false), 800);
-  };
 
   // Payment stages validation
   const totalPercentage = (proposalData.paymentStages || []).reduce((s, p) => s + (p.percentage || 0), 0);
@@ -108,9 +102,6 @@ export const ProposalEditPanel: React.FC = () => {
             >
               Viabilidade
             </button>
-            {isSaving && (
-              <Loader2 size={10} className="text-emerald-500 animate-spin ml-1 shrink-0" />
-            )}
           </div>
         </div>
 
@@ -202,9 +193,6 @@ export const ProposalEditPanel: React.FC = () => {
             <p className="text-[10px] sm:text-xs text-slate-500 leading-relaxed">
               Todos os campos da capa são automáticos (nome do cliente, código do projeto, potência e geração).
             </p>
-            <button className="text-[10px] sm:text-xs text-indigo-400 font-bold uppercase tracking-wider hover:underline text-left">
-              Editar dados do cliente →
-            </button>
           </div>
         )}
 
@@ -239,7 +227,7 @@ export const ProposalEditPanel: React.FC = () => {
                       placeholder="Descrição do item..."
                       value={item.description}
                       onChange={e => updateLineItem(item.id, { description: e.target.value })}
-                      onBlur={handleSave}
+                      onBlur={() => {}}
                     />
                     <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                       <input
@@ -251,14 +239,14 @@ export const ProposalEditPanel: React.FC = () => {
                           const v = e.target.value === '' ? null : Number(e.target.value);
                           updateLineItem(item.id, { value: v });
                         }}
-                        onBlur={handleSave}
+                        onBlur={() => {}}
                       />
                       <input
                         className="flex-1 bg-slate-950 border border-slate-800 rounded-sm px-2 py-1.5 sm:px-3 sm:py-2 text-[11px] sm:text-xs text-slate-400 outline-none focus:border-indigo-500/50"
                         placeholder="ou texto (ex: 6 MESES)"
                         value={item.valueText}
                         onChange={e => updateLineItem(item.id, { valueText: e.target.value })}
-                        onBlur={handleSave}
+                        onBlur={() => {}}
                       />
                     </div>
                   </div>
@@ -302,7 +290,7 @@ export const ProposalEditPanel: React.FC = () => {
                     className="w-20 sm:w-24 bg-transparent text-[11px] sm:text-xs text-slate-300 font-bold outline-none border-b border-slate-800 focus:border-indigo-500/50"
                     value={stage.label}
                     onChange={e => updatePaymentStage(stage.id, { label: e.target.value })}
-                    onBlur={handleSave}
+                    onBlur={() => {}}
                   />
                   <input
                     type="number"
@@ -310,7 +298,7 @@ export const ProposalEditPanel: React.FC = () => {
                     placeholder="R$"
                     value={stage.value || ''}
                     onChange={e => updatePaymentStage(stage.id, { value: Number(e.target.value) })}
-                    onBlur={handleSave}
+                    onBlur={() => {}}
                   />
                   <div className="relative flex-1">
                     <input
@@ -318,7 +306,7 @@ export const ProposalEditPanel: React.FC = () => {
                       className="w-full bg-slate-950 border border-slate-800 rounded-sm px-2 py-1.5 sm:px-3 sm:py-2 text-[11px] sm:text-xs text-white font-mono outline-none focus:border-indigo-500/50"
                       value={stage.percentage || ''}
                       onChange={e => updatePaymentStage(stage.id, { percentage: Number(e.target.value) })}
-                      onBlur={handleSave}
+                      onBlur={() => {}}
                     />
                     <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-600">%</span>
                   </div>
@@ -351,7 +339,7 @@ export const ProposalEditPanel: React.FC = () => {
                   const lines = e.target.value.split('\n').slice(0, 8);
                   updateProposalData({ paymentTerms: lines });
                 }}
-                onBlur={handleSave}
+                onBlur={() => {}}
               />
             </div>
           </>
@@ -369,7 +357,7 @@ export const ProposalEditPanel: React.FC = () => {
               maxLength={600}
               value={proposalData.customText}
               onChange={e => updateProposalData({ customText: e.target.value })}
-              onBlur={handleSave}
+              onBlur={() => {}}
             />
             <div className="flex justify-end">
               <span className={cn(
@@ -397,7 +385,7 @@ export const ProposalEditPanel: React.FC = () => {
                     className="flex-1 bg-transparent text-xs sm:text-sm text-slate-400 font-bold outline-none border-b border-slate-800 focus:border-indigo-500/50"
                     value={stage.sublabel}
                     onChange={e => updateExecutionStage(stage.id, { sublabel: e.target.value })}
-                    onBlur={handleSave}
+                    onBlur={() => {}}
                   />
                 </div>
                 <input
@@ -405,14 +393,14 @@ export const ProposalEditPanel: React.FC = () => {
                   placeholder="Duração (ex: 15 DIAS)"
                   value={stage.durationText}
                   onChange={e => updateExecutionStage(stage.id, { durationText: e.target.value })}
-                  onBlur={handleSave}
+                  onBlur={() => {}}
                 />
                 <textarea
                   className="w-full bg-slate-950 border border-slate-800 rounded-sm p-3 sm:p-3 text-xs sm:text-sm text-slate-400 outline-none focus:border-indigo-500/50 min-h-[40px] resize-none"
                   placeholder="Descrição da etapa..."
                   value={stage.description}
                   onChange={e => updateExecutionStage(stage.id, { description: e.target.value })}
-                  onBlur={handleSave}
+                  onBlur={() => {}}
                 />
               </div>
             ))}
@@ -437,7 +425,7 @@ export const ProposalEditPanel: React.FC = () => {
                 className="w-full bg-slate-950 border border-slate-800 rounded-sm px-2 py-1.5 sm:px-3 sm:py-2 text-[11px] sm:text-xs text-white outline-none focus:border-indigo-500/50"
                 value={proposalData.engineerName}
                 onChange={e => updateProposalData({ engineerName: e.target.value })}
-                onBlur={handleSave}
+                onBlur={() => {}}
                 placeholder="Nome completo"
               />
             </div>
@@ -451,7 +439,7 @@ export const ProposalEditPanel: React.FC = () => {
                   className="w-full bg-slate-950 border border-slate-800 rounded-sm px-2 py-1.5 sm:px-3 sm:py-2 text-[11px] sm:text-xs text-white outline-none focus:border-indigo-500/50"
                   value={proposalData.engineerTitle}
                   onChange={e => updateProposalData({ engineerTitle: e.target.value })}
-                  onBlur={handleSave}
+                  onBlur={() => {}}
                 />
               </div>
               <div className="flex flex-col gap-1.5">
@@ -460,7 +448,7 @@ export const ProposalEditPanel: React.FC = () => {
                   className="w-full bg-slate-950 border border-slate-800 rounded-sm px-2 py-1.5 sm:px-3 sm:py-2 text-[11px] sm:text-xs text-white font-mono outline-none focus:border-indigo-500/50"
                   value={proposalData.engineerCrea}
                   onChange={e => updateProposalData({ engineerCrea: e.target.value })}
-                  onBlur={handleSave}
+                  onBlur={() => {}}
                   placeholder="CREA-PA: 000000000-0"
                 />
               </div>
@@ -475,7 +463,7 @@ export const ProposalEditPanel: React.FC = () => {
                   className="w-full bg-slate-950 border border-slate-800 rounded-sm px-2 py-1.5 sm:px-3 sm:py-2 text-[11px] sm:text-xs text-white outline-none focus:border-indigo-500/50"
                   value={proposalData.contactPhone}
                   onChange={e => updateProposalData({ contactPhone: e.target.value })}
-                  onBlur={handleSave}
+                  onBlur={() => {}}
                   placeholder="(91) 99999-9999"
                 />
               </div>
@@ -487,7 +475,7 @@ export const ProposalEditPanel: React.FC = () => {
                   className="w-full bg-slate-950 border border-slate-800 rounded-sm px-2 py-1.5 sm:px-3 sm:py-2 text-[11px] sm:text-xs text-white outline-none focus:border-indigo-500/50"
                   value={proposalData.contactInstagram}
                   onChange={e => updateProposalData({ contactInstagram: e.target.value })}
-                  onBlur={handleSave}
+                  onBlur={() => {}}
                   placeholder="@neonorte"
                 />
               </div>
@@ -507,17 +495,17 @@ export const ProposalEditPanel: React.FC = () => {
           <VisibilityBadge
             label="Preços"
             active={proposalData.showPricing}
-            onToggle={() => { updateProposalData({ showPricing: !proposalData.showPricing }); handleSave(); }}
+            onToggle={() => updateProposalData({ showPricing: !proposalData.showPricing })}
           />
           <VisibilityBadge
             label="Mapa"
             active={proposalData.showMap}
-            onToggle={() => { updateProposalData({ showMap: !proposalData.showMap }); handleSave(); }}
+            onToggle={() => updateProposalData({ showMap: !proposalData.showMap })}
           />
           <VisibilityBadge
             label="Comparativo"
             active={proposalData.showComparativePlans}
-            onToggle={() => { updateProposalData({ showComparativePlans: !proposalData.showComparativePlans }); handleSave(); }}
+            onToggle={() => updateProposalData({ showComparativePlans: !proposalData.showComparativePlans })}
           />
         </div>
 

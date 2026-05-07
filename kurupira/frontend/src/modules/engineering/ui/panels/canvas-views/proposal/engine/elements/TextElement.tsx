@@ -59,7 +59,8 @@ export function TextElement({ element, isEditing, onPropsChange }: Props) {
       contentEditable={isEditing}
       suppressContentEditableWarning
       onBlur={(e) => {
-        if (isEditing) onPropsChange({ ...element.props, content: e.currentTarget.textContent ?? '' });
+        // innerText preserves newlines; textContent collapses them
+        if (isEditing) onPropsChange({ ...element.props, content: e.currentTarget.innerText ?? '' });
       }}
       style={{
         width:      '100%',

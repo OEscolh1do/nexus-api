@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const prisma = require('../lib/prisma');
 const { authenticateToken } = require('../middleware/auth');
-const { fetchLeadContext, fetchLeadsBatch } = require('../services/m2mClient');
+const { fetchLeadContext } = require('../services/m2mClient');
 const { extractDesignMetrics } = require('../utils/designMetrics');
 const { createDesignSchema, updateDesignSchema, validate } = require('../validation/designs');
 const logger = require('../lib/logger');
@@ -18,7 +18,14 @@ router.get('/', authenticateToken, async (req, res) => {
       orderBy: { updatedAt: 'desc' },
       take: 50
     });
-    res.json({ success: true, data: designs });
+
+    // Enriquecimento com métricas calculadas do designData (Power, Consumption, etc)
+    const enrichedDesigns = designs.map(d => ({
+      ...d,
+      ...extractDesignMetrics(d.designData)
+    }));
+
+    res.json({ success: true, data: enrichedDesigns });
   } catch (error) {
     res.status(500).json({ success: false, error: safeError(error) });
   }
@@ -42,7 +49,13 @@ router.get('/:id', authenticateToken, async (req, res) => {
       }
     }
 
-    res.json({ success: true, data: design });
+    // Mesclar métricas calculadas (Prioridade para o que está no DB se houver conflito)
+    const enriched = {
+      ...design,
+      ...extractDesignMetrics(design.designData)
+    };
+
+    res.json({ success: true, data: enriched });
   } catch (error) {
     res.status(500).json({ success: false, error: safeError(error) });
   }

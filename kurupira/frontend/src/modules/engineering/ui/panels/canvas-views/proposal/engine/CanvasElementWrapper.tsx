@@ -51,10 +51,20 @@ function applySmartGuides(
 ): SnapResult {
   if (!enabled || others.length === 0) return { x, y, guides: { x: [], y: [] } };
 
-  let snappedX = x;
-  let snappedY = y;
-  const guidesX: number[] = [];
-  const guidesY: number[] = [];
+  // Find the single closest snap candidate for X and Y independently.
+  // Using the original x/y for all comparisons prevents drift accumulation
+  // when multiple elements are near the same guide line.
+  let bestDx = Infinity;
+  let bestDy = Infinity;
+  let snapTargetX: number | null = null;
+  let snapTargetY: number | null = null;
+
+  const myLeft    = x;
+  const myCenter  = x + w / 2;
+  const myRight   = x + w;
+  const myTop     = y;
+  const myCenterY = y + h / 2;
+  const myBottom  = y + h;
 
   for (const other of others) {
     const oRight  = other.x + other.width;
@@ -62,42 +72,60 @@ function applySmartGuides(
     const oCx     = other.x + other.width / 2;
     const oCy     = other.y + other.height / 2;
 
-    // Pontos de alinhamento X: [borda esq do elemento, centro, borda dir]
-    const myLeft   = snappedX;
-    const myCenter = snappedX + w / 2;
-    const myRight  = snappedX + w;
-
-    // Comparações: cada borda do elemento contra cada borda do outro
     const xPairs: [number, number][] = [
-      [myLeft,   other.x],  [myLeft,   oRight],  [myLeft,   oCx],
-      [myCenter, other.x],  [myCenter, oRight],  [myCenter, oCx],
-      [myRight,  other.x],  [myRight,  oRight],  [myRight,  oCx],
+      [myLeft,    other.x], [myLeft,    oRight], [myLeft,    oCx],
+      [myCenter,  other.x], [myCenter,  oRight], [myCenter,  oCx],
+      [myRight,   other.x], [myRight,   oRight], [myRight,   oCx],
     ];
-
     for (const [mine, theirs] of xPairs) {
-      if (Math.abs(mine - theirs) < scaledThreshold) {
-        snappedX += theirs - mine;
-        if (!guidesX.includes(theirs)) guidesX.push(theirs);
-        break;
+      const d = Math.abs(mine - theirs);
+      if (d < scaledThreshold && d < bestDx) {
+        bestDx = d;
+        snapTargetX = theirs - (mine - x); // delta to apply to x
       }
     }
 
-    // Pontos de alinhamento Y: [borda top, centro, borda bottom]
-    const myTop    = snappedY;
-    const myCenterY = snappedY + h / 2;
-    const myBottom = snappedY + h;
-
     const yPairs: [number, number][] = [
-      [myTop,     other.y],  [myTop,     oBottom],  [myTop,     oCy],
-      [myCenterY, other.y],  [myCenterY, oBottom],  [myCenterY, oCy],
-      [myBottom,  other.y],  [myBottom,  oBottom],  [myBottom,  oCy],
+      [myTop,     other.y], [myTop,     oBottom], [myTop,     oCy],
+      [myCenterY, other.y], [myCenterY, oBottom], [myCenterY, oCy],
+      [myBottom,  other.y], [myBottom,  oBottom], [myBottom,  oCy],
     ];
-
     for (const [mine, theirs] of yPairs) {
-      if (Math.abs(mine - theirs) < scaledThreshold) {
-        snappedY += theirs - mine;
-        if (!guidesY.includes(theirs)) guidesY.push(theirs);
-        break;
+      const d = Math.abs(mine - theirs);
+      if (d < scaledThreshold && d < bestDy) {
+        bestDy = d;
+        snapTargetY = theirs - (mine - y);
+      }
+    }
+  }
+
+  const snappedX = snapTargetX ?? x;
+  const snappedY = snapTargetY ?? y;
+
+  // Collect guide lines at the snapped position
+  const guidesX: number[] = [];
+  const guidesY: number[] = [];
+  if (snapTargetX !== null) {
+    for (const other of others) {
+      const oRight = other.x + other.width;
+      const oCx    = other.x + other.width / 2;
+      for (const ref of [other.x, oRight, oCx]) {
+        const snLeft = snappedX, snCx = snappedX + w / 2, snRight = snappedX + w;
+        if (Math.abs(snLeft - ref) < 1 || Math.abs(snCx - ref) < 1 || Math.abs(snRight - ref) < 1) {
+          if (!guidesX.includes(ref)) guidesX.push(ref);
+        }
+      }
+    }
+  }
+  if (snapTargetY !== null) {
+    for (const other of others) {
+      const oBottom = other.y + other.height;
+      const oCy     = other.y + other.height / 2;
+      for (const ref of [other.y, oBottom, oCy]) {
+        const snTop = snappedY, snCy = snappedY + h / 2, snBottom = snappedY + h;
+        if (Math.abs(snTop - ref) < 1 || Math.abs(snCy - ref) < 1 || Math.abs(snBottom - ref) < 1) {
+          if (!guidesY.includes(ref)) guidesY.push(ref);
+        }
       }
     }
   }
@@ -213,6 +241,9 @@ export function CanvasElementWrapper({
     if (isLocked) return;
     e.preventDefault();
     e.stopPropagation();
+
+    // Clear any in-progress move drag before starting resize
+    dragStartRef.current = null;
 
     resizeStartRef.current = {
       mouseX: e.clientX,
@@ -345,7 +376,7 @@ export function CanvasElementWrapper({
           >
             {/* Coordenadas ao vivo */}
             <span style={{ color: '#94a3b8', padding: '2px 4px', fontSize: 10, fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>
-              {element.x},{element.y}
+              x:{element.x} y:{element.y}
             </span>
             {isLocked && (
               <div style={{ color: '#94a3b8', padding: '2px 4px', display: 'flex', alignItems: 'center' }}>

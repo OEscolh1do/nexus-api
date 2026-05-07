@@ -81,7 +81,7 @@ const mapSummaryToCard = (summary: TechnicalDesignSummary): ProjectCard => {
       averageConsumptionKwh: summary.averageConsumptionKwh || 0,
     },
     thumbnailUrl: buildStaticMapUrl(summary.lat, summary.lng),
-    createdAt: summary.updatedAt,
+    createdAt: summary.createdAt || summary.updatedAt,
     updatedAt: summary.updatedAt,
   };
 };

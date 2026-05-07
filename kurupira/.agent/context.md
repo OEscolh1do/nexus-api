@@ -1,8 +1,8 @@
 # CONTEXT.md — Kurupira (Motor de Engenharia Solar)
 
-> **Última Atualização:** 2026-05-04
+> **Última Atualização:** 2026-05-07
 > **Arquiteto:** Antigravity AI
-> **Versão do Sistema:** 3.9.0
+> **Versão do Sistema:** 6.0.0 (Engineering Cockpit v6.0)
 
 ---
 
@@ -39,9 +39,11 @@
 
 ---
 
-## 🏗️ ARQUITETURA DE UI (v3.8.0)
+## 🏗️ ARQUITETURA DE UI (v6.0.0)
 
-### Paradigma Visual: Ferramenta de Engenharia ("Engineering Tool Aesthetic")
+### Paradigma Visual: Engineering Cockpit (Single-Column)
+- **Full Center Canvas**: Abandono do modelo de sidebars fixas (RightInspector). O workspace opera em uma coluna única de alta largura, priorizando o viewport técnico.
+- **Navegação Vertical (Tabs v6.0)**: Indicadores de seleção movidos para a lateral (vertical 3px) das abas, reforçando a estética de "IDE Profissional".
 - **Geometria Reta**: Uso exclusivo de `rounded-sm`. Abolição total de `rounded-xl/2xl/3xl` em painéis.
 - **Tipografia de Dados**: `font-mono` + `tabular-nums` em todos os valores elétricos e de consumo.
 - **Gráficos Industriais**: Barras com `radius={0}` em todos os charts (Recharts), eixos em `font-mono`.
@@ -150,6 +152,13 @@ O Pin de localização é o elemento central de ancoragem visual e interatividad
 ---
 
 ## 🔄 CHANGELOG
+
+### v6.0.0 (2026-05-07) — Engineering Cockpit: Unified High-Density Navigation
+
+- ✅ **Full Center Canvas**: Remoção definitiva do `RightInspector` e sidebars fixas para maximizar o viewport.
+- ✅ **Navigation v6.0**: Introdução de indicadores verticais laterais (3px indigo glow) nas abas de jornada.
+- ✅ **Standardized Properties**: Refatoração de `ModuleProperties` e `InverterProperties` para alta densidade técnica.
+- ✅ **Stability**: Correção de erros de sintaxe JSX e avisos de dimensões do Recharts.
 
 ### v3.9.0 (2026-05-04) — Produção: VPS Deployment + Recharts Fix
 

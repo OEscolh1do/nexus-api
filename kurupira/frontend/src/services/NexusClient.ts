@@ -65,6 +65,7 @@ export interface TechnicalDesignSummary {
   name: string;
   iacaLeadId: string;
   status: string;
+  createdAt: string;
   updatedAt: string;
   targetPowerKwp?: number;
   averageConsumptionKwh?: number;
@@ -76,6 +77,7 @@ export interface TechnicalDesignSummary {
   moduleCount?: number;
   inverterCount?: number;
   voltage?: string | number | null;
+  connectionType?: string;
   leadContext?: {
     name: string;
     phone?: string;
@@ -180,5 +182,4 @@ export const KurupiraClient = {
   },
 };
 
-// Legacy export for backward compatibility
-export { KurupiraClient as NexusClient };
+

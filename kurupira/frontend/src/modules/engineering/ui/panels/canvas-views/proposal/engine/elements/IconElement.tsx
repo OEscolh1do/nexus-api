@@ -41,7 +41,6 @@ export const ICON_CATALOG: Record<string, React.FC<{ size?: number; color?: stri
   Settings:      LucideIcons.Settings,
   Cpu:           LucideIcons.Cpu,
   Layers:        LucideIcons.Layers,
-  Tool:          LucideIcons.Wrench,  // alias
 };
 
 interface Props {

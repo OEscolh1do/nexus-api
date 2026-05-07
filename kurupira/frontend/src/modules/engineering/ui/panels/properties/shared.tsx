@@ -12,9 +12,9 @@ import { cn } from '@/lib/utils';
 // =============================================================================
 
 export const SectionHeader: React.FC<{ icon: React.ReactNode; label: string }> = ({ icon, label }) => (
-  <div className="flex items-center gap-1.5">
-    <span className="text-slate-600">{icon}</span>
-    <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">{label}</h4>
+  <div className="flex items-center gap-1.5 py-1 mb-1 border-b border-slate-800/40">
+    <span className="text-slate-600 scale-90">{icon}</span>
+    <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.15em]">{label}</h4>
   </div>
 );
 
@@ -22,12 +22,19 @@ export const SectionHeader: React.FC<{ icon: React.ReactNode; label: string }> =
 // PROP ROW (Read-Only)
 // =============================================================================
 
-export const PropRow: React.FC<{ label: string; value: string; accent?: boolean; danger?: boolean }> = ({ label, value, accent, danger }) => (
-  <div className="flex items-center justify-between px-2 py-1 rounded bg-slate-900/50">
-    <span className="text-[10px] text-slate-500">{label}</span>
+export const PropRow: React.FC<{ 
+  label: string; 
+  value: string | number; 
+  accent?: boolean; 
+  danger?: boolean;
+  mono?: boolean;
+}> = ({ label, value, accent, danger, mono = true }) => (
+  <div className="flex items-center justify-between px-2 py-0.5 rounded-sm hover:bg-slate-800/30 transition-colors group">
+    <span className="text-[10px] text-slate-500 group-hover:text-slate-400 transition-colors">{label}</span>
     <span className={cn(
-        "text-[10px] font-bold",
-        danger ? "text-red-400" : accent ? "text-emerald-400" : "text-slate-300"
+        "text-[10px] font-bold tabular-nums",
+        mono && "font-mono tracking-tighter",
+        danger ? "text-red-400" : accent ? "text-indigo-400" : "text-slate-300"
     )}>{value}</span>
   </div>
 );
@@ -41,7 +48,8 @@ export const PropRowEditable: React.FC<{
   value: string;
   onCommit: (value: string) => boolean | void;
   type?: 'text' | 'number';
-}> = ({ label, value, onCommit, type = 'text' }) => {
+  unit?: string;
+}> = ({ label, value, onCommit, type = 'text', unit }) => {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const [hasError, setHasError] = useState(false);
@@ -83,33 +91,37 @@ export const PropRowEditable: React.FC<{
   };
 
   return (
-    <div className="flex items-center justify-between px-2 py-1 rounded bg-slate-900/50">
-      <span className="text-[10px] text-slate-500">{label}</span>
+    <div className="flex items-center justify-between px-2 py-0.5 rounded-sm hover:bg-slate-800/30 transition-colors group">
+      <span className="text-[10px] text-slate-500 group-hover:text-slate-400 transition-colors">{label}</span>
       {editing ? (
-        <input
-          type={type}
-          value={draft}
-          onChange={(e) => {
-            setDraft(e.target.value);
-            setHasError(false);
-          }}
-          onBlur={handleCommit}
-          onKeyDown={handleKeyDown}
-          autoFocus
-           className={cn(
-             "w-16 text-right text-[10px] font-bold rounded px-1 py-0.5 outline-none transition-colors",
-             hasError 
-               ? "bg-red-500/20 text-red-500 border border-red-500 animate-pulse" 
-               : "text-emerald-400 bg-slate-800 border border-emerald-500/30 focus:border-emerald-500/60"
-           )}
-        />
+        <div className="flex items-center gap-1">
+          <input
+            type={type}
+            value={draft}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              setHasError(false);
+            }}
+            onBlur={handleCommit}
+            onKeyDown={handleKeyDown}
+            autoFocus
+            className={cn(
+              "w-16 text-right text-[10px] font-bold font-mono rounded-none px-1 py-0 outline-none transition-colors",
+              hasError 
+                ? "bg-red-500/20 text-red-500 border-b border-red-500" 
+                : "text-indigo-400 bg-slate-900 border-b border-indigo-500/50 focus:border-indigo-500"
+            )}
+          />
+          {unit && <span className="text-[8px] text-slate-600 font-bold uppercase">{unit}</span>}
+        </div>
       ) : (
         <button
           onClick={handleStartEdit}
-          className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 hover:underline cursor-text transition-colors"
+          className="flex items-baseline gap-1 text-[10px] font-bold font-mono text-indigo-400 hover:text-indigo-300 transition-colors tabular-nums tracking-tighter"
           title="Clique para editar"
         >
           {value}
+          {unit && <span className="text-[8px] text-slate-600 font-bold uppercase no-underline">{unit}</span>}
         </button>
       )}
     </div>
