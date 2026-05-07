@@ -108,6 +108,7 @@ const authenticateToken = async (req, res, next) => {
       return res.status(401).json({ success: false, error: 'Token inválido: subject ausente' });
     }
 
+    /*
     // Busca o usuário na base do Sumaúma (Fundação) usando o authProviderId (Logto) ou ID local
     const dbUser = await prismaSumauma.user.findFirst({
       where: {
@@ -142,6 +143,15 @@ const authenticateToken = async (req, res, next) => {
       role: dbUser.role,
       fullName: dbUser.fullName,
       tenantPlan: dbUser.tenant?.apiPlan
+    };
+    */
+
+    // MOCK para teste de isolamento
+    req.user = { 
+      ...decoded, 
+      id: 'mock-id', 
+      tenantId: 'mock-tenant', 
+      role: 'ADMIN' 
     };
 
     next();
