@@ -1,4 +1,4 @@
-const { PrismaClient } = require('../../../node_modules/.prisma/client-sumauma');
+const { PrismaClient } = require('../../node_modules/.prisma/client-sumauma');
 
 /**
  * Prisma Client READ-ONLY para db_sumauma.
