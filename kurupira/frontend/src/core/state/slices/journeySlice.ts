@@ -75,7 +75,7 @@ export function calcKWpAlvo(
   monthlyKwh: number[],
   monthlyHsp: number[],
   growthFactor: number,
-  pr = 0.80
+  pr = 0.75
 ): number | null {
   if (!monthlyKwh || monthlyKwh.length === 0) return null;
 

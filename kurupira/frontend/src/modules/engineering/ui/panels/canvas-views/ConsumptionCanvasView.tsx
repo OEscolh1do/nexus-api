@@ -26,6 +26,8 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
   const addInvoice = useSolarStore(s => s.addInvoice);
   const removeInvoice = useSolarStore(s => s.removeInvoice);
   const updateActiveInvoice = useSolarStore(s => s.updateActiveInvoice);
+  const settings = useSolarStore(s => s.settings);
+  const updateSettings = useSolarStore(s => s.updateSettings);
 
 
 
@@ -112,13 +114,15 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
 
   useEffect(() => {
     const monthlyHsp = clientData.monthlyIrradiation ?? [];
+    const pr = settings.performanceRatio || 0.75;
+    
     if (totalConsumptionAvg > 0) {
-      const result = calcKWpAlvo(totalConsumptionMonthly, monthlyHsp, loadGrowthFactor);
+      const result = calcKWpAlvo(totalConsumptionMonthly, monthlyHsp, loadGrowthFactor, pr);
       setKWpAlvo(result);
     } else {
       setKWpAlvo(0);
     }
-  }, [totalConsumptionMonthly, clientData.monthlyIrradiation, loadGrowthFactor, setKWpAlvo, totalConsumptionAvg]);
+  }, [totalConsumptionMonthly, clientData.monthlyIrradiation, loadGrowthFactor, setKWpAlvo, totalConsumptionAvg, settings.performanceRatio]);
 
   const [expandedField, setExpandedField] = React.useState<'connection' | 'voltage' | null>(null);
 
@@ -433,6 +437,53 @@ export const ConsumptionCanvasView: React.FC<{ className?: string }> = ({ classN
                 className="bg-transparent text-emerald-200 font-mono font-black text-[12px] focus:outline-none w-16 text-center tabular-nums placeholder:text-slate-800"
               />
               <span className="text-[9px] text-slate-500 font-bold ml-1">kWh</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ── GRUPO: ENGENHARIA ────────────────────────────────────── */}
+        <div className="flex items-center gap-4 px-4 py-3 lg:py-1.5 shrink-0 overflow-x-auto scrollbar-hide scroll-mask-h">
+          {/* Badge de Seção */}
+          <div className="flex items-center gap-1.5 px-2 py-1 lg:py-0.5 bg-indigo-500/10 border border-indigo-500/20 rounded-sm shrink-0 w-fit">
+            <Activity size={9} className="text-indigo-400" />
+            <span className="text-[8px] text-indigo-400 font-black uppercase tracking-[0.15em]">Engenharia</span>
+          </div>
+
+          {/* PERFORMANCE RATIO (PR) */}
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[9px] text-slate-600 uppercase font-bold tracking-widest flex items-center gap-1">
+              PR
+            </span>
+            <div className="flex items-center bg-slate-900 border border-slate-800 rounded-sm px-2 h-11 lg:h-7">
+              <input
+                type="number"
+                step={0.01}
+                min={0.1}
+                max={1}
+                value={settings.performanceRatio || 0.75}
+                onChange={e => {
+                  let val = parseFloat(e.target.value);
+                  if (!isNaN(val)) {
+                    updateSettings({ performanceRatio: val });
+                  }
+                }}
+                className="w-10 bg-transparent text-indigo-300 font-mono font-bold text-[10px] focus:outline-none tabular-nums text-center"
+              />
+              <span className="text-[8px] text-slate-500 font-bold ml-1">%</span>
+            </div>
+          </div>
+
+          {/* FATOR DE CRESCIMENTO */}
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[9px] text-slate-600 uppercase font-bold tracking-widest">Expansão</span>
+            <div className="flex items-center bg-slate-900 border border-slate-800 rounded-sm px-2 h-11 lg:h-7">
+              <input
+                type="number"
+                value={loadGrowthFactor}
+                onChange={e => useSolarStore.getState().setLoadGrowthFactor(Number(e.target.value))}
+                className="w-8 bg-transparent text-indigo-300 font-mono font-bold text-[10px] focus:outline-none text-center"
+              />
+              <span className="text-[8px] text-slate-500 font-bold ml-1">%</span>
             </div>
           </div>
         </div>
