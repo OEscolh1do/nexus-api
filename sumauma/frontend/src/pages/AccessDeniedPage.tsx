@@ -8,7 +8,7 @@ const AccessDeniedPage: React.FC = () => {
   const handleSignOut = async () => {
     sessionStorage.clear();
     localStorage.clear();
-    await signOut(window.location.origin + '/login');
+    await signOut();
   };
 
   return (

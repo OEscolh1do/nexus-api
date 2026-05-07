@@ -9,7 +9,7 @@ const AccessDeniedPage: React.FC = () => {
     sessionStorage.removeItem('kurupira_token');
     localStorage.removeItem('token');
     // Força o logout total do Logto para limpar a sessão "tóxica"
-    await signOut(window.location.origin + '/login');
+    await signOut();
   };
 
   return (

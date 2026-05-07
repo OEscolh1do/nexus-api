@@ -9,7 +9,7 @@ const logtoConfig: any = {
   endpoint: import.meta.env.VITE_LOGTO_ENDPOINT || 'http://localhost:3301',
   appId: import.meta.env.VITE_LOGTO_APP_ID || '',
   scopes: ['roles'],
-  postLogoutRedirectUri: window.location.origin,
+  postLogoutRedirectUri: `${window.location.origin}/login`,
 };
 
 createRoot(document.getElementById('root')!).render(
