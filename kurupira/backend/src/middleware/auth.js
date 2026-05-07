@@ -72,6 +72,7 @@ async function verifyToken(token) {
 }
 
 const authenticateToken = async (req, res, next) => {
+  logger.info(`[Auth] Tentativa de acesso à rota: ${req.method} ${req.originalUrl}`);
   const authHeader = req.headers['authorization'];
   let token = authHeader && authHeader.split(' ')[1];
 

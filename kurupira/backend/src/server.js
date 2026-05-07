@@ -81,11 +81,17 @@ app.use((err, req, res, next) => {
   if (err.message?.startsWith('Tipo de arquivo') || err.message?.startsWith('Conteúdo')) {
     return res.status(400).json({ success: false, error: err.message });
   }
+  console.error('!!! UNHANDLED ERROR !!!', { message: err.message, stack: err.stack });
   logger.error('Unhandled error', { err: err.message, stack: err.stack });
   res.status(500).json({ success: false, error: 'Internal server error' });
 });
 
 // Popula o cache de catálogo antes de começar a receber tráfego
+async function authenticateToken(req, res, next) {
+  console.log('[Auth] Iniciando validação de token...');
+  const auth = req.headers.authorization;
+}
+
 async function warmUpCache() {
   try {
     const [modules, inverters] = await Promise.all([
