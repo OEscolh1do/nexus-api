@@ -475,3 +475,140 @@ Adotamos o paradigma de **Navegação Vertical em Eixo Horizontal**:
 #### Referência
 - `kurupira/frontend/src/modules/engineering/ui/navigation/EngineeringTabs.tsx`
 - `kurupira/frontend/src/modules/engineering/ui/navigation/EngineeringNavigation.tsx`
+
+---
+
+## 11. Ambiente de Desenvolvimento Local (Local Dev)
+
+### 11.1. Banco de Dados Ywara é Docker-Only — Sempre Subir Antes dos Backends
+**Data:** 08/05/2026
+**Módulo:** Infraestrutura Local / Docker
+
+#### O Problema
+Ao reiniciar o computador e tentar rodar `npm run dev` nos backends, o Prisma retorna `P1001: Can't reach database server at 127.0.0.1:3306`. O MySQL **não está instalado nativamente** no Windows — ele roda exclusivamente via container Docker (`nexus-db`), que não reinicia automaticamente com o sistema.
+
+#### A Solução (Padrão Adotado)
+```powershell
+# SEMPRE executar na raiz do projeto antes de qualquer npm run dev
+docker compose up -d nexus-db
+
+# Verificar saúde
+docker ps --filter name=neonorte_db
+# Esperado: STATUS = "Up X seconds (healthy)", PORTS = "0.0.0.0:3306->3306/tcp"
+```
+
+#### Regra de Ouro
+> "Se `netstat -ano | findstr :3306` retornar vazio, o banco está desligado — `docker compose up -d nexus-db` na raiz do projeto resolve. Não perca tempo investigando rede ou credenciais."
+
+**Referência:** `docker-compose.yml` (serviço `nexus-db`), Skill: `local-dev-bootstrap`
+
+---
+
+### 11.2. Kurupira Tem Dois Prisma Clients — Ambos Precisam Ser Gerados
+**Data:** 08/05/2026
+**Módulo:** Kurupira Backend / Prisma
+
+#### O Problema
+Backend do Kurupira crasha com `MODULE_NOT_FOUND: Cannot find module '../../node_modules/.prisma/client-sumauma'` após uma instalação limpa de dependências. O `npm install` não gera os clients Prisma — apenas instala o CLI.
+
+#### Causa Raiz
+O Kurupira usa multi-schema Prisma:
+- `prisma/schema.prisma` → gera `node_modules/@prisma/client` (banco `db_kurupira`)
+- `prisma/schema-sumauma.prisma` → gera `node_modules/.prisma/client-sumauma` (leitura RO do `db_sumauma` para AuthZ)
+
+O segundo client tem um output customizado e **não é gerado automaticamente** pelo postinstall padrão.
+
+#### A Solução (Padrão Adotado)
+```powershell
+# Em kurupira/backend, após qualquer npm install limpo:
+npx prisma generate                                          # client principal
+npx prisma generate --schema=./prisma/schema-sumauma.prisma # client sumauma RO
+```
+
+#### Regra de Ouro
+> "Se o Kurupira crashar com MODULE_NOT_FOUND no `client-sumauma`, gere o client customizado com `npx prisma generate --schema=./prisma/schema-sumauma.prisma`. São dois clientes independentes — ambos precisam ser gerados."
+
+**Referência:** `kurupira/backend/prisma/schema-sumauma.prisma`, `kurupira/backend/src/lib/prismaSumauma.js`
+
+---
+
+### 11.3. P1001 do Prisma é Enganoso — Diagnosticar com mysql2 Antes de Investigar Config
+**Data:** 08/05/2026
+**Módulo:** Prisma / Local Dev
+
+#### O Problema
+O erro `P1001: Can't reach database server` é genérico e não distingue entre banco desligado, senha incorreta ou banco inexistente. Isso gera ciclos de investigação improdutivos (trocar host, remover aspas, url-encode de senha) quando o problema real é simplesmente o container parado.
+
+#### A Solução (Padrão Adotado)
+Usar um script Node com `mysql2` para isolar se o problema é rede ou Prisma:
+
+```javascript
+// scratch/test-db.js
+const mysql = require('mysql2/promise');
+require('dotenv').config();
+async function test() {
+  try {
+    const conn = await mysql.createConnection(process.env.DATABASE_URL);
+    console.log('✅ Conexão bem-sucedida via mysql2!');
+    await conn.end();
+  } catch (err) { console.error('❌', err.message); }
+}
+test();
+```
+
+- `ECONNREFUSED` → banco desligado → `docker compose up -d nexus-db`
+- `Access denied` → credenciais erradas → revisar `.env`
+- Sucesso → problema é de schema/migrations do Prisma
+
+#### Regra de Ouro
+> "Antes de investigar rede, aspas ou URL encoding no `.env`, confirme com `netstat -ano | findstr :3306` se há algo ouvindo na porta. Se vazio, o banco está desligado — não é problema de configuração."
+
+---
+
+### 11.4. Sumaúma Esconde Falhas de Banco — Kurupira É o Canário da Mina
+**Data:** 08/05/2026
+**Módulo:** Sumaúma Backend / Kurupira Backend
+
+#### O Problema
+O Sumaúma backend parece "saudável" (porta 3003 ouvindo, sem crash) mesmo quando o banco está desligado, pois usa lazy loading — o Prisma Client só conecta na primeira requisição.
+
+#### A Solução (Padrão Adotado)
+Usar o **log de startup do Kurupira** como indicador de saúde do banco:
+- `[kurupira] Cache warm-up concluído { modules: X, inverters: Y }` → banco ✅
+- `[kurupira] Cache warm-up falhou — cache partirá frio` → banco ❌
+
+O Kurupira executa `warmUpCache()` no startup, carregando o catálogo imediatamente. Qualquer falha de conexão aparece nos primeiros segundos.
+
+#### Regra de Ouro
+> "Não confie no status do Sumaúma para avaliar a saúde do banco. Olhe para o Kurupira — ele é o canário da mina de dados."
+
+**Referência:** `kurupira/backend/src/server.js` (função `warmUpCache`)
+
+---
+
+### 11.5. Variáveis de Ambiente sem Aspas no .env do Windows
+**Data:** 08/05/2026
+**Módulo:** Todos os backends / .env
+
+#### O Problema
+URLs de conexão de banco com aspas duplas no `.env` causam falha silenciosa de parsing no Windows com algumas versões do `dotenv`, incluindo o `dotenvx` usado nos backends Ywara.
+
+#### A Solução (Padrão Adotado)
+```bash
+# ✅ Correto (padrão do ecossistema Ywara)
+DATABASE_URL=mysql://user:pass@127.0.0.1:3306/db_name
+
+# ❌ Evitar (pode falhar no Windows com Prisma/dotenvx)
+DATABASE_URL="mysql://user:pass@127.0.0.1:3306/db_name"
+```
+
+Caracteres especiais em senhas devem ser URL-encoded na connection string:
+```bash
+# Senha com '!' → encode como '%21'
+DATABASE_URL=mysql://user:senha%21@127.0.0.1:3306/db
+```
+
+#### Regra de Ouro
+> "Nos `.env` do Ywara: sem aspas, IP explícito (`127.0.0.1`), caracteres especiais URL-encoded (`!` → `%21`). Essas três regras evitam 90% dos erros de conexão locais."
+
+**Referência:** `kurupira/backend/.env`, `sumauma/backend/.env`

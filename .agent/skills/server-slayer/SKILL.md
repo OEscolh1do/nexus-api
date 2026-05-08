@@ -29,14 +29,16 @@ $pids = (netstat -ano | findstr ":$port") -split '\s+' | Where-Object { $_ -matc
 if ($pids) { taskkill /F /PID $pids }
 ```
 
-### Portas Padrão do Ecossistema Neonorte
+### Portas Padrão do Ecossistema Ywara
 
 | Serviço | Porta |
 |---|---|
-| Nexus Hub (Vite) | 5173 |
-| Nexus ERP (Vite) | 5174 |
-| Nexus API (Express) | 3001 |
-| Lumi (futuro) | 5175 |
+| `nexus-db` (MySQL Docker) | 3306 |
+| `iaca/backend` | 3001 |
+| `kurupira/backend` | 3002 |
+| `sumauma/backend` | 3003 |
+| Kurupira Frontend (Vite) | 5173 |
+| Sumaúma Frontend (Vite) | 5175 |
 
 ## Protocolo de Conflito de Porta
 
@@ -45,3 +47,7 @@ if ($pids) { taskkill /F /PID $pids }
 3. **Ação**: Mate apenas o processo correto — nunca com `taskkill /F /IM node.exe` sem verificar qual instância.
 4. **Verificação**: Rode o servidor novamente e confirme que subiu sem erros.
 5. **Prevenção**: Se o conflito for recorrente, verifique se há processos `npm run dev` zumbis não encerrados corretamente.
+
+> ⚠️ **Atenção**: Se `netstat -ano | findstr :3306` retornar vazio (sem nenhuma linha), o problema
+> NÃO é conflito de porta — é o banco de dados desligado. Execute `docker compose up -d nexus-db`
+> na raiz do projeto e use a skill `local-dev-bootstrap` para o diagnóstico completo.

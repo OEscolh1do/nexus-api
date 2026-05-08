@@ -1,4 +1,4 @@
-import { Activity, RefreshCw, Server, Cpu, Clock, Terminal, Shield } from 'lucide-react';
+import { Activity, RefreshCw, Server, Cpu, Clock, Terminal, Shield, GitCompare } from 'lucide-react';
 import { useSystemHealth } from '@/hooks/useSystemHealth';
 import ServiceHealthCard from '@/components/system/ServiceHealthCard';
 import EnvInspector from '@/components/system/EnvInspector';
@@ -6,11 +6,17 @@ import SessionsTable from '@/components/system/SessionsTable';
 import CronJobsTable from '@/components/system/CronJobsTable';
 import ApiUsageTable from '@/components/system/ApiUsageTable';
 import RolesTab from '@/components/roles/RolesTab';
+import IdentityAuditTab from '@/components/system/IdentityAuditTab';
 import { useState } from 'react';
 
 export default function SystemPage() {
-  const { health, info, jobs, sessions, apiUsage, loading, refresh, revokeSession } = useSystemHealth();
-  const [activeTab, setActiveTab] = useState<'health' | 'roles'>('health');
+  const { 
+    health, info, jobs, sessions, apiUsage, loading, refresh, revokeSession, 
+    auditReport, auditStatus, runIdentityAudit, reprovisionUser,
+    deleteLogtoOrphan, provisionLocalUser, blockLocalUser,
+    linkLogtoOrg, provisionLogtoOrg, deleteLocalUser, deleteLocalTenant, provisionLocalTenant, syncAttributes, runBatchAction
+  } = useSystemHealth();
+  const [activeTab, setActiveTab] = useState<'health' | 'roles' | 'identity'>('health');
 
   const formatUptime = (seconds: number) => {
     const days = Math.floor(seconds / (24 * 3600));
@@ -65,6 +71,18 @@ export default function SystemPage() {
         >
           <Shield className="h-3.5 w-3.5" />
           Perfis de Acesso (Roles)
+        </button>
+        <button
+          id="tab-identity-audit"
+          onClick={() => setActiveTab('identity')}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
+            activeTab === 'identity'
+              ? 'border-sky-500 text-sky-400'
+              : 'border-transparent text-slate-500 hover:text-slate-300'
+          }`}
+        >
+          <GitCompare className="h-3.5 w-3.5" />
+          Integridade de Identidade
         </button>
       </div>
 
@@ -144,6 +162,24 @@ export default function SystemPage() {
           </div>
         )}
         {activeTab === 'roles' && <RolesTab />}
+        {activeTab === 'identity' && (
+          <IdentityAuditTab
+            report={auditReport}
+            status={auditStatus}
+            onRunAudit={runIdentityAudit}
+            onReprovision={reprovisionUser}
+            onDeleteOrphan={deleteLogtoOrphan}
+            onProvisionLocal={provisionLocalUser}
+            onBlockLocal={blockLocalUser}
+            onLinkOrg={linkLogtoOrg}
+            onProvisionOrg={provisionLogtoOrg}
+            onDeleteLocal={deleteLocalUser}
+            onDeleteTenant={deleteLocalTenant}
+            onProvisionLocalTenant={provisionLocalTenant}
+            onSyncAttributes={syncAttributes}
+            onBatchAction={runBatchAction}
+          />
+        )}
       </div>
     </div>
   );

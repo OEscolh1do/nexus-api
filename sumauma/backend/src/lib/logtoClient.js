@@ -5,6 +5,9 @@ const logger = require('./logger');
  * Cliente M2M para a Management API do Logto Self-Hosted.
  * Logto usa Client Credentials Grant para M2M.
  * O token é cacheado localmente e renovado antes do vencimento.
+ *
+ * NOTA: O resource usado é `${LOGTO_ENDPOINT}/api` (Management API),
+ * não LOGTO_M2M_RESOURCE (que é a API do Ywara). Manter distinção.
  */
 
 let _cachedToken = null;
@@ -139,4 +142,67 @@ async function deleteLogtoUser(logtoUserId) {
   }
 }
 
-module.exports = { createLogtoOrg, createLogtoUser, deleteLogtoOrg, deleteLogtoUser };
+/**
+ * Lista todos os usuários do Logto com paginação automática.
+ * Percorre todas as páginas até esgotar os resultados.
+ * @param {number} pageSize - Itens por página (máx 200 no Logto Cloud)
+ * @returns {Promise<Array<{id, primaryEmail, name, username, customData}>>}
+ */
+async function listLogtoUsers(pageSize = 100) {
+  const allUsers = [];
+  let page = 1;
+  let hasMore = true;
+
+  while (hasMore) {
+    try {
+      const res = await logtoRequest('get', `/users?page=${page}&page_size=${pageSize}`);
+      const users = res.data;
+      if (!Array.isArray(users) || users.length === 0) {
+        hasMore = false;
+      } else {
+        allUsers.push(...users);
+        hasMore = users.length === pageSize; // Se retornou menos que o pageSize, não há mais páginas
+        page++;
+      }
+    } catch (error) {
+      logger.error('Logto listUsers falhou', { page, err: error.response?.data || error.message });
+      throw new Error('Falha ao listar usuários do Logto');
+    }
+  }
+
+  logger.info('Logto listUsers concluído', { total: allUsers.length });
+  return allUsers;
+}
+
+/**
+ * Lista todas as organizações do Logto com paginação automática.
+ * @param {number} pageSize - Itens por página
+ * @returns {Promise<Array<{id, name, customData}>>}
+ */
+async function listLogtoOrgs(pageSize = 100) {
+  const allOrgs = [];
+  let page = 1;
+  let hasMore = true;
+
+  while (hasMore) {
+    try {
+      const res = await logtoRequest('get', `/organizations?page=${page}&page_size=${pageSize}`);
+      const orgs = res.data;
+      if (!Array.isArray(orgs) || orgs.length === 0) {
+        hasMore = false;
+      } else {
+        allOrgs.push(...orgs);
+        hasMore = orgs.length === pageSize;
+        page++;
+      }
+    } catch (error) {
+      logger.error('Logto listOrgs falhou', { page, err: error.response?.data || error.message });
+      throw new Error('Falha ao listar organizações do Logto');
+    }
+  }
+
+  logger.info('Logto listOrgs concluído', { total: allOrgs.length });
+  return allOrgs;
+}
+
+module.exports = { createLogtoOrg, createLogtoUser, deleteLogtoOrg, deleteLogtoUser, listLogtoUsers, listLogtoOrgs };

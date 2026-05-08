@@ -49,6 +49,84 @@ export interface ApiUsageInfo {
   apiCurrentUsage: number;
 }
 
+export interface AttributeMismatch {
+  userId: string;
+  username: string;
+  field: 'name' | 'email' | 'role';
+  local: string | null;
+  logto: string | null;
+}
+
+export interface IdentityOrphan {
+  logtoId: string;
+  email: string | null;
+  name: string | null;
+  username?: string;
+  organizations?: string[]; // V3
+}
+
+export interface IdentityMissing {
+  id: string;
+  username: string;
+  email?: string;
+  tenantName?: string;
+  authProviderId: string;
+}
+
+export interface OrgOrphan {
+  logtoId: string;
+  name: string;
+  description?: string;
+}
+
+export interface OrgMissing {
+  id: string;
+  name: string;
+  type: string;
+  logtoOrgId?: string;
+}
+
+export interface MembershipMismatch {
+  userId: string;
+  username: string;
+  tenantName: string;
+  expectedOrgId: string;
+  currentOrgs: string[];
+}
+
+export interface IdentityAuditReport {
+  checkedAt: string;
+  summary: {
+    total_local: number;
+    total_logto: number;
+    orphans_count: number;
+    missing_count: number;
+    orphan_orgs_count: number; // V3
+    missing_orgs_count: number; // V3
+    membership_mismatch_count: number; // V3
+    attribute_mismatch_count: number; // Deep Sync
+  };
+  orphansInLogto: IdentityOrphan[];
+  missingInLogto: IdentityMissing[];
+  attributeMismatches: AttributeMismatch[];
+  organizations: { // V3
+    orphans: OrgOrphan[];
+    missing: OrgMissing[];
+  };
+  membershipMismatches: MembershipMismatch[]; // V3
+}
+
+export interface IdentityAuditHistory {
+  id: string;
+  checkedAt: string;
+  summary: any;
+  report?: any;
+  status: 'SUCCESS' | 'FAILED';
+  errorMessage?: string;
+}
+
+export type AuditStatus = 'idle' | 'loading' | 'done' | 'error';
+
 export function useSystemHealth() {
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [info, setInfo] = useState<SystemInfo | null>(null);
@@ -57,6 +135,9 @@ export function useSystemHealth() {
   const [apiUsage, setApiUsage] = useState<ApiUsageInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [auditReport, setAuditReport] = useState<IdentityAuditReport | null>(null);
+  const [auditStatus, setAuditStatus] = useState<AuditStatus>('idle');
+  const [lastAudit, setLastAudit] = useState<IdentityAuditHistory | null>(null);
 
   const fetchHealth = useCallback(async () => {
     try {
@@ -118,11 +199,57 @@ export function useSystemHealth() {
     }
   }, []);
 
+  const runIdentityAudit = useCallback(async () => {
+    setAuditStatus('loading');
+    try {
+      const response = await api.get<IdentityAuditReport>('/system/identity-audit');
+      setAuditReport(response.data);
+      setAuditStatus('done');
+      fetchAuditHistory(); // Atualizar histórico após rodar manual
+    } catch {
+      setAuditStatus('error');
+    }
+  }, []);
+
+  const fetchAuditHistory = useCallback(async () => {
+    try {
+      const response = await api.get<IdentityAuditHistory>('/system/identity-audit/history');
+      setLastAudit(response.data);
+    } catch (err) {
+      console.error('Falha ao obter histórico de auditoria');
+    }
+  }, []);
+
+  const reprovisionUser = useCallback(async (userId: string) => {
+    const response = await api.post(`/system/identity-audit/reprovision/${userId}`);
+    // Retirar o usuário do relatório após reprovisionar com sucesso
+    setAuditReport(prev =>
+      prev
+        ? {
+            ...prev,
+            missingInLogto: prev.missingInLogto.filter(u => u.id !== userId),
+            summary: {
+              ...prev.summary,
+              missing_count: prev.summary.missing_count - 1,
+            },
+          }
+        : null
+    );
+    return response.data;
+  }, []);
+
   const refresh = useCallback(async (isInitial = false) => {
     if (isInitial) setLoading(true);
-    await Promise.all([fetchHealth(), fetchInfo(), fetchJobs(), fetchApiUsage(), fetchSessions()]);
+    await Promise.all([
+      fetchHealth(), 
+      fetchInfo(), 
+      fetchJobs(), 
+      fetchApiUsage(), 
+      fetchSessions(),
+      fetchAuditHistory()
+    ]);
     setLoading(false);
-  }, [fetchHealth, fetchInfo, fetchJobs, fetchApiUsage, fetchSessions]);
+  }, [fetchHealth, fetchInfo, fetchJobs, fetchApiUsage, fetchSessions, fetchAuditHistory]);
 
   useEffect(() => {
     refresh(true);
@@ -130,5 +257,59 @@ export function useSystemHealth() {
     return () => clearInterval(interval);
   }, [refresh]);
 
-  return { health, info, jobs, sessions, apiUsage, loading, error, refresh, revokeSession };
+  return {
+    health, info, jobs, sessions, apiUsage, loading, error, refresh, revokeSession,
+    auditReport, auditStatus, lastAudit, runIdentityAudit, reprovisionUser,
+    deleteLogtoOrphan,
+    provisionLocalUser,
+    blockLocalUser,
+    linkLogtoOrg,
+    provisionLogtoOrg,
+    deleteLocalUser,
+    deleteLocalTenant,
+    provisionLocalTenant,
+    syncAttributes,
+    runBatchAction,
+  };
+}
+
+async function deleteLogtoOrphan(logtoId: string) {
+  await api.delete(`/admin/system/identity-audit/orphan/${logtoId}`);
+}
+
+async function provisionLocalUser(logtoId: string, data: { tenantId: string; username: string; role?: string; fullName?: string; email?: string }) {
+  await api.post(`/admin/system/identity-audit/orphan/${logtoId}/provision-local`, data);
+}
+
+async function blockLocalUser(userId: string) {
+  await api.patch(`/admin/system/identity-audit/missing/${userId}/block`);
+}
+
+async function linkLogtoOrg(tenantId: string, logtoOrgId: string) {
+  await api.post(`/admin/system/identity-audit/tenant/${tenantId}/link`, { logtoOrgId });
+}
+
+async function provisionLogtoOrg(tenantId: string) {
+  await api.post(`/admin/system/identity-audit/tenant/${tenantId}/provision`);
+}
+
+async function deleteLocalUser(userId: string) {
+  await api.delete(`/admin/system/identity-audit/missing/${userId}`);
+}
+
+async function deleteLocalTenant(tenantId: string) {
+  await api.delete(`/admin/system/identity-audit/tenant/${tenantId}`);
+}
+
+async function provisionLocalTenant(logtoId: string, data: { name: string; type: string }) {
+  await api.post(`/admin/system/identity-audit/orphan-org/${logtoId}/provision-local`, data);
+}
+
+async function syncAttributes(userId: string, direction: 'TO_LOCAL' | 'TO_LOGTO' = 'TO_LOCAL') {
+  await api.post(`/admin/system/identity-audit/sync-attributes/${userId}`, { direction });
+}
+
+async function runBatchAction(action: string, targets: string[]) {
+  const { data } = await api.post('/admin/system/identity-audit/batch', { action, targets });
+  return data;
 }

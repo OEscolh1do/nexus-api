@@ -302,6 +302,8 @@ app.use((err, req, res, _next) => {
 // START
 // =============================================================
 
+const { initCronJobs } = require('./lib/cronJobs');
+
 app.listen(PORT, () => {
   logger.info('NEONORTE ADMIN BFF running', {
     port: PORT,
@@ -309,6 +311,9 @@ app.listen(PORT, () => {
     iaca: process.env.IACA_INTERNAL_URL || 'N/A',
     kurupira: process.env.KURUPIRA_INTERNAL_URL || 'N/A',
   });
+
+  // Iniciar Cron
+  initCronJobs();
 });
 
 module.exports = app;

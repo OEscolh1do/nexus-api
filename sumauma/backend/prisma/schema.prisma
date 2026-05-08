@@ -24,6 +24,7 @@ model Tenant {
   ssoDomain       String?
   ssoEnforced     Boolean    @default(false)
   status          String     @default("ACTIVE") // ACTIVE, BLOCKED, TRIAL_EXPIRED
+  logtoOrgId      String?    @unique // ID da Organization correspondente no Logto
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 
@@ -137,6 +138,15 @@ model CronLock {
   id        String   @id
   lockedAt  DateTime
   expiresAt DateTime
+}
+
+model IdentityAuditHistory {
+  id           String   @id @default(cuid())
+  checkedAt    DateTime @default(now())
+  summary      Json     // KPIs resumidos
+  report       Json?    // Dados detalhados da auditoria
+  status       String   @default("SUCCESS") // SUCCESS, FAILED
+  errorMessage String?  @db.Text
 }
 
 // ============================================
