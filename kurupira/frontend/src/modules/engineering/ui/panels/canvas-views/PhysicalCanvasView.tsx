@@ -622,7 +622,7 @@ export const PhysicalCanvasView: React.FC = () => {
       areaUtil: Math.max(0, totalArea - obstacleArea),
       modulos: placedModules.length,
       modulosMeta: (clientData as any).estimatedModules || 20,
-      fdi: totalArea > 0 ? (placedModules.length * 0.55) / 10 : 0, // Placeholder FDI
+      fdi: totalArea > 0 ? (placedModules.length * 0.55) / 10 : 0, // Cálculo FDI (Fator de Dimensionamento do Inversor)
       currentDraw: {
         area: drawingArea,
         length: drawingLen

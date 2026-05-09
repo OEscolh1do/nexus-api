@@ -116,7 +116,19 @@ export const KurupiraClient = {
         body: JSON.stringify(data),
       }),
 
-    update: (id: string, data: Partial<{ name: string; status: string; designData: any; notes: string; latitude: number | null; longitude: number | null }>) =>
+    update: (id: string, data: Partial<{ 
+      name: string; 
+      status: string; 
+      designData: any; 
+      notes: string; 
+      latitude: number | null; 
+      longitude: number | null;
+      clientName: string | null;
+      city: string | null;
+      state: string | null;
+      averageConsumption: number;
+      targetPowerKwp: number;
+    }>) =>
       apiFetch<TechnicalDesignSummary>(`/api/v1/designs/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),

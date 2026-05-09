@@ -4,6 +4,7 @@ import { useLogto } from '@logto/react';
 import { useSolarStore } from '@/core/state/solarStore';
 import { AuthContext, User } from './useAuth';
 import { NeonorteLoader } from '@/components/ui/NeonorteLoader';
+import { useIdentityStore, getInitials, getAvatarColor } from '@/core/state/identityStore';
 
 function mapRole(jwtRole: string): 'SALES' | 'ENGINEER' | 'ADMIN' {
   if (jwtRole === 'ADMIN' || jwtRole === 'COORDENACAO') return 'ADMIN';
@@ -15,6 +16,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [internalLoading, setInternalLoading] = useState(true);
   const setUserRole = useSolarStore(state => state.setUserRole);
+  const setProfile = useIdentityStore(state => state.setProfile);
+  const clearProfile = useIdentityStore(state => state.clearProfile);
   
   const navigate = useNavigate();
   const { isAuthenticated, isLoading: logtoLoading, getIdTokenClaims, getAccessToken, signOut: logtoSignOut, clearAllTokens } = useLogto();
@@ -46,15 +49,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         const userId = (claims.id || claims.sub) as string;
         const role = (claims.role as string) || 'ENGINEER';
+        const userEmail = (claims.username as string) || (claims.email as string);
 
         setUser({
           id: userId,
-          email: (claims.username as string) || (claims.email as string),
+          email: userEmail,
           role,
           tenantId: (claims.tenantId as string) || 'default-tenant-001',
         });
         
-        setUserRole(mapRole(role));
+        const mappedRole = mapRole(role);
+        setUserRole(mappedRole);
+
+        setProfile({
+          id: userId,
+          fullName: (claims.name as string) || userEmail.split('@')[0],
+          email: userEmail,
+          role: mappedRole,
+          initials: getInitials(claims.name as string, userEmail),
+          color: getAvatarColor(userId),
+        });
+
         setInternalLoading(false);
       } catch (err) {
         console.error('Falha ao processar sessão Logto', err);
@@ -94,6 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     sessionStorage.removeItem('kurupira_token');
     localStorage.removeItem('token');
     setUser(null);
+    clearProfile();
     try {
       if (clearAllTokens) {
         await clearAllTokens();

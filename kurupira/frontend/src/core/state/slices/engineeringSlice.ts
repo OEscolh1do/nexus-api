@@ -47,6 +47,8 @@ const initialEngineeringData: EngineeringInput = {
   azimute: 0, // 0° = Norte
   roofTilt: 15, // Inclinação típica de telhados residenciais
   shadingFactor: 0, // Assumir sem sombra até análise
+  moduleOrientation: 'portrait',
+  moduleSpacingM: 0.02,
 };
 
 /**

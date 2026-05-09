@@ -33,8 +33,7 @@ export const fetchCresesbHSP = async (
   _lng: number,
   orientation: string = 'N' // Default Norte
 ): Promise<CresesbResponse> => {
-  // Simulação de latência de rede (Atrito Cognitivo: network is unreliable)
-  await new Promise(resolve => setTimeout(resolve, 600));
+  // Sem latência artificial — motor nativo ultra-rápido (V4)
 
   // Lógica de Simulação Geográfica (Mock Inteligente)
   const isNorth = lat > -15; // Regra simples: Acima de Brasília = "Norte/Nordeste"

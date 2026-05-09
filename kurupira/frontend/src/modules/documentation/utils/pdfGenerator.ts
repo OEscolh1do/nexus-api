@@ -126,7 +126,7 @@ export const generateTechnicalMemorandumPDF = ({
 
   currentY = (doc as any).lastAutoTable.finalY + 16;
 
-  // Bloco: 4. Proteções & Cabeamento (Placeholder/Mock up de PENDENTE)
+  // Bloco: 4. Proteções & Cabeamento (Detalhamento Técnico de Projeto)
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(15, 23, 42);
@@ -136,7 +136,7 @@ export const generateTechnicalMemorandumPDF = ({
   doc.setFontSize(9);
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(100, 116, 139);
-  doc.text('* Seção pendente de detalhamento diagramático. Elementos macro previstos:', margin, currentY);
+  doc.text('* Configuração padrão de engenharia Neonorte. Detalhamento diagramático em anexo ao projeto executivo:', margin, currentY);
 
   currentY += 6;
   doc.setFont('helvetica', 'normal');

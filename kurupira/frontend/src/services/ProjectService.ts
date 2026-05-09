@@ -97,6 +97,11 @@ export const ProjectService = {
           status: 'IN_PROGRESS',
           latitude: (typeof solarState.clientData?.lat === 'number' && !isNaN(solarState.clientData.lat)) ? solarState.clientData.lat : null,
           longitude: (typeof solarState.clientData?.lng === 'number' && !isNaN(solarState.clientData.lng)) ? solarState.clientData.lng : null,
+          clientName: solarState.clientData?.clientName || null,
+          city: solarState.clientData?.city || null,
+          state: solarState.clientData?.state || null,
+          averageConsumption: solarState.clientData?.averageConsumption || 0,
+          targetPowerKwp: solarState.kWpAlvo || 0
         });
         console.log('[Trace Ômega] Update do KurupiraClient resolvido com sucesso!');
       } else {
@@ -137,7 +142,7 @@ export const ProjectService = {
           clientData: { ...initialClientData },
           legalData: null,
           weatherData: null,
-          engineeringData: { orientation: 'Norte', azimute: 0, roofTilt: 15, shadingFactor: 0 },
+          engineeringData: { orientation: 'Norte', azimute: 0, roofTilt: 15, shadingFactor: 0, moduleOrientation: 'portrait', moduleSpacingM: 0.02 },
           kWpAlvo: 0,
           loadGrowthFactor: 1,
           activeInvoiceId: null,
@@ -202,7 +207,7 @@ export const ProjectService = {
           clientData: { ...initialClientData },
           legalData: null,
           weatherData: null,
-          engineeringData: { orientation: 'Norte', azimute: 0, roofTilt: 15, shadingFactor: 0 },
+          engineeringData: { orientation: 'Norte', azimute: 0, roofTilt: 15, shadingFactor: 0, moduleOrientation: 'portrait', moduleSpacingM: 0.02 },
           kWpAlvo: 0,
           loadGrowthFactor: 1,
           activeInvoiceId: null,

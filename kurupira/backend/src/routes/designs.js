@@ -96,17 +96,32 @@ router.put('/:id', authenticateToken, validate(updateDesignSchema), async (req, 
     });
     if (!existing) return res.status(404).json({ success: false, error: 'Not found' });
 
-    // Merge-on-save: A Cadeia da Verdade para coordenadas é o JSON de engenharia.
-    // Se o designData contiver lat/lng, eles sobrescrevem os campos da tabela.
-    if (designData?.solar?.clientData) {
-      const { lat, lng } = designData.solar.clientData;
-      if (typeof lat === 'number') latitude = lat;
-      if (typeof lng === 'number') longitude = lng;
+    // Merge-on-save: Sincronizar colunas estruturadas com o JSON de engenharia (Cadeia da Verdade)
+    let extracted = {};
+    if (designData) {
+      const metrics = extractDesignMetrics(designData);
+      const cd = (typeof designData === 'string' ? JSON.parse(designData) : designData).solar?.clientData || {};
+      
+      extracted = {
+        latitude: metrics.lat || latitude,
+        longitude: metrics.lng || longitude,
+        clientName: metrics.clientName || cd.clientName || null,
+        city: metrics.city || cd.city || null,
+        state: metrics.state || cd.state || null,
+        averageConsumption: metrics.averageConsumptionKwh || 0,
+        targetPowerKwp: metrics.targetPowerKwp || 0
+      };
     }
 
     const design = await prisma.technicalDesign.update({
       where: { id: req.params.id },
-      data: { designData, name, status, notes, latitude, longitude }
+      data: { 
+        designData, 
+        name, 
+        status, 
+        notes, 
+        ...extracted 
+      }
     });
     res.json({ success: true, data: design });
   } catch (error) {

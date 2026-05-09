@@ -270,6 +270,7 @@ export function useSystemHealth() {
     provisionLocalTenant,
     syncAttributes,
     runBatchAction,
+    fixMembership,
   };
 }
 
@@ -312,4 +313,8 @@ async function syncAttributes(userId: string, direction: 'TO_LOCAL' | 'TO_LOGTO'
 async function runBatchAction(action: string, targets: string[]) {
   const { data } = await api.post('/system/identity-audit/batch', { action, targets });
   return data;
+}
+
+async function fixMembership(userId: string) {
+  await api.post(`/system/identity-audit/fix-membership/${userId}`);
 }

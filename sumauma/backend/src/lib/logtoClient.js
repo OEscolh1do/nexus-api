@@ -205,4 +205,30 @@ async function listLogtoOrgs(pageSize = 100) {
   return allOrgs;
 }
 
-module.exports = { createLogtoOrg, createLogtoUser, deleteLogtoOrg, deleteLogtoUser, listLogtoUsers, listLogtoOrgs };
+/**
+ * Associa um usuário a uma organização no Logto.
+ * @param {string} logtoUserId - ID do usuário no Logto
+ * @param {string} logtoOrgId - ID da organização no Logto
+ */
+async function addUserToLogtoOrg(logtoUserId, logtoOrgId) {
+  try {
+    await logtoRequest('post', `/organizations/${logtoOrgId}/users`, {
+      userIds: [logtoUserId]
+    });
+    logger.info('Usuário associado à organização com sucesso', { logtoUserId, logtoOrgId });
+  } catch (error) {
+    logger.error('Logto addUserToOrg falhou', { logtoUserId, logtoOrgId, err: error.response?.data || error.message });
+    throw new Error('Falha ao associar usuário à organização no Logto');
+  }
+}
+
+module.exports = { 
+  createLogtoOrg, 
+  createLogtoUser, 
+  deleteLogtoOrg, 
+  deleteLogtoUser, 
+  listLogtoUsers, 
+  listLogtoOrgs,
+  addUserToLogtoOrg,
+  logtoRequest
+};

@@ -72,11 +72,17 @@ export const EngineeringInputSchema = z.object({
    * 
    * // NOTA: Valores > 0.3 devem gerar alerta no SystemHealthCheck
    */
+  /** Fator de sombreamento (0-1) */
   shadingFactor: z.number()
     .min(0, "Fator de sombreamento deve ser >= 0")
     .max(1, "Fator de sombreamento deve ser <= 1")
-    .default(0)
-    .describe("Fator de sombreamento (0 = sem sombra, 1 = sombra total)"),
+    .default(0),
+
+  /** Orientação física de montagem dos módulos no telhado */
+  moduleOrientation: z.enum(["portrait", "landscape"]).default("portrait"),
+
+  /** Espaçamento entre módulos em metros (ex: 0.02 para 2cm) */
+  moduleSpacingM: z.number().min(0).max(0.5).default(0.02),
 });
 
 // Tipo TypeScript inferido do schema - use este em toda a aplicação

@@ -69,9 +69,15 @@ const SurfaceSelectorInline: React.FC = () => {
 export const ArrangementToolbar: React.FC = () => {
   const activeTool = useUIStore(s => s.activeTool);
   const setActiveTool = useUIStore(s => s.setActiveTool);
-  const installationAreas = useSolarStore(s => s.project.installationAreas) || [];
+  const { 
+    engineeringData, 
+    updateEngineeringData, 
+    project, 
+    autoLayoutArea 
+  } = useSolarStore();
+
+  const installationAreas = project.installationAreas || [];
   const selectedEntityId = useUIStore(s => s.selectedEntity.id);
-  const autoLayoutArea = useSolarStore(s => s.autoLayoutArea);
   const isLayout0 = installationAreas.length === 0;
 
   return (
@@ -100,15 +106,15 @@ export const ArrangementToolbar: React.FC = () => {
         <ToolbarButton 
           icon={MoveVertical} 
           label="Retrato (Portrait)" 
-          active={true} 
-          onClick={() => {}} 
+          active={engineeringData.moduleOrientation === 'portrait'} 
+          onClick={() => updateEngineeringData({ moduleOrientation: 'portrait' })} 
           disabled={isLayout0}
         />
         <ToolbarButton 
           icon={MoveHorizontal} 
           label="Paisagem (Landscape)" 
-          active={false} 
-          onClick={() => {}} 
+          active={engineeringData.moduleOrientation === 'landscape'} 
+          onClick={() => updateEngineeringData({ moduleOrientation: 'landscape' })} 
           disabled={isLayout0}
         />
       </RibbonSection>
@@ -134,7 +140,7 @@ export const ArrangementToolbar: React.FC = () => {
             icon={Settings} 
             label="Ajustar Afastamentos" 
             active={false} 
-            onClick={() => {}} 
+            onClick={() => alert("Configuração de Afastamentos em desenvolvimento")} 
           />
         </RibbonSection>
       )}

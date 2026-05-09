@@ -308,7 +308,7 @@ export const createProjectSlice: StateCreator<
   [],
   [],
   ProjectSlice
-> = (set) => ({
+> = (set, get) => ({
   project: initialProjectData,
 
   setCoordinates: (lat, lng) => set((s) => {
@@ -711,84 +711,85 @@ export const createProjectSlice: StateCreator<
 
     if (maxNewModules <= 0) return s;
 
-    const margin = 0.05; // 5cm between panels
+    // DETERMINÍSTICO: Seguir o que o usuário escolheu na UI (Cadeia da Verdade)
+    // Acesso cross-slice via get() — padrão Zustand para slices compostos
+    const fullState = (get as any)() as { engineeringData?: { moduleOrientation?: string; moduleSpacingM?: number } };
+    const moduleOrientation = fullState.engineeringData?.moduleOrientation ?? 'portrait';
+    const moduleSpacingM = fullState.engineeringData?.moduleSpacingM ?? 0.02;
+    const margin = moduleSpacingM;
+
+    // Define dimensões baseadas na orientação escolhida
+    const finalW = moduleOrientation === 'portrait' ? modW : modH;
+    const finalH = moduleOrientation === 'portrait' ? modH : modW;
+
+    const eW = finalW + margin;
+    const eH = finalH + margin;
 
     // Calcular bounds do polígono freeform
     const bounds = computeBounds(area.localVertices);
 
-    // Otimizador Portrait vs Landscape (Smart Fill)
-    const tryLayout = (w: number, h: number): { count: number; modules: PlacedModule[]; ids: string[] } => {
-      const eW = w + margin;
-      const eH = h + margin;
-      const cols = Math.floor(bounds.widthM / eW);
-      const rows = Math.floor(bounds.heightM / eH);
-      const startX = bounds.minX + eW / 2;
-      const startY = bounds.minY + eH / 2;
+    const cols = Math.floor(bounds.widthM / eW);
+    const rows = Math.floor(bounds.heightM / eH);
+    const startX = bounds.minX + eW / 2;
+    const startY = bounds.minY + eH / 2;
 
-      const mods: PlacedModule[] = [];
-      const ids: string[] = [];
-      let placedCount = 0;
-      const halfW = w / 2;
-      const halfH = h / 2;
+    const newModules: PlacedModule[] = [];
+    const newModuleIds: string[] = [];
+    let placedCount = 0;
+    const halfW = finalW / 2;
+    const halfH = finalH / 2;
 
-      // Retorna true se retângulos se intersectam geometricamente
-      const intersect = (cx1: number, cy1: number, w1: number, h1: number, cx2: number, cy2: number, w2: number, h2: number) => {
-        return !(
-          cx1 + w1/2 <= cx2 - w2/2 ||
-          cx1 - w1/2 >= cx2 + w2/2 ||
-          cy1 + h1/2 <= cy2 - h2/2 ||
-          cy1 - h1/2 >= cy2 + h2/2
-        );
-      };
-
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          if (placedCount >= maxNewModules) break;
-
-          const cx = startX + c * eW;
-          const cy = startY + r * eH;
-          
-          // Smart Fill: Pular se colidir com algum painel *já existente* nesta área manualmente colocado
-          let collides = false;
-          for (const em of existingModules) {
-            if (intersect(cx, cy, w, h, em.offsetX_M, em.offsetY_M, em.widthM, em.heightM)) {
-              collides = true;
-              break;
-            }
-          }
-          if (collides) continue;
-
-          // Ray-Casting: verificar se os 4 cantos do painel estão dentro do polígono principal E FORA das obstruções
-          if (isRectInsidePolygon(cx, cy, halfW, halfH, area.localVertices, area.obstacles)) {
-            const mId = generateId('pm_auto');
-            let placed: PlacedModule = {
-              id: mId,
-              moduleSpecId: activeSpec.id,
-              areaId: id,
-              offsetX_M: cx,
-              offsetY_M: cy,
-              widthM: w,
-              heightM: h,
-              center: [0,0], polygon: [], axisAngle: 0
-            };
-            placed = deriveAbsoluteModuleData(placed, area);
-            mods.push(placed);
-            ids.push(mId);
-            placedCount++;
-          }
-        }
-        if (placedCount >= maxNewModules) break;
-      }
-      return { count: mods.length, modules: mods, ids };
+    // Helper: interseção geométrica de retângulos
+    const intersect = (cx1: number, cy1: number, w1: number, h1: number, cx2: number, cy2: number, w2: number, h2: number) => {
+      return !(
+        cx1 + w1/2 <= cx2 - w2/2 ||
+        cx1 - w1/2 >= cx2 + w2/2 ||
+        cy1 + h1/2 <= cy2 - h2/2 ||
+        cy1 - h1/2 >= cy2 + h2/2
+      );
     };
 
-    // Testa Portrait e Landscape
-    const portrait  = tryLayout(modW, modH);
-    const landscape = tryLayout(modH, modW);
-    const winner = landscape.count > portrait.count ? landscape : portrait;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (placedCount >= maxNewModules) break;
+
+        const cx = startX + c * eW;
+        const cy = startY + r * eH;
+        
+        // Smart Fill: Pular se colidir com algum painel existente
+        let collides = false;
+        for (const em of existingModules) {
+          if (intersect(cx, cy, finalW, finalH, em.offsetX_M, em.offsetY_M, em.widthM, em.heightM)) {
+            collides = true;
+            break;
+          }
+        }
+        if (collides) continue;
+
+        // Ray-Casting: verificar se os 4 cantos estão dentro do polígono
+        if (isRectInsidePolygon(cx, cy, halfW, halfH, area.localVertices, area.obstacles)) {
+          const mId = generateId('pm_auto');
+          let placed: PlacedModule = {
+            id: mId,
+            moduleSpecId: activeSpec.id,
+            areaId: id,
+            offsetX_M: cx,
+            offsetY_M: cy,
+            widthM: finalW,
+            heightM: finalH,
+            center: [0,0], polygon: [], axisAngle: 0
+          };
+          placed = deriveAbsoluteModuleData(placed, area);
+          newModules.push(placed);
+          newModuleIds.push(mId);
+          placedCount++;
+        }
+      }
+      if (placedCount >= maxNewModules) break;
+    }
 
     // Preserva os IDs e objetos existentes, adiciona os novos
-    const newPlacedModuleIds = [...area.placedModuleIds, ...winner.ids];
+    const newPlacedModuleIds = [...area.placedModuleIds, ...newModuleIds];
     
     const newAreas = [...s.project.installationAreas];
     newAreas[areaIndex] = { ...area, placedModuleIds: newPlacedModuleIds };
@@ -797,7 +798,7 @@ export const createProjectSlice: StateCreator<
       project: {
         ...s.project,
         installationAreas: newAreas,
-        placedModules: [...s.project.placedModules, ...winner.modules]
+        placedModules: [...s.project.placedModules, ...newModules]
       }
     };
   }),

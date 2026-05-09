@@ -273,6 +273,44 @@ router.post('/identity-audit/sync-attributes/:userId', async (req, res) => {
 });
 
 // ============================================
+// POST /admin/system/identity-audit/fix-membership/:userId — Reparar Membership
+// ============================================
+router.post('/identity-audit/fix-membership/:userId', async (req, res) => {
+  const { userId } = req.params;
+  const { addUserToLogtoOrg } = require('../lib/logtoClient');
+
+  try {
+    const user = await prismaSumauma.user.findUnique({ 
+      where: { id: userId },
+      include: { tenant: true }
+    });
+
+    if (!user || !user.authProviderId || !user.tenant?.logtoOrgId) {
+      return res.status(400).json({ error: 'Dados insuficientes para reparar membership.' });
+    }
+
+    await addUserToLogtoOrg(user.authProviderId, user.tenant.logtoOrgId);
+
+    // Auditoria
+    await auditLog({
+      operator:   req.operator,
+      action:     'ADMIN_FIX_USER_MEMBERSHIP',
+      entity:     'User',
+      resourceId: userId,
+      ipAddress:  req.ip ?? req.headers['x-forwarded-for'],
+      userAgent:  req.headers['user-agent'],
+      details:    `Associação do usuário ${user.username} à organização ${user.tenant.name} reparada no Logto.`,
+      after:      { logtoOrgId: user.tenant.logtoOrgId }
+    });
+
+    res.json({ success: true, message: 'Associação reparada com sucesso no Logto.' });
+  } catch (error) {
+    logger.error('Erro ao reparar membership', { userId, err: error.message });
+    res.status(500).json({ error: 'Falha ao reparar membership', detail: error.message });
+  }
+});
+
+// ============================================
 // POST /admin/system/identity-audit/reprovision/:userId — Reprovisionar no Logto
 // ============================================
 router.post('/identity-audit/reprovision/:userId', async (req, res) => {
@@ -364,7 +402,7 @@ router.post('/identity-audit/batch', async (req, res) => {
     return res.status(400).json({ error: 'Ação e lista de alvos são obrigatórios.' });
   }
 
-  const { deleteLogtoUser, deleteLogtoOrg, listLogtoUsers } = require('../lib/logtoClient');
+  const { deleteLogtoUser, deleteLogtoOrg, listLogtoUsers, addUserToLogtoOrg } = require('../lib/logtoClient');
   const results = { successCount: 0, failCount: 0, errors: [] };
 
   try {
@@ -396,6 +434,17 @@ router.post('/identity-audit/batch', async (req, res) => {
                 role: logtoUser.customData?.role || user.role
               }
             });
+            break;
+          }
+          case 'FIX_MEMBERSHIPS': {
+            const user = await prismaSumauma.user.findUnique({ 
+              where: { id },
+              include: { tenant: true }
+            });
+            if (!user || !user.authProviderId || !user.tenant?.logtoOrgId) {
+              throw new Error('Dados insuficientes para reparar membership.');
+            }
+            await addUserToLogtoOrg(user.authProviderId, user.tenant.logtoOrgId);
             break;
           }
           default:
