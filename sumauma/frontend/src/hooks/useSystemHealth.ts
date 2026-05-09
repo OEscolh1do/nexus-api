@@ -274,42 +274,42 @@ export function useSystemHealth() {
 }
 
 async function deleteLogtoOrphan(logtoId: string) {
-  await api.delete(`/admin/system/identity-audit/orphan/${logtoId}`);
+  await api.delete(`/system/identity-audit/orphan/${logtoId}`);
 }
 
 async function provisionLocalUser(logtoId: string, data: { tenantId: string; username: string; role?: string; fullName?: string; email?: string }) {
-  await api.post(`/admin/system/identity-audit/orphan/${logtoId}/provision-local`, data);
+  await api.post(`/system/identity-audit/orphan/${logtoId}/provision-local`, data);
 }
 
 async function blockLocalUser(userId: string) {
-  await api.patch(`/admin/system/identity-audit/missing/${userId}/block`);
+  await api.patch(`/system/identity-audit/missing/${userId}/block`);
 }
 
 async function linkLogtoOrg(tenantId: string, logtoOrgId: string) {
-  await api.post(`/admin/system/identity-audit/tenant/${tenantId}/link`, { logtoOrgId });
+  await api.post(`/system/identity-audit/tenant/${tenantId}/link`, { logtoOrgId });
 }
 
 async function provisionLogtoOrg(tenantId: string) {
-  await api.post(`/admin/system/identity-audit/tenant/${tenantId}/provision`);
+  await api.post(`/system/identity-audit/tenant/${tenantId}/provision`);
 }
 
 async function deleteLocalUser(userId: string) {
-  await api.delete(`/admin/system/identity-audit/missing/${userId}`);
+  await api.delete(`/system/identity-audit/missing/${userId}`);
 }
 
 async function deleteLocalTenant(tenantId: string) {
-  await api.delete(`/admin/system/identity-audit/tenant/${tenantId}`);
+  await api.delete(`/system/identity-audit/tenant/${tenantId}`);
 }
 
 async function provisionLocalTenant(logtoId: string, data: { name: string; type: string }) {
-  await api.post(`/admin/system/identity-audit/orphan-org/${logtoId}/provision-local`, data);
+  await api.post(`/system/identity-audit/orphan-org/${logtoId}/provision-local`, data);
 }
 
 async function syncAttributes(userId: string, direction: 'TO_LOCAL' | 'TO_LOGTO' = 'TO_LOCAL') {
-  await api.post(`/admin/system/identity-audit/sync-attributes/${userId}`, { direction });
+  await api.post(`/system/identity-audit/sync-attributes/${userId}`, { direction });
 }
 
 async function runBatchAction(action: string, targets: string[]) {
-  const { data } = await api.post('/admin/system/identity-audit/batch', { action, targets });
+  const { data } = await api.post('/system/identity-audit/batch', { action, targets });
   return data;
 }

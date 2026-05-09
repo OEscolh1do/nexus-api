@@ -36,7 +36,25 @@ function buildDesignData() {
 }
 
 function hydrateStores(designData: any) {
-  if (!designData || designData.version !== DESIGN_DATA_VERSION) return;
+  console.log('[Trace Hydrate 1] Início do hydrateStores. designData:', typeof designData, designData ? 'presente' : 'nulo');
+  if (!designData) {
+    console.warn('[Trace Hydrate 2] designData é falso/nulo! Abortando hidratação.');
+    return;
+  }
+  if (typeof designData === 'string') {
+    console.warn('[Trace Hydrate 3] designData chegou como string! Tentando fazer parse...');
+    try {
+      designData = JSON.parse(designData);
+    } catch (e) {
+      console.error('[Trace Hydrate 4] Falha ao fazer parse da string designData', e);
+      return;
+    }
+  }
+  console.log('[Trace Hydrate 5] designData.version:', designData.version, 'Esperado:', DESIGN_DATA_VERSION);
+  if (designData.version !== DESIGN_DATA_VERSION) {
+    console.warn('[Trace Hydrate 6] Version mismatch! Abortando hidratação.');
+    return;
+  }
 
   if (designData.solar) {
     useSolarStore.setState((current) => ({
@@ -64,19 +82,25 @@ export const ProjectService = {
 
   async saveDesign(_snapshotImageBase64: string | null): Promise<boolean> {
     try {
+      console.log('[Trace Beta 1] saveDesign chamado');
       const solarState = useSolarStore.getState();
       const activeProjectId = solarState.activeProjectId;
+      console.log('[Trace Beta 2] activeProjectId:', activeProjectId);
       const designData = buildDesignData();
+      console.log('[Trace Beta 3] designData gerado com sucesso, chaves:', Object.keys(designData));
 
       if (activeProjectId) {
         // Atualizar projeto existente
+        console.log('[Trace Beta 4] Atualizando projeto existente. Payload resumido (lat/lng):', { lat: solarState.clientData?.lat, lng: solarState.clientData?.lng });
         await KurupiraClient.designs.update(activeProjectId, {
           designData,
           status: 'IN_PROGRESS',
           latitude: (typeof solarState.clientData?.lat === 'number' && !isNaN(solarState.clientData.lat)) ? solarState.clientData.lat : null,
           longitude: (typeof solarState.clientData?.lng === 'number' && !isNaN(solarState.clientData.lng)) ? solarState.clientData.lng : null,
         });
+        console.log('[Trace Ômega] Update do KurupiraClient resolvido com sucesso!');
       } else {
+        console.log('[Trace Beta 5] Nenhum activeProjectId encontrado! Criando novo projeto...');
         // Criar novo projeto (iacaLeadId vem do deep link do Iaçã; null = standalone)
         const leadId = solarState.clientData?.iacaLeadId ?? null;
         const projectName =
@@ -96,7 +120,7 @@ export const ProjectService = {
       solarState.approveProject();
       return true;
     } catch (error) {
-      console.error('[ProjectService] Falha ao salvar design:', error);
+      console.error('[Trace Error] Falha detectada no try/catch do ProjectService:', error);
       return false;
     }
   },

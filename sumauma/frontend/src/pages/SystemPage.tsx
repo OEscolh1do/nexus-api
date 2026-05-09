@@ -26,80 +26,84 @@ export default function SystemPage() {
   };
 
   return (
-    <div className="flex h-full flex-col gap-6 overflow-y-auto pb-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="flex items-center gap-2 text-lg font-semibold text-slate-200">
-            <Activity className="h-5 w-5 text-slate-500" />
-            Sistema & Segurança
-          </h1>
-          <p className="text-xs text-slate-500">
-            Monitoramento de serviços, infraestrutura, sessões e perfis de acesso
-          </p>
+    <div className="flex h-full flex-col gap-4 overflow-hidden pb-4">
+      <div className="flex items-center justify-between bg-slate-900/50 p-3 rounded-sm border border-slate-800/50 backdrop-blur-sm">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-slate-800 rounded-sm border border-slate-700">
+            <Activity className="h-4 w-4 text-sky-500" />
+          </div>
+          <div>
+            <h1 className="text-sm font-bold text-slate-200 uppercase tracking-tight">
+              Saúde & Segurança
+            </h1>
+            <p className="text-[10px] text-slate-500 font-medium leading-none mt-0.5">
+              Acompanhe a saúde do sistema, conexões ativas e a segurança das contas
+            </p>
+          </div>
         </div>
 
         <button
           onClick={() => refresh()}
           disabled={loading}
-          className="flex items-center gap-2 h-9 px-4 text-xs font-medium bg-slate-800 border border-slate-700 rounded-sm text-slate-200 hover:bg-slate-700 transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 h-8 px-3 text-[10px] font-bold uppercase tracking-wider bg-slate-800 border border-slate-700 rounded-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-all disabled:opacity-50"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-          Verificar agora
+          <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
+          Sincronizar
         </button>
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-slate-800">
+      <div className="flex items-center gap-1 border-b border-slate-800 px-1">
         <button
           onClick={() => setActiveTab('health')}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
+          className={`flex items-center gap-2 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest border-b-2 transition-all ${
             activeTab === 'health'
-              ? 'border-sky-500 text-sky-400'
-              : 'border-transparent text-slate-500 hover:text-slate-300'
+              ? 'border-sky-500 text-sky-400 bg-sky-500/5'
+              : 'border-transparent text-slate-500 hover:text-slate-300 hover:bg-slate-800/30'
           }`}
         >
-          <Activity className="h-3.5 w-3.5" />
-          Saúde do Sistema
+          <Activity className="h-3 w-3" />
+          Status
         </button>
         <button
           onClick={() => setActiveTab('roles')}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
+          className={`flex items-center gap-2 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest border-b-2 transition-all ${
             activeTab === 'roles'
-              ? 'border-sky-500 text-sky-400'
-              : 'border-transparent text-slate-500 hover:text-slate-300'
+              ? 'border-sky-500 text-sky-400 bg-sky-500/5'
+              : 'border-transparent text-slate-500 hover:text-slate-300 hover:bg-slate-800/30'
           }`}
         >
-          <Shield className="h-3.5 w-3.5" />
-          Perfis de Acesso (Roles)
+          <Shield className="h-3 w-3" />
+          Perfis
         </button>
         <button
           id="tab-identity-audit"
           onClick={() => setActiveTab('identity')}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
+          className={`flex items-center gap-2 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest border-b-2 transition-all ${
             activeTab === 'identity'
-              ? 'border-sky-500 text-sky-400'
-              : 'border-transparent text-slate-500 hover:text-slate-300'
+              ? 'border-sky-500 text-sky-400 bg-sky-500/5'
+              : 'border-transparent text-slate-500 hover:text-slate-300 hover:bg-slate-800/30'
           }`}
         >
-          <GitCompare className="h-3.5 w-3.5" />
-          Integridade de Identidade
+          <GitCompare className="h-3 w-3" />
+          Integridade
         </button>
       </div>
 
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar">
         {activeTab === 'health' && (
-          <div className="flex flex-col gap-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
               {health?.services.map((service) => (
                 <ServiceHealthCard key={service.name} service={service} />
               ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="lg:col-span-2 space-y-4">
                 <SessionsTable sessions={sessions} onRevoke={revokeSession} loading={loading} />
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <CronJobsTable jobs={jobs} />
                   <ApiUsageTable apiUsage={apiUsage} />
                 </div>
@@ -107,54 +111,54 @@ export default function SystemPage() {
                 {info && <EnvInspector envs={info.envStatus} />}
               </div>
 
-              <div className="space-y-6">
-                <div className="bg-slate-900 border border-slate-800 rounded-sm overflow-hidden">
-                  <div className="px-4 py-2 bg-slate-800/50 border-b border-slate-800">
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Ambiente & Versões</h3>
+              <div className="space-y-4">
+                <div className="bg-slate-900 border border-slate-800 rounded-sm overflow-hidden shadow-inner">
+                  <div className="px-3 py-1.5 bg-slate-800/50 border-b border-slate-800">
+                    <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">Informações Técnicas</h3>
                   </div>
                   
-                  <div className="p-4 space-y-4">
+                  <div className="p-3 space-y-3">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-slate-400">
-                        <Server className="h-3.5 w-3.5" />
-                        <span className="text-xs">Admin Backend</span>
+                      <div className="flex items-center gap-2 text-slate-500">
+                        <Server className="h-3 w-3" />
+                        <span className="text-[10px] font-bold uppercase tracking-tighter">Servidor Principal</span>
                       </div>
-                      <span className="text-xs font-mono text-sky-400 font-bold">v{info?.version || '0.0.0'}</span>
+                      <span className="text-[10px] font-mono text-sky-400 font-bold">v{info?.version || '0.0.0'}</span>
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-slate-400">
-                        <Cpu className="h-3.5 w-3.5" />
-                        <span className="text-xs">Node.js</span>
+                      <div className="flex items-center gap-2 text-slate-500">
+                        <Cpu className="h-3 w-3" />
+                        <span className="text-[10px] font-bold uppercase tracking-tighter">Motor de Processamento</span>
                       </div>
-                      <span className="text-xs font-mono text-slate-300">{info?.nodeVersion || 'N/A'}</span>
+                      <span className="text-[10px] font-mono text-slate-400">{info?.nodeVersion || 'N/A'}</span>
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-slate-400">
-                        <Terminal className="h-3.5 w-3.5" />
-                        <span className="text-xs">Plataforma</span>
+                      <div className="flex items-center gap-2 text-slate-500">
+                        <Terminal className="h-3 w-3" />
+                        <span className="text-[10px] font-bold uppercase tracking-tighter">Plataforma</span>
                       </div>
-                      <span className="text-xs font-mono text-slate-300 uppercase">{info?.platform || 'N/A'}</span>
+                      <span className="text-[10px] font-mono text-slate-400 uppercase">{info?.platform || 'N/A'}</span>
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-slate-400">
-                        <Clock className="h-3.5 w-3.5" />
-                        <span className="text-xs">Uptime</span>
+                      <div className="flex items-center gap-2 text-slate-500">
+                        <Clock className="h-3 w-3" />
+                        <span className="text-[10px] font-bold uppercase tracking-tighter">Tempo Online</span>
                       </div>
-                      <span className="text-xs font-mono text-slate-300">{info ? formatUptime(info.uptimeSeconds) : 'N/A'}</span>
+                      <span className="text-[10px] font-mono text-slate-400">{info ? formatUptime(info.uptimeSeconds) : 'N/A'}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="p-4 bg-sky-500/5 border border-sky-500/20 rounded-sm space-y-2">
-                  <div className="flex items-center gap-2 text-sky-400">
-                    <Shield className="h-4 w-4" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider">Segurança</span>
+                <div className="p-3 bg-sky-500/5 border border-sky-500/10 rounded-sm space-y-2">
+                  <div className="flex items-center gap-2 text-sky-500/70">
+                    <Shield className="h-3 w-3" />
+                    <span className="text-[9px] font-bold uppercase tracking-widest">Proteção de Acesso</span>
                   </div>
-                  <p className="text-[11px] text-slate-400 leading-relaxed">
-                    As sessões são assinadas via JWT e persistidas no banco do Iaçã. A revogação limpa o registro no banco, invalidando o acesso imediatamente.
+                  <p className="text-[10px] text-slate-500 leading-tight">
+                    Suas conexões são protegidas e registradas individualmente. Você pode encerrar acessos suspeitos a qualquer momento.
                   </p>
                 </div>
               </div>

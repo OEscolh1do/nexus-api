@@ -1,8 +1,8 @@
 # CONTEXT.md — Sumaúma (Backoffice do Operador)
 
-> **Última Atualização:** 2026-05-07
+> **Última Atualização:** 2026-05-08
 > **Arquiteto:** Antigravity AI
-> **Versão do Sistema:** 1.9.0 (Atomic Org Creation)
+> **Versão do Sistema:** 2.0.0 (Identity Integrity Cockpit)
 
 ---
 
@@ -127,6 +127,8 @@ Referência completa em `.env.example`. Variáveis **obrigatórias** validadas n
 ### Design (Dark-Mode-Only)
 - `rounded-sm` (4px) — NUNCA maior.
 - `font-mono tabular-nums` em todos os valores numéricos.
+- **Ghost Scrollbars**: 6px, acabamento `slate-800`, fundo transparente (visible on hover).
+- **Micro-copy Humanizado**: Uso de termos como "Contas sem Vínculo" em vez de "Órfãos".
 - Datas em `dd/MM/yyyy HH:mm` (PT-BR).
 - Labels e textos visíveis ao operador em PT-BR.
 - Sem animações de entrada. Dados aparecem instantaneamente.
@@ -153,6 +155,7 @@ Referência completa em `.env.example`. Variáveis **obrigatórias** validadas n
  11. **Governança de Assentos (Seats)**. Nenhum usuário pode ser criado acima do limite do plano; nenhum plano pode ser rebaixado se a contagem atual de usuários exceder o novo limite.
  12. **DRY nas Constantes de Tenant**. Usar obrigatoriamente `src/lib/tenantUtils.ts` no frontend para labels e limites.
  13. **Exclusão Definitiva (Hard Delete)**. A exclusão de tenants e usuários no Sumaúma deve ser síncrona com o Logto e gerar registros `ADMIN_DELETE_*` na auditoria. Operações críticas de tenant exigem confirmação via digitação do nome.
+ 14. **Power User Workflow**. Telas de auditoria devem implementar atalhos de teclado ([R] - Revalidar, [S] - Sync All) para acelerar o diagnóstico operacional.
 
 ---
 
@@ -254,6 +257,16 @@ A exclusão de tenants e usuários era apenas lógica (soft delete) ou inexisten
 
 ---
 
+### Auditoria de Integridade de Identidade (Cockpit v2.0)
+
+**Data**: 2026-05-08 | **Status**: ✅ Concluído
+- **Humanização**: Tradução de termos de infraestrutura para conceitos de fácil compreensão (Órfão -> Sem Vínculo, Membership -> Pendência de Acesso).
+- **Alta Densidade**: Refatoração da página de Sistema para layout de cockpit com cabeçalho fixo e área de conteúdo rolável de alto throughput.
+- **Shortcuts**: Implementação de atalhos globais (1, 2, R, S) protegidos por guardrails de input.
+- **Ghost Scrollbars**: Aplicação do padrão global de barras de rolagem minimalistas de 6px.
+
+---
+
 ### Criação Atômica de Organizações (Atomic Org)
 
 **Data**: 2026-05-07 | **Status**: ✅ Concluído
@@ -276,6 +289,12 @@ A exclusão de tenants e usuários era apenas lógica (soft delete) ou inexisten
 ---
 
 ## 🔄 CHANGELOG
+
+### v2.0.0 (2026-05-08) — Identity Integrity Cockpit
+- ✅ **Cockpit Refactor**: Cabeçalho fixo na página de Sistema e área de conteúdo com scroll independente e Ghost Scrollbars.
+- ✅ **Humanized Micro-copy**: Re-escrita total dos rótulos de auditoria para termos de negócio (Contas sem Vínculo, Dados Desatualizados).
+- ✅ **Keyboard Shortcuts**: Atalhos [R] para auditoria, [1/2] para sub-abas e [S] para sincronização em lote.
+- ✅ **UI Compactation**: Redução de gaps e paddings para maximizar a densidade de dados "acima da dobra".
 
 ### v1.9.0 (2026-05-07) — Atomic Org Creation
 - ✅ **Atomic Refactor**: Desacoplamento total da criação de empresas da criação de usuários administradores.

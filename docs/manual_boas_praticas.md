@@ -476,6 +476,35 @@ Adotamos o paradigma de **Navegação Vertical em Eixo Horizontal**:
 - `kurupira/frontend/src/modules/engineering/ui/navigation/EngineeringTabs.tsx`
 - `kurupira/frontend/src/modules/engineering/ui/navigation/EngineeringNavigation.tsx`
 
+### 2.3. Cockpit de Auditoria Humanizado (UX Writing Técnico)
+**Data:** 08/05/2026
+**Módulo:** Sumaúma Frontend / Sistema & Segurança
+
+#### O Problema
+Interfaces de auditoria e reconciliação (drifts, órfãos, integridade) tendem a usar uma linguagem fria de infraestrutura. Termos como "Orphan", "Membership Mismatch" ou "Deep Sync" podem ser intimidadores e pouco intuitivos para operadores de plataforma que não são desenvolvedores.
+
+#### A Solução (Padrão Adotado)
+Adotamos o equilíbrio entre **Densidade de Engenharia** e **Clareza de Negócio**:
+
+1. **Micro-copy Acessível**: Substituir jargões por conceitos operacionais:
+   - `Orphan User` → **Conta sem Vínculo**
+   - `Membership Mismatch` → **Pendência de Acesso**
+   - `Attribute Drift` → **Dados Desatualizados**
+   - `Live Audit` → **Verificação Ativa**
+
+2. **Hierarquia de Dados**: 
+   - O rótulo primário é humanizado (ex: "Contas sem Vínculo").
+   - O detalhe técnico permanece disponível em metadados secundários (ex: `authProviderId`) ou tooltips em `font-mono`.
+
+3. **Status Semântico (Glow)**: Uso do sistema 10-20-400 para indicar saúde sem depender apenas do texto, permitindo que o operador entenda o status em um relance visual.
+
+#### Regra de Ouro
+> "Mantenha a densidade de um cockpit de engenharia (4-8px grid) para velocidade operacional, mas utilize micro-copy humanizado para reduzir a carga cognitiva. O operador deve saber o que fazer ('Sincronizar Dados') sem precisar entender como o dado é estruturado no backend ('Reconciliar Drifts')."
+
+#### Referência
+- `sumauma/frontend/src/components/system/IdentityAuditTab.tsx`
+- Skill: `ux-technical-writer`
+
 ---
 
 ## 11. Ambiente de Desenvolvimento Local (Local Dev)
@@ -612,3 +641,44 @@ DATABASE_URL=mysql://user:senha%21@127.0.0.1:3306/db
 > "Nos `.env` do Ywara: sem aspas, IP explícito (`127.0.0.1`), caracteres especiais URL-encoded (`!` → `%21`). Essas três regras evitam 90% dos erros de conexão locais."
 
 **Referência:** `kurupira/backend/.env`, `sumauma/backend/.env`
+
+---
+
+## 12. Consistência de Rotas e baseURL no Frontend
+**Data:** 09/05/2026
+**Módulo:** Sumaúma Frontend (Axios / useSystemHealth)
+
+#### O Problema
+Ao utilizar um cliente de API (Axios) configurado com uma `baseURL` (ex: `/admin`), existe o risco de introduzir prefixos redundantes nas chamadas de rota. Se o código chamar `api.post('/admin/rota')`, o Axios concatenará a base com o path, resultando em `/admin/admin/rota`. Isso causa erros **404 (Not Found)** silenciosos ou visíveis apenas no console do navegador, quebrando funcionalidades críticas sem uma mensagem de erro clara no servidor.
+
+#### A Solução (Padrão Adotado)
+1. **Rotas Relativas à Base**: Todas as chamadas ao cliente de API devem omitir o prefixo já contido na `baseURL`. Ex: use `api.post('/system/health')` em vez de `api.post('/admin/system/health')`.
+2. **Auditoria de Prefixo**: Ao refatorar ou criar novos hooks de API, verifique se o primeiro segmento da rota não duplica o segmento final da `baseURL`.
+3. **Trace de Rede**: Em caso de 404 inesperado, verifique a URL final no console/network tab para identificar segmentos duplicados.
+
+#### Regra de Ouro
+> "A `baseURL` do seu cliente de API é o alicerce de todas as chamadas. Nunca repita o prefixo da base nos paths individuais; trate cada chamada como relativa à raiz da API definida na configuração do cliente."
+
+#### Referência
+- `sumauma/frontend/src/lib/api.ts` (Definição da `baseURL`)
+- `sumauma/frontend/src/hooks/useSystemHealth.ts` (Local da correção)
+
+---
+
+## 13. Sincronização de Metadados (Merge-on-Save) e Erradicação de Mocks na UI
+**Data:** 09/05/2026
+**Módulo:** Kurupira (Backend / Frontend)
+
+#### O Problema
+Foram identificadas duas fontes de falha silenciosa no salvamento de projetos de engenharia:
+1. **Frontend Mocks:** Botões de UI construídos com `setTimeout` (simulando estado de `saving` → `success`) deixados como "TODOs" permanentes, dando ao usuário a falsa sensação de que a operação concluiu, enquanto a camada de serviço real (ex: `ProjectService`) nunca foi chamada.
+2. **Drift de Coordenadas (DB vs JSON):** O banco de dados possuía colunas físicas para `latitude` e `longitude`, mas as ferramentas de simulação também armazenavam as coordenadas profundamente embutidas em `designData.solar.clientData`. Quando o Frontend enviava atualizações, as colunas físicas dessincronizavam em relação ao JSON.
+
+#### A Solução (Padrão Adotado)
+1. **Merge-on-Save no Backend:** Adotamos o JSON (`designData`) como o *Master Data* (Cadeia da Verdade) para o domínio técnico. Se o JSON enviado no `PUT` contém coordenadas, o backend **intercepta e sobrescreve** compulsoriamente os campos relacionais (`latitude`, `longitude`) no payload de update do Prisma. Isso garante que buscas geográficas em SQL puro sempre reflitam o estado exato da engine de simulação.
+2. **Mock Sweeping:** Ações de interface que requerem mutação de estado persistente *nunca* devem ser "mockadas" visualmente por mais que a UI esteja sendo desenvolvida. Se a camada de serviço não existe, o botão deve estar `disabled` ou logar um erro, mas nunca simular sucesso de rede.
+
+#### Regra de Ouro
+> "Se uma entidade contém metadados em JSON e também em colunas relacionais, o Backend deve executar um Merge-on-Save para alinhar as colunas físicas ao Master Data (JSON) antes do Prisma. Além disso, botões que fingem salvar a aplicação escondem dívidas técnicas cruciais."
+
+**Referência:** `kurupira/backend/src/routes/designs.js`, `kurupira/frontend/src/modules/engineering/ui/navigation/EngineeringNavigation.tsx`

@@ -83,12 +83,26 @@ router.post('/', authenticateToken, validate(createDesignSchema), async (req, re
 });
 
 router.put('/:id', authenticateToken, validate(updateDesignSchema), async (req, res) => {
-  const { designData, name, status, notes, latitude, longitude } = req.body;
+  let { designData, name, status, notes, latitude, longitude } = req.body;
+  
+  // Sonda Ômega (Backend): Verificar se o designData sobreviveu à rede e validação
+  console.log(`[Trace Backend] PUT /designs/${req.params.id} recebido.`);
+  console.log(`[Trace Backend] typeof designData:`, typeof designData);
+  console.log(`[Trace Backend] designData keys:`, designData ? Object.keys(designData) : 'null/undefined');
+
   try {
     const existing = await prisma.technicalDesign.findFirst({
       where: { id: req.params.id, tenantId: req.user.tenantId, deletedAt: null }
     });
     if (!existing) return res.status(404).json({ success: false, error: 'Not found' });
+
+    // Merge-on-save: A Cadeia da Verdade para coordenadas é o JSON de engenharia.
+    // Se o designData contiver lat/lng, eles sobrescrevem os campos da tabela.
+    if (designData?.solar?.clientData) {
+      const { lat, lng } = designData.solar.clientData;
+      if (typeof lat === 'number') latitude = lat;
+      if (typeof lng === 'number') longitude = lng;
+    }
 
     const design = await prisma.technicalDesign.update({
       where: { id: req.params.id },

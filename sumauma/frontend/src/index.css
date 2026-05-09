@@ -18,7 +18,7 @@
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #334155 transparent;
+  scrollbar-color: #1e293b transparent;
 }
 
 *::-webkit-scrollbar {
@@ -31,8 +31,14 @@
 }
 
 *::-webkit-scrollbar-thumb {
-  background-color: #334155;
+  background-color: #1e293b;
   border-radius: 3px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: #334155;
 }
 
 body {
@@ -98,6 +104,14 @@ body {
 }
 
 /* Ghost scrollbar override for content area */
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: transparent;
+}
+
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background-color: #1e293b;
+}
+
 .scrollbar-hide {
   scrollbar-width: none;
 }

@@ -11,8 +11,8 @@ function getAuthToken(): string | null {
   return sessionStorage.getItem('kurupira_token');
 }
 
-function getHeaders(): Record<string, string> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+function getHeaders(isFormData: boolean = false): Record<string, string> {
+  const headers: Record<string, string> = isFormData ? {} : { 'Content-Type': 'application/json' };
   const token = getAuthToken();
   if (token) headers['Authorization'] = `Bearer ${token}`;
   return headers;
@@ -22,10 +22,11 @@ function getHeaders(): Record<string, string> {
 // GENERIC FETCH WRAPPER
 // =============================================================
 
-async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const isFormData = options.body instanceof FormData;
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
-    headers: { ...getHeaders(), ...options.headers as Record<string, string> },
+    headers: { ...getHeaders(isFormData), ...options.headers as Record<string, string> },
   });
 
   if (!response.ok) {
@@ -156,15 +157,10 @@ export const KurupiraClient = {
     uploadModuleImage: async (id: string, file: Blob) => {
       const formData = new FormData();
       formData.append('image', file);
-      const response = await fetch(`${API_URL}/api/v1/catalog/modules/${id}/image`, {
+      return apiFetch<any>(`/api/v1/catalog/modules/${id}/image`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${getAuthToken()}`
-        },
-        body: formData
+        body: formData,
       });
-      if (!response.ok) throw new Error('Falha no upload da imagem');
-      return (await response.json()).data;
     },
 
     inverters: () => apiFetch<any[]>('/api/v1/catalog/inverters'),
@@ -173,20 +169,23 @@ export const KurupiraClient = {
     uploadInverterImage: async (id: string, file: Blob) => {
       const formData = new FormData();
       formData.append('image', file);
-      const response = await fetch(`${API_URL}/api/v1/catalog/inverters/${id}/image`, {
+      return apiFetch<any>(`/api/v1/catalog/inverters/${id}/image`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${getAuthToken()}`
-        },
-        body: formData
+        body: formData,
       });
-      if (!response.ok) throw new Error('Falha no upload da imagem');
-      return (await response.json()).data;
     },
   },
 
   team: {
     list: () => apiFetch<any[]>('/api/v1/team'),
+  },
+
+  settings: {
+    get: () => apiFetch<any>('/api/v1/settings'),
+    update: (data: any) => apiFetch<any>('/api/v1/settings', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
   },
 };
 

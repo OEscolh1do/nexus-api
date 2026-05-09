@@ -1,5 +1,5 @@
 import { AlertTriangle, CheckCircle2, GitCompare, Loader2, RefreshCw, ShieldAlert, User, UserMinus, UserPlus, Trash2, Building2, Link2, ExternalLink, PlusCircle } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type {
   AuditStatus,
   IdentityAuditReport,
@@ -25,15 +25,21 @@ function AuditKpiCard({
   color: 'muted' | 'success' | 'danger' | 'warning';
 }) {
   const colorMap = {
-    muted:   'text-slate-300',
-    success: 'text-emerald-400',
-    danger:  'text-red-400',
-    warning: 'text-amber-400',
+    muted:   { text: 'text-slate-300', border: 'border-slate-700', left: 'border-l-slate-600', bg: 'bg-slate-900/40' },
+    success: { text: 'text-emerald-400', border: 'border-emerald-500/20', left: 'border-l-emerald-500', bg: 'bg-emerald-500/5' },
+    danger:  { text: 'text-red-400', border: 'border-red-500/20', left: 'border-l-red-500', bg: 'bg-red-500/5' },
+    warning: { text: 'text-amber-400', border: 'border-amber-500/20', left: 'border-l-amber-500', bg: 'bg-amber-500/5' },
   };
+  const theme = colorMap[color];
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-sm px-4 py-3 flex flex-col gap-1">
-      <span className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">{label}</span>
-      <span className={`text-2xl font-mono tabular-nums font-bold ${colorMap[color]}`}>{value}</span>
+    <div className={`group relative ${theme.bg} border ${theme.border} border-l-2 ${theme.left} rounded-sm px-4 py-3 flex flex-col gap-1 transition-all hover:translate-y-[-1px] hover:shadow-lg hover:shadow-black/20`}>
+      <span className="text-[9px] uppercase tracking-[0.1em] text-slate-500 font-bold">{label}</span>
+      <div className="flex items-baseline gap-2">
+        <span className={`text-2xl font-mono tabular-nums font-bold ${theme.text}`}>{value}</span>
+      </div>
+      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className={`h-1 w-1 rounded-full ${theme.text} animate-pulse shadow-[0_0_8px_currentColor]`} />
+      </div>
     </div>
   );
 }
@@ -92,33 +98,33 @@ function OrphanRow({
   return (
     <>
       <tr className="border-b border-slate-800 hover:bg-slate-800/40">
-        <td className="px-3 py-2 font-mono text-[11px] text-slate-400 truncate max-w-[150px]">{orphan.logtoId}</td>
-        <td className="px-3 py-2 text-[11px] text-slate-300">{orphan.email ?? '—'}</td>
-        <td className="px-3 py-2 text-[11px] text-slate-300">
-          <div className="flex flex-col">
-            <span>{orphan.name ?? orphan.username ?? '—'}</span>
+        <td className="px-4 py-2 font-mono text-[10px] text-slate-500 select-all hover:text-sky-400 transition-colors">{orphan.logtoId}</td>
+        <td className="px-4 py-2 text-[11px] text-slate-300 font-medium">{orphan.email ?? '—'}</td>
+        <td className="px-4 py-2 text-[11px] text-slate-300">
+          <div className="flex flex-col gap-0.5">
+            <span className="font-bold text-slate-400">{orphan.name ?? orphan.username ?? '—'}</span>
             {orphan.organizations && orphan.organizations.length > 0 && (
-              <span className="text-[10px] text-slate-500 italic">
+              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-slate-950 border border-slate-800 text-slate-500 w-fit">
                 Org: {orphan.organizations.join(', ')}
               </span>
             )}
           </div>
         </td>
-        <td className="px-3 py-2">
-          <div className="flex items-center gap-2">
+        <td className="px-4 py-2 text-right">
+          <div className="flex items-center justify-end gap-2">
             <button
               onClick={() => setProvisionOpen(true)}
-              className="h-7 px-2 text-[10px] font-medium rounded-sm bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-colors flex items-center gap-1"
+              className="h-7 px-3 text-[10px] font-bold uppercase tracking-tight rounded-sm bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-all flex items-center gap-1.5"
             >
               <UserPlus className="h-3 w-3" />
-              Criar Local
+              Provisionar
             </button>
             <button
               onClick={() => setDeleteOpen(true)}
-              className="h-7 px-2 text-[10px] font-medium rounded-sm bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors flex items-center gap-1"
+              className="h-7 px-3 text-[10px] font-bold uppercase tracking-tight rounded-sm bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-all flex items-center gap-1.5"
             >
               <Trash2 className="h-3 w-3" />
-              Remover do Logto
+              Purgar Logto
             </button>
           </div>
         </td>
@@ -277,23 +283,23 @@ function OrgOrphanRow({
       <tr className="border-b border-slate-800 hover:bg-slate-800/40">
         <td className="px-3 py-2 text-[11px] text-slate-300 font-medium">{org.name}</td>
         <td className="px-3 py-2 font-mono text-[10px] text-slate-500">{org.logtoId}</td>
-        <td className="px-3 py-2">
-          <div className="flex items-center gap-2">
+        <td className="px-4 py-3 text-right">
+          <div className="flex items-center justify-end gap-2">
             <button
               onClick={handleProvisionLocal}
               disabled={loading}
-              className="h-7 px-3 text-[10px] font-medium rounded-sm bg-sky-500/10 border border-sky-500/30 text-sky-400 hover:bg-sky-500/20 transition-colors flex items-center gap-1 disabled:opacity-50"
+              className="h-7 px-3 text-[10px] font-bold uppercase tracking-tight rounded-sm bg-sky-500/10 border border-sky-500/30 text-sky-400 hover:bg-sky-500/20 transition-all flex items-center gap-1.5 disabled:opacity-50"
             >
               {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <PlusCircle className="h-3 w-3" />}
-              Provisionar Local
+              Provisionar
             </button>
             <button
               onClick={() => setOpen(true)}
               disabled={loading}
-              className="h-7 px-3 text-[10px] font-medium rounded-sm bg-slate-800 border border-slate-700 text-slate-400 hover:bg-slate-700 transition-colors flex items-center gap-1 disabled:opacity-50"
+              className="h-7 px-3 text-[10px] font-bold uppercase tracking-tight rounded-sm bg-slate-800 border border-slate-700 text-slate-400 hover:bg-slate-700 transition-all flex items-center gap-1.5 disabled:opacity-50"
             >
               <Link2 className="h-3 w-3" />
-              Vincular Existente
+              Vincular
             </button>
           </div>
         </td>
@@ -383,23 +389,23 @@ function OrgMissingRow({
     <tr className="border-b border-slate-800 hover:bg-slate-800/40">
       <td className="px-3 py-2 text-[11px] text-slate-300 font-medium">{org.name}</td>
       <td className="px-3 py-2 text-[10px] text-slate-500 uppercase">{org.type}</td>
-      <td className="px-3 py-2">
-        <div className="flex items-center gap-2">
+      <td className="px-4 py-3 text-right">
+        <div className="flex items-center justify-end gap-2">
           <button
             onClick={handleProvision}
             disabled={loading}
-            className="h-7 px-3 text-[10px] font-medium rounded-sm bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-colors flex items-center gap-1 disabled:opacity-50"
+            className="h-7 px-3 text-[10px] font-bold uppercase tracking-tight rounded-sm bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-all flex items-center gap-1.5 disabled:opacity-50"
           >
             {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
-            Criar no Logto
+            Criar IdP
           </button>
           <button
             onClick={handleDelete}
             disabled={loading}
-            className="h-7 px-3 text-[10px] font-medium rounded-sm bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors flex items-center gap-1 disabled:opacity-50"
+            className="h-7 px-3 text-[10px] font-bold uppercase tracking-tight rounded-sm bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-all flex items-center gap-1.5 disabled:opacity-50"
           >
             <Trash2 className="h-3 w-3" />
-            Excluir Local
+            Purgar Local
           </button>
         </div>
       </td>
@@ -436,27 +442,46 @@ function AttributeMismatchRow({
   };
 
   return (
-    <tr className="border-b border-slate-800/50 hover:bg-slate-800/20">
-      <td className="px-4 py-2 font-medium text-slate-300">{mismatch.username}</td>
-      <td className="px-4 py-2">
-        <span className="px-1.5 py-0.5 rounded-sm bg-slate-800 text-slate-400 text-[9px] font-bold uppercase border border-slate-700">
+    <tr className="group border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
+      <td className="px-4 py-3 font-medium text-slate-300">
+        <div className="flex items-center gap-2">
+          <div className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+          {mismatch.username}
+        </div>
+      </td>
+      <td className="px-4 py-3">
+        <span className="px-2 py-0.5 rounded-sm bg-slate-950 text-slate-500 text-[10px] font-bold uppercase border border-slate-800 tracking-tighter">
           {fieldLabels[mismatch.field]}
         </span>
       </td>
-      <td className="px-4 py-2 text-red-400/80 italic truncate max-w-[150px]" title={mismatch.local || ''}>
-        {mismatch.local || '(Vazio)'}
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2">
+          <div className="flex flex-col">
+            <span className="text-[9px] uppercase text-slate-600 font-bold">Local</span>
+            <span className="text-red-400/80 font-mono text-[11px] truncate max-w-[150px] line-through decoration-red-500/40" title={mismatch.local || ''}>
+              {mismatch.local || '(Vazio)'}
+            </span>
+          </div>
+        </div>
       </td>
-      <td className="px-4 py-2 text-emerald-400 font-medium truncate max-w-[150px]" title={mismatch.logto || ''}>
-        {mismatch.logto || '(Vazio)'}
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2">
+          <div className="flex flex-col">
+            <span className="text-[9px] uppercase text-emerald-600 font-bold">Truth (Logto)</span>
+            <span className="text-emerald-400 font-mono text-[11px] font-bold truncate max-w-[150px]" title={mismatch.logto || ''}>
+              {mismatch.logto || '(Vazio)'}
+            </span>
+          </div>
+        </div>
       </td>
-      <td className="px-4 py-2 text-right">
+      <td className="px-4 py-3 text-right">
         <button
           onClick={handleSync}
           disabled={loading}
-          className="h-7 px-2 text-[10px] font-medium rounded-sm bg-sky-500/10 border border-sky-500/30 text-sky-400 hover:bg-sky-500/20 transition-colors flex items-center gap-1 disabled:opacity-50"
+          className="group/btn h-8 px-3 text-[10px] font-bold uppercase tracking-wider rounded-sm bg-sky-500/10 border border-sky-500/20 text-sky-400 hover:bg-sky-500/20 transition-all flex items-center gap-2 ml-auto disabled:opacity-50"
         >
-          {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-          Sincronizar Local
+          {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3 transition-transform group-hover/btn:rotate-180" />}
+          Sincronizar
         </button>
       </td>
     </tr>
@@ -466,17 +491,41 @@ function AttributeMismatchRow({
 // ─── Linha de Erro de Membership ─────────────────────────────────────────────
 function MembershipMismatchRow({ mismatch }: { mismatch: MembershipMismatch }) {
   return (
-    <tr className="border-b border-slate-800 hover:bg-slate-800/40">
-      <td className="px-3 py-2 text-[11px] text-slate-300 font-medium">{mismatch.username}</td>
-      <td className="px-3 py-2 text-[11px] text-slate-400">{mismatch.tenantName}</td>
-      <td className="px-3 py-2">
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[10px] text-red-400 font-medium">Fora da Org Logto</span>
-          <span className="text-[9px] text-slate-500 truncate max-w-[150px]">Atualmente em: {mismatch.currentOrgs.join(', ') || '(Nenhuma)'}</span>
+    <tr className="group border-b border-slate-800 hover:bg-slate-800/20 transition-colors">
+      <td className="px-4 py-3 font-medium text-slate-300">
+        <div className="flex items-center gap-2">
+          <div className="h-1.5 w-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
+          {mismatch.username}
         </div>
       </td>
-      <td className="px-3 py-2">
-        <span className="text-[10px] text-slate-500">Correção manual via Console</span>
+      <td className="px-4 py-3 text-[11px] text-slate-400 font-medium">{mismatch.tenantName}</td>
+      <td className="px-4 py-3">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-1.5 text-[10px] text-red-400 font-bold uppercase tracking-tight">
+            <ShieldAlert className="h-3 w-3" />
+            Fora da Org Logto
+          </div>
+          <div className="flex flex-wrap gap-1">
+            <span className="text-[9px] text-slate-600 uppercase font-bold">Atualmente:</span>
+            {mismatch.currentOrgs.length > 0 ? (
+              mismatch.currentOrgs.map(org => (
+                <span key={org} className="text-[9px] px-1.5 py-0.5 rounded-full bg-slate-950 border border-slate-800 text-slate-500 font-mono">
+                  {org}
+                </span>
+              ))
+            ) : (
+              <span className="text-[9px] text-slate-700 italic">(Nenhuma)</span>
+            )}
+          </div>
+        </div>
+      </td>
+      <td className="px-4 py-3 text-right">
+        <div className="flex items-center justify-end gap-2 group-hover:translate-x-[-4px] transition-transform">
+          <span className="text-[9px] px-2 py-1 bg-slate-950 border border-slate-800 rounded-sm text-slate-500 font-bold uppercase tracking-widest flex items-center gap-1.5">
+            <ExternalLink className="h-3 w-3" />
+            Console Logto
+          </span>
+        </div>
       </td>
     </tr>
   );
@@ -609,6 +658,51 @@ export default function IdentityAuditTab({
   const [batchLoading, setBatchLoading] = useState(false);
   const isLoading = status === 'loading' || batchLoading;
 
+  // ─── Keyboard Shortcuts (Power User Workflow) ──────────────────────────────
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignorar se o usuário estiver digitando em um input, textarea ou select
+      const activeElement = document.activeElement;
+      const isInput = activeElement instanceof HTMLInputElement || 
+                      activeElement instanceof HTMLTextAreaElement ||
+                      activeElement instanceof HTMLSelectElement;
+      
+      if (isInput) return;
+
+      // [R] - Revalidar/Rodar Auditoria
+      if (e.key.toLowerCase() === 'r') {
+        e.preventDefault();
+        onRunAudit();
+      }
+
+      // [1] - Tab Identidades
+      if (e.key === '1') {
+        e.preventDefault();
+        setActiveSubTab('users');
+      }
+
+      // [2] - Tab Organizações
+      if (e.key === '2') {
+        e.preventDefault();
+        setActiveSubTab('orgs');
+      }
+
+      // [S] - Sync All (apenas se houver discrepâncias de atributos)
+      if (e.key.toLowerCase() === 's' && report?.attributeMismatches.length && !isLoading) {
+        const targets = [...new Set(report.attributeMismatches.map(m => m.userId))];
+        if (confirm(`Sincronizar todos os ${report.attributeMismatches.length} atributos divergentes?`)) {
+          setBatchLoading(true);
+          onBatchAction('SYNC_ATTRIBUTES', targets)
+            .then(() => onRunAudit())
+            .finally(() => setBatchLoading(false));
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onRunAudit, report, isLoading, onBatchAction]);
+
   const allSynced = status === 'done' && 
     report?.summary.orphans_count === 0 && 
     report?.summary.missing_count === 0 &&
@@ -621,68 +715,70 @@ export default function IdentityAuditTab({
     <div className="flex flex-col gap-6">
 
       {/* Header & Global Action */}
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col gap-1">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-200">
-            <GitCompare className="h-4 w-4 text-slate-500" />
-            Integridade de Identidade
-          </h2>
+      <div className="flex items-center justify-between bg-slate-900/30 p-4 rounded-sm border border-slate-800/50 backdrop-blur-sm">
+        <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-3">
-            <p className="text-[11px] text-slate-500">
-              Reconciliação bidirecional entre o Logto e o banco de dados local (db_sumauma).
-            </p>
+            <h2 className="flex items-center gap-2 text-sm font-bold text-slate-200 uppercase tracking-tight">
+              <GitCompare className="h-4 w-4 text-sky-500" />
+              Sincronização de Contas
+            </h2>
             {lastAudit && (
-              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-900 border border-slate-800 rounded-full">
-                <div className={`h-1 w-1 rounded-full ${lastAudit.status === 'SUCCESS' ? 'bg-emerald-500' : 'bg-red-500 animate-pulse'}`} />
-                <span className="text-[9px] font-medium text-slate-400 uppercase tracking-tight">
-                  Auto-Audit: {new Date(lastAudit.checkedAt).toLocaleDateString()} {new Date(lastAudit.checkedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              <div className="flex items-center gap-2 px-2.5 py-1 bg-slate-950 border border-slate-800 rounded-full shadow-inner">
+                <div className="relative flex h-2 w-2">
+                  <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${lastAudit.status === 'SUCCESS' ? 'bg-emerald-400' : 'bg-red-400'} opacity-75`}></span>
+                  <span className={`relative inline-flex rounded-full h-2 w-2 ${lastAudit.status === 'SUCCESS' ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
+                </div>
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                  Verificação Ativa: {new Date(lastAudit.checkedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
             )}
           </div>
+          <p className="text-[11px] text-slate-500 leading-relaxed max-w-xl">
+            Painel de controle para garantir que as contas de acesso estejam sempre atualizadas entre o sistema de login e o banco de dados principal.
+          </p>
         </div>
 
         <button
           id="run-identity-audit-btn"
           onClick={onRunAudit}
           disabled={isLoading}
-          className="flex items-center gap-2 h-9 px-4 text-xs font-medium bg-slate-800 border border-slate-700 rounded-sm text-slate-200 hover:bg-slate-700 transition-colors disabled:opacity-50"
+          className="relative group overflow-hidden flex items-center gap-2 h-10 px-5 text-xs font-bold uppercase tracking-wider bg-sky-600 border border-slate-500 rounded-sm text-white hover:bg-sky-500 transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none shadow-[0_0_15px_rgba(14,165,233,0.2)]"
+          title="Atalho: [R]"
         >
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-shimmer" />
           {isLoading
-            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            : <RefreshCw className="h-3.5 w-3.5" />}
-          {status === 'idle' ? 'Executar Auditoria' : 'Executar Novamente'}
+            ? <Loader2 className="h-4 w-4 animate-spin" />
+            : <RefreshCw className="h-4 w-4 transition-transform group-hover:rotate-180 duration-500" />}
+          {status === 'idle' ? 'Iniciar Auditoria' : 'Revalidar Sistema'}
         </button>
       </div>
 
       {/* Sub-Tabs Switcher */}
-      <div className="flex items-center gap-2 bg-slate-900/50 p-1 border border-slate-800 rounded-sm w-fit">
+      <div className="flex items-center gap-1 bg-slate-950 p-1 border border-slate-800 rounded-sm w-fit shadow-inner">
         <button
           onClick={() => setActiveSubTab('users')}
-          className={`px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-sm transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.15em] rounded-sm transition-all ${
             activeSubTab === 'users' 
-              ? 'bg-slate-800 text-sky-400 shadow-sm' 
-              : 'text-slate-500 hover:text-slate-400'
+              ? 'bg-slate-800 text-sky-400 shadow-[0_0_10px_rgba(0,0,0,0.5)] border border-slate-700' 
+              : 'text-slate-500 hover:text-slate-400 border border-transparent'
           }`}
+          title="Atalho: [1]"
         >
-          <div className="flex items-center gap-2">
-            <User className="h-3 w-3" />
-            Usuários
-          </div>
+          <User className="h-3 w-3" />
+          Identidades
         </button>
         <button
           onClick={() => setActiveSubTab('orgs')}
-          title="Gestão da estrutura de Tenants e associações de grupo (Membership)"
-          className={`px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-sm transition-all ${
+          title="Gestão da estrutura de Tenants e associações de grupo (Membership) - Atalho: [2]"
+          className={`flex items-center gap-2 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.15em] rounded-sm transition-all ${
             activeSubTab === 'orgs' 
-              ? 'bg-slate-800 text-sky-400 shadow-sm' 
-              : 'text-slate-500 hover:text-slate-400'
+              ? 'bg-slate-800 text-sky-400 shadow-[0_0_10px_rgba(0,0,0,0.5)] border border-slate-700' 
+              : 'text-slate-500 hover:text-slate-400 border border-transparent'
           }`}
         >
-          <div className="flex items-center gap-2">
-            <Building2 className="h-3 w-3" />
-            Organizações
-          </div>
+          <Building2 className="h-3 w-3" />
+          Organizações
         </button>
       </div>
 
@@ -694,23 +790,34 @@ export default function IdentityAuditTab({
 
       {/* Estado inicial */}
       {status === 'idle' && (
-        <div className="flex flex-col items-center justify-center py-16 gap-3 border border-dashed border-slate-800 rounded-sm">
-          <GitCompare className="h-8 w-8 text-slate-700" />
-          <p className="text-sm text-slate-500">Nenhuma auditoria executada ainda.</p>
+        <div className="flex flex-col items-center justify-center py-24 gap-4 border border-dashed border-slate-800 rounded-sm bg-slate-900/20 group">
+          <div className="p-4 bg-slate-800/50 rounded-full border border-slate-700 transition-transform group-hover:scale-110 duration-500">
+            <GitCompare className="h-8 w-8 text-slate-500 group-hover:text-sky-500 transition-colors" />
+          </div>
+          <div className="text-center space-y-1">
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Auditoria Pendente</p>
+            <p className="text-[11px] text-slate-600">Execute uma verificação completa para identificar discrepâncias.</p>
+          </div>
           <button 
             onClick={onRunAudit}
-            className="text-xs text-sky-500 hover:underline"
+            className="h-8 px-4 text-[10px] font-bold uppercase tracking-widest text-sky-500 hover:text-sky-400 bg-sky-500/5 hover:bg-sky-500/10 border border-sky-500/20 rounded-sm transition-all"
           >
-            Clique aqui para começar
+            Atualizar agora
           </button>
         </div>
       )}
 
       {/* Loading */}
       {status === 'loading' && (
-        <div className="flex flex-col items-center justify-center py-16 gap-3">
-          <Loader2 className="h-8 w-8 text-slate-500 animate-spin" />
-          <p className="text-sm text-slate-500">Sincronizando contextos...</p>
+        <div className="flex flex-col items-center justify-center py-24 gap-6">
+          <div className="relative">
+            <Loader2 className="h-10 w-10 text-sky-500 animate-spin" />
+            <div className="absolute inset-0 h-10 w-10 rounded-full border-4 border-sky-500/10" />
+          </div>
+          <div className="text-center space-y-1.5">
+            <p className="text-xs font-bold uppercase tracking-[0.3em] text-sky-400 animate-pulse">Sincronizando Dados</p>
+            <p className="text-[10px] text-slate-500 font-mono">Verificando informações entre o login e o sistema...</p>
+          </div>
         </div>
       )}
 
@@ -730,17 +837,17 @@ export default function IdentityAuditTab({
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {activeSubTab === 'users' ? (
               <>
-                <AuditKpiCard label="Total Local" value={report.summary.total_local} color="muted" />
-                <AuditKpiCard label="Atributos Divergentes" value={report.summary.attribute_mismatch_count} color={report.summary.attribute_mismatch_count > 0 ? 'warning' : 'success'} />
-                <AuditKpiCard label="Órfãos no Logto" value={report.summary.orphans_count} color={report.summary.orphans_count > 0 ? 'danger' : 'success'} />
-                <AuditKpiCard label="Ausentes no IdP" value={report.summary.missing_count} color={report.summary.missing_count > 0 ? 'warning' : 'success'} />
+                <AuditKpiCard label="Contas no Sistema" value={report.summary.total_local} color="muted" />
+                <AuditKpiCard label="Dados Desatualizados" value={report.summary.attribute_mismatch_count} color={report.summary.attribute_mismatch_count > 0 ? 'warning' : 'success'} />
+                <AuditKpiCard label="Contas sem Vínculo" value={report.summary.orphans_count} color={report.summary.orphans_count > 0 ? 'danger' : 'success'} />
+                <AuditKpiCard label="Pendências de Login" value={report.summary.missing_count} color={report.summary.missing_count > 0 ? 'warning' : 'success'} />
               </>
             ) : (
               <>
-                <AuditKpiCard label="Órfãos no Logto" value={report.summary.orphan_orgs_count} color={report.summary.orphan_orgs_count > 0 ? 'danger' : 'success'} />
-                <AuditKpiCard label="Tenants sem Org" value={report.summary.missing_orgs_count} color={report.summary.missing_orgs_count > 0 ? 'warning' : 'success'} />
-                <AuditKpiCard label="Erros Membership" value={report.summary.membership_mismatch_count} color={report.summary.membership_mismatch_count > 0 ? 'warning' : 'success'} />
-                <AuditKpiCard label="Status Estrutura" value={100} color="success" />
+                <AuditKpiCard label="Empresas sem Vínculo" value={report.summary.orphan_orgs_count} color={report.summary.orphan_orgs_count > 0 ? 'danger' : 'success'} />
+                <AuditKpiCard label="Tenants Desvinculados" value={report.summary.missing_orgs_count} color={report.summary.missing_orgs_count > 0 ? 'warning' : 'success'} />
+                <AuditKpiCard label="Erros de Acesso" value={report.summary.membership_mismatch_count} color={report.summary.membership_mismatch_count > 0 ? 'warning' : 'success'} />
+                <AuditKpiCard label="Saúde da Estrutura" value={100} color="success" />
               </>
             )}
           </div>
@@ -772,6 +879,7 @@ export default function IdentityAuditTab({
                           }}
                           disabled={isLoading}
                           className="h-6 px-2 text-[9px] font-bold uppercase tracking-tight bg-sky-500/10 border border-sky-500/20 text-sky-400 hover:bg-sky-500/20 rounded-sm transition-colors disabled:opacity-50"
+                          title="Atalho: [S]"
                         >
                           Sincronizar Todos
                         </button>
@@ -835,13 +943,13 @@ export default function IdentityAuditTab({
                     <span className="text-[9px] text-slate-500">Contas existentes no IdP que não possuem registro no banco de dados local.</span>
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead className="border-b border-slate-800 bg-slate-800/30">
-                        <tr>
-                          <th className="px-3 py-2 text-[10px] font-bold uppercase text-slate-500">ID</th>
-                          <th className="px-3 py-2 text-[10px] font-bold uppercase text-slate-500">E-mail</th>
-                          <th className="px-3 py-2 text-[10px] font-bold uppercase text-slate-500">Contexto</th>
-                          <th className="px-3 py-2 text-[10px] font-bold uppercase text-slate-500">Ações</th>
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-slate-950/80 border-b border-slate-800 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                          <th className="px-4 py-3">ID Logto</th>
+                          <th className="px-4 py-3">Credencial</th>
+                          <th className="px-4 py-3">Metadata</th>
+                          <th className="px-4 py-3 text-right">Ações Corretivas</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -870,13 +978,13 @@ export default function IdentityAuditTab({
                     <span className="text-[9px] text-slate-500">Usuários locais sem credenciais no Logto. Precisam de reprovisionamento para login.</span>
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead className="border-b border-slate-800 bg-slate-800/30">
-                        <tr>
-                          <th className="px-3 py-2 text-[10px] font-bold uppercase text-slate-500">Username</th>
-                          <th className="px-3 py-2 text-[10px] font-bold uppercase text-slate-500">E-mail</th>
-                          <th className="px-3 py-2 text-[10px] font-bold uppercase text-slate-500">Tenant</th>
-                          <th className="px-3 py-2 text-[10px] font-bold uppercase text-slate-500">Ações</th>
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-slate-950/80 border-b border-slate-800 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                          <th className="px-4 py-3">Usuário Local</th>
+                          <th className="px-4 py-3">E-mail</th>
+                          <th className="px-4 py-3">Tenant de Origem</th>
+                          <th className="px-4 py-3 text-right">Ações Corretivas</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -931,7 +1039,14 @@ export default function IdentityAuditTab({
                     <span className="text-[9px] text-red-400/50">Organizações no IdP sem vínculo com Tenants locais.</span>
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-slate-950/80 border-b border-slate-800 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                          <th className="px-4 py-3">Nome da Organização</th>
+                          <th className="px-4 py-3">ID Logto</th>
+                          <th className="px-4 py-3 text-right">Ações Corretivas</th>
+                        </tr>
+                      </thead>
                       <tbody>
                         {report.organizations.orphans.map(org => (
                           <OrgOrphanRow 
@@ -941,7 +1056,16 @@ export default function IdentityAuditTab({
                             onProvision={onProvisionLocalTenant}
                           />
                         ))}
-                        {report.organizations.orphans.length === 0 && <tr><td className="px-4 py-3 text-slate-500 text-[11px]">Nenhuma org órfã.</td></tr>}
+                        {report.organizations.orphans.length === 0 && (
+                          <tr>
+                            <td colSpan={3} className="px-4 py-8 text-center bg-emerald-500/5">
+                              <div className="flex flex-col items-center gap-2">
+                                <CheckCircle2 className="h-5 w-5 text-emerald-500/20" />
+                                <span className="text-[10px] text-emerald-500/40 font-bold uppercase tracking-widest">Estrutura Íntegra</span>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -957,7 +1081,14 @@ export default function IdentityAuditTab({
                     <span className="text-[9px] text-amber-400/50">Tenants locais que ainda não possuem uma organização correspondente no IdP.</span>
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-slate-950/80 border-b border-slate-800 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                          <th className="px-4 py-3">Tenant Local</th>
+                          <th className="px-4 py-3">Tipo</th>
+                          <th className="px-4 py-3 text-right">Ações Corretivas</th>
+                        </tr>
+                      </thead>
                       <tbody>
                         {report.organizations.missing.map(org => (
                           <OrgMissingRow 
@@ -967,7 +1098,16 @@ export default function IdentityAuditTab({
                             onDelete={onDeleteTenant}
                           />
                         ))}
-                        {report.organizations.missing.length === 0 && <tr><td className="px-4 py-3 text-slate-500 text-[11px]">Todos os tenants vinculados.</td></tr>}
+                        {report.organizations.missing.length === 0 && (
+                          <tr>
+                            <td colSpan={3} className="px-4 py-8 text-center bg-emerald-500/5">
+                              <div className="flex flex-col items-center gap-2">
+                                <CheckCircle2 className="h-5 w-5 text-emerald-500/20" />
+                                <span className="text-[10px] text-emerald-500/40 font-bold uppercase tracking-widest">Sincronismo Nominal</span>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -985,13 +1125,13 @@ export default function IdentityAuditTab({
                     <span className="text-[9px] text-slate-500">Usuários associados a organizações incorretas no Logto em relação ao seu Tenant local.</span>
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-slate-800/30 border-b border-slate-800">
-                        <tr>
-                          <th className="px-3 py-2 text-[10px] text-slate-500 uppercase">Usuário</th>
-                          <th className="px-3 py-2 text-[10px] text-slate-500 uppercase">Tenant</th>
-                          <th className="px-3 py-2 text-[10px] text-slate-500 uppercase">Status</th>
-                          <th className="px-3 py-2 text-[10px] text-slate-500 uppercase">Ação</th>
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-slate-950/80 border-b border-slate-800 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                          <th className="px-4 py-3">Usuário em Risco</th>
+                          <th className="px-4 py-3">Tenant Local</th>
+                          <th className="px-4 py-3">Discrepância Detectada</th>
+                          <th className="px-4 py-3 text-right">Procedimento</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1007,14 +1147,21 @@ export default function IdentityAuditTab({
           )}
 
           {/* Verificado em */}
-          <div className="flex items-center justify-between border-t border-slate-800 pt-4">
-            <p className="text-[10px] text-slate-600 font-mono italic">
-              Última auditoria completa: {new Date(report.checkedAt).toLocaleString('pt-BR')}
+          <div className="flex items-center justify-between border-t border-slate-800 pt-6 mt-4">
+            <p className="text-[10px] text-slate-600 font-mono italic flex items-center gap-2">
+              <span className="h-1 w-1 rounded-full bg-slate-700" />
+              Relatório gerado em: {report ? new Date(report.checkedAt).toLocaleString('pt-BR') : '—'}
             </p>
             {allSynced && (
-              <div className="flex items-center gap-2 text-emerald-500 text-[10px] font-bold uppercase tracking-widest">
-                <CheckCircle2 className="h-3 w-3" />
-                Sistema em conformidade
+              <div className="flex items-center gap-3 px-4 py-2 bg-emerald-500/5 border border-emerald-500/20 rounded-sm">
+                <div className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-[0.2em]">Sincronização OK</span>
+                  <span className="text-[9px] text-emerald-500/60 font-medium">Todas as contas e empresas estão perfeitamente conectadas.</span>
+                </div>
               </div>
             )}
           </div>

@@ -1,8 +1,8 @@
 # CONTEXT.md — Ecossistema YWARA (Visão Global)
 
-> **Última Atualização:** 2026-05-07
+> **Última Atualização:** 2026-05-08
 > **Arquiteto:** Antigravity AI
-> **Versão do Ecossistema:** 5.4.0 (Atomic Org Control)
+> **Versão do Ecossistema:** 6.0.3 (Identity Integrity Refactor)
 
 ---
 
@@ -78,6 +78,7 @@ iaca/.agent/       ← CAMADA 3: Iaçã (ERP, CRM)
 1. **Prioridade PT-BR**: Todo texto visível ao usuário final em **Português do Brasil**.
 2. **Exceções (Siglas Técnicas)**: Permitido apenas quando padrão de mercado — `kWp`, `kWh`, `V`, `A`, `MPPT`, `HSP`, `M2M`, `Webhook`.
 3. **Consistência de Tradução**: `Updated At` → `Atualizado em`; `Empty State` → mensagens em PT-BR.
+4. **UX Technical Writing**: Balanceamento entre densidade técnica (4-8px grid) e terminologia humanizada (ex: `Orphan` → `Conta sem Vínculo`) para reduzir carga cognitiva sem perder precisão operacional.
 
 ### Código
 - **Backend**: CommonJS (`require`/`module.exports`) em todos os serviços.
@@ -87,6 +88,7 @@ iaca/.agent/       ← CAMADA 3: Iaçã (ERP, CRM)
 ### Design (Dark-Mode Only)
 - `rounded-sm` (4px) é o máximo em painéis estruturais.
 - `font-mono tabular-nums` em todos os valores numéricos técnicos.
+- **Ghost Scrollbars**: Barras de 6px, acabamento `slate-800` sobre fundo transparente, visíveis apenas sob interação (padrão DES-009).
 - Datas em `dd/MM/yyyy HH:mm` (PT-BR).
 - Sem animações de entrada desnecessárias — dados aparecem instantaneamente.
 
@@ -105,6 +107,7 @@ Para garantir que os dados fluam sem perdas do Banco até a UI, seguimos 5 níve
 
 ## 🔄 CHANGELOG DO ECOSSISTEMA
 
+| v6.0.3 | 2026-05-08 | **Identity Integrity Refactor**: Refatoração do cockpit de auditoria do Sumaúma com humanização de micro-copy, atalhos de teclado de especialista e padronização global de Ghost Scrollbars. |
 | v5.4.0 | 2026-05-07 | **Atomic Org Control**: Refatoração do fluxo de criação de empresas no Sumaúma para permitir criação atômica (sem usuários iniciais) e inclusão de validação de e-mail nos fluxos individuais. |
 | v5.3.2 | 2026-05-07 | **Arranjo Deferido**: Ocultação da aba "Arranjo" no cockpit Kurupira para simplificação da jornada técnica até a estabilização do motor 3D. |
 | v5.3.1 | 2026-05-07 | **OIDC Normalization**: Padronização global dos endpoints Logto e definições explícitas de Post-Logout Redirect URIs para eliminar falhas de redirecionamento no logout. |

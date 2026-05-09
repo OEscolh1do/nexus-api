@@ -7,6 +7,7 @@ import {
 import { useTemporalStore } from '@/core/state/useTemporalStore';
 import { useSolarStore } from '@/core/state/solarStore';
 import { cn } from '@/lib/utils';
+import { ProjectService } from '@/services/ProjectService';
 
 export const EngineeringNavigation: React.FC = () => {
   const { undo, redo, pastStates, futureStates } = useTemporalStore(s => s);
@@ -18,9 +19,19 @@ export const EngineeringNavigation: React.FC = () => {
 
   const handleSave = async () => {
     setSaveStatus('saving');
-    // Simulate API delay
-    setTimeout(() => setSaveStatus('success'), 1200);
-    setTimeout(() => setSaveStatus('idle'), 3000);
+    try {
+      console.log('[Trace Alpha] Botão Salvar clicado na UI');
+      const success = await ProjectService.saveDesign(null);
+      if (success) {
+        setSaveStatus('success');
+      } else {
+        setSaveStatus('error');
+      }
+    } catch (error) {
+      setSaveStatus('error');
+    } finally {
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    }
   };
 
   return (
