@@ -74,18 +74,30 @@ docker logs neonorte_admin --tail 30
 
 ## Playbook 4 — Atualização do Nginx
 
+> ⚠️ **CRÍTICO**: O Certbot adiciona blocos SSL (`listen 443 ssl`) no arquivo do servidor. Copiar `vps.conf` diretamente **destrói esses blocos** e derruba o HTTPS para todos os usuários. **Sempre execute o certbot após o cp.**
+
 ```bash
-# Copiar config atualizada (fonte da verdade está em /srv/ywara/infra/nginx/vps.conf)
+# 1. Copiar config base (fonte da verdade está em /srv/ywara/infra/nginx/vps.conf)
 sudo cp /srv/ywara/infra/nginx/vps.conf /etc/nginx/sites-available/ywara
 
-# Validar ANTES de reiniciar — nunca reiniciar sem testar
+# 2. OBRIGATÓRIO: Restaurar blocos SSL que o Certbot gerencia
+sudo certbot --nginx -d kurupira.neonorte-ywara.tech -d admin.neonorte-ywara.tech
+
+# 3. Validar configuração final (com SSL incluso)
 sudo nginx -t
 
-# Aplicar mudanças
-sudo systemctl restart nginx
+# 4. Aplicar mudanças
+sudo systemctl reload nginx
 
-# Confirmar status
-sudo systemctl status nginx
+# 5. Confirmar que HTTPS responde
+curl -I https://kurupira.neonorte-ywara.tech
+curl -I https://admin.neonorte-ywara.tech
+```
+
+**Saída esperada do certbot:**
+```
+Successfully deployed certificate for kurupira.neonorte-ywara.tech
+Successfully deployed certificate for admin.neonorte-ywara.tech
 ```
 
 ---
@@ -157,5 +169,73 @@ openssl rand -base64 64
 - [ ] `docker logs neonorte_kurupira --tail 20` — sem erros críticos
 - [ ] `docker logs neonorte_admin --tail 20` — sem erros críticos
 - [ ] Testar fluxo de login no Kurupira no browser
-- [ ] **Novo**: Verificar se Logto Console tem as Redirect URIs registradas
-- [ ] **Novo**: Validar que ALLOWED_ORIGINS no .env inclui o novo domínio
+- [ ] **Schema mudou?** → Executar Playbook 7 abaixo
+- [ ] Verificar se Logto Console tem as Redirect URIs registradas
+- [ ] Validar que ALLOWED_ORIGINS no .env inclui o novo domínio
+
+---
+
+## Playbook 7 — Sincronização de Schema do Banco (Prisma)
+
+> ⚠️ **Executar SEMPRE que `kurupira/backend/prisma/schema.prisma` mudar.**
+
+O backend roda dentro de Docker. O `node_modules` existe apenas **dentro do container**, não no host do VPS. Por isso, **nunca use `npx prisma`** no host — o npx pode baixar uma versão incompatível (ex: v7.x vs v5.x do projeto).
+
+### Comando Correto
+
+```bash
+# Sincroniza o schema direto no banco usando o Prisma do container
+docker exec neonorte_kurupira ./node_modules/.bin/prisma db push
+```
+
+**Saída esperada (sucesso — schema sincronizado):**
+```
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": MySQL database "db_kurupira" at "nexus-db:3306"
+🚀  Your database is now in sync with your Prisma schema.
+✔ Generated Prisma Client (v5.x.x) to ./node_modules/@prisma/client
+```
+
+**Saída esperada (já sincronizado — também OK):**
+```
+The database is already in sync with the Prisma schema.
+```
+
+### Quando usar `migrate deploy` vs `db push`
+
+| Situação | Comando |
+|---|---|
+| Existe arquivo de migração em `prisma/migrations/` | `docker exec neonorte_kurupira ./node_modules/.bin/prisma migrate deploy` |
+| Sem arquivo de migração (schema editado diretamente) | `docker exec neonorte_kurupira ./node_modules/.bin/prisma db push` |
+| Dúvida se migração existe | Verificar pasta `prisma/migrations/` no repo |
+
+---
+
+## ⚠️ Armadilhas Conhecidas (Lessons Learned)
+
+### 1. `npx prisma` no host baixa versão incompatível
+**Problema**: O VPS tem cache do npx com Prisma 7.x. O projeto usa Prisma 5.x. A v7 removeu suporte a `url` e `shadowDatabaseUrl` no `schema.prisma`, causando erro `P1012`.
+
+**Nunca fazer:**
+```bash
+npx prisma migrate deploy  # ❌ Pode usar versão errada do Prisma
+```
+
+**Sempre fazer:**
+```bash
+docker exec neonorte_kurupira ./node_modules/.bin/prisma db push  # ✅
+```
+
+### 2. `node_modules` não existe no host
+O backend roda em Docker. O diretório `/srv/ywara/kurupira/backend/node_modules/` **não existe no host**. Comandos como `./node_modules/.bin/prisma` no terminal SSH vão retornar `No such file or directory`.
+
+### 3. PowerShell não suporta `&&` no meio de comandos
+No terminal **local (Windows PowerShell)**, use `;` em vez de `&&`:
+```powershell
+# ❌ Falha no PowerShell
+git add . && git commit -m "msg"
+
+# ✅ Funciona no PowerShell
+git add .; git commit -m "msg"
+```
+O `&&` funciona normalmente dentro da sessão SSH (Linux bash).
