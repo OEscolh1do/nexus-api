@@ -170,8 +170,14 @@ export const ProjectService = {
     }
   },
 
-  async duplicateProject(_projectId: string) {
-    return null;
+  async duplicateProject(projectId: string): Promise<boolean> {
+    try {
+      await KurupiraClient.designs.duplicate(projectId);
+      return true;
+    } catch (error) {
+      console.error('[ProjectService] Falha ao duplicar design:', error);
+      return false;
+    }
   },
 
   async createStandaloneProject(payload: {

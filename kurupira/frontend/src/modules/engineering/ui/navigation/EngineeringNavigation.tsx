@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { EngineeringKPIStrip } from './EngineeringKPIStrip';
 import { EngineeringTabs } from './EngineeringTabs';
 import { 
-  Undo2, Redo2, Save, Loader2, CheckCircle2, LogOut
+  Undo2, Redo2, Save, Loader2, CheckCircle2, LogOut, ArrowLeft
 } from 'lucide-react';
 import { useTemporalStore } from '@/core/state/useTemporalStore';
 import { useSolarStore } from '@/core/state/solarStore';
@@ -116,18 +116,14 @@ export const EngineeringNavigation: React.FC = () => {
 
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const projectName = useSolarStore(s => s.clientData.projectName);
+  const setActiveModule = useSolarStore(s => s.setActiveModule);
 
   const handleSave = async () => {
     setSaveStatus('saving');
     try {
-      console.log('[Trace Alpha] Botão Salvar clicado na UI');
       const success = await ProjectService.saveDesign(null);
-      if (success) {
-        setSaveStatus('success');
-      } else {
-        setSaveStatus('error');
-      }
-    } catch (error) {
+      setSaveStatus(success ? 'success' : 'error');
+    } catch {
       setSaveStatus('error');
     } finally {
       setTimeout(() => setSaveStatus('idle'), 3000);
@@ -135,88 +131,111 @@ export const EngineeringNavigation: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col shrink-0 z-40 bg-slate-950 border-b border-slate-800">
-      <div className="flex items-center justify-between h-11 px-3 gap-4">
-        
-        {/* 1. BRANDING & PROJECT */}
-        <div className="flex items-center gap-3 shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-6 h-6 bg-indigo-600 rounded-sm flex items-center justify-center shadow-lg shadow-indigo-500/20 shrink-0">
-              <span className="text-[10px] font-black text-white italic">K</span>
-            </div>
-            <div className="hidden xl:flex flex-col leading-none">
-              <span className="text-[11px] font-black text-slate-100 uppercase tracking-tighter truncate max-w-[100px]">
+    <div className="flex flex-col shrink-0 z-40 bg-gradient-to-b from-slate-900 to-slate-950 border-b border-slate-800/80">
+      <div className="flex items-center justify-between h-10 px-2 gap-3">
+
+        {/* ── LEFT: Breadcrumb Navigation ── */}
+        <div className="flex items-center gap-0 shrink-0 h-full">
+          {/* Hub Button */}
+          <button
+            onClick={() => setActiveModule('hub')}
+            title="Voltar ao Hub de Projetos (Esc)"
+            className={cn(
+              "group flex items-center gap-1.5 px-2 h-full transition-all duration-150",
+              "text-slate-600 hover:text-slate-200 hover:bg-slate-800/60",
+              "border-r border-slate-800/40"
+            )}
+          >
+            <ArrowLeft
+              size={12}
+              className="shrink-0 group-hover:-translate-x-0.5 transition-transform duration-150"
+            />
+            <span className="hidden lg:block text-[10px] font-bold uppercase tracking-[0.12em] whitespace-nowrap">
+              Hub
+            </span>
+          </button>
+
+          {/* Breadcrumb separator + Project Name */}
+          <div className="hidden lg:flex items-center gap-2 px-3 h-full">
+            <span className="text-slate-700 text-[10px]">/</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-black text-slate-200 uppercase tracking-tight truncate max-w-[180px]">
                 {projectName || 'PROJETO_NOVO'}
               </span>
-              <span className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-0.5">
-                ENGINE v6
-              </span>
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)] animate-pulse" />
             </div>
           </div>
         </div>
 
-        {/* Vertical Divider (Left) */}
-        <div className="w-px h-6 bg-slate-800/60 shrink-0 mx-1" />
-
-        {/* 2. JOURNEY TABS (Center) */}
-        <div className="flex-1 flex justify-center min-w-0">
+        {/* ── CENTER: Journey Tabs ── */}
+        <div className="flex-1 flex justify-center min-w-0 h-full">
           <EngineeringTabs />
         </div>
 
-        {/* Vertical Divider (Right) */}
-        <div className="w-px h-6 bg-slate-800/60 shrink-0 mx-1" />
-
-        {/* 3. TELEMETRY & ACTIONS */}
+        {/* ── RIGHT: Telemetry + Action Group ── */}
         <div className="flex items-center gap-2 shrink-0">
-          
-          {/* Compact KPI Cluster */}
-          <div className="hidden 2xl:flex items-center h-8 bg-slate-900/50 rounded-sm border border-slate-800/50 px-1">
+
+          {/* Compact KPI Cluster — 2xl+ only */}
+          <div className="hidden 2xl:flex items-center h-7 bg-slate-900/60 rounded border border-slate-800/60 px-1">
             <EngineeringKPIStrip compact />
           </div>
 
-          <div className="flex items-center bg-slate-900 border border-slate-800 rounded-sm h-8 px-0.5">
-            <button 
-              onClick={() => canUndo && undo()} 
+          {/* Unified Action Group: Undo / Redo / Save */}
+          <div className="flex items-center h-7 bg-slate-900/60 border border-slate-800/70 rounded overflow-hidden">
+            <button
+              onClick={() => canUndo && undo()}
               disabled={!canUndo}
-              className={cn(
-                "p-1.5 transition-colors rounded-sm",
-                canUndo ? "text-slate-400 hover:text-white hover:bg-slate-800" : "text-slate-800 opacity-30"
-              )}
               title="Desfazer"
+              className={cn(
+                "flex items-center justify-center w-7 h-full transition-colors duration-150",
+                canUndo
+                  ? "text-slate-400 hover:text-white hover:bg-slate-800/80"
+                  : "text-slate-800 cursor-not-allowed"
+              )}
             >
               <Undo2 size={12} />
             </button>
-            <button 
-              onClick={() => canRedo && redo()} 
+
+            <div className="w-px h-3.5 bg-slate-800 shrink-0" />
+
+            <button
+              onClick={() => canRedo && redo()}
               disabled={!canRedo}
-              className={cn(
-                "p-1.5 transition-colors rounded-sm border-l border-slate-800",
-                canRedo ? "text-slate-400 hover:text-white hover:bg-slate-800" : "text-slate-800 opacity-30"
-              )}
               title="Refazer"
+              className={cn(
+                "flex items-center justify-center w-7 h-full transition-colors duration-150",
+                canRedo
+                  ? "text-slate-400 hover:text-white hover:bg-slate-800/80"
+                  : "text-slate-800 cursor-not-allowed"
+              )}
             >
               <Redo2 size={12} />
             </button>
+
+            <div className="w-px h-3.5 bg-slate-800 shrink-0" />
+
+            {/* Save — integrated at the right of the group */}
+            <button
+              onClick={handleSave}
+              disabled={saveStatus !== 'idle'}
+              title="Salvar projeto"
+              className={cn(
+                "flex items-center gap-1.5 px-3 h-full text-[10px] font-black uppercase tracking-widest transition-all duration-150",
+                saveStatus === 'idle'   && "text-indigo-300 hover:text-white hover:bg-indigo-600/80",
+                saveStatus === 'saving' && "text-slate-500 cursor-wait",
+                saveStatus === 'success' && "text-emerald-400 bg-emerald-500/10",
+                saveStatus === 'error'   && "text-rose-400 bg-rose-500/10"
+              )}
+            >
+              {saveStatus === 'idle'    && <><Save size={11} /><span className="hidden min-[1100px]:inline">Salvar</span></>}
+              {saveStatus === 'saving'  && <Loader2 size={11} className="animate-spin" />}
+              {saveStatus === 'success' && <CheckCircle2 size={11} className="animate-in zoom-in-50 duration-150" />}
+              {saveStatus === 'error'   && <span className="text-[9px]">Erro</span>}
+            </button>
           </div>
 
-          <button
-            onClick={handleSave}
-            disabled={saveStatus !== 'idle'}
-            className={cn(
-              "flex items-center gap-2 px-3 h-8 rounded-sm text-[10px] font-black uppercase tracking-widest transition-all",
-              saveStatus === 'idle' && "bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/10",
-              saveStatus === 'saving' && "bg-slate-800 text-slate-500 cursor-wait",
-              saveStatus === 'success' && "bg-emerald-600 text-white",
-              saveStatus === 'error' && "bg-rose-600 text-white"
-            )}
-          >
-            {saveStatus === 'idle' && <><Save size={12} /> <span className="hidden min-[1200px]:inline">Salvar</span></>}
-            {saveStatus === 'saving' && <Loader2 size={12} className="animate-spin" />}
-            {saveStatus === 'success' && <CheckCircle2 size={12} className="animate-in zoom-in" />}
-          </button>
-
-          {/* Divisor */}
-          <div className="w-px h-5 bg-slate-800 shrink-0" />
+          {/* Divider */}
+          <div className="w-px h-4 bg-slate-800/70 shrink-0" />
 
           {/* User Identity Chip */}
           <UserIdentityChip />

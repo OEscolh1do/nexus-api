@@ -134,6 +134,9 @@ export const KurupiraClient = {
         body: JSON.stringify(data),
       }),
 
+    duplicate: (id: string) =>
+      apiFetch<TechnicalDesignSummary>(`/api/v1/designs/${id}/duplicate`, { method: 'POST' }),
+
     delete: (id: string) =>
       apiFetch<{ success: boolean }>(`/api/v1/designs/${id}`, { method: 'DELETE' }),
   },

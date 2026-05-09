@@ -682,3 +682,79 @@ Foram identificadas duas fontes de falha silenciosa no salvamento de projetos de
 > "Se uma entidade contém metadados em JSON e também em colunas relacionais, o Backend deve executar um Merge-on-Save para alinhar as colunas físicas ao Master Data (JSON) antes do Prisma. Além disso, botões que fingem salvar a aplicação escondem dívidas técnicas cruciais."
 
 **Referência:** `kurupira/backend/src/routes/designs.js`, `kurupira/frontend/src/modules/engineering/ui/navigation/EngineeringNavigation.tsx`
+
+---
+
+## 14. Deploy em Produção: Artefatos de Build e Cache do PWA
+
+### 14.1. `*.tsbuildinfo` Nunca Deve Ser Versionado — Bloqueia `git pull` no VPS
+**Data:** 09/05/2026
+**Módulo:** Infraestrutura / Deploy VPS / TypeScript
+
+#### O Problema
+O TypeScript gera arquivos `*.tsbuildinfo` (ex: `tsconfig.tsbuildinfo`) durante cada execução de `tsc`. Quando esse arquivo é rastreado pelo Git e um build é feito no VPS (gerando uma versão diferente do arquivo), o próximo `git pull` aborta com:
+
+```
+error: Your local changes to the following files would be overwritten by merge:
+        sumauma/frontend/tsconfig.tsbuildinfo
+Please commit your changes or stash them before you merge.
+Aborting
+```
+
+**Consequência silenciosa:** O build roda após a mensagem de erro (`npm run build` foi encadeado com `&&`), mas usa o código **anterior ao pull** — gerando um bundle com hash idêntico ao build anterior. O Workbox Service Worker não detecta nenhuma mudança e **não se atualiza**, tornando o deploy invisível para o usuário.
+
+#### A Solução (Padrão Adotado)
+
+1. **`.gitignore` Global**: Adicionar `*.tsbuildinfo` ao `.gitignore` raiz do projeto — esses arquivos são cache de compilação e não devem nunca ser versionados.
+
+2. **Correção Imediata no VPS** (quando já está bloqueado):
+   ```bash
+   git checkout <arquivo>.tsbuildinfo
+   git pull origin main
+   ```
+
+3. **Remover do tracking** (se já foi versionado acidentalmente):
+   ```bash
+   git rm --cached **/tsconfig.tsbuildinfo
+   git commit -m "chore: remove tsbuildinfo from tracking"
+   ```
+
+#### Regra de Ouro
+> "Se `git pull` abortar com `tsconfig.tsbuildinfo`, use `git checkout <arquivo> && git pull`. Adicione `*.tsbuildinfo` ao `.gitignore` — esse arquivo de cache TypeScript NUNCA deve ser versionado ou o VPS acumulará conflitos a cada deploy."
+
+#### Referência
+- `.gitignore` (raiz do projeto)
+- Skill: `vps-deploy` (Armadilha #4)
+
+---
+
+### 14.2. Workbox Service Worker Auto-Atualiza Apenas Quando o Hash do Bundle Muda
+**Data:** 09/05/2026
+**Módulo:** Kurupira Frontend / PWA / Vite
+
+#### O Problema
+O PWA do Kurupira usa Workbox para precachear assets. Quando um novo deploy é feito, o Workbox compara os hashes dos arquivos no novo `sw.js` com os que estão no cache do browser. Se o hash do bundle principal (`index-*.js`) **não mudar** (porque o build usou código antigo), o SW não detecta diferença e **não notifica o usuário** sobre a nova versão.
+
+Isso acontece exatamente quando o `git pull` é abortado: o build roda com código antigo → mesmo hash → SW "cego" → usuário vê versão antiga.
+
+#### A Solução (Padrão Adotado)
+
+1. **Garantir `git pull` antes do build**: O pull deve ser bem-sucedido antes de qualquer build. Se abortar, corrigir antes de prosseguir.
+
+2. **Workbox auto-update funciona se o hash muda**: Quando o bundle tem código novo → hash diferente → Workbox detecta automaticamente → atualiza sem intervenção do browser. Não é necessário `localStorage.clear()` ou unregister do SW se o deploy foi feito corretamente.
+
+3. **Procedimento manual de emergência** (apenas quando hash não mudou):
+   ```javascript
+   // No console do browser (F12):
+   caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+   navigator.serviceWorker.getRegistrations().then(r => r.forEach(sw => sw.unregister()));
+   localStorage.clear();
+   setTimeout(() => location.reload(true), 500);
+   ```
+
+#### Regra de Ouro
+> "Se as mudanças do deploy não aparecem no browser mesmo após hard refresh, verifique se o `git pull` foi bem-sucedido ANTES do build. Um pull abortado gera um bundle com hash idêntico ao anterior, tornando o Workbox SW 'cego' para a nova versão. A solução não é limpar o cache — é garantir que o pull e o build usaram o código correto."
+
+#### Referência
+- `.gitignore` (correção de `*.tsbuildinfo`)
+- Skill: `vps-deploy` (Playbook 5 e Armadilha #4)

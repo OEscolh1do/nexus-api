@@ -81,9 +81,10 @@ app.use(limiter);
 
 // =============================================================
 // HEALTH CHECK (público — sem auth)
+// Suporta /health (infra) e /admin/health (frontend axios)
 // =============================================================
 
-app.get('/health', (req, res) => {
+app.get(['/health', '/admin/health'], (req, res) => {
   res.status(200).json({
     status: 'healthy',
     service: 'neonorte-admin-backend',

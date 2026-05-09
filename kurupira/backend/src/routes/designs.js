@@ -130,6 +130,37 @@ router.put('/:id', authenticateToken, validate(updateDesignSchema), async (req, 
   }
 });
 
+router.post('/:id/duplicate', authenticateToken, async (req, res) => {
+  try {
+    const original = await prisma.technicalDesign.findFirst({
+      where: { id: req.params.id, tenantId: req.user.tenantId, deletedAt: null }
+    });
+
+    if (!original) return res.status(404).json({ success: false, error: 'Original project not found' });
+
+    // Criar cópia com nome prefixado e status resetado
+    const duplicate = await prisma.technicalDesign.create({
+      data: {
+        ...original,
+        id: undefined, // Deixar o DB gerar novo UUID
+        name: `[CÓPIA] ${original.name}`.slice(0, 255),
+        status: 'DRAFT',
+        createdBy: req.user.id,
+        createdAt: undefined,
+        updatedAt: undefined,
+        deletedAt: null,
+        deletedBy: null
+      }
+    });
+
+    logger.info(`[Duplicate] Projeto ${original.id} duplicado para ${duplicate.id} por ${req.user.id}`);
+    res.status(201).json({ success: true, data: duplicate });
+  } catch (error) {
+    logger.error('[POST /designs/:id/duplicate] Error:', { error: error.message });
+    res.status(500).json({ success: false, error: safeError(error) });
+  }
+});
+
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const existing = await prisma.technicalDesign.findFirst({

@@ -104,24 +104,34 @@ Successfully deployed certificate for admin.neonorte-ywara.tech
 
 ## Playbook 5 — Deploy Completo (todos os serviços)
 
+> ⚠️ **CRÍTICO**: Confirme que o `git pull` foi bem-sucedido ANTES de rodar o build. Um pull abortado gera um bundle com o mesmo hash da versão anterior — o Workbox Service Worker não detectará a mudança e o usuário continuará vendo a versão antiga.
+
 ```bash
 cd /srv/ywara
+
+# 1. OBRIGATÓRIO: Limpar artefatos de build antes do pull
+git checkout sumauma/frontend/tsconfig.tsbuildinfo 2>/dev/null || true
+git checkout kurupira/frontend/tsconfig.tsbuildinfo 2>/dev/null || true
+
+# 2. Pull — confirme que imprimiu "Fast-forward" ou "Already up to date"
 git pull origin main
 
-# Rebuild frontends (Importante: VITE_API_URL sem /api no final)
+# 3. Rebuild frontends (Importante: VITE_API_URL sem /api no final)
 cd kurupira/frontend && VITE_API_URL=https://kurupira.neonorte-ywara.tech npm run build
 cd /srv/ywara/sumauma/frontend && npm run build
 
-# Rebuild e restart todos os backends
+# 4. Rebuild e restart todos os backends
 cd /srv/ywara
 docker compose -f docker-compose.production.yml up -d --build
 
-# Atualizar Nginx se necessário
+# 5. Atualizar Nginx se necessário (lembre: rodar certbot após o cp!)
 sudo cp infra/nginx/vps.conf /etc/nginx/sites-available/ywara
-sudo nginx -t && sudo systemctl restart nginx
+sudo certbot --nginx -d kurupira.neonorte-ywara.tech -d admin.neonorte-ywara.tech
+sudo nginx -t && sudo systemctl reload nginx
 
-# Health check final
+# 6. Health check final
 docker compose -f docker-compose.production.yml ps
+curl -I https://kurupira.neonorte-ywara.tech
 ```
 
 ---
@@ -239,3 +249,23 @@ git add . && git commit -m "msg"
 git add .; git commit -m "msg"
 ```
 O `&&` funciona normalmente dentro da sessão SSH (Linux bash).
+
+### 4. `tsconfig.tsbuildinfo` bloqueia `git pull` e torna o deploy invisível
+**Problema**: O TypeScript gera `tsconfig.tsbuildinfo` em cada build. Se este arquivo está versionado no Git, o VPS acumula uma versão "suja" após cada build, e o próximo `git pull` aborta silenciosamente. O build ainda executa — mas com o **código antigo** → mesmo hash de bundle → Workbox SW não detecta mudança → **usuário vê a versão antiga**.
+
+**Sintoma**: `error: Your local changes to the following files would be overwritten by merge: tsconfig.tsbuildinfo`
+
+**Correção imediata:**
+```bash
+git checkout sumauma/frontend/tsconfig.tsbuildinfo
+git pull origin main
+# Agora sim, fazer o build
+```
+
+**Correção definitiva** (já aplicada no projeto):
+```bash
+# Adicionar ao .gitignore raiz:
+*.tsbuildinfo
+```
+
+**Regra**: Sempre limpe os `.tsbuildinfo` ANTES do `git pull` no Playbook 5.

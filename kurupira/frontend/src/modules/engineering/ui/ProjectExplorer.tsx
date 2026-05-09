@@ -16,13 +16,14 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { NeonorteLoader } from '@/components/ui/NeonorteLoader';
 import {
   Search, Plus, MapPin,
-  FolderOpen, Archive, Trash2
+  FolderOpen, Archive, Trash2, Copy
 } from 'lucide-react';
 import { KurupiraClient, TechnicalDesignSummary } from '@/services/NexusClient';
 import { useUIStore } from '@/core/state/uiStore';
 import { ProjectFormModal } from './components/ProjectFormModal';
 import { SiteContextModal } from './SiteContextModal';
 import { NeonorteMarkerUI } from '@/components/ui/NeonorteMarkerUI';
+import { ProjectService } from '@/services/ProjectService';
 
 // =============================================================================
 // TIPOS (Payload Anorético — apenas o necessário para decisão de clique)
@@ -30,6 +31,7 @@ import { NeonorteMarkerUI } from '@/components/ui/NeonorteMarkerUI';
 
 export interface ProjectCard {
   projectId: string;
+  projectName: string; // Adicionado
   technicalStatus: 'DRAFT' | 'IN_PROGRESS' | 'REVIEW' | 'APPROVED';
   targetPowerKwp: number;
   voltage: string;
@@ -69,13 +71,14 @@ const buildStaticMapUrl = (lat?: number | null, lng?: number | null) => {
 const mapSummaryToCard = (summary: TechnicalDesignSummary): ProjectCard => {
   return {
     projectId: summary.id,
+    projectName: summary.name || 'Projeto Sem Nome',
     technicalStatus: (summary.status as any) || 'DRAFT',
     targetPowerKwp: summary.targetPowerKwp || 0,
     voltage: String(summary.voltage || '—'),
     moduleCount: summary.moduleCount || 0,
     inverterCount: summary.inverterCount || 0,
     commercialContext: {
-      clientName: summary.clientName || summary.leadContext?.name || summary.name || 'Sem Título',
+      clientName: summary.clientName || summary.leadContext?.name || 'Cliente Avulso',
       city: summary.city || summary.leadContext?.city || 'Desconhecida',
       state: summary.state || summary.leadContext?.state || 'UF',
       averageConsumptionKwh: summary.averageConsumptionKwh || 0,
@@ -171,6 +174,24 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelectProjec
     }
   };
 
+  const handleDuplicate = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    setAppLoading('project-hub', 'Clonando projeto...');
+    try {
+      const success = await ProjectService.duplicateProject(id);
+      if (success) {
+        fetchProjects();
+      } else {
+        window.alert('Erro ao duplicar projeto.');
+      }
+    } catch (err) {
+      console.error('Failed to duplicate project', err);
+    } finally {
+      clearAppLoading();
+    }
+  };
+
   useEffect(() => {
     fetchProjects();
   }, []);
@@ -182,6 +203,7 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelectProjec
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(p =>
+        p.projectName.toLowerCase().includes(q) ||
         p.commercialContext.clientName.toLowerCase().includes(q) ||
         p.commercialContext.city.toLowerCase().includes(q) ||
         p.technicalStatus.toLowerCase().includes(q)
@@ -292,6 +314,7 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelectProjec
                 onClick={() => setContextProjectId(project.projectId)}
                 onArchive={(e) => handleArchive(project.projectId, e)}
                 onDelete={(e) => handleDelete(project.projectId, e)}
+                onDuplicate={(e) => handleDuplicate(project.projectId, e)}
               />
             ))}
           </div>
@@ -360,7 +383,8 @@ const ProjectCardComponent: React.FC<{
   onClick: () => void;
   onArchive: (e: React.MouseEvent) => void;
   onDelete: (e: React.MouseEvent) => void;
-}> = ({ project, onClick, onArchive, onDelete }) => {
+  onDuplicate: (e: React.MouseEvent) => void;
+}> = ({ project, onClick, onArchive, onDelete, onDuplicate }) => {
   const [mapError, setMapError] = useState(false);
   const status = STATUS_CONFIG[project.technicalStatus] || STATUS_CONFIG.DRAFT;
   const { commercialContext: ctx } = project;
@@ -382,11 +406,16 @@ const ProjectCardComponent: React.FC<{
     >
       {/* ── HEADER ── */}
       <div className="px-3 py-2.5 flex items-center justify-between border-b border-slate-800/50 bg-slate-900/30">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className={`shrink-0 w-2 h-2 rounded-none ${status.dot} shadow-[0_0_8px_rgba(var(--tw-color-indigo-500),0.3)]`} />
-          <h3 className="text-[clamp(10px,4cqi,12px)] font-black text-slate-300 uppercase tracking-[0.1em] truncate group-hover:text-white transition-colors" title={ctx.clientName}>
+        <div className="flex flex-col min-w-0 pr-2">
+          <div className="flex items-center gap-2 mb-0.5">
+            <div className={`shrink-0 w-1.5 h-1.5 rounded-none ${status.dot}`} />
+            <h3 className="text-[11px] font-black text-slate-100 uppercase tracking-tight truncate group-hover:text-indigo-300 transition-colors" title={project.projectName}>
+              {project.projectName}
+            </h3>
+          </div>
+          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest truncate ml-3.5">
             {ctx.clientName}
-          </h3>
+          </p>
         </div>
         
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
@@ -396,6 +425,13 @@ const ProjectCardComponent: React.FC<{
               className="w-6 h-6 flex items-center justify-center bg-slate-800/50 rounded-sm hover:bg-slate-700 text-slate-400 hover:text-white transition-all"
             >
               <Archive size={12} />
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); onDuplicate(e); }}
+              title="Duplicar"
+              className="w-6 h-6 flex items-center justify-center bg-slate-800/50 rounded-sm hover:bg-indigo-500/20 text-slate-400 hover:text-indigo-400 transition-all"
+            >
+              <Copy size={12} />
             </button>
             <button 
               onClick={(e) => { e.stopPropagation(); onDelete(e); }}

@@ -36,3 +36,7 @@ backend/uploads/
 .claude/
 githubtoken.txt
 ywaravps.txt
+
+# TypeScript build cache — gerado pelo tsc, nunca deve ser versionado
+# Causa aborto de git pull no VPS quando modificado por um build anterior
+*.tsbuildinfo

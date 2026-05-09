@@ -57,26 +57,64 @@ export const EngineeringKPIStrip: React.FC<{ compact?: boolean }> = ({ compact }
   const fdiSeverity = kpi.dcAcRatio < 1.05 || kpi.dcAcRatio > 1.50 ? 'error' : 
                       kpi.dcAcRatio > 1.35 ? 'warning' : 'ok';
 
+  // Derived values for compact display
+  const fdiValue = modules.length > 0 && inverters.length > 0
+    ? (kpi.dcAcRatio * 100).toFixed(0)
+    : '--';
+  const genValue = kpi.estimatedGeneration > 0
+    ? kpi.estimatedGeneration.toFixed(0)
+    : '--';
+
+  const fdiColorClass =
+    fdiSeverity === 'ok'      ? 'text-emerald-400' :
+    fdiSeverity === 'warning' ? 'text-amber-400'   :
+                                'text-rose-400';
+
   if (compact) {
     return (
-      <div className="flex items-center gap-5 px-3">
-        <div className="flex items-baseline gap-1.5" title="Potência Instalada">
-          <span className="text-[13px] font-black text-slate-100 font-mono tabular-nums">
+      <div className="flex items-center divide-x divide-slate-800/60">
+
+        {/* 1. Potência CC instalada */}
+        <div className="flex items-baseline gap-1 px-3" title="Potência CC instalada">
+          <span className="text-[12px] font-black text-slate-100 font-mono tabular-nums leading-none">
             {totalKWp.toFixed(1)}
           </span>
-          <span className="text-[9px] font-bold text-slate-600 uppercase">kWp</span>
+          <span className="text-[8px] font-bold text-slate-600 uppercase tracking-tight">kWp</span>
         </div>
-        <div className="flex items-baseline gap-1.5" title="ROI Estimado">
-           <span className="text-[13px] font-black text-indigo-400 font-mono tabular-nums">
-            {financials.roi.toFixed(0)}
+
+        {/* 2. FDI (DC/AC) — com severidade visual */}
+        <div
+          className="flex items-baseline gap-1 px-3"
+          title={`FDI (DC/AC): faixa ideal 110–135% conforme NBR 16690`}
+        >
+          <span className={cn("text-[12px] font-black font-mono tabular-nums leading-none", fdiColorClass)}>
+            {fdiValue}
           </span>
-          <span className="text-[9px] font-bold text-indigo-600 uppercase">%</span>
+          <span className={cn("text-[8px] font-bold uppercase tracking-tight",
+            fdiValue === '--' ? 'text-slate-700' : fdiColorClass.replace('text-', 'text-').replace('400', '700')
+          )}>
+            {fdiValue === '--' ? 'fdi' : '%'}
+          </span>
         </div>
-        <div className={cn(
-          "w-1.5 h-1.5 rounded-full",
-          globalHealth === 'ok' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' :
-          globalHealth === 'warning' ? 'bg-amber-500' : 'bg-rose-500'
-        )} title="Status Elétrico" />
+
+        {/* 3. Geração estimada mensal */}
+        <div className="flex items-baseline gap-1 px-3" title="Geração média estimada mensal">
+          <span className="text-[12px] font-black text-slate-300 font-mono tabular-nums leading-none">
+            {genValue}
+          </span>
+          <span className="text-[8px] font-bold text-slate-700 uppercase tracking-tight">kWh</span>
+        </div>
+
+        {/* 4. Status elétrico — semáforo permanente */}
+        <div className="flex items-center justify-center px-3" title={`Status elétrico: ${globalHealth}`}>
+          <div className={cn(
+            "w-1.5 h-1.5 rounded-full",
+            globalHealth === 'ok'      ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]' :
+            globalHealth === 'warning' ? 'bg-amber-400  shadow-[0_0_6px_rgba(251,191,36,0.5)]'  :
+                                         'bg-rose-500   shadow-[0_0_6px_rgba(244,63,94,0.5)]'
+          )} />
+        </div>
+
       </div>
     );
   }
