@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { KurupiraClient, TechnicalDesignSummary } from '@/services/NexusClient';
 import { useUIStore } from '@/core/state/uiStore';
+import { useLoadingPhrase } from '@/core/phrases/useLoadingPhrase';
 import { ProjectFormModal } from './components/ProjectFormModal';
 import { SiteContextModal } from './SiteContextModal';
 import { NeonorteMarkerUI } from '@/components/ui/NeonorteMarkerUI';
@@ -122,6 +123,9 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelectProjec
   const clearAppLoading = useUIStore(s => s.clearAppLoading);
   const isAppLoading = useUIStore(s => s.isAppLoading);
   const loadingContext = useUIStore(s => s.loadingContext);
+
+  // Frases KSP-style rotativas
+  const getPhrase = useLoadingPhrase('project-hub');
   
   // Local derived state for UI feedback (labels)
   const isHubLoading = isAppLoading && loadingContext === 'project-hub';
@@ -131,7 +135,7 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelectProjec
   const [contextProjectId, setContextProjectId] = useState<string | null>(null);
 
   const fetchProjects = async () => {
-    setAppLoading('project-hub', 'Sincronizando projetos...');
+    setAppLoading('project-hub', getPhrase());
     try {
       const data = await KurupiraClient.designs.list();
       setProjects(data);
@@ -177,7 +181,7 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelectProjec
   const handleDuplicate = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     
-    setAppLoading('project-hub', 'Clonando projeto...');
+    setAppLoading('project-hub', getPhrase());
     try {
       const success = await ProjectService.duplicateProject(id);
       if (success) {

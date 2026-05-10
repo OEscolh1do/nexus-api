@@ -24,6 +24,7 @@ import 'leaflet/dist/leaflet.css';
 import { MapCore } from '@/modules/engineering/components/MapCore';
 import { KurupiraClient } from '@/services/NexusClient';
 import { useUIStore } from '@/core/state/uiStore';
+import { useLoadingPhrase } from '@/core/phrases/useLoadingPhrase';
 import { NeonorteLoader } from '@/components/ui/NeonorteLoader';
 import { fetchWeatherAnalysis } from '@/services/weatherService';
 
@@ -80,6 +81,7 @@ export const SiteContextModal: React.FC<SiteContextModalProps> = ({
   const isSiteLoading = useUIStore(
     s => s.isAppLoading && s.loadingContext === 'site-context'
   );
+  const getPhrase = useLoadingPhrase('site-context');
   const [context, setContext] = useState<SiteContext | null>(null);
 
   useEffect(() => {
@@ -90,7 +92,7 @@ export const SiteContextModal: React.FC<SiteContextModalProps> = ({
 
     let isMounted = true;
     const fetchContext = async () => {
-      setAppLoading('site-context', 'Buscando contexto...');
+      setAppLoading('site-context', getPhrase());
       try {
         const data = await KurupiraClient.designs.get(projectId);
         
@@ -185,8 +187,8 @@ export const SiteContextModal: React.FC<SiteContextModalProps> = ({
         <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={onClose} />
         <NeonorteLoader
           size="panel"
-          message="Buscando contexto..."
           overlay={false}
+          forceShow
         />
       </div>
     );
