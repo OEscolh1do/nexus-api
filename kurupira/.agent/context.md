@@ -1,8 +1,8 @@
 # CONTEXT.md — Kurupira (Motor de Engenharia Solar)
 
-> **Última Atualização:** 2026-05-07
+> **Última Atualização:** 2026-05-10
 > **Arquiteto:** Antigravity AI
-> **Versão do Sistema:** 6.0.2 (Arranjo Deferido)
+> **Versão do Sistema:** 0.9.0-beta.1 (SemVer Alignment)
 
 ---
 
@@ -152,6 +152,9 @@ O Pin de localização é o elemento central de ancoragem visual e interatividad
 ---
 
 ## 🔄 CHANGELOG
+
+### v0.9.0-beta.1 (2026-05-10) — SemVer Alignment
+- ✅ **Versionamento Semântico**: Realinhamento da versão do Kurupira de `6.0.2` para `0.9.0-beta.1`, refletindo corretamente o status de desenvolvimento (Beta) e quebras de API ainda ocorrendo.
 
 ### v6.0.1 (2026-05-07) — OIDC Logout Fix
 

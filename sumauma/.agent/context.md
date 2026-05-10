@@ -1,8 +1,8 @@
 # CONTEXT.md — Sumaúma (Backoffice do Operador)
 
-> **Última Atualização:** 2026-05-08
+> **Última Atualização:** 2026-05-10
 > **Arquiteto:** Antigravity AI
-> **Versão do Sistema:** 2.0.0 (Identity Integrity Cockpit)
+> **Versão do Sistema:** 1.0.0-rc.1 (SemVer Alignment)
 
 ---
 
@@ -289,6 +289,9 @@ A exclusão de tenants e usuários era apenas lógica (soft delete) ou inexisten
 ---
 
 ## 🔄 CHANGELOG
+
+### v1.0.0-rc.1 (2026-05-10) — SemVer Alignment
+- ✅ **Versionamento Semântico**: Realinhamento da versão do Sumaúma de `2.0.0` para `1.0.0-rc.1`, refletindo o status de "Release Candidate", estável para operações do backoffice.
 
 ### v2.0.0 (2026-05-08) — Identity Integrity Cockpit
 - ✅ **Cockpit Refactor**: Cabeçalho fixo na página de Sistema e área de conteúdo com scroll independente e Ghost Scrollbars.

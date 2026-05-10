@@ -758,3 +758,29 @@ Isso acontece exatamente quando o `git pull` é abortado: o build roda com códi
 #### Referência
 - `.gitignore` (correção de `*.tsbuildinfo`)
 - Skill: `vps-deploy` (Playbook 5 e Armadilha #4)
+
+---
+
+## 15. Versionamento e Lançamento de Software
+
+### 15.1. O Padrão Ouro: Semantic Versioning (SemVer)
+**Data:** 10/05/2026
+**Módulo:** Gestão de Lançamentos
+
+Versioning não é apenas uma sequência de números aleatórios; é uma forma de comunicação entre quem desenvolve e quem usa. Embora existam várias abordagens, a indústria de tecnologia convergiu para um padrão principal que evita o caos total: o Semantic Versioning (SemVer).
+
+Ele segue o formato **MAJOR.MINOR.PATCH** (ex: `2.4.12`).
+
+1. **MAJOR (`2.x.x`)**: Alterações "quebrantes" (Breaking Changes). Se você mudar esse número, significa que quem usa sua aplicação pode precisar alterar o código deles para que tudo continue funcionando.
+2. **MINOR (`x.4.x`)**: Novas funcionalidades. Você adicionou algo legal, mas não quebrou o que já existia (Backward Compatible).
+3. **PATCH (`x.x.12`)**: Correções de bugs. Nada mudou na interface ou nas funções, apenas "limpamos a casa".
+
+### 15.2. A fase "0.x.x" e as Tags Alpha, Beta e RC
+De acordo com o SemVer, a versão `0.y.z` é para o desenvolvimento inicial. Isso significa que a API ainda não é estável e qualquer coisa pode mudar a qualquer momento. No entanto, iniciar com zero não significa automaticamente ser um Alpha ou Beta. A fase de lançamento é definida por **sufixos** de pré-lançamento (ex: `1.0.0-alpha.1`):
+
+- **Alpha**: É uma fase interna. O software tem as funcionalidades básicas, mas ainda está cheio de bugs e pode nem abrir.
+- **Beta**: O software está "completo" em termos de recursos, mas precisa de testes em escala real. É aqui que usuários externos começam a testar.
+- **RC (Release Candidate)**: É o "quase lá". Se nenhum bug catastrófico aparecer, essa versão vira a `1.0.0`.
+
+#### Regra de Ouro
+> "A versão `0.x.x` indica apenas instabilidade de desenvolvimento inicial. O status real de pré-lançamento (Alpha, Beta, RC) é definido pelo sufixo após o hífen. Uma versão `1.0.0-alpha.1` é a forma correta de comunicar a maturidade do release, e não apenas o fato de começar com zero."

@@ -145,6 +145,13 @@ export const HubTopRibbon: React.FC = () => {
       {/* ── RIGHT: System Actions ── */}
       <div className="flex items-center h-full">
         
+        {/* Version Badge */}
+        <div className="hidden sm:flex items-center px-3 h-full border-l border-slate-800/40">
+          <span className="text-[8px] font-black uppercase tracking-[0.18em] text-slate-700 font-mono select-none">
+            v{__APP_VERSION__}
+          </span>
+        </div>
+
         {/* Fullscreen Toggle */}
         <button 
           onClick={toggleFullscreen} 

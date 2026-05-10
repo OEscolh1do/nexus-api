@@ -101,7 +101,7 @@ const UserIdentityChip: React.FC = () => {
 
           {/* Footer */}
           <div className="px-4 py-2.5 bg-slate-950/50 border-t border-slate-800/40 text-center">
-             <p className="text-[8px] text-slate-700 font-bold uppercase tracking-[0.2em]">Ywara v1.0.0</p>
+             <p className="text-[8px] text-slate-700 font-bold uppercase tracking-[0.2em] font-mono">Kurupira v{__APP_VERSION__}</p>
           </div>
         </div>
       )}

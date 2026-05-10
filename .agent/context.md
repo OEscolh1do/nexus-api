@@ -2,7 +2,7 @@
 
 > **Última Atualização:** 2026-05-10
 > **Arquiteto:** Antigravity AI
-> **Versão do Ecossistema:** 6.1.0 (Solar Lobby Milestone)
+> **Versão do Ecossistema:** 6.2.0 (SemVer Standardization)
 
 ---
 
@@ -109,6 +109,7 @@ Para garantir que os dados fluam sem perdas do Banco até a UI, seguimos 5 níve
 
 | Versão | Data | Milestone |
 |:---|:---|:---|
+| **v6.2.0** | 2026-05-10 | **SemVer Standardization**: Realinhamento de todos os módulos do ecossistema seguindo o rigor do Semantic Versioning. Kurupira fixado em `0.9.0-beta.1` e Sumaúma em `1.0.0-rc.1`. Protocolo registrado no Manual de Boas Práticas. |
 | **v6.1.0** | 2026-05-10 | **Solar Lobby Refactor**: Implementação da interface de entrada premium no Kurupira com rastreamento solar em tempo real e estabilização de redirecionamentos de logout OIDC. |
 | v6.0.3 | 2026-05-08 | **Identity Integrity Refactor**: Refatoração do cockpit de auditoria do Sumaúma com humanização de micro-copy, atalhos de teclado de especialista e padronização global de Ghost Scrollbars. |tegrity Refactor**: Refatoração do cockpit de auditoria do Sumaúma com humanização de micro-copy, atalhos de teclado de especialista e padronização global de Ghost Scrollbars. |
 | v5.4.0 | 2026-05-07 | **Atomic Org Control**: Refatoração do fluxo de criação de empresas no Sumaúma para permitir criação atômica (sem usuários iniciais) e inclusão de validação de e-mail nos fluxos individuais. |

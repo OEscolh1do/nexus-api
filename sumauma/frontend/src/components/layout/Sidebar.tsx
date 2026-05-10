@@ -118,6 +118,15 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         </NavLink>
       </nav>
 
+      {/* Version Badge */}
+      {!collapsed && (
+        <div className="px-4 py-2 border-t border-slate-800/60">
+          <span className="text-[8px] font-black uppercase tracking-[0.18em] text-slate-700 font-mono select-none">
+            Sumaúma v{__APP_VERSION__}
+          </span>
+        </div>
+      )}
+
       {/* Collapse Toggle */}
       <button
         onClick={onToggle}
