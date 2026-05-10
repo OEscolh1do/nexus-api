@@ -1,8 +1,8 @@
 # CONTEXT.md — Ecossistema YWARA (Visão Global)
 
-> **Última Atualização:** 2026-05-08
+> **Última Atualização:** 2026-05-10
 > **Arquiteto:** Antigravity AI
-> **Versão do Ecossistema:** 6.0.3 (Identity Integrity Refactor)
+> **Versão do Ecossistema:** 6.1.0 (Solar Lobby Milestone)
 
 ---
 
@@ -107,7 +107,10 @@ Para garantir que os dados fluam sem perdas do Banco até a UI, seguimos 5 níve
 
 ## 🔄 CHANGELOG DO ECOSSISTEMA
 
-| v6.0.3 | 2026-05-08 | **Identity Integrity Refactor**: Refatoração do cockpit de auditoria do Sumaúma com humanização de micro-copy, atalhos de teclado de especialista e padronização global de Ghost Scrollbars. |
+| Versão | Data | Milestone |
+|:---|:---|:---|
+| **v6.1.0** | 2026-05-10 | **Solar Lobby Refactor**: Implementação da interface de entrada premium no Kurupira com rastreamento solar em tempo real e estabilização de redirecionamentos de logout OIDC. |
+| v6.0.3 | 2026-05-08 | **Identity Integrity Refactor**: Refatoração do cockpit de auditoria do Sumaúma com humanização de micro-copy, atalhos de teclado de especialista e padronização global de Ghost Scrollbars. |tegrity Refactor**: Refatoração do cockpit de auditoria do Sumaúma com humanização de micro-copy, atalhos de teclado de especialista e padronização global de Ghost Scrollbars. |
 | v5.4.0 | 2026-05-07 | **Atomic Org Control**: Refatoração do fluxo de criação de empresas no Sumaúma para permitir criação atômica (sem usuários iniciais) e inclusão de validação de e-mail nos fluxos individuais. |
 | v5.3.2 | 2026-05-07 | **Arranjo Deferido**: Ocultação da aba "Arranjo" no cockpit Kurupira para simplificação da jornada técnica até a estabilização do motor 3D. |
 | v5.3.1 | 2026-05-07 | **OIDC Normalization**: Padronização global dos endpoints Logto e definições explícitas de Post-Logout Redirect URIs para eliminar falhas de redirecionamento no logout. |

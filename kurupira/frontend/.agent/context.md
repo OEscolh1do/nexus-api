@@ -1,370 +1,90 @@
-# CONTEXT.md - Sistema NEONORTE NEXUS
+# CONTEXT.md — Kurupira (Engenharia Solar SaaS)
 
-> **Última Atualização:** 2026-01-26
+> **Última Atualização:** 2026-05-10
 > **Arquiteto:** Antigravity AI
-> **Versão do Sistema:** 2.2.0 (Neonorte | Nexus SQL - Commercial Expansion)
+> **Versão do Módulo:** 6.1.0 (Solar Lobby Milestone)
 
 ---
 
 ## 📋 VISÃO GERAL
 
-**NEXUS** é um ecossistema **ERP/Gestão** robusto projetado para o setor de energia solar, focado na orquestração de estratégia, tática e operacional. O sistema foi otimizado para eliminar complexidade acidental, mantendo foco estrito na execução de projetos e estratégias.
+**Kurupira** é o coração técnico do ecossistema Ywara. É uma plataforma B2B SaaS especializada em engenharia fotovoltaica de alta precisão, permitindo que integradores e engenheiros projetem, simulem e gerem propostas comerciais completas.
 
-### Domínio de Negócio
+O foco é a **Experiência do Engenheiro**: densidade de dados, precisão funcional e uma estética "Industrial Engineering" que transmite confiança e rigor técnico.
 
-- **Setor:** Energia Solar & Gestão Estratégica
-- **Usuários:** Colaboradores, Gestores (COORD), e Administradores (ADMIN).
-- **Missão:** Transformar estratégias macro em ações táticas (projetos) e operações detalhadas (tarefas/checklists).
-
----
-
-## 🏗️ ARQUITETURA DO SISTEMA (NEXUS 2.2)
-
-### Stack Tecnológico
-
-#### **Backend**
-
-- **Runtime:** Node.js 18/20
-- **Framework:** Express.js (Universal Controller Pattern)
-- **ORM:** Prisma 5.10+
-- **Database:** MySQL 8.0 (Dockerizado ou Hospedagem Hostinger)
-- **Segurança:** Autenticação SSO e validação Zod.
-
-#### **Frontend**
-
-- **Framework:** React 19.2 / Vite
-- **Linguagem:** TypeScript (Strict Mode)
-- **Estilização:** TailwindCSS
-- **Bibliotecas Especializadas:**
-  - Leaflet 1.9.4 (mapas - módulo Solar)
-  - @geoman-io/leaflet-geoman-free (desenho de polígonos)
-  - Frappe Gantt (timelines)
-  - Recharts (gráficos)
-  - jspdf + html2canvas (geração de PDF)
-
-#### **Infraestrutura**
-
-- Docker (desenvolvimento e produção)
-- MySQL 8.0
-- Hostinger (produção)
+| Aspecto | Detalhe |
+|---------|--------|
+| **Papel** | Kurupira: O Motor de Engenharia / SaaS B2B |
+| **Usuários** | Integradores, Engenheiros e Projetistas (Clientes da Neonorte) |
+| **Porta Backend** | 3002 |
+| **Porta Frontend** | 5174 (dev - variável conforme disponibilidade) |
+| **IAM (Auth)** | Logto Cloud (OIDC) |
 
 ---
 
-## 🧩 MÓDULOS INTEGRADOS
+## 🏗️ STACK TÉCNICO
 
-### 🌞 Solar (INTEGRADO - 2026-01-20)
-
-**Localização:** `nexus-monolith/frontend/src/modules/solar/`
-
-**Descrição:** Sistema completo de propostas fotovoltaicas com wizard de 6 etapas, mapeamento via Leaflet, cálculos de dimensionamento, seleção de equipamentos e geração de PDF.
-
-**Persistência:** `SolarProposal.proposalData` (JSON com validação Zod obrigatória)
-
-**Segurança:**
-
-- ✅ Validação Zod
-- ✅ RBAC (controle por papel)
-- ✅ Auditoria (AuditLog registra todas as mudanças)
-- ✅ Proteção CVE-2025-55182 (serialização segura)
-
-**Status:** ✅ Operacional em produção
-
-### 💼 Commercial (EXPANDIDO - 2026-01-26)
-
-**Localização:** `nexus-monolith/frontend/src/views/commercial/`
-
-**Descrição:** Sistema completo de CRM com gestão de leads, oportunidades, missões comerciais e propostas técnicas.
-
-**Entidades Principais:**
-
-- **Lead:** Contatos de pré-venda com scoring e qualificação
-- **Mission:** Campanhas regionais com metas e gamificação
-- **Opportunity:** Funil de vendas com 8 estágios
-- **TechnicalProposal:** Propostas técnicas validadas por engenharia
-- **SolarProposal:** Propostas fotovoltaicas completas
-
-**Features:**
-
-- Pipeline Kanban drag-and-drop
-- Mission Control (metas e gamificação)
-- Solar Wizard (geração de propostas)
-- Lead scoring automático
-- Validação "Sem Jeitinho" (guardrails de qualidade)
-
-**Status:** ✅ Operacional em produção
-
-### ⚙️ Operations (CORE - 2026-01-23)
-
-**Localização:** `nexus-monolith/frontend/src/modules/ops/`
-
-**Descrição:** Gestão completa do ciclo de vida de projetos, desde planejamento estratégico até execução tática.
-
-**Features:**
-
-- Project Cockpit (visão micro)
-- Kanban Board (execução diária)
-- Gantt Matrix (cronograma mestre)
-- Strategy Review (alinhamento OKRs)
-
-**Status:** ✅ Operacional em produção
-
-### 🎯 Strategy (CORE - 2026-01-20)
-
-**Localização:** `nexus-monolith/frontend/src/modules/strategy/`
-
-**Descrição:** Gestão de estratégias organizacionais (OKRs, PPAs) com hierarquia e key results.
-
-**Status:** ✅ Operacional em produção
-
-### 🎓 Academy (PLANEJADO)
-
-**Localização:** `nexus-monolith/frontend/src/views/academy/`
-
-**Descrição:** Plataforma de treinamento e capacitação interna.
-
-**Status:** 🚧 Em desenvolvimento
-
-### 👥 IAM (Identity & Access Management)
-
-**Localização:** `nexus-monolith/backend/src/modules/iam/`
-
-**Descrição:** Gestão de usuários, permissões e hierarquia organizacional.
-
-**Status:** ✅ Operacional
+### Frontend
+- **Framework**: Vite + React 19 + TypeScript
+- **State Management**: 
+  - **Global**: Zustand (com persistência e middleware Zundo para Undo/Redo)
+  - **Server**: React Query (NexusClient)
+- **Visualização**: 
+  - **2D/Cartografia**: Leaflet 1.9.4 + Geoman (Polígonos)
+  - **3D/Simulação**: Three.js + React Three Fiber (R3F)
+- **UI System**: Vanilla CSS + Tailwind 3.4 (rounded-sm grid)
+- **Auth SDK**: @logto/react
 
 ---
 
-## 🗄️ SCHEMA DE BANCO DE DADOS (PRISMA)
+## 🧩 MÓDULOS & VISÕES
 
-### Entidades Core
-
-#### **1. User & Hierarchy**
-
-Gerencia autenticação e subordinação direta.
-
-- **Roles:** `ADMIN`, `COORDENACAO`, `VENDEDOR`, etc.
-- **Atributos:** `username`, `password`, `role`, `supervisorId`, `orgUnitId`
-- **Relações:** `supervisor`, `subordinates`, `leadsOwned`, `missionsCoordinated`
-
-#### **2. Strategy (PPA)**
-
-O "Cérebro" do sistema. Define objetivos macro.
-
-- **Atributos:** `code`, `title`, `colorCode`, `startDate`, `endDate`, `type`
-- **Hierarquia:** Suporta estratégias aninhadas via `parentId`
-- **Filhos:** `KeyResult` (Métricas quantitativas), `Project` (Táticas)
-
-#### **3. Project (Tático)**
-
-Container de trabalho vinculado a uma estratégia.
-
-- **Tipos:** `GENERIC`, `SOLAR`, `INFRASTRUCTURE`
-- **Atributos:** `title`, `status`, `progressPercentage`, `details` (JSON)
-- **Relações:** `strategy`, `manager`, `tasks`, `risks`, `proposal`
-
-#### **4. OperationalTask (Operacional)**
-
-Unidade mínima de trabalho com suporte a recorrência e dependências.
-
-- **Atributos:** `title`, `status`, `assignedTo`, `completionPercent`, `isMilestone`
-- **Features:** Recorrência, dependências (FS/SS), checklists, tags
-- **Relações:** `project`, `assignee`, `predecessors`, `successors`, `checklists`
-
-#### **5. Lead (Comercial)**
-
-Contatos de pré-venda com scoring e qualificação.
-
-- **Atributos:** `name`, `email`, `phone`, `status`, `source`, `engagementScore`
-- **Enriquecimento:** `city`, `state`, `academyScore`, `technicalProfile`
-- **Relações:** `owner`, `mission`, `proposals`, `opportunities`, `interactions`
-
-#### **6. Mission (Comercial)**
-
-Campanhas regionais com metas e gamificação.
-
-- **Atributos:** `name`, `region`, `regionPolygon`, `startDate`, `endDate`, `status`
-- **Relações:** `coordinator`, `leads`, `opportunities`
-
-#### **7. Opportunity (Comercial)**
-
-Funil de vendas com 8 estágios.
-
-- **Status:** `LEAD_QUALIFICATION` → `VISIT_SCHEDULED` → `TECHNICAL_VISIT_DONE` → `PROPOSAL_GENERATED` → `NEGOTIATION` → `CONTRACT_SENT` → `CLOSED_WON`/`CLOSED_LOST`
-- **Atributos:** `title`, `estimatedValue`, `probability`
-- **Relações:** `lead`, `mission`, `technicalProposal`
-
-#### **8. TechnicalProposal (Comercial)**
-
-Propostas técnicas validadas por engenharia.
-
-- **Atributos:** `kitData`, `consumptionAvg`, `infrastructurePhotos`, `paybackData`, `validatedByEng`
-- **Relações:** `opportunity`
-
-#### **9. SolarProposal (Solar)**
-
-Propostas fotovoltaicas completas.
-
-- **Atributos:** `name`, `status`, `totalValue`, `systemSize`, `paybackYears`, `monthlySavings`
-- **Persistência:** `proposalData` (JSON com dossiê técnico completo)
-- **Relações:** `lead`, `project`
+| Módulo | Responsabilidade |
+|--------|-----------------|
+| **Lobby de Entrada** | Portal de acesso com rastreamento solar em tempo real e estética industrial. |
+| **Project Explorer** | Gestão de portfólio de projetos com metadados de engenharia. |
+| **Consumption Canvas** | Modelagem de carga e análise de faturas de energia. |
+| **Solar Canvas** | Desenho de arranjos, sombreamento e simulação de irradiância. |
+| **Electrical Canvas** | Diagramas de bloco, dimensionamento de strings e inversores. |
+| **Financial Engine** | Cálculo de ROI, Payback e Fluxo de Caixa (Lei 14.300). |
 
 ---
 
-## 🛣️ ROTAS DA API
+## 🎨 PADRÕES DE DESIGN (ENGINEERING UI)
 
-O Neonorte | Nexus 2.2 utiliza um **Universal CRUD Controller** para a maioria dos recursos, permitindo escalabilidade rápida.
-
-### Universal CRUD
-
-- `[GET|POST|PUT|DELETE] /api/:resource` - CRUD genérico
-  - `:resource` mapeia dinamicamente para modelos Prisma
-  - Exemplos: `users`, `projects`, `strategies`, `leads`, `opportunities`
-
-### Módulos Especializados
-
-#### Commercial
-
-- `GET /api/commercial/missions` - Listar missões
-- `POST /api/commercial/missions` - Criar missão
-- `GET /api/commercial/leads` - Listar leads
-- `PATCH /api/commercial/leads/:id/score` - Atualizar scoring
-- `GET /api/commercial/opportunities` - Listar oportunidades
-- `PATCH /api/commercial/opportunities/:id/stage` - Mover estágio
-
-#### Solar
-
-- `POST /api/solar/proposals` - Criar proposta
-- `GET /api/solar/proposals/:id` - Buscar proposta
-- `PATCH /api/solar/proposals/:id` - Atualizar proposta
-- `POST /api/solar/proposals/:id/generate-pdf` - Gerar PDF
-
-#### Operations
-
-- `GET /api/ops/projects` - Listar projetos
-- `GET /api/ops/projects/:id` - Buscar projeto
-- `POST /api/ops/tasks` - Criar tarefa
-- `PATCH /api/ops/tasks/:id` - Atualizar tarefa
-- `POST /api/ops/tasks/:id/dependencies` - Criar dependência
+1. **Estética Industrial**: Uso de cores sóbrias (`slate-900`, `emerald-500`), bordas afiadas (`rounded-sm`) e tipografia técnica.
+2. **Performance-First**: Animações processadas via GPU (`transform`/`opacity`) para garantir fluidez em viewports de desenho pesado.
+3. **Ghost Scrollbars**: Barras de rolagem de 6px ocultas por padrão, visíveis no hover (padrão global Ywara).
+4. **Localização**: 100% PT-BR para toda a interface visível ao integrador. Termos técnicos em inglês apenas se forem padrão de mercado (kWp, MPPT, etc).
 
 ---
 
-## 🔐 SEGURANÇA & SEGREDOS
+## 🏛️ DECISÕES ARQUITETURAIS RECENTES
 
-### Princípios de Segurança
-
-1. **Validação Zod Mandatória:** Toda entrada de dados deve ser validada na fronteira do protocolo
-2. **Proteção CVE-2025-55182:** Serialização segura em Server Actions (React 19)
-3. **RBAC:** Controle de acesso baseado em papéis
-4. **Auditoria:** Registro completo de ações via `AuditLog`
-5. **Multi-Tenancy:** Isolamento de dados via `tenantId`
-
-### Gestão de Segredos
-
-- **Desenvolvimento:** Arquivos `.env` (não versionados)
-- **Produção:** Docker Environment Variables
-- **Senhas:** Hashing via `bcrypt`
-- **Tokens:** JWT com expiração configurável
+### Lobby de Engenharia (Solar Tracker)
+**Data**: 2026-05-10 | **Status**: ✅ Concluído
+- **Conceito**: Transformação da página de login em uma "Sala de Espera de Engenharia".
+- **Lógica Solar**: Implementação de um `Solar Tracking Node` que calcula a posição real do sol baseada na hora local do navegador.
+- **Sky Engine**: Fundo dinâmico que altera as cores do céu (Amanhecer, Dia, Entardecer, Noite) automaticamente.
+- **Normalização Logto**: Ajuste no `signOut` para garantir redirecionamento correto para o login via `postLogoutRedirectUri`.
 
 ---
 
-## 🚀 AMBIENTE DOCKER
+## 🔄 CHANGELOG (Módulo Kurupira)
 
-Neonorte | Nexus 2.2 é totalmente containerizado para desenvolvimento e produção:
+### v6.1.0 (2026-05-10) — Solar Lobby & Precision UI
+- ✅ **Lobby Refactor**: Nova interface de entrada com estética de cockpit e rastreamento solar real.
+- ✅ **Telemetry UI**: Adição de etiquetas de Elevação e Posição solar no background do login.
+- ✅ **Auth Stabilization**: Correção de loops de redirecionamento no logout via `AuthProvider`.
+- ✅ **PT-BR 100%**: Tradução completa de toda a interface de acesso, removendo jargões desnecessários em inglês.
 
-- **`nexus_db`:** MySQL 8.0
-- **`nexus_backend`:** Node API (Express)
-- **`nexus_frontend`:** React Dev Server (Vite)
-
-> [!IMPORTANT]
-> A URL de conexão interna no Docker entre Backend e MySQL utiliza o hostname `mysql` definido no `docker-compose.yml`.
-
----
-
-## 📊 PADRÕES ARQUITETURAIS
-
-### Fluxo de Dados
-
-```mermaid
-graph TD
-    Client[Frontend: React 19] -- REST API --> Server[Backend: Express]
-    Server -- Prisma ORM --> DB[MySQL 8.0]
-
-    subgraph "Core Data Context"
-        Strategy -- Has Many --> Project
-        Project -- Has Many --> Task
-        Task -- Has Many --> Checklist
-        User -- Manages --> Project
-    end
-
-    subgraph "Commercial Context"
-        Mission -- Has Many --> Lead
-        Lead -- Has Many --> Opportunity
-        Opportunity -- Has One --> TechnicalProposal
-        Lead -- Has Many --> SolarProposal
-        SolarProposal -- Creates --> Project
-    end
-```
-
-### Event-Driven Architecture
-
-O sistema utiliza eventos para orquestrar ações entre módulos:
-
-- **Deal Won:** Cria projeto automaticamente em Operations
-- **Lead Scored:** Atualiza prioridade no pipeline
-- **Task Completed:** Recalcula progresso do projeto
-- **Proposal Approved:** Dispara criação de oportunidade
+### v6.0.0 (2026-05-07) — Engineering Cockpit 2.0
+- ✅ **Layout Unificado**: Transição para layout de coluna única com indicadores laterais.
+- ✅ **Performance Tuning**: Otimização de renderização do canvas de desenho.
 
 ---
 
-## 📚 DOCUMENTAÇÃO ADICIONAL
+## ⏳ GAPS IDENTIFICADOS
 
-Para informações detalhadas sobre arquitetura, decisões técnicas e guias de desenvolvimento, consulte:
-
-- **ADRs:** `nexus-monolith/docs/adr/`
-- **Mapas de Interface:** `nexus-monolith/docs/map_nexus_monolith/`
-- **Guias:** `nexus-monolith/docs/guides/`
-- **Segurança:** `nexus-monolith/docs/security/`
-
----
-
-## 🎨 UI/UX DECISIONS (2026-04-28)
-
-### WorkspaceTabs (Hidden)
-- **Status:** Oculto (Comentado em `WorkspaceLayout.tsx`)
-- **Motivo:** Modernização para "Engineering Cockpit" visando maximizar a densidade do canvas e reduzir distrações visuais.
-- **Restauração:** Para reativar, descomentar o import e o componente `<WorkspaceTabs />` no `WorkspaceLayout.tsx`.
-
----
-
-## 🎨 UI/UX DECISIONS (2026-04-28)
-
-### WorkspaceTabs (Hidden)
-- **Status:** Oculto (Comentado em `WorkspaceLayout.tsx`)
-- **Motivo:** Modernização para "Engineering Cockpit" visando maximizar a densidade do canvas e reduzir distrações visuais.
-- **Restauração:** Para reativar, descomentar o import e o componente `<WorkspaceTabs />` no `WorkspaceLayout.tsx`.
-
----
-
-## 🔄 CHANGELOG
-
-### v2.2.0 (2026-01-26)
-
-- ✅ Expansão do módulo Commercial (Mission, Opportunity, TechnicalProposal)
-- ✅ Implementação de Lead Scoring
-- ✅ Validação "Sem Jeitinho" (guardrails de qualidade)
-- ✅ Mission Control com gamificação
-- ✅ Navegação dinâmica (NavigationGroup, NavigationItem)
-
-### v2.1.0 (2026-01-23)
-
-- ✅ Migração para TypeScript Strict Mode
-- ✅ Refatoração de Layouts (Neonorte | Nexus View Standard 2.0)
-- ✅ Otimização de queries do banco de dados
-- ✅ Auditoria de lógica de negócio
-
-### v2.0.0 (2026-01-20)
-
-- ✅ Integração do módulo Solar
-- ✅ Implementação de Universal CRUD Controller
-- ✅ Migração para Prisma ORM
-- ✅ Containerização completa via Docker
+- [ ] **Sincronização de Latitude**: Atualmente o sol usa uma parábola padrão 06h-18h. Futuro: Usar API de localização para arco astronômico exato.
+- [ ] **Offline Mode**: Estratégia de Service Worker para permitir visualização de projetos sem internet.

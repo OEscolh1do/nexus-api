@@ -117,7 +117,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Marcamos o logout no storage local para evitar loops, sem precisar registrar 
       // novas URIs complexas no Console do Logto (evita Erro 400)
       sessionStorage.setItem('just_logged_out', 'true');
-      await logtoSignOut();
+      // Passamos a URL de origem para o Logto redirecionar de volta após o logout
+      await logtoSignOut(window.location.origin);
     } catch (err) {
       console.error('[Auth] Erro ao tentar redirecionar para o logout do Logto:', err);
       sessionStorage.setItem('just_logged_out', 'true');
