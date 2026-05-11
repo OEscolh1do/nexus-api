@@ -2,7 +2,7 @@
 
 > **Última Atualização:** 2026-05-10
 > **Arquiteto:** Antigravity AI
-> **Versão do Sistema:** 0.9.0-beta.1 (SemVer Alignment)
+> **Versão do Sistema:** 0.9.0-beta.2 (Catalog Integrity)
 
 ---
 
@@ -152,6 +152,10 @@ O Pin de localização é o elemento central de ancoragem visual e interatividad
 ---
 
 ## 🔄 CHANGELOG
+
+### v0.9.0-beta.2 (2026-05-11) — Catalog Integrity Refactor
+- ✅ **DB Defaults**: Implementação de `@default` no schema Prisma para `unifilarSymbolRef`, garantindo integridade sem dependência de lógica na UI.
+- ✅ **Migration Strategy**: Sincronização completa de schemas entre Kurupira Core e Sumaúma BFF.
 
 ### v0.9.0-beta.1 (2026-05-10) — SemVer Alignment
 - ✅ **Versionamento Semântico**: Realinhamento da versão do Kurupira de `6.0.2` para `0.9.0-beta.1`, refletindo corretamente o status de desenvolvimento (Beta) e quebras de API ainda ocorrendo.

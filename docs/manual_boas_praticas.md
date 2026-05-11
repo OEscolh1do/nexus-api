@@ -644,6 +644,72 @@ DATABASE_URL=mysql://user:senha%21@127.0.0.1:3306/db
 
 ---
 
+### 11.6. EPERM ao Regenerar Client Prisma no Windows — Parar o Servidor Antes
+**Data:** 11/05/2026
+**Módulo:** Prisma / Sumaúma Backend / Windows
+
+#### O Problema
+Ao tentar regenerar um Prisma Client customizado no Windows com o servidor rodando (`npm run dev`), o sistema retorna:
+
+```
+EPERM: operation not permitted, unlink '...\node_modules\.prisma\client-kurupira\query_engine-windows.dll.node'
+```
+
+Isso ocorre porque o processo Node.js (via `nodemon`) está com o binário `.dll.node` aberto e bloqueado pelo sistema operacional. No Linux/Mac isso não acontece (o OS permite `unlink` de arquivos em uso).
+
+#### A Solução (Padrão Adotado)
+1. **Parar o servidor** cujo schema está sendo regenerado antes de qualquer `prisma generate`.
+2. Executar o `generate`.
+3. Reiniciar o servidor com `npm run dev`.
+
+No Windows, nunca tente regenerar um client enquanto o processo Node que o utiliza estiver ativo — o arquivo binário ficará bloqueado.
+
+#### Regra de Ouro
+> "No Windows, `prisma generate` falha com `EPERM` se o processo que usa o client estiver rodando. Pare o servidor (`Ctrl+C`) antes de regenerar qualquer Prisma Client, depois reinicie. Isso não ocorre no Linux (VPS), apenas no ambiente local Windows."
+
+**Referência:** `sumauma/backend/prisma/schema-kurupira.prisma`, Skill: `local-dev-bootstrap`
+
+---
+
+### 11.7. Sequência Completa de Regeneração Pós-Migration no Ywara
+**Data:** 11/05/2026
+**Módulo:** Kurupira Backend / Sumaúma Backend / Prisma
+
+#### O Problema
+Após modificar o schema do `db_kurupira` (ex: adicionar colunas ou defaults), dois serviços distintos precisam ser atualizados, mas eles residem em repositórios diferentes com schemas e clientes diferentes. Esquecer um dos passos deixa o ecossistema em estado parcialmente desatualizado.
+
+#### A Sequência Correta Pós-Migration
+
+```powershell
+# PASSO 1: No Kurupira — aplicar migration + regenerar client principal
+cd kurupira/backend
+npx prisma migrate dev --name <nome_da_migration>
+# Regenera automaticamente o @prisma/client principal
+
+# PASSO 2: No Sumaúma — parar o backend, regenerar o client RO, reiniciar
+# (Parar o npm run dev do sumauma/backend antes!)
+cd ../../sumauma/backend
+npx prisma generate --schema ./prisma/schema-kurupira.prisma
+# Reiniciar o servidor após o generate
+npm run dev
+```
+
+#### Mapa de Schemas Multi-Service do Ecossistema Ywara
+
+| Serviço | Schema | Client Output | Quando Regenerar |
+|---|---|---|---|
+| `kurupira/backend` | `prisma/schema.prisma` | `@prisma/client` | Toda migration |
+| `kurupira/backend` | `prisma/schema-sumauma.prisma` | `.prisma/client-sumauma` | Mudanças em User/Tenant |
+| `sumauma/backend` | `prisma/schema.prisma` | `@prisma/client` | Mudanças no db_sumauma |
+| `sumauma/backend` | `prisma/schema-kurupira.prisma` | `.prisma/client-kurupira` | Mudanças em InverterCatalog/ModuleCatalog |
+
+#### Regra de Ouro
+> "Uma migration no Kurupira impacta dois serviços: o Kurupira (apply + generate automático) e o Sumaúma (generate manual do schema RO). Sempre execute os dois passos em sequência — e no Windows, pare o Sumaúma antes de gerar."
+
+**Referência:** `local-dev-bootstrap` SKILL.md
+
+---
+
 ## 12. Consistência de Rotas e baseURL no Frontend
 **Data:** 09/05/2026
 **Módulo:** Sumaúma Frontend (Axios / useSystemHealth)

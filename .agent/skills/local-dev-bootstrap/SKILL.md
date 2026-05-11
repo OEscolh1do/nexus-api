@@ -54,12 +54,22 @@ O Kurupira possui **dois** schemas Prisma que precisam de clients separados:
 | `prisma/schema.prisma` | `node_modules/@prisma/client` | Banco principal `db_kurupira` |
 | `prisma/schema-sumauma.prisma` | `node_modules/.prisma/client-sumauma` | Leitura RO de `db_sumauma` (AuthZ) |
 
-Se a pasta `node_modules/.prisma/client-sumauma` não existir (ex: após `npm install` limpo):
+O Sumaúma possui **dois** schemas Prisma:
+
+| Schema | Output | Propósito |
+|---|---|---|
+| `prisma/schema.prisma` | `node_modules/@prisma/client` | Banco principal `db_sumauma` |
+| `prisma/schema-kurupira.prisma` | `node_modules/.prisma/client-kurupira` | Leitura RO de `db_kurupira` (Catálogo) |
+
+Se a pasta `node_modules/.prisma/client-kurupira` não existir ou estiver desatualizada:
 
 ```powershell
-# Em kurupira/backend
-npx prisma generate --schema=./prisma/schema-sumauma.prisma
+# ⚠️ WINDOWS: Pare o servidor (npm run dev) ANTES de executar este comando
+# Em sumauma/backend:
+npx prisma generate --schema=./prisma/schema-kurupira.prisma
 ```
+
+> ⚠️ **Armadilha no Windows**: `prisma generate` falha com `EPERM: operation not permitted` se o servidor `nodemon` estiver rodando, pois o arquivo binário `.dll.node` fica bloqueado. Pare o servidor (`Ctrl+C`), gere o client e reinicie.
 
 ### Passo 3: Subir os backends
 
@@ -87,14 +97,28 @@ P1001: Can't reach database server
     └── Trocar localhost por 127.0.0.1 (ou vice-versa) para forçar IPv4
 ```
 
-## Diagnóstico de MODULE_NOT_FOUND no client-sumauma
+## Sequência Completa de Regeneração Pós-Migration (Ywara Multi-Schema)
 
+Após qualquer `prisma migrate dev` no Kurupira, **dois** serviços precisam ser atualizados:
+
+```powershell
+# PASSO 1: No Kurupira — a migration já regenera o client principal automaticamente
+cd <raiz>/kurupira/backend
+npx prisma migrate dev --name <descricao>
+
+# PASSO 2: No Sumaúma — regenerar o client RO manualmente
+# (Windows: pare o servidor sumauma ANTES)
+cd <raiz>/sumauma/backend
+npx prisma generate --schema ./prisma/schema-kurupira.prisma
+# Reiniciar: npm run dev
 ```
-Error: Cannot find module '../../node_modules/.prisma/client-sumauma'
-│
-└── Solução: regenerar o cliente customizado
-    npx prisma generate --schema=./prisma/schema-sumauma.prisma
-```
+
+| Serviço | Schema RO | Quando Regenerar |
+|---|---|---|
+| `kurupira/backend` | `schema-sumauma.prisma` | Mudanças em `User` / `Tenant` |
+| `sumauma/backend` | `schema-kurupira.prisma` | Mudanças em `InverterCatalog` / `ModuleCatalog` |
+
+## Diagnóstico de MODULE_NOT_FOUND no client-sumauma (Kurupira)
 
 ## Checklist de Saúde do Ambiente
 

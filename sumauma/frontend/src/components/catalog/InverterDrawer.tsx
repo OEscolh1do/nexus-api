@@ -249,7 +249,7 @@ export default function InverterDrawer({ inverterEquipment: m, onClose, onMutate
               </div>
               <div className="flex justify-between px-3 py-2 text-[11px] bg-slate-900/30">
                 <span className="text-slate-500">Resfriamento / Cooling</span>
-                <span className="font-mono text-slate-200 uppercase tracking-tighter">{m.coolingType || 'Passive'}</span>
+                <span className="font-mono text-slate-200 uppercase tracking-tighter">{m.coolingType}</span>
               </div>
               <div className="flex justify-between px-3 py-2 text-[11px]">
                 <span className="text-slate-500">Limiar Ativação (Pthreshold)</span>
@@ -257,7 +257,7 @@ export default function InverterDrawer({ inverterEquipment: m, onClose, onMutate
               </div>
               <div className="flex justify-between px-3 py-2 text-[11px]">
                 <span className="text-slate-500">Símbolo Unifilar</span>
-                <span className="font-mono text-slate-500 italic">{m.unifilarSymbolRef || 'inverter-default'}</span>
+                <span className="font-mono text-slate-500 italic">{m.unifilarSymbolRef}</span>
               </div>
               <div className="flex justify-between px-3 py-2 text-[11px] bg-slate-900/30">
                 <span className="text-slate-500">Derating Térmico (Pnom / Pmax)</span>

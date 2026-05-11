@@ -56,16 +56,23 @@ export function syncInverterData(
     nominalPowerW?: number;
     maxInputV?: number;
     mpptCount?: number;
-    // Add other top-level fields here if needed
+    efficiency?: number;
+    weight?: number;
+    width?: number;
+    height?: number;
+    depth?: number;
   },
   electricalData: InverterElectricalData
 ): InverterElectricalData {
   const synced = { ...electricalData };
   
   if (topLevel.nominalPowerW !== undefined) {
-    // Note: nominalPowerW is AC, while pNomDCW is DC. 
-    // Usually they are edited together or calculated.
-    // For now, we sync only if explicitly intended.
+    // Sincroniza potência nominal CA
+    synced.maxOutputW = topLevel.nominalPowerW;
+    // Se pNomDCW não existe, assume 110% da AC como chute inicial (oversizing comum)
+    if (!synced.pNomDCW) {
+      synced.pNomDCW = topLevel.nominalPowerW * 1.1;
+    }
   }
   
   if (topLevel.maxInputV !== undefined) {
@@ -75,6 +82,16 @@ export function syncInverterData(
   if (topLevel.mpptCount !== undefined) {
     synced.nbMppt = topLevel.mpptCount;
   }
+
+  if (topLevel.efficiency !== undefined) {
+    synced.effMax = topLevel.efficiency;
+  }
+
+  // Sincroniza dimensões físicas para consistência no motor de simulação
+  if (topLevel.weight !== undefined) synced.weight = topLevel.weight;
+  if (topLevel.width !== undefined) synced.width = topLevel.width;
+  if (topLevel.height !== undefined) synced.height = topLevel.height;
+  if (topLevel.depth !== undefined) synced.depth = topLevel.depth;
   
   return synced;
 }

@@ -2,7 +2,7 @@
 
 > **Última Atualização:** 2026-05-10
 > **Arquiteto:** Antigravity AI
-> **Versão do Sistema:** 1.0.0-rc.1 (SemVer Alignment)
+> **Versão do Sistema:** 1.0.0-rc.2 (Physical Data Sync)
 
 ---
 
@@ -289,6 +289,11 @@ A exclusão de tenants e usuários era apenas lógica (soft delete) ou inexisten
 ---
 
 ## 🔄 CHANGELOG
+
+### v1.0.0-rc.2 (2026-05-11) — Physical Data Sync & Cleanup
+- ✅ **Catalog Sync Refactor**: Aprimorada a lógica de espelhamento de campos físicos (peso, dimensões) e técnicos (eficiência) para o motor de simulação.
+- ✅ **UI Cleanup**: Removidos fallbacks hardcoded no `InverterDrawer` em favor da integridade garantida pelo banco.
+- ✅ **Bootstrap Robustness**: Documentado protocolo de recuperação de `EPERM` no Windows durante regeneração de clients Prisma.
 
 ### v1.0.0-rc.1 (2026-05-10) — SemVer Alignment
 - ✅ **Versionamento Semântico**: Realinhamento da versão do Sumaúma de `2.0.0` para `1.0.0-rc.1`, refletindo o status de "Release Candidate", estável para operações do backoffice.

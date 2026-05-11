@@ -22,6 +22,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const navigate = useNavigate();
   const { isAuthenticated, isLoading: logtoLoading, getIdTokenClaims, getAccessToken, signOut: logtoSignOut, clearAllTokens } = useLogto();
 
+  // ─── Refs estáveis para funções que mudam referência a cada render ───────────
+  // Usar refs evita que mudanças de identidade de função (getAccessToken, navigate, etc.)
+  // disparem re-execuções desnecessárias dos useEffects, eliminando o loop de polling.
+  const getAccessTokenRef = React.useRef(getAccessToken);
+  const getIdTokenClaimsRef = React.useRef(getIdTokenClaims);
+  const navigateRef = React.useRef(navigate);
+  const clearAllTokensRef = React.useRef(clearAllTokens);
+
+  // Mantém as refs sempre atualizadas (sem disparar efeitos)
+  useEffect(() => { getAccessTokenRef.current = getAccessToken; }, [getAccessToken]);
+  useEffect(() => { getIdTokenClaimsRef.current = getIdTokenClaims; }, [getIdTokenClaims]);
+  useEffect(() => { navigateRef.current = navigate; }, [navigate]);
+  useEffect(() => { clearAllTokensRef.current = clearAllTokens; }, [clearAllTokens]);
+
+  // ─── Efeito principal: roda apenas quando o estado de auth muda de fato ──────
   useEffect(() => {
     // Se o Logto ainda está carregando o estado de auth, aguardamos
     if (logtoLoading) return;
@@ -29,7 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Se o Logto determinou que NÃO está autenticado, vamos para a tela de login
     if (!isAuthenticated) {
       sessionStorage.removeItem('kurupira_token');
-      navigate('/login', { replace: true });
+      navigateRef.current('/login', { replace: true });
       setInternalLoading(false);
       return;
     }
@@ -37,8 +52,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Se está autenticado, extraímos os claims e o token
     const fetchClaims = async () => {
       try {
-        const claims = await getIdTokenClaims();
-        const rawToken = await getAccessToken('https://api.ywara.com.br');
+        const claims = await getIdTokenClaimsRef.current();
+        const rawToken = await getAccessTokenRef.current('https://api.ywara.com.br');
         
         if (!claims || !rawToken) {
           throw new Error('Sem claims ou token de acesso');
@@ -74,28 +89,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (err) {
         console.error('Falha ao processar sessão Logto', err);
         sessionStorage.removeItem('kurupira_token');
-        if (clearAllTokens) {
-          await clearAllTokens();
+        if (clearAllTokensRef.current) {
+          await clearAllTokensRef.current();
         }
-        navigate('/login', { replace: true });
+        navigateRef.current('/login', { replace: true });
         setInternalLoading(false);
       }
     };
 
     fetchClaims();
-  }, [isAuthenticated, logtoLoading, getIdTokenClaims, getAccessToken, navigate, setUserRole]);
+    // INTENCIONAL: apenas isAuthenticated e logtoLoading como deps.
+    // As funções do Logto (getAccessToken, etc.) são capturadas via refs acima,
+    // garantindo valores frescos sem causar re-execuções desnecessárias do efeito.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, logtoLoading, setUserRole]);
 
-  // Efeito secundário: Manter o sessionStorage atualizado com um token fresco.
-  // Como o NexusClient (non-react) lê do sessionStorage, precisamos garantir que o token lá não expire.
+  // ─── Refresh proativo de token: roda apenas quando estado de auth muda ───────
+  // Mantém o sessionStorage com um token fresco para o NexusClient (não-React).
   useEffect(() => {
     if (!isAuthenticated || logtoLoading) return;
 
     const refreshInterval = setInterval(async () => {
       try {
-        const freshToken = await getAccessToken('https://api.ywara.com.br');
+        const freshToken = await getAccessTokenRef.current('https://api.ywara.com.br');
         if (freshToken) {
           sessionStorage.setItem('kurupira_token', freshToken);
-
         }
       } catch (err) {
         console.error('[AuthProvider] Erro ao atualizar token proativamente:', err);
@@ -103,7 +121,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, 10 * 60 * 1000); // Atualiza a cada 10 minutos (tokens Logto costumam durar 1h)
 
     return () => clearInterval(refreshInterval);
-  }, [isAuthenticated, logtoLoading, getAccessToken]);
+    // INTENCIONAL: getAccessToken capturado via ref — ver comentário acima.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, logtoLoading]);
 
   const signOut = async () => {
     sessionStorage.removeItem('kurupira_token');
@@ -111,8 +131,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     clearProfile();
     try {
-      if (clearAllTokens) {
-        await clearAllTokens();
+      if (clearAllTokensRef.current) {
+        await clearAllTokensRef.current();
       }
       // Marcamos o logout no storage local para evitar loops, sem precisar registrar 
       // novas URIs complexas no Console do Logto (evita Erro 400)

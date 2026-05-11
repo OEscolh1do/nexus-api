@@ -24,7 +24,7 @@ model ModuleCatalog {
   depth             Float?
   datasheet         String?
   imageUrl          String?
-  unifilarSymbolRef String?
+  unifilarSymbolRef String? @default("module-default")
   isActive          Boolean @default(true)
   bifacial          Boolean @default(false)
   bifacialityFactor Float?
@@ -49,7 +49,7 @@ model InverterCatalog {
   efficiency           Float?
   datasheet            String?
   imageUrl             String?
-  unifilarSymbolRef    String?
+  unifilarSymbolRef    String? @default("inverter-default")
   isActive             Boolean @default(true)
   width                Float?
   height               Float?

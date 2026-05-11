@@ -101,7 +101,7 @@ model ModuleCatalog {
   depth             Float?
   datasheet         String?
   imageUrl          String?
-  unifilarSymbolRef String?
+  unifilarSymbolRef String? @default("module-default")
   isActive          Boolean @default(true)
 
   // -- Engineering PV Specs (v3.7) --
@@ -142,7 +142,7 @@ model InverterCatalog {
   efficiency           Float?
   datasheet            String?
   imageUrl             String?
-  unifilarSymbolRef    String?
+  unifilarSymbolRef    String? @default("inverter-default")
   isActive             Boolean @default(true)
 
   width                Float?
