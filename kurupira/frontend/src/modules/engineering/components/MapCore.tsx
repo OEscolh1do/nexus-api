@@ -27,7 +27,6 @@ import { useSolarStore } from '@/core/state/solarStore';
 import { useCenterContent } from '../store/panelStore';
 import { selectCoordinates, selectZoom, selectProjectSiteLocation } from '@/core/state/solarSelectors';
 import { useUIStore, type Tool, type CanvasViewMode } from '@/core/state/uiStore';
-import { pickPhrase } from '@/core/phrases/useLoadingPhrase';
 import { cn } from '@/lib/utils';
 import { SolarLayer } from './SolarLayer';
 import { MapMeasureTool } from './MapMeasureTool';
@@ -61,7 +60,7 @@ const MapReadyObserver: React.FC = () => {
   const clearAppLoading = useUIStore(s => s.clearAppLoading);
 
   useEffect(() => {
-    setAppLoading('map-tiles', pickPhrase('map-tiles'));
+    setAppLoading('map-tiles', 'Carregando mapa...');
 
     const handleLoad = () => clearAppLoading();
     map.once('load', handleLoad);

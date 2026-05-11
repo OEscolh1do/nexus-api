@@ -13,7 +13,6 @@
 
 import React, { useEffect } from 'react';
 import { useUIStore } from '@/core/state/uiStore';
-import { useLoadingPhrase } from '@/core/phrases/useLoadingPhrase';
 import { useSolarStore } from '@/core/state/solarStore';
 import { TechModule } from '@/modules/engineering/TechModule';
 import { ProjectExplorer } from '@/modules/engineering/ui/ProjectExplorer';
@@ -33,7 +32,6 @@ export const ProfileOrchestrator: React.FC = () => {
   const setAppLoading = useUIStore(s => s.setAppLoading);
   const clearAppLoading = useUIStore(s => s.clearAppLoading);
   const updateClientData = useSolarStore(state => state.updateClientData);
-  const getPhrase = useLoadingPhrase('catalog');
 
   // Hidrata iacaLeadId do deep link (sessionStorage ← captureDeepLinkParams em App.tsx)
   useEffect(() => {
@@ -63,7 +61,7 @@ export const ProfileOrchestrator: React.FC = () => {
 
   // Handle project selection — hydrate from DB then enter workspace
   const handleSelectProject = async (projectId: string) => {
-    setAppLoading('catalog', getPhrase());
+    setAppLoading('catalog', 'Preparando ambiente de engenharia...');
     try {
       const success = await ProjectService.loadProjectAndHydrate(projectId);
       if (success) {
