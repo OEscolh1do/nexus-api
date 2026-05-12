@@ -1,8 +1,8 @@
 # CONTEXT.md — Ecossistema YWARA (Visão Global)
 
-> **Última Atualização:** 2026-05-10
+> **Última Atualização:** 2026-05-11
 > **Arquiteto:** Antigravity AI
-> **Versão do Ecossistema:** 6.3.0 (Data Integrity & Catalog Sync)
+> **Versão do Ecossistema:** 6.4.0 (Engineering Standards & Regulatory Compliance)
 
 ---
 
@@ -109,7 +109,8 @@ Para garantir que os dados fluam sem perdas do Banco até a UI, seguimos 5 níve
 
 | Versão | Data | Milestone |
 |:---|:---|:---|
-| **v6.3.0** | 2026-05-11 | **Data Integrity & Catalog Sync**: Padronização de valores padrão (`@default`) no nível do banco de dados para o catálogo, eliminando fallbacks na UI. Aprimoramento do motor de sincronia de dados físicos/técnicos e remediação de integridade no Sumaúma e Kurupira. |
+| **v6.4.0** | 2026-05-11 | **Engineering Standards & Regulatory Compliance**: Consolidação do Cockpit de Engenharia v3 no Kurupira. Implementação de conformidade NBR 16690 (fusíveis), cálculos de queda de tensão em tempo real e detecção de mismatch de orientação. |
+| **v6.3.0** | 2026-05-11 | **Data Integrity & Catalog Sync**: Padronização de valores padrão (`@default`) no nível do banco de dados para o catálogo, eliminando fallbacks na UI. |
 | **v6.2.0** | 2026-05-10 | **SemVer Standardization**: Realinhamento de todos os módulos do ecossistema seguindo o rigor do Semantic Versioning. Kurupira fixado em `0.9.0-beta.1` e Sumaúma em `1.0.0-rc.1`. Protocolo registrado no Manual de Boas Práticas. |
 | **v6.1.0** | 2026-05-10 | **Solar Lobby Refactor**: Implementação da interface de entrada premium no Kurupira com rastreamento solar em tempo real e estabilização de redirecionamentos de logout OIDC. |
 | v6.0.3 | 2026-05-08 | **Identity Integrity Refactor**: Refatoração do cockpit de auditoria do Sumaúma com humanização de micro-copy, atalhos de teclado de especialista e padronização global de Ghost Scrollbars. |tegrity Refactor**: Refatoração do cockpit de auditoria do Sumaúma com humanização de micro-copy, atalhos de teclado de especialista e padronização global de Ghost Scrollbars. |

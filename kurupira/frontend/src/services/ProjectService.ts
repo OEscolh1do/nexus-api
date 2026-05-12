@@ -36,13 +36,10 @@ function buildDesignData() {
 }
 
 function hydrateStores(designData: any) {
-  console.log('[Trace Hydrate 1] Início do hydrateStores. designData:', typeof designData, designData ? 'presente' : 'nulo');
   if (!designData) {
-    console.warn('[Trace Hydrate 2] designData é falso/nulo! Abortando hidratação.');
     return;
   }
   if (typeof designData === 'string') {
-    console.warn('[Trace Hydrate 3] designData chegou como string! Tentando fazer parse...');
     try {
       designData = JSON.parse(designData);
     } catch (e) {
@@ -50,9 +47,7 @@ function hydrateStores(designData: any) {
       return;
     }
   }
-  console.log('[Trace Hydrate 5] designData.version:', designData.version, 'Esperado:', DESIGN_DATA_VERSION);
   if (designData.version !== DESIGN_DATA_VERSION) {
-    console.warn('[Trace Hydrate 6] Version mismatch! Abortando hidratação.');
     return;
   }
 
@@ -82,16 +77,12 @@ export const ProjectService = {
 
   async saveDesign(_snapshotImageBase64: string | null): Promise<boolean> {
     try {
-      console.log('[Trace Beta 1] saveDesign chamado');
       const solarState = useSolarStore.getState();
       const activeProjectId = solarState.activeProjectId;
-      console.log('[Trace Beta 2] activeProjectId:', activeProjectId);
       const designData = buildDesignData();
-      console.log('[Trace Beta 3] designData gerado com sucesso, chaves:', Object.keys(designData));
 
       if (activeProjectId) {
         // Atualizar projeto existente
-        console.log('[Trace Beta 4] Atualizando projeto existente. Payload resumido (lat/lng):', { lat: solarState.clientData?.lat, lng: solarState.clientData?.lng });
         await KurupiraClient.designs.update(activeProjectId, {
           designData,
           status: 'IN_PROGRESS',
@@ -103,9 +94,7 @@ export const ProjectService = {
           averageConsumption: solarState.clientData?.averageConsumption || 0,
           targetPowerKwp: solarState.kWpAlvo || 0
         });
-        console.log('[Trace Ômega] Update do KurupiraClient resolvido com sucesso!');
       } else {
-        console.log('[Trace Beta 5] Nenhum activeProjectId encontrado! Criando novo projeto...');
         // Criar novo projeto (iacaLeadId vem do deep link do Iaçã; null = standalone)
         const leadId = solarState.clientData?.iacaLeadId ?? null;
         const projectName =

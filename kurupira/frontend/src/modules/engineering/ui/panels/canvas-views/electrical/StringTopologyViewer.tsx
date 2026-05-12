@@ -41,7 +41,7 @@ export const StringTopologyViewer: React.FC<StringTopologyViewerProps> = ({
   mpptMetrics = {},
   highlightMpptId,
 }) => {
-  const configured = mpptConfigs.filter(m => m.stringsCount > 0 && m.modulesPerString > 0);
+  const configured = mpptConfigs.filter(m => (m.stringsCount ?? 0) > 0 && (m.modulesPerString ?? 0) > 0);
 
   if (configured.length === 0) {
     return (
@@ -127,11 +127,11 @@ export const StringTopologyViewer: React.FC<StringTopologyViewerProps> = ({
             )}
 
             {/* String bars */}
-            {Array.from({ length: mppt.stringsCount }).map((_, sIdx) => (
+            {Array.from({ length: mppt.stringsCount ?? 0 }).map((_, sIdx) => (
               <div key={sIdx} className="flex items-center gap-1.5">
                 <span className="text-[9px] text-slate-600 font-mono min-w-[28px]">S{sIdx + 1}</span>
                 <div className="flex gap-[2px] flex-wrap flex-1">
-                  {Array.from({ length: mppt.modulesPerString }).map((_, mIdx) => (
+                  {Array.from({ length: mppt.modulesPerString ?? 0 }).map((_, mIdx) => (
                     <div
                       key={mIdx}
                       className={cn('w-1.5 h-3.5 rounded-[1px]', palette.bar)}

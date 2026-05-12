@@ -1,0 +1,12 @@
+[
+  {
+    "version": "0.9.0-beta.2",
+    "date": "2026-05-12",
+    "logs": [
+      { "type": "feature", "text": "Suporte Multi-Modelo: Agora é possível selecionar diferentes módulos para cada MPPT no Cockpit de Engenharia." },
+      { "type": "improvement", "text": "Novo Seletor Dinâmico: Interface de seleção de módulos com design premium e densidade técnica aprimorada." },
+      { "type": "improvement", "text": "Refinamento de Telemetria: Feedback visual de recálculo (flash) e ícones semânticos para mismatch elétrico." },
+      { "type": "fix", "text": "Estabilidade de Renderização: Corrigido loop infinito de atualização e erros de aninhamento no DOM." }
+    ]
+  }
+]

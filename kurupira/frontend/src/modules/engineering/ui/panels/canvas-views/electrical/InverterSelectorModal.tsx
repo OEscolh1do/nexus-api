@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { X, Search, Cpu, AlertTriangle, CheckCircle2, Info, Upload } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useInverterCompatibility, DecoratedInverterCatalogItem } from '../../../../hooks/useInverterCompatibility';
 import type { InverterCatalogItem } from '@/core/schemas/inverterSchema';
 import { parsePanOnd } from '../../../../utils/pvsystParser';
@@ -14,6 +15,7 @@ interface InverterSelectorModalProps {
 export const InverterSelectorModal: React.FC<InverterSelectorModalProps> = ({ isOpen, onClose, onSelect }) => {
     const catalog = useInverterCompatibility();
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectionWarningInv, setSelectionWarningInv] = useState<DecoratedInverterCatalogItem | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     if (!isOpen) return null;
@@ -70,14 +72,13 @@ export const InverterSelectorModal: React.FC<InverterSelectorModalProps> = ({ is
     };
 
     const handleSelect = (inv: DecoratedInverterCatalogItem) => {
-        if (inv.compatibility?.status === 'INCOMPATIBLE') {
-            const confirmed = window.confirm(
-                "Aviso do Sistema:\nEste inversor viola os limites operacionais recomendados (Tensão ou Corrente) para os módulos selecionados.\n\nA inserção deste componente em configurações incompatíveis pode invalidar garantias.\nVocê assume explicitamente a responsabilidade por esta seleção?"
-            );
-            if (!confirmed) return;
+        if (inv.compatibility?.status === 'INCOMPATIBLE' && selectionWarningInv?.id !== inv.id) {
+            setSelectionWarningInv(inv);
+            return;
         }
         onSelect(inv);
         onClose();
+        setSelectionWarningInv(null);
     };
 
     return (
@@ -88,8 +89,8 @@ export const InverterSelectorModal: React.FC<InverterSelectorModalProps> = ({ is
                     <div className="flex items-center gap-2">
                         <Cpu className="text-emerald-500" size={16} />
                         <div>
-                            <h2 className="text-[10px] font-black text-slate-200 uppercase tracking-widest">Seleção de Inversor</h2>
-                            <p className="text-[9px] text-slate-500 font-mono uppercase tracking-wider">Match automático termo-elétrico</p>
+                            <h2 className="text-[10px] font-black text-slate-200 uppercase tracking-widest">Inverter Instrumentation</h2>
+                            <p className="text-[9px] text-slate-500 font-mono uppercase tracking-wider">Mapeamento Termo-Elétrico Ativo</p>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-1 text-slate-400 hover:text-white rounded-sm hover:bg-slate-800 transition-colors">
@@ -193,9 +194,14 @@ export const InverterSelectorModal: React.FC<InverterSelectorModalProps> = ({ is
 
                                 <button 
                                     onClick={() => handleSelect(inv)}
-                                    className="w-full py-1.5 bg-slate-800 text-[9px] font-black uppercase tracking-widest text-slate-300 rounded-sm group-hover:bg-emerald-600 group-hover:text-white transition-colors"
+                                    className={cn(
+                                        "w-full py-2 text-[9px] font-black uppercase tracking-widest transition-all rounded-sm",
+                                        selectionWarningInv?.id === inv.id 
+                                            ? "bg-rose-600 text-white animate-pulse" 
+                                            : "bg-slate-800 text-slate-400 group-hover:bg-emerald-600 group-hover:text-white"
+                                    )}
                                 >
-                                    Selecionar Equipamento
+                                    {selectionWarningInv?.id === inv.id ? 'Confirmar Risco de Engenharia' : 'Selecionar Equipamento'}
                                 </button>
                             </div>
                         );

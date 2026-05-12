@@ -1,8 +1,8 @@
 # CONTEXT.md — Kurupira (Motor de Engenharia Solar)
 
-> **Última Atualização:** 2026-05-10
+> **Última Atualização:** 2026-05-11
 > **Arquiteto:** Antigravity AI
-> **Versão do Sistema:** 0.9.0-beta.2 (Catalog Integrity)
+> **Versão do Sistema:** 0.9.1-beta.1 (Engineering Cockpit v3 & Regulatory Specs)
 
 ---
 
@@ -107,6 +107,7 @@ O Pin de localização é o elemento central de ancoragem visual e interatividad
 | ConsumptionCanvasView | `canvas-views/ConsumptionCanvasView.tsx` | ✅ Engineering Aesthetic (v3.8) |
 | Simulação Analítica | `frontend/src/modules/simulation/` | ✅ TRL 8 |
 | Documentação (Memorial, ART) | `frontend/src/modules/documentation/` | 🚧 Refatorando |
+| Auditoria Elétrica (NBR 16690) | `canvas-views/electrical/` | ✅ Specs 01, 02, 04, 05 |
 | Proposta (Pricing, PDF) | `frontend/src/modules/proposal/` | ✅ Operacional |
 
 ---
@@ -152,6 +153,13 @@ O Pin de localização é o elemento central de ancoragem visual e interatividad
 ---
 
 ## 🔄 CHANGELOG
+
+### v0.9.1-beta.1 (2026-05-11) — Engineering Cockpit v3: Regulatory & Orientation Sync
+- ✅ **Spec-05 (Fusíveis gPV)**: Cálculo automático e memorial de fusíveis de string (NBR 16690).
+- ✅ **Spec-04 (Queda de Tensão CC)**: Cálculo em tempo real de ΔV% por string com inputs de bitola e distância.
+- ✅ **Spec-01 (MPPT Ocioso)**: Visibilidade de alocação (X/N MPPTs) e badges de sub-dimensionamento reativos no Hub.
+- ✅ **Spec-02 (Azimute Mismatch)**: Detecção de sistemas multi-orientados e mismatch de azimute entre MPPTs.
+- ✅ **Universal Geometry**: Migração de Azimute/Inclinação para o `EngineeringSlice` (Projeto Global) com herança por exceção nos MPPTs.
 
 ### v0.9.0-beta.2 (2026-05-11) — Catalog Integrity Refactor
 - ✅ **DB Defaults**: Implementação de `@default` no schema Prisma para `unifilarSymbolRef`, garantindo integridade sem dependência de lógica na UI.

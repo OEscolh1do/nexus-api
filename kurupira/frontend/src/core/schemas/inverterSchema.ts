@@ -30,6 +30,9 @@ export const InverterCatalogItemSchema = z.object({
   maxInputVoltage: z.number().optional(),
   // ── Display / Inventory fields (unified catalog) ──
   connectionType: z.string().optional(),       // "Monofásico" | "Trifásico"
+  width: z.number().optional(),                // mm
+  height: z.number().optional(),               // mm
+  depth: z.number().optional(),                // mm
   weight: z.number().optional(),               // kg
   outputVoltage: z.number().optional(),         // V (CA)
   outputFrequency: z.number().optional(),       // Hz

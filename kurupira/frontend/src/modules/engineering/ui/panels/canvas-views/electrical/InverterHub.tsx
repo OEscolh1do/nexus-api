@@ -55,6 +55,8 @@ interface InverterHubProps {
     status: 'ok' | 'warning' | 'error';
     message: string;
   };
+  /** Quantidade de MPPTs com strings alocadas no inversor ativo */
+  activeMpptCount?: number;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -94,11 +96,13 @@ export const InverterHub: React.FC<InverterHubProps> = ({
   fdi = 0,
   totalKwpCC = 0,
   inventory,
+  activeMpptCount = 0,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [selectionWarningInv, setSelectionWarningInv] = useState<any | null>(null);
   
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -155,15 +159,14 @@ export const InverterHub: React.FC<InverterHubProps> = ({
   };
 
   const handleInverterSelection = (inv: any) => {
-    if (inv.compatibility?.status === 'INCOMPATIBLE') {
-      const confirmed = window.confirm(
-        "Aviso do Sistema:\nEste inversor viola os limites operacionais recomendados para os módulos atuais.\n\nVocê assume a responsabilidade por esta seleção?"
-      );
-      if (!confirmed) return;
+    if (inv.compatibility?.status === 'INCOMPATIBLE' && selectionWarningInv?.id !== inv.id) {
+      setSelectionWarningInv(inv);
+      return;
     }
     onSelectInverter(inv);
     setIsOpen(false);
     setSearchTerm('');
+    setSelectionWarningInv(null);
   };
 
   const getStatusColor = (status?: string) => {
@@ -179,65 +182,83 @@ export const InverterHub: React.FC<InverterHubProps> = ({
 
   const totalPower = inverterChips.reduce((acc, c) => acc + c.powerKw, 0);
 
-  // Aderência: no Kurupira, o FDI ideal é 1.1 a 1.35. 
-  // Mostramos o FDI como uma barra de progresso onde 1.25 (ponto ótimo) é o alvo visual.
-  // Normalizamos: 0 a 1.5 -> 0% a 100%
-  const adherenceProgress = Math.min(100, (fdi / 1.5) * 100);
+  // Aderência (Spec-01): Mix entre FDI (70%) e Utilização de MPPT (30%)
+  // FDI Alvo: 1.25 (83% da escala de 1.5)
+  // MPPT Alvo: 100%
+  const activeChip = inverterChips.find(c => c.id === activeInverterId);
+  const mpptUtilization = (activeChip && activeMpptCount !== undefined) 
+    ? (activeMpptCount / activeChip.mpptCount) 
+    : 1;
+
+  const fdiProgress = Math.min(100, (fdi / 1.5) * 100);
+  const adherenceProgress = (fdiProgress * 0.7) + (mpptUtilization * 100 * 0.3);
 
   return (
     <div className="bg-slate-900/50 border-b border-slate-800 flex flex-col lg:flex-row lg:items-center shrink-0 z-20 min-h-[3.5rem] lg:h-14 relative">
 
-      {/* PREFIX — ícone + contadores */}
-      <div className="flex flex-col items-center justify-center gap-0.5 px-3 h-14 lg:h-full border-r border-slate-800 shrink-0">
-        <Zap size={13} className="text-emerald-500" />
-        <span className="text-[8px] text-slate-600 font-black tabular-nums leading-none">
-          {inverterChips.length} INV
-        </span>
-      </div>
-
-      {/* KPIs — P_CC / P_CA / FDI (espelho do ModuleSelectorHub) */}
-      <div className="flex items-center gap-4 px-4 h-14 lg:h-full border-r border-slate-800 shrink-0 bg-slate-900/20">
-        {/* P_CC */}
-        <div className="flex flex-col justify-center">
-          <span className="text-[8px] text-slate-500 font-bold uppercase tracking-[0.15em] leading-none mb-0.5">P_CC</span>
-          <div className="flex items-baseline gap-1">
-            <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.5)] shrink-0" />
-            <span className="text-[13px] font-mono font-black text-amber-400 tabular-nums">
-              {totalKwpCC > 0 ? totalKwpCC.toFixed(2) : '—'}
+      {/* PREFIX — Machine Status Header */}
+      <div className="flex items-center px-4 h-14 lg:h-full border-r border-slate-800 shrink-0 bg-slate-950/40">
+        <div className="flex flex-col">
+          <div className="flex items-center gap-1.5">
+            <Zap size={14} className={cn(
+              "transition-all duration-700",
+              globalHealth === 'ok' ? "text-emerald-500" : globalHealth === 'warning' ? "text-amber-500" : "text-rose-500"
+            )} />
+            <span className="text-[10px] font-black text-slate-200 uppercase tracking-[0.2em]">Power Hub</span>
+          </div>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-[7px] text-slate-600 font-black uppercase tracking-widest">
+              Status: {globalHealth.toUpperCase()}
             </span>
-            <span className="text-[8px] text-slate-600 font-bold hidden sm:inline">kWp</span>
+            <div className="w-[1px] h-2 bg-slate-800" />
+            <span className="text-[7px] text-slate-600 font-black uppercase tracking-widest">
+              {inverterChips.length} {inverterChips.length === 1 ? 'UNIDADE' : 'UNIDADES'}
+            </span>
           </div>
         </div>
+      </div>
+
+      {/* KPIs — P_CC / P_CA / FDI (Refinado via Neurodesign) */}
+      <div className="flex items-center gap-6 px-5 h-14 lg:h-full border-r border-slate-800 shrink-0 bg-slate-900/10">
+        {/* P_CC */}
+        <div className="flex flex-col justify-center">
+          <span className="text-[7px] text-slate-500 font-black uppercase tracking-[0.2em] leading-none mb-1">Potência CC</span>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-[14px] font-mono font-black text-amber-400 tabular-nums leading-none">
+              {totalKwpCC > 0 ? totalKwpCC.toFixed(2) : '—'}
+            </span>
+            <span className="text-[8px] text-slate-600 font-black uppercase tracking-widest leading-none">kWp</span>
+          </div>
+        </div>
+
         {/* P_CA */}
         <div className="flex flex-col justify-center">
-          <span className="text-[8px] text-slate-500 font-bold uppercase tracking-[0.15em] leading-none mb-0.5">P_CA</span>
-          <div className="flex items-baseline gap-1">
-            <div className={cn(
-              'w-1.5 h-1.5 rounded-full shadow-lg shrink-0',
-              fdi >= 1.05 && fdi <= 1.35 ? 'bg-emerald-500 shadow-emerald-500/50' :
-              fdi > 1.35 ? 'bg-amber-500 shadow-amber-500/50' : 'bg-slate-600'
-            )} />
+          <span className="text-[7px] text-slate-500 font-black uppercase tracking-[0.2em] leading-none mb-1">Potência CA</span>
+          <div className="flex items-baseline gap-1.5">
             <span className={cn(
-              'text-[13px] font-mono font-black tabular-nums',
-              fdi >= 1.05 && fdi <= 1.35 ? 'text-emerald-400' :
-              fdi > 1.35 ? 'text-amber-400' : 'text-slate-500'
+              'text-[14px] font-mono font-black tabular-nums leading-none',
+              fdi >= 1.05 && fdi <= 1.45 ? 'text-emerald-400' : 'text-slate-400'
             )}>
               {totalPower > 0 ? totalPower.toFixed(1) : '—'}
             </span>
-            <span className="text-[8px] text-slate-600 font-bold hidden sm:inline">kW</span>
+            <span className="text-[8px] text-slate-600 font-black uppercase tracking-widest leading-none">kW</span>
           </div>
         </div>
-        {/* FDI */}
+
+        {/* FDI (Oversizing) */}
         {fdi > 0 && (
-          <div className="flex flex-col justify-center">
-            <span className="text-[8px] text-slate-500 font-bold uppercase tracking-[0.15em] leading-none mb-0.5">FDI</span>
-            <span className={cn(
-              'text-[13px] font-mono font-black tabular-nums',
-              fdi < 1.05 || fdi > 1.50 ? 'text-rose-400' :
-              fdi <= 1.35 ? 'text-emerald-400' : 'text-amber-400'
-            )}>
-              {(fdi * 100).toFixed(0)}%
-            </span>
+          <div className="flex flex-col justify-center min-w-[45px]">
+            <span className="text-[7px] text-slate-500 font-black uppercase tracking-[0.2em] leading-none mb-1">FDI</span>
+            <div className="flex items-baseline gap-0.5">
+              <span className={cn(
+                'text-[14px] font-mono font-black tabular-nums leading-none transition-colors',
+                fdi < 1.05 || fdi > 1.60 ? 'text-rose-400' :
+                fdi <= 1.35 ? 'text-emerald-400' : 'text-amber-400'
+              )}>
+                {(fdi * 100).toFixed(0)}
+              </span>
+              <span className="text-[8px] text-slate-600 font-black uppercase tracking-widest leading-none">%</span>
+            </div>
           </div>
         )}
       </div>
@@ -303,11 +324,14 @@ export const InverterHub: React.FC<InverterHubProps> = ({
           {inverterChips.map(chip => {
             const isActive = chip.id === activeInverterId;
             return (
-              <button
+              <div
                 key={chip.id}
                 onClick={() => onChipSelect(chip.id)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onChipSelect(chip.id); }}
                 className={cn(
-                  'flex items-center gap-2 px-3 py-1.5 border rounded-sm transition-all shrink-0 group/chip h-8',
+                  'flex items-center gap-2 px-3 py-1.5 border rounded-sm transition-all shrink-0 group/chip h-8 cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-emerald-500',
                   isActive
                     ? 'bg-emerald-950/30 border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.1)]'
                     : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
@@ -323,9 +347,29 @@ export const InverterHub: React.FC<InverterHubProps> = ({
                   )}>
                     {chip.manufacturer} {chip.powerKw.toFixed(1)}kW
                   </span>
-                  <span className="text-[9px] font-mono text-slate-600 leading-none mt-0.5">
-                    {chip.mpptCount} MPPT
+                  <span className={cn(
+                    "text-[9px] font-mono leading-none mt-0.5 transition-colors",
+                    isActive && activeMpptCount !== undefined && activeMpptCount < chip.mpptCount 
+                      ? "text-amber-500 font-bold" 
+                      : "text-slate-600"
+                  )}>
+                    {isActive && activeMpptCount !== undefined ? `${activeMpptCount} / ` : ''}{chip.mpptCount} MPPT
                   </span>
+                  
+                  {/* Micro-telemetria de Ocupação */}
+                  <div className="w-full h-[1.5px] bg-slate-800/80 rounded-full mt-1.5 overflow-hidden">
+                    <div 
+                      className={cn(
+                        "h-full transition-all duration-1000",
+                        isActive ? "bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.5)]" : "bg-slate-700"
+                      )}
+                      style={{ 
+                        width: isActive && activeMpptCount !== undefined 
+                          ? `${(activeMpptCount / chip.mpptCount) * 100}%` 
+                          : '0%' 
+                      }}
+                    />
+                  </div>
                 </div>
                 {/* Remove — duplo-clique confirma */}
                 <button
@@ -344,7 +388,7 @@ export const InverterHub: React.FC<InverterHubProps> = ({
                 >
                   <X size={10} strokeWidth={3} />
                 </button>
-              </button>
+              </div>
             );
           })}
         </div>
@@ -430,14 +474,21 @@ export const InverterHub: React.FC<InverterHubProps> = ({
                             </span>
                           </div>
                           <div className={cn(
-                            "px-1.5 py-0.5 border rounded-sm text-[7px] font-black uppercase tracking-widest shrink-0",
-                            statusClass
+                            "px-1.5 py-0.5 border rounded-sm text-[7px] font-black uppercase tracking-widest shrink-0 transition-all",
+                            selectionWarningInv?.id === inv.id ? "bg-rose-500 border-rose-400 text-white animate-pulse" : statusClass
                           )}>
-                            {comp?.status === 'RECOMMENDED' ? 'Match OK' : 
+                            {selectionWarningInv?.id === inv.id ? 'Confirmar Risco' : 
+                             comp?.status === 'RECOMMENDED' ? 'Match OK' : 
                              comp?.status === 'INCOMPATIBLE' ? 'Incompatível' : 
                              comp?.status === 'WARNING' ? 'Atenção' : 'Aceitável'}
                           </div>
                         </div>
+
+                        {selectionWarningInv?.id === inv.id && (
+                          <div className="mt-1 px-2 py-1 bg-rose-500/10 border-l-2 border-rose-500 text-[8px] text-rose-400 font-bold leading-tight animate-in fade-in slide-in-from-top-1">
+                            Este equipamento viola limites técnicos de corrente ou tensão para o arranjo atual. Clique novamente para assumir o risco.
+                          </div>
+                        )}
 
                         <div className="flex items-center gap-3">
                           <div className="flex items-center gap-1">

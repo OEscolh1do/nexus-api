@@ -15,7 +15,7 @@ import { SectionHeader, PropRow, PropRowEditable } from './shared';
 export const InverterProperties: React.FC<{ entity: SelectedEntity }> = ({ entity }) => {
   const inverters = useSolarStore(selectInverters);
   const updateInverterQty = useSolarStore(state => state.updateInverterQty);
-  const { inverters: techInvertersNorm } = useTechStore();
+  const { inverters: techInvertersNorm, updateMPPTConfig } = useTechStore();
   const techInverters = toArray(techInvertersNorm);
 
   const inverter = useMemo(
@@ -100,9 +100,31 @@ export const InverterProperties: React.FC<{ entity: SelectedEntity }> = ({ entit
                     <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">MPPT {mppt.mpptId}</span>
                   </div>
                   <div className="space-y-0.5">
-                    <PropRow label="Strings" value={`${mppt.stringsCount}`} />
-                    <PropRow label="Módulos/String" value={`${mppt.modulesPerString}`} />
-                    {mppt.azimuth != null && <PropRow label="Azimute" value={`${mppt.azimuth}°`} />}
+                    <PropRowEditable 
+                      label="Strings" 
+                      value={`${mppt.stringsCount}`} 
+                      type="number"
+                      onCommit={(val) => {
+                        updateMPPTConfig(inverter.id, mppt.mpptId, { stringsCount: Number(val) });
+                      }}
+                    />
+                    <PropRowEditable 
+                      label="Módulos/String" 
+                      value={`${mppt.modulesPerString}`} 
+                      type="number"
+                      onCommit={(val) => {
+                        updateMPPTConfig(inverter.id, mppt.mpptId, { modulesPerString: Number(val) });
+                      }}
+                    />
+                    <PropRowEditable 
+                      label="Azimute" 
+                      value={String(mppt.azimuth ?? 180)} 
+                      type="number"
+                      unit="°"
+                      onCommit={(val) => {
+                        updateMPPTConfig(inverter.id, mppt.mpptId, { azimuth: Number(val) });
+                      }}
+                    />
                   </div>
                 </div>
               ))}

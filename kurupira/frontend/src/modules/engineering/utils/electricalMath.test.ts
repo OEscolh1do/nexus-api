@@ -10,10 +10,11 @@ import {
 // ─── Fixtures ──────────────────────────────────────
 
 /** Typical 550W half-cell module */
-const MODULE_SPECS: ModuleElectricalSpecs & { isc: number } = {
+const MODULE_SPECS: ModuleElectricalSpecs & { isc: number; vmp: number; imp: number } = {
     voc: 49.8,
     vmp: 41.7,
     isc: 14.0,
+    imp: 13.2,
     tempCoeffVoc: -0.28, // %/°C
 };
 

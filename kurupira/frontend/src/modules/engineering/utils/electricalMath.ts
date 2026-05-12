@@ -12,6 +12,7 @@ export interface ModuleElectricalSpecs {
     voc: number;
     vmp: number;
     isc: number;
+    imp?: number;
     tempCoeffVoc: number; // %/°C (e.g. -0.29)
     tempCoeffPmax?: number;
 }
@@ -122,6 +123,15 @@ export interface MPPTInput {
     /** [NEW] NBR 16690: Bos parameters */
     cableLength?: number; // meters (one way)
     cableSection?: number; // mm2 (default 4)
+    strings?: Array<{
+        name: string;
+        modulesCount: number;
+        cableLength: number;
+        cableSection: number;
+    }>;
+    /** [NEW] Orientation specs (Spec-02) */
+    azimuth?: number;
+    inclination?: number;
 }
 
 /**
@@ -146,6 +156,16 @@ export const calculateVoltageDrop = (
 };
 
 /**
+ * Calculates string fuse rating (gPV)
+ * Formula: Math.ceil(1.5 * Isc) then rounded to next commercial size
+ */
+export const calculateFuseRating = (isc: number): number => {
+    const rawRating = isc * 1.5;
+    const commercialSizes = [10, 12, 15, 20, 25, 30, 32, 40, 50, 63];
+    return commercialSizes.find(size => size >= rawRating) || Math.ceil(rawRating);
+};
+
+/**
  * Validates all MPPT configurations of a system against inverter limits.
  * Pure function — no React deps — importable from Worker.
  *
@@ -156,7 +176,7 @@ export const calculateVoltageDrop = (
  */
 export const validateSystemStrings = (
     mpptInputs: MPPTInput[],
-    moduleSpecs: ModuleElectricalSpecs & { isc: number; vmp: number },
+    moduleSpecs: ModuleElectricalSpecs & { isc: number; vmp: number; imp: number },
     minAmbientTemp: number = 0,
     maxCellTemp: number = 70
 ): SystemValidationReport => {
@@ -173,8 +193,17 @@ export const validateSystemStrings = (
         const messages: string[] = [];
         let status: ValidationStatus = 'ok';
 
+        // Resolve strings array (V5 format or legacy fallback)
+        const activeStrings = input.strings?.length ? input.strings : 
+            Array.from({ length: input.stringsCount || 0 }).map((_, i) => ({ 
+                name: `String ${i+1}`,
+                modulesCount: input.modulesPerString || 0, 
+                cableLength: input.cableLength || 0, 
+                cableSection: input.cableSection || 0 
+            }));
+
         // Skip empty MPPTs
-        if (input.modulesPerString <= 0 || input.stringsCount <= 0) {
+        if (activeStrings.length === 0 || activeStrings.every(s => s.modulesCount <= 0)) {
             return {
                 inverterId: input.inverterId,
                 mpptId: input.mpptId,
@@ -186,9 +215,12 @@ export const validateSystemStrings = (
             };
         }
 
+        // The longest string dictates the maximum Voc and minimum Vmp
+        const maxModulesInParallel = Math.max(...activeStrings.map(s => s.modulesCount));
+
         const metrics = calculateStringMetrics(
             moduleSpecs,
-            input.modulesPerString,
+            maxModulesInParallel,
             minAmbientTemp,
             maxCellTemp
         );
@@ -223,7 +255,7 @@ export const validateSystemStrings = (
         }
 
         // 4. Isc Total vs Max Current Per MPPT (IEC 60364-7-712 §712.443)
-        const iscTotal = moduleSpecs.isc * input.stringsCount;
+        const iscTotal = moduleSpecs.isc * activeStrings.length;
         const ISC_TOLERANCE = 1.25;
         const iscLimit = input.maxCurrentPerMPPT * ISC_TOLERANCE;
         if (iscTotal > iscLimit) {
@@ -234,28 +266,42 @@ export const validateSystemStrings = (
         }
 
         // 5. [NEW] NBR 16690: Fusíveis de String
-        // Obrigatório se strings em paralelo >= 3.
-        if (input.stringsCount >= 3) {
+        if (activeStrings.length >= 3) {
+            const fuseRating = calculateFuseRating(moduleSpecs.isc);
             if (status !== 'error') status = 'warning';
             messages.push(
-                `Aviso: ${input.stringsCount} strings em paralelo. Fusíveis CC obrigatórios (NBR 16690).`
+                `Exigência NBR 16690: Fusível gPV de ${fuseRating}A obrigatório (${activeStrings.length} strings em paralelo).`
             );
         }
 
-        // 6. [NEW] Queda de Tensão CC
-        if (input.cableLength && input.cableSection) {
-            const drop = calculateVoltageDrop(
-                input.cableLength,
-                moduleSpecs.isc * 0.9, // Imp estimativo (Isc * 0.9)
-                input.cableSection,
-                metrics.vmpNominal
-            );
-            if (drop.percent > 2.0) {
-                status = 'error';
-                messages.push(`Queda de tensão CC excessiva: ${drop.percent.toFixed(2)}% (Limite 2%).`);
-            } else if (drop.percent > 1.0) {
+        // 6. [NEW] Queda de Tensão CC (Avaliada por String)
+        activeStrings.forEach(str => {
+            if (str.cableLength && str.cableSection && str.modulesCount > 0) {
+                // Calculate individual nominal voltage for this string
+                const strMetrics = calculateStringMetrics(moduleSpecs, str.modulesCount, minAmbientTemp, maxCellTemp);
+                const drop = calculateVoltageDrop(
+                    str.cableLength,
+                    moduleSpecs.imp, // Usa a corrente operacional REAL (fim do Mock Sweeper)
+                    str.cableSection,
+                    strMetrics.vmpNominal
+                );
+                if (drop.percent > 2.0) {
+                    status = 'error';
+                    messages.push(`Queda de tensão excessiva na anilha ${str.name}: ${drop.percent.toFixed(2)}% (Limite 2%).`);
+                } else if (drop.percent > 1.0) {
+                    if (status !== 'error') status = 'warning';
+                    messages.push(`Queda de tensão CC elevada na anilha ${str.name}: ${drop.percent.toFixed(2)}% (Recomendado < 1%).`);
+                }
+            }
+        });
+        
+        // 7. [NEW] Mismatch de Orientação entre MPPTs (Spec-02)
+        const firstMppt = mpptInputs[0];
+        if (firstMppt && input.azimuth !== undefined && firstMppt.azimuth !== undefined) {
+            const azDiff = Math.abs(input.azimuth - firstMppt.azimuth);
+            if (azDiff > 10) {
                 if (status !== 'error') status = 'warning';
-                messages.push(`Queda de tensão CC elevada: ${drop.percent.toFixed(2)}% (Recomendado < 1%).`);
+                messages.push(`Sistema Multi-orientado: MPPT ${input.mpptId} possui azimute discrepante (${input.azimuth}°) em relação ao MPPT ${firstMppt.mpptId}.`);
             }
         }
 

@@ -7,7 +7,7 @@ export interface SimulationPayload {
   // P6-3: Optional electrical validation params
   electrical?: {
     mpptConfigs: MPPTInput[];
-    moduleSpecs: ModuleElectricalSpecs & { isc: number };
+    moduleSpecs: ModuleElectricalSpecs & { isc: number; vmp: number; imp: number };
     minAmbientTemp: number;
   };
 }

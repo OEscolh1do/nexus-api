@@ -302,6 +302,22 @@ Implementar o padrão de **Sincronização Unidirecional de Metadados (Metadata 
 #### Regra de Ouro
 > "A UI é a fonte da verdade para o usuário, mas o JSON é a fonte da verdade para o motor técnico. No momento do salvamento, a UI deve sempre ter precedência e sobrescrever os metadados JSON correspondentes."
 
+### 5.2. Integridade de Mapeamento de Tipos (The 0.00 kWp Trap)
+**Data:** 11/05/2026
+**Módulo:** Kurupira Frontend (Engineering Engine)
+
+#### O Problema
+Campos de saída técnica (ex: `powerKwp`) exibindo valores zerados ou `NaN` apesar de os inputs estarem preenchidos. Isso ocorre quando o código tenta acessar propriedades de metadados usando nomes inconsistentes (ex: `pmax` vs `power`) ou através de casts de tipo inseguros (`as any`).
+
+#### A Solução (Padrão Adotado)
+**Mapeamento Centralizado (Single Point of Mapping):**
+1. Transformar o objeto de inventário (Schema) em um objeto de especificações técnicas (Math Specs) uma única vez no topo do componente usando `useMemo`.
+2. Consumir **apenas** esse objeto mapeado em todos os cálculos subsequentes.
+3. Evitar acessos diretos ao objeto bruto (`repModule`) dentro de loops de cálculo (ex: `.map` de MPPTs).
+
+#### Regra de Ouro
+> "Se você já criou um objeto de mapeamento de especificações (`moduleSpecs`), nunca tente ler propriedades técnicas diretamente do objeto original (`repModule`) em loops secundários. O uso de `(obj as any).prop` é um sinal de que o mapeamento de tipos falhou e resultará em falhas silenciosas de cálculo."
+
 ---
 
 ## 8. Recuperação de Produção Após Reset Destrutivo de Banco

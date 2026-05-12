@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { useLogto } from '@logto/react';
 import { useNavigate } from 'react-router-dom';
+import { PatchLogBulletin } from '../components/PatchLogBulletin';
+import changelogData from '../assets/changelog.json';
 
 const LoginPage: React.FC = () => {
   const { signIn, isAuthenticated, isLoading, error } = useLogto();
@@ -143,7 +145,7 @@ const LoginPage: React.FC = () => {
         <div className="w-full px-4 py-2 border-b border-slate-800/50 bg-slate-900/30 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-1 h-3 bg-emerald-500" />
-            <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Portal de Acesso // V2.0</span>
+            <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Portal de Acesso // v{changelogData[0]?.version || '0.9.0'}</span>
           </div>
           <div className="flex gap-1">
             <div className="w-1 h-1 bg-slate-700" />
@@ -303,6 +305,9 @@ const LoginPage: React.FC = () => {
         }
         .animate-pulse-slow { animation: pulse-slow 8s ease-in-out infinite; }
       `}} />
+
+      {/* Engineering Bulletin (Patch Logs) */}
+      <PatchLogBulletin />
     </div>
   );
 };

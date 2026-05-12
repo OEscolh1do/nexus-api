@@ -1,6 +1,6 @@
 import { 
   FileText, MapPin, Zap, Loader2, Thermometer,
-  Navigation, Home, RefreshCw, Snowflake, Flame, Search,
+  Navigation, RefreshCw, Snowflake, Flame, Search,
   Check, X, Crosshair
 } from 'lucide-react';
 import { useMapEvents, useMap } from 'react-leaflet';
@@ -12,6 +12,7 @@ import { MapCore } from '../../../components/MapCore';
 import { fetchWeatherAnalysis } from '@/services/weatherService';
 import { cn } from '@/lib/utils';
 import { useGoogleGeocoding } from '../../../hooks/useGoogleGeocoding';
+import { OrientationDials } from './electrical/components/OrientationDials';
 import { ProjectSiteMarker } from '../../../components/ProjectSiteMarker';
 import { Autocomplete } from '@/components/ui/Autocomplete';
 import { BRAZILIAN_UTILITIES, STATE_TO_DEFAULT_UTILITY } from '@/core/data/utilities';
@@ -138,17 +139,6 @@ const ROOF_TYPES = [
   { value: 'outro',        label: 'Outro / Solo' },
 ] as const;
 
-const AZIMUTH_OPTIONS = [
-  { value: 0, label: 'Norte (0°)' },
-  { value: 45, label: 'Nordeste (45°)' },
-  { value: 90, label: 'Leste (90°)' },
-  { value: 135, label: 'Sudeste (135°)' },
-  { value: 180, label: 'Sul (180°)' },
-  { value: 225, label: 'Sudoeste (225°)' },
-  { value: 270, label: 'Oeste (270°)' },
-  { value: 315, label: 'Noroeste (315°)' }
-] as const;
-
 // ─────────────────────────────────────────────────────────────────────────────────
 // MELHORIA — HEATMAP PANEL (Otimizado para Rodapé 2-Colunas)
 // ─────────────────────────────────────────────────────────────────────────────────
@@ -234,6 +224,8 @@ const HeatmapPanel: React.FC<{ hspMonthly: number[]; irradiationSource?: string 
 export const SiteCanvasView: React.FC = () => {
   const clientData    = useSolarStore(s => s.clientData);
   const updateClientData = useSolarStore(s => s.updateClientData);
+  const engineeringData  = useSolarStore(s => s.engineeringData);
+  const updateEngineeringData = useSolarStore(s => s.updateEngineeringData);
   const weatherData      = useSolarStore(s => s.weatherData);
   const setWeatherData   = useSolarStore(s => s.setWeatherData);
   const setIrradiationData = useSolarStore(s => s.setIrradiationData);
@@ -481,22 +473,39 @@ export const SiteCanvasView: React.FC = () => {
 
           <div className="flex flex-col gap-2">
             <SectionHeader 
-              icon={<Home size={10} />} 
-              label="Premissas" 
-              completed={!!clientData.roofType}
+              icon={<Navigation size={10} />} 
+              label="Geometria Solar" 
+              completed={true}
             />
-            <div className="grid grid-cols-12 gap-2">
-              <FieldCell label="Telhado" className="col-span-12">
-                <select value={clientData.roofType || ''} onChange={e => updateClientData({ roofType: (e.target.value || undefined) as any })} className={`${fieldAccent} bg-slate-900`}>
+            <div className="bg-slate-950/60 rounded-xl border border-slate-800/80 p-4 shadow-inner">
+              <FieldCell label="Tipo de Telhado" className="mb-5">
+                <select 
+                  value={clientData.roofType || ''} 
+                  onChange={e => updateClientData({ roofType: (e.target.value || undefined) as any })} 
+                  className={`${fieldAccent} bg-slate-900 h-9`}
+                >
                   <option value="" className="bg-slate-900 text-slate-500">— Selecionar —</option>
                   {ROOF_TYPES.map(r => <option key={r.value} value={r.value} className="bg-slate-900 text-slate-100">{r.label}</option>)}
                 </select>
               </FieldCell>
-              <FieldCell label="Azimute" className="col-span-12">
-                <select value={clientData.azimuth ?? 0} onChange={e => updateClientData({ azimuth: Number(e.target.value) })} className={`${fieldAccent} bg-slate-900`}>
-                  {AZIMUTH_OPTIONS.map(a => <option key={a.value} value={a.value} className="bg-slate-900 text-slate-100">{a.label}</option>)}
-                </select>
-              </FieldCell>
+
+              <OrientationDials
+                azimuth={engineeringData.azimute}
+                inclination={engineeringData.roofTilt}
+                onAzimuthChange={(val) => updateEngineeringData({ azimute: val })}
+                onInclinationChange={(val) => updateEngineeringData({ roofTilt: val })}
+              />
+              
+              <div className="grid grid-cols-2 gap-2 mt-4">
+                <div className="flex flex-col items-center p-2 bg-slate-900/40 rounded border border-slate-800/50">
+                  <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mb-1">Azimute</span>
+                  <span className="text-sm font-mono font-black text-sky-400">{engineeringData.azimute}°</span>
+                </div>
+                <div className="flex flex-col items-center p-2 bg-slate-900/40 rounded border border-slate-800/50">
+                  <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mb-1">Inclinação</span>
+                  <span className="text-sm font-mono font-black text-emerald-400">{engineeringData.roofTilt}°</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

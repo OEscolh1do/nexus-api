@@ -23,6 +23,7 @@ import { CalculationAuditPanel } from './electrical/components/CalculationAuditP
 import { DiagnosticAlertsList, AlertDescriptor } from './electrical/components/DiagnosticAlertsList';
 import { parsePanOnd } from '../../../utils/pvsystParser';
 import { mapOndToInverter } from '../../../utils/ondAdapter';
+import { ENGINEERING_CONSTANTS } from '../../../constants/engineeringConstants';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTES DE FALLBACK POR UF (pior cenário — Q5 sem manualTmax)
@@ -61,6 +62,9 @@ export const ElectricalCanvasView: React.FC = () => {
 
   const invertersNorm    = useTechStore(state => state.inverters);
   const updateMPPTConfig = useTechStore(state => state.updateMPPTConfig);
+  const addStringToMPPT = useTechStore(state => state.addStringToMPPT);
+  const removeStringFromMPPT = useTechStore(state => state.removeStringFromMPPT);
+  const updateStringInMPPT = useTechStore(state => state.updateStringInMPPT);
   const addInverterTech  = useTechStore(state => state.addInverter);
   const removeInverterTech = useTechStore(state => state.removeInverter);
 
@@ -93,22 +97,22 @@ export const ElectricalCanvasView: React.FC = () => {
     [modules]
   );
 
-  // T1-A: campo correto — electrical.tempCoeffVoc (não .tempCoeff)
-  const moduleSpecs = useMemo(() => {
-    if (!repModule) return null;
+  // ── Helper: Extração de Specs do Módulo ──────────────────────────────────
+  const getModuleSpecs = useCallback((m: any) => {
+    if (!m) return null;
     return {
-      voc:         repModule.voc,
-      vmp:         repModule.vmp ?? repModule.voc * 0.82,
-      isc:         repModule.isc ?? 0,
-      imp:         repModule.imp ?? repModule.isc * 0.95,
-      pmax:        repModule.power ?? (repModule as any).pmax ?? 0,
-      tempCoeffVoc: (repModule as any).electrical?.tempCoeffVoc ?? repModule.tempCoeff ?? -0.29,
-      tempCoeffVmp: (repModule as any).electrical?.tempCoeffVmp ?? -0.34,
-      noct:        (repModule as any).noct ?? 45,
-      isBifacial:  (repModule as any).isBifacial ?? false,
-      albedo:      0.2, // Padrão Conservador
+      voc:         m.voc,
+      vmp:         m.vmp ?? m.voc * ENGINEERING_CONSTANTS.VMP_VOC_RATIO_ESTIMATE,
+      isc:         m.isc ?? 0,
+      imp:         m.imp ?? m.isc * 0.95,
+      pmax:        m.power ?? (m as any).pmax ?? 0,
+      tempCoeffVoc: (m as any).electrical?.tempCoeffVoc ?? m.tempCoeff ?? ENGINEERING_CONSTANTS.DEFAULT_TEMP_COEFF_VOC,
+      tempCoeffVmp: (m as any).electrical?.tempCoeffVmp ?? ENGINEERING_CONSTANTS.DEFAULT_TEMP_COEFF_VMP,
+      noct:        (m as any).noct ?? ENGINEERING_CONSTANTS.DEFAULT_NOCT,
+      isBifacial:  (m as any).isBifacial ?? false,
+      albedo:      ENGINEERING_CONSTANTS.DEFAULT_ALBEDO,
     };
-  }, [repModule]);
+  }, []);
 
   // ── Temperaturas com fallback por UF ─────────────────────────────────────
   const { tmin, tamb_max } = useMemo(
@@ -117,51 +121,59 @@ export const ElectricalCanvasView: React.FC = () => {
   );
 
   // ── Cálculo de Vmp(calor) por MPPT ───────────────────────────────────────
-  const calcVmpCalor = useCallback((modulesPerString: number): number => {
-    if (!moduleSpecs || modulesPerString <= 0) return 0;
-    const noct = (repModule as any)?.noct ?? 45;
+  const calcVmpCalor = useCallback((specs: any, modulesPerString: number): number => {
+    if (!specs || modulesPerString <= 0) return 0;
+    const noct = specs.noct ?? ENGINEERING_CONSTANTS.DEFAULT_NOCT;
     const tcell_max = tamb_max + (noct - 20) * (1000 / 800);
-    const vmpCalor = moduleSpecs.vmp * (1 + (moduleSpecs.tempCoeffVoc / 100) * (tcell_max - 25)) * modulesPerString;
+    const vmpCalor = specs.vmp * (1 + (specs.tempCoeffVoc / 100) * (tcell_max - 25)) * modulesPerString;
     return vmpCalor;
-  }, [moduleSpecs, tamb_max, repModule]);
+  }, [tamb_max]);
 
   // ── Dados derivados do inversor ativo ─────────────────────────────────────
   const dashboardData = useMemo(() => {
-    if (!activeInverter || !moduleSpecs) return null;
+    if (!activeInverter || modules.length === 0) return null;
 
     const limitInverterVMax  = activeInverter.snapshot?.maxInputVoltage ?? 1000;
     const limitMpptVMin      = activeInverter.snapshot?.minMpptVoltage ?? 150;
     const limitMpptVMax      = activeInverter.snapshot?.maxMpptVoltage ?? 800;
     const limitIscMaxMppt    = activeInverter.snapshot?.maxCurrentPerMPPT ?? 22;
 
-    // ── Cálculo dos limites físicos por string (baseado em 1 módulo)
-    const vocFrio1 = calculateStringMetrics(moduleSpecs, 1, tmin).vocMax;
-    const vmpCalor1 = calcVmpCalor(1);
+    const repSpecs = getModuleSpecs(modules[0]);
+    if (!repSpecs) return null;
+
+    // ── Cálculo dos limites físicos por string (baseado no módulo padrão)
+    const vocFrio1 = calculateStringMetrics(repSpecs, 1, tmin).vocMax;
+    const vmpCalor1 = calcVmpCalor(repSpecs, 1);
     
     // Teto absoluto: Tensão de circuito aberto no frio extremo vs Limite do Inversor
     const maxModulesLimit = vocFrio1 > 0 ? Math.floor(limitInverterVMax / vocFrio1) : 40;
     
-    // Piso de segurança: Considera a tensão mínima do MPPT e a Tensão de Partida (Startup Voltage)
+    // Piso de segurança
     const startupVoltage = (activeInverter.snapshot as any)?.startupVoltage ?? limitMpptVMin;
     const effectiveMinVoltage = Math.max(limitMpptVMin, startupVoltage);
-    
-    // Perda ôhmica simulada de 1.5% no cabo CC
-    const voltageDropFactor = 0.985; 
-    const minModulesLimit = vmpCalor1 > 0 ? Math.ceil(effectiveMinVoltage / (vmpCalor1 * voltageDropFactor)) : 0;
+    const minModulesLimit = vmpCalor1 > 0 ? Math.ceil(effectiveMinVoltage / (vmpCalor1 * ENGINEERING_CONSTANTS.CC_VOLTAGE_DROP_FACTOR)) : 0;
 
     let totalVocMax = 0;
     let totalIscMax = 0;
     const mpptProfiles: MpptThermalProfile[] = [];
 
     activeInverter.mpptConfigs.forEach(mppt => {
-      const mods     = mppt.modulesPerString || 0;
-      const strCount = mppt.stringsCount || 0;
-      if (mods > 0 && strCount > 0) {
-        const metrics  = calculateStringMetrics(moduleSpecs, mods, tmin);
-        const vmpCalor = calcVmpCalor(mods);
-        const iscMppt  = moduleSpecs.isc * strCount;
+      const specificModule = mppt.moduleModel ? modules.find(m => m.model === mppt.moduleModel) : modules[0];
+      const specs = getModuleSpecs(specificModule);
+      if (!specs) return;
+
+      const activeStrings = mppt.strings?.length ? mppt.strings : 
+          Array.from({ length: mppt.stringsCount || 0 }).map(() => ({ modulesCount: mppt.modulesPerString || 0 }));
+          
+      if (activeStrings.length > 0 && activeStrings.some(s => s.modulesCount > 0)) {
+        const maxMods  = Math.max(...activeStrings.map(s => s.modulesCount));
+        const metrics  = calculateStringMetrics(specs, maxMods, tmin);
+        const vmpCalor = calcVmpCalor(specs, maxMods);
+        const iscMppt  = specs.isc * activeStrings.length;
+        
         if (metrics.vocMax > totalVocMax) totalVocMax = metrics.vocMax;
         if (iscMppt > totalIscMax) totalIscMax = iscMppt;
+        
         mpptProfiles.push({
           mpptId:   mppt.mpptId,
           vocMax:   metrics.vocMax,
@@ -190,34 +202,50 @@ export const ElectricalCanvasView: React.FC = () => {
       mpptProfiles, alerts,
       minModulesLimit, maxModulesLimit,
     };
-  }, [activeInverter, moduleSpecs, tmin, electrical, calcVmpCalor]);
+  }, [activeInverter, modules, tmin, electrical, calcVmpCalor, getModuleSpecs]);
 
   // ── Métricas por MPPT para o Strip ────────────────────────────────────────
   const mpptMetrics = useMemo(() => {
-    if (!activeInverter || !moduleSpecs) return {};
+    if (!activeInverter || modules.length === 0) return {};
     const result: Record<number, any> = {};
+    
     activeInverter.mpptConfigs.forEach(mppt => {
-      const mods     = mppt.modulesPerString || 0;
-      const strCount = mppt.stringsCount || 0;
-      const metrics  = mods > 0 ? calculateStringMetrics(moduleSpecs, mods, tmin) : null;
-      const vmpCalor = mods > 0 ? calcVmpCalor(mods) : 0;
-      const localPmax = (repModule as any)?.electrical?.pmax || (repModule as any)?.pmax || 0;
+      const specificModule = mppt.moduleModel ? modules.find(m => m.model === mppt.moduleModel) : modules[0];
+      const specs = getModuleSpecs(specificModule);
+      if (!specs) return;
 
-      const bifacialFactor = moduleSpecs.isBifacial ? (1 + 0.70 * moduleSpecs.albedo) : 1;
+      const activeStrings = mppt.strings?.length ? mppt.strings : 
+          Array.from({ length: mppt.stringsCount || 0 }).map(() => ({ modulesCount: mppt.modulesPerString || 0 }));
 
-      // Mismatch: verifica se azimute difere entre configs — simplificado
-      // (comparação futura entre stringIds quando Tier 3 estiver disponível)
+      const strCount = activeStrings.length;
+      const maxMods = strCount > 0 ? Math.max(...activeStrings.map(s => s.modulesCount)) : 0;
+      const totalMods = activeStrings.reduce((acc, s) => acc + s.modulesCount, 0);
+
+      const metrics  = maxMods > 0 ? calculateStringMetrics(specs, maxMods, tmin) : null;
+      const vmpCalor = maxMods > 0 ? calcVmpCalor(specs, maxMods) : 0;
+
+      const bifacialFactor = specs.isBifacial ? (1 + 0.70 * specs.albedo) : 1;
+
+      const mpptEntry = electrical?.entries?.find(e => e.mpptId === mppt.mpptId);
+      const hasMismatch = mpptEntry?.messages.some(m => m.includes('Sistema Multi-orientado')) || false;
+
       result[mppt.mpptId] = {
         vocFrio:    metrics?.vocMax ?? 0,
         vmpCalor,
-        iscTotal:   (moduleSpecs.isc || 0) * strCount * bifacialFactor,
-        impTotal:   (moduleSpecs.imp || 0) * strCount * bifacialFactor,
-        powerKwp:   mods > 0 && strCount > 0 ? (localPmax * mods * strCount) / 1000 : 0,
-        hasMismatch: false, // Tier 3: detectar por azimuthDeg das strings
+        iscTotal:   (specs.isc || 0) * strCount * bifacialFactor,
+        impTotal:   (specs.imp || 0) * strCount * bifacialFactor,
+        powerKwp:   totalMods > 0 ? (specs.pmax * totalMods) / 1000 : 0,
+        hasMismatch,
+        unitVmp: specs.vmp,
+        unitImp: specs.imp,
       };
     });
     return result;
-  }, [activeInverter, moduleSpecs, tmin, calcVmpCalor, repModule]);
+  }, [activeInverter, modules, tmin, calcVmpCalor, getModuleSpecs, electrical]);
+
+  const activeMpptCount = useMemo(() => {
+    return Object.values(mpptMetrics).filter(m => m.powerKwp > 0).length;
+  }, [mpptMetrics]);
 
   // ── Chips de validação para o Hub ─────────────────────────────────────────
   const validationPills: ValidationPill[] = useMemo(() => {
@@ -406,6 +434,8 @@ export const ElectricalCanvasView: React.FC = () => {
     );
   }
 
+
+
   return (
     <div className="w-full h-full flex flex-col bg-slate-950 overflow-hidden relative">
 
@@ -422,6 +452,7 @@ export const ElectricalCanvasView: React.FC = () => {
         globalHealth={globalHealth}
         fdi={kpi.dcAcRatio}
         totalKwpCC={totalKwpCC}
+        activeMpptCount={activeMpptCount}
         inventory={inventory}
       />
 
@@ -432,12 +463,14 @@ export const ElectricalCanvasView: React.FC = () => {
           mpptConfigs={activeInverter.mpptConfigs}
           mpptMetrics={mpptMetrics}
           updateMPPT={updateMPPTConfig}
+          addStringToMPPT={addStringToMPPT}
+          removeStringFromMPPT={removeStringFromMPPT}
+          updateStringInMPPT={updateStringInMPPT}
           limitVMax={dashboardData.limitInverterVMax}
           limitVMpptMin={dashboardData.limitMpptVMin}
           limitIscMaxMppt={dashboardData.limitIscMaxMppt}
-          inventoryStatus={inventory.status}
-          minModulesLimit={dashboardData.minModulesLimit}
           maxModulesLimit={dashboardData.maxModulesLimit}
+          module={repModule}
         />
       </div>
 
@@ -505,7 +538,7 @@ export const ElectricalCanvasView: React.FC = () => {
                 mpptMetrics={mpptMetrics}
                 dashboardData={dashboardData}
                 activeInverterSnapshot={activeInverter.snapshot}
-                moduleSpecs={moduleSpecs}
+                moduleSpecs={getModuleSpecs(modules[0])}
                 fdi={kpi.dcAcRatio}
                 totalKwpCC={totalKwpCC}
                 totalKwCA={activeInverter.snapshot.nominalPower}

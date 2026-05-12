@@ -51,10 +51,10 @@ export const useCatalogStore = create<CatalogState>((set) => ({
             degradacaoAnual: ed.degradacaoAnual ?? 0.5,
           },
           physical: {
-            widthMm: ed.widthMm || 0,
-            heightMm: ed.heightMm || 0,
-            depthMm: ed.depthMm || 0,
-            weightKg: ed.weightKg ?? m.weight ?? 0,
+            widthMm: m.dimensions ? Number(m.dimensions.split('x')[0]) || 0 : (m.width || ed.widthMm || 0),
+            heightMm: m.dimensions ? Number(m.dimensions.split('x')[1]) || 0 : (m.height || ed.heightMm || 0),
+            depthMm: m.depth ?? ed.depthMm ?? 0,
+            weightKg: m.weight ?? ed.weightKg ?? 0,
             cells: ed.cells || 0,
           }
         };
@@ -68,8 +68,8 @@ export const useCatalogStore = create<CatalogState>((set) => ({
         const count = i.mpptCount || 1;
         const fallbackMppts = Array.from({ length: count }, (_, idx) => ({
             mpptId: idx + 1,
-            minMpptVoltage: ed.minInputV || 40,
-            maxMpptVoltage: i.maxInputV || 600,
+            minMpptVoltage: ed.vMinMpp || ed.minInputV || 40,
+            maxMpptVoltage: ed.vMaxMpp || i.maxInputV || 600,
             maxInputVoltage: i.maxInputV || 600,
             maxCurrentPerMPPT: defaultMaxI, // Conservador: assume valor do datasheet é por-MPPT
             stringsAllowed: 1
@@ -89,7 +89,10 @@ export const useCatalogStore = create<CatalogState>((set) => ({
           maxDCPowerW: i.nominalPowerW * 1.5,
           maxInputVoltage: i.maxInputV || 600,
           connectionType: ed.connectionType || 'Monofásico',
-          weight: ed.weight || 0,
+          width: i.width || ed.widthMm || 0,
+          height: i.height || ed.heightMm || 0,
+          depth: i.depth || ed.depthMm || 0,
+          weight: i.weight || ed.weight || 0,
           outputVoltage: ed.outputVoltage || 220,
           outputFrequency: ed.outputFrequency || 60,
           maxOutputCurrent: ed.maxOutputCurrent || 0,

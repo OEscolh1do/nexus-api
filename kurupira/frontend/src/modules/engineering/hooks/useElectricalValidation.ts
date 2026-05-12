@@ -26,6 +26,7 @@ export const useElectricalValidation = (): UnifiedValidationResult => {
     const modules = useSolarStore(selectModules);
     const placedModules = useSolarStore(state => state.project.placedModules);
     const settings = useSolarStore(state => state.settings);
+    const engineeringData = useSolarStore(state => state.engineeringData);
     const catalogInverters = useCatalogStore(state => state.inverters);
     
     // TechStore data
@@ -59,17 +60,20 @@ export const useElectricalValidation = (): UnifiedValidationResult => {
         // Cálculo granular por MPPT para evitar inconsistências entre desenho (Tier 3) e config manual (Tier 2)
         const logicalCount = techInverters.reduce((totalAcc, inv) => {
             const inverterMpptsSum = inv.mpptConfigs.reduce((mpptAcc, mppt) => {
-                // 1. Módulos na configuração rápida (campos Mods/Str)
-                const configCount = (mppt.modulesPerString || 0) * (mppt.stringsCount || 0);
+                // 1. Módulos na configuração V5 (Anilhas/StringDef)
+                const v5Count = (mppt.strings || []).reduce((acc, s) => acc + s.modulesCount, 0);
+
+                // 2. Módulos na configuração rápida (campos legados Mods/Str)
+                const legacyCount = (mppt.modulesPerString || 0) * (mppt.stringsCount || 0);
                 
-                // 2. Módulos em strings reais desenhadas para este MPPT
+                // 3. Módulos em strings reais desenhadas (Tier 3)
                 const mpptRef = `${inv.id}:${mppt.mpptId}`;
                 const drawnCount = techStrings
                     .filter(str => str.mpptId === mpptRef)
                     .reduce((strAcc, str) => strAcc + str.moduleIds.length, 0);
 
-                // Pegamos o maior entre o que foi digitado e o que foi desenhado para este MPPT
-                return mpptAcc + Math.max(configCount, drawnCount);
+                // Pegamos o maior entre os métodos para garantir conservadorismo
+                return mpptAcc + Math.max(v5Count, legacyCount, drawnCount);
             }, 0);
             
             return totalAcc + inverterMpptsSum;
@@ -115,7 +119,8 @@ export const useElectricalValidation = (): UnifiedValidationResult => {
                 voc: representativeModule.voc,
                 vmp: representativeModule.vmp ?? representativeModule.voc * 0.82,
                 isc: representativeModule.isc ?? 0,
-                tempCoeffVoc: representativeModule.tempCoeff || -0.29,
+                imp: (representativeModule as any).imp ?? (representativeModule.isc ?? 0) * 0.95,
+                tempCoeffVoc: (representativeModule as any).electrical?.tempCoeffVoc ?? representativeModule.tempCoeff ?? -0.29,
             };
 
             const mpptInputs: MPPTInput[] = techInverters.flatMap(inv => {
@@ -125,26 +130,48 @@ export const useElectricalValidation = (): UnifiedValidationResult => {
                 }
 
                 return inv.mpptConfigs.map(cfg => {
-                    // Em P6.4, cfg.stringIds contém as strings LÓGICAS reais atribuídas ao MPPT
+                    // Determinamos as strings ativas: Prioridade V5 (Anilhas) > Tier 3 (Drawn) > Legacy
+                    const v5Strings = cfg.strings || [];
                     const assignedStrings = cfg.stringIds
                         .map(sId => stringsNorm.entities[sId])
                         .filter(Boolean);
                     
-                    // Pegamos a maior string deste MPPT para validar a Tensão máxima
-                    const maxModulesInAString = assignedStrings.reduce((acc, s) => Math.max(acc, s.moduleIds.length), 0);
-                    const activeStringsCount = assignedStrings.length;
+                    // Estrutura de strings unificada para o motor matemático
+                    const activeStrings = v5Strings.length > 0 
+                        ? v5Strings 
+                        : assignedStrings.length > 0
+                            ? assignedStrings.map(s => ({ 
+                                id: s.id, 
+                                name: `STR-${s.id}`, 
+                                modulesCount: s.moduleIds.length,
+                                cableLength: cfg.cableLength || 10,
+                                cableSection: cfg.cableSection || 4
+                              }))
+                            : Array.from({ length: cfg.stringsCount || 0 }).map((_, i) => ({
+                                id: `legacy-${i}`,
+                                name: `STR-LEGACY-${i}`,
+                                modulesCount: cfg.modulesPerString || 0,
+                                cableLength: cfg.cableLength || 10,
+                                cableSection: cfg.cableSection || 4
+                              }));
+
+                    const maxModulesInAString = activeStrings.reduce((acc, s) => Math.max(acc, s.modulesCount), 0);
+                    const activeStringsCount = activeStrings.length;
 
                     return {
                         inverterId: inv.id,
                         mpptId: cfg.mpptId,
                         modulesPerString: maxModulesInAString,
                         stringsCount: activeStringsCount,
+                        strings: activeStrings, // Passamos o array completo V5
                         maxInputVoltage: inv.snapshot?.maxInputVoltage ?? 600,
                         minMpptVoltage: inv.snapshot?.minMpptVoltage ?? 150,
                         maxMpptVoltage: inv.snapshot?.maxMpptVoltage ?? 500,
                         maxCurrentPerMPPT: inv.snapshot?.maxCurrentPerMPPT ?? 15,
                         cableLength: cfg.cableLength,
                         cableSection: cfg.cableSection,
+                        azimuth: cfg.azimuth ?? engineeringData.azimute,
+                        inclination: cfg.inclination ?? engineeringData.roofTilt,
                     } as MPPTInput;
                 }).filter(input => input.stringsCount > 0 && input.modulesPerString > 0);
             });

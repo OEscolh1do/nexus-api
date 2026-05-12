@@ -51,7 +51,7 @@ export const StringProperties: React.FC<{ entity: SelectedEntity }> = ({ entity 
     return electrical.entries.find(e => e.inverterId === parsed.inverterId && e.mpptId === parsed.mpptId);
   }, [parsed, electrical]);
 
-  const logicalCount = parsed && parsed.mppt ? parsed.mppt.modulesPerString * parsed.mppt.stringsCount : 0;
+  const logicalCount = (parsed && parsed.mppt) ? (parsed.mppt.modulesPerString ?? 0) * (parsed.mppt.stringsCount ?? 0) : 0;
   const isVocUnsafe = validation?.messages.some(m => m.includes('Voc')) || false;
   const isCurrentUnsafe = validation?.messages.some(m => m.includes('Isc')) || false;
 

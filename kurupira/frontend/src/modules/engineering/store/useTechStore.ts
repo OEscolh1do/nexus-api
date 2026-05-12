@@ -22,15 +22,27 @@ export interface LogicalString {
     moduleIds: string[];
 }
 
+export interface StringDef {
+    id: string; // ID único interno
+    name: string; // Nome de Anilha executiva (ex: INV-01.M1.S1)
+    modulesCount: number;
+    cableLength: number;
+    cableSection: number;
+    azimuth?: number;
+    inclination?: number;
+}
+
 export interface MPPTConfig {
     mpptId: number;
     stringIds: string[]; // V4: Array de IDs das Strings atribuídas
-    stringsCount: number; // Mapeado para retro-compatibilidade temporária
-    modulesPerString: number; // Mapeado para retro-compatibilidade 
+    stringsCount?: number; // Mapeado para retro-compatibilidade temporária
+    modulesPerString?: number; // Mapeado para retro-compatibilidade 
     azimuth?: number; // Advanced: MPPTs can face different directions
     inclination?: number;
-    cableLength: number; // [NEW] Comprimento do cabo CC (m)
-    cableSection: number; // [NEW] Seção nominal (mm²)
+    cableLength?: number; // [LEGACY] Comprimento do cabo CC (m)
+    cableSection?: number; // [LEGACY] Seção nominal (mm²)
+    strings: StringDef[]; // [NEW] V5: Strings locais do MPPT para engenharia
+    moduleModel?: string; // [NEW] V6: Modelo do módulo específico para este MPPT
 }
 
 export interface ElectricalValidation {
@@ -89,6 +101,11 @@ interface TechState {
 
   updateMPPTConfig: (inverterId: string, mpptId: number, config: Partial<MPPTConfig>) => void;
   
+  // V5: Exec MPPT Strings Actions
+  addStringToMPPT: (inverterId: string, mpptId: number) => void;
+  removeStringFromMPPT: (inverterId: string, mpptId: number, stringId: string) => void;
+  updateStringInMPPT: (inverterId: string, mpptId: number, stringId: string, data: Partial<StringDef>) => void;
+  
   // V4 String Actions
   createString: (moduleIds: string[]) => void;
   deleteString: (stringId: string) => void;
@@ -128,10 +145,15 @@ const createDefaultMPPTConfig = (mppts: number): MPPTConfig[] => {
     return Array.from({ length: mppts }, (_, i) => ({
         mpptId: i + 1,
         stringIds: [],
-        stringsCount: 0,
+        stringsCount: 1,
         modulesPerString: 0,
-        cableLength: 10,
-        cableSection: 4
+        strings: [{
+            id: Math.random().toString(36).substr(2, 9),
+            name: `S1`,
+            modulesCount: 0,
+            cableLength: 10,
+            cableSection: 4
+        }],
     }));
 };
 
@@ -217,7 +239,14 @@ export const useTechStore = create<TechState>()(
             mpptConfigs: source.mpptConfigs.map(m => ({
               ...m,
               stringIds: [],
-              stringsCount: 0,
+              stringsCount: 1,
+              strings: [{
+                id: Math.random().toString(36).substr(2, 9),
+                name: `S1`,
+                modulesCount: 0,
+                cableLength: 10,
+                cableSection: 4
+              }]
             })),
           };
 
@@ -289,6 +318,101 @@ export const useTechStore = create<TechState>()(
               },
             },
           };
+      }),
+
+      addStringToMPPT: (inverterId, mpptId) => set(state => {
+        const inv = state.inverters.entities[inverterId];
+        if (!inv) return state;
+        
+        const invIndex = state.inverters.ids.indexOf(inverterId) + 1;
+        const formattedInvId = invIndex.toString().padStart(2, '0');
+        
+        const newMpptConfigs = inv.mpptConfigs.map(mppt => {
+          if (mppt.mpptId === mpptId) {
+            // Busca o maior índice Z na nomenclatura INV-XX.MY.SZ atual para evitar duplicatas ao remover/adicionar
+            const existingIndices = (mppt.strings || []).map(s => {
+               const match = s.name.match(/\.S(\d+)$/);
+               return match ? parseInt(match[1], 10) : 0;
+            });
+            const nextIndex = existingIndices.length > 0 ? Math.max(...existingIndices) + 1 : 1;
+
+            const newString: StringDef = {
+              id: Math.random().toString(36).substring(2, 9),
+              name: `INV-${formattedInvId}.M${mpptId}.S${nextIndex}`,
+              modulesCount: mppt.modulesPerString || 0,
+              cableLength: 10,
+              cableSection: 4
+            };
+            return {
+              ...mppt,
+              strings: [...(mppt.strings || []), newString],
+              stringsCount: (mppt.strings || []).length + 1,
+            };
+          }
+          return mppt;
+        });
+
+        return {
+          inverters: {
+            ...state.inverters,
+            entities: {
+              ...state.inverters.entities,
+              [inverterId]: { ...inv, mpptConfigs: newMpptConfigs }
+            }
+          }
+        };
+      }),
+
+      removeStringFromMPPT: (inverterId, mpptId, stringId) => set(state => {
+        const inv = state.inverters.entities[inverterId];
+        if (!inv) return state;
+
+        const newMpptConfigs = inv.mpptConfigs.map(mppt => {
+          if (mppt.mpptId === mpptId) {
+            const newStrings = (mppt.strings || []).filter(s => s.id !== stringId);
+            return {
+              ...mppt,
+              strings: newStrings,
+              stringsCount: newStrings.length,
+            };
+          }
+          return mppt;
+        });
+
+        return {
+          inverters: {
+            ...state.inverters,
+            entities: {
+              ...state.inverters.entities,
+              [inverterId]: { ...inv, mpptConfigs: newMpptConfigs }
+            }
+          }
+        };
+      }),
+
+      updateStringInMPPT: (inverterId, mpptId, stringId, data) => set(state => {
+        const inv = state.inverters.entities[inverterId];
+        if (!inv) return state;
+
+        const newMpptConfigs = inv.mpptConfigs.map(mppt => {
+          if (mppt.mpptId === mpptId) {
+            const newStrings = (mppt.strings || []).map(s => 
+              s.id === stringId ? { ...s, ...data } : s
+            );
+            return { ...mppt, strings: newStrings };
+          }
+          return mppt;
+        });
+
+        return {
+          inverters: {
+            ...state.inverters,
+            entities: {
+              ...state.inverters.entities,
+              [inverterId]: { ...inv, mpptConfigs: newMpptConfigs }
+            }
+          }
+        };
       }),
 
       updateLoss: (key, value) => set((state) => ({

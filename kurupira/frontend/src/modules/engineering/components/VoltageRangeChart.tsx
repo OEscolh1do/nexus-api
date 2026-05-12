@@ -50,7 +50,7 @@ export const VoltageRangeChart: React.FC<{ className?: string, entityId?: string
                         isc: selectedModule.isc,
                         tempCoeffVoc: selectedModule.tempCoeff || -0.29,
                     },
-                    mppt.modulesPerString,
+                    mppt.modulesPerString ?? 0,
                     minAmbientTemp,
                     maxCellTemp
                 );

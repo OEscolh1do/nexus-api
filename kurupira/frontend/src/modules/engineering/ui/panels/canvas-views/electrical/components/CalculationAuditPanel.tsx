@@ -1,6 +1,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { MPPTConfig } from '../../../../../store/useTechStore';
+import { calculateFuseRating } from '../../../../../utils/electricalMath';
 
 interface MPPTMiniMetrics {
   vocFrio: number;
@@ -134,8 +135,17 @@ export const CalculationAuditPanel: React.FC<CalculationAuditPanelProps> = ({
           const metrics = mpptMetrics[mppt.mpptId];
           if (!metrics || metrics.powerKwp === 0) return null;
 
-          const n_serie = mppt.modulesPerString;
-          const n_paralelo = mppt.stringsCount;
+          const activeStrings = mppt.strings?.length ? mppt.strings : 
+            Array.from({ length: mppt.stringsCount || 0 }).map((_, i) => ({ 
+              name: `String ${i+1}`,
+              modulesCount: mppt.modulesPerString || 0,
+              cableLength: mppt.cableLength || 0,
+              cableSection: mppt.cableSection || 0
+            }));
+
+          const n_paralelo = activeStrings.length;
+          const maxModules = n_paralelo > 0 ? Math.max(...activeStrings.map(s => s.modulesCount)) : 0;
+          const n_serie = maxModules; // Pior caso para tensão máxima
           const limitVmaxSafety = dashboardData.limitInverterVMax * 0.95;
 
           const vocSafety = metrics.vocFrio <= dashboardData.limitInverterVMax;
@@ -145,21 +155,23 @@ export const CalculationAuditPanel: React.FC<CalculationAuditPanelProps> = ({
           const iscFatorSafety = metrics.iscTotal <= iscLimit;
           const impClipping = metrics.impTotal > iscLimit; // Clipping = Operacional excede MPPT, mas Hardware aguenta
 
-          // Fórmula explícitas
+          // Fórmulas explícitas
           const formulaVoc = `${n_serie} × ${moduleSpecs.voc.toFixed(1)}V × [1 + (${moduleSpecs.tempCoeffVoc}% × (${tmin}°C - 25°C))]`;
           const formulaVmp = `${n_serie} × ${moduleSpecs.vmp.toFixed(1)}V × [1 + (${moduleSpecs.tempCoeffVmp}% × (${tcelulaMax.toFixed(0)}°C - 25°C))]`;
           const formulaIsc = `${n_paralelo} × ${moduleSpecs.isc.toFixed(2)}A × 1.25 (NBR)`;
           const formulaImp = `${n_paralelo} × ${moduleSpecs.imp.toFixed(2)}A`;
+          
+          const suggestedFuse = calculateFuseRating(moduleSpecs.isc);
 
           return (
             <div key={mppt.mpptId} className="bg-slate-900/50 border border-slate-800 rounded-md overflow-hidden">
               <div className="bg-slate-800/50 px-4 py-2 border-b border-slate-800 flex justify-between items-center">
                 <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">
-                  MPPT {mppt.mpptId} — Strings: {n_paralelo} × {n_serie} Módulos
+                  MPPT {mppt.mpptId} — Strings: {n_paralelo} × (Até {n_serie} Módulos)
                 </span>
                 {n_paralelo >= 3 && (
                   <span className="bg-red-500/20 text-red-400 px-2 py-0.5 rounded-sm font-bold text-[9px] uppercase tracking-wider">
-                    Fusíveis CC Obrigatórios (NBR 16690 §7.4)
+                    Fusíveis CC Obrigatórios: {suggestedFuse}A gPV
                   </span>
                 )}
               </div>
@@ -266,6 +278,38 @@ export const CalculationAuditPanel: React.FC<CalculationAuditPanelProps> = ({
                     </td>
                   </tr>
 
+                  {/* Queda de Tensão CC (Apenas Strings Válidas) */}
+                  {activeStrings.map(str => {
+                    if (!str.cableLength || !str.cableSection || str.modulesCount <= 0) return null;
+                    const strVmpNominal = str.modulesCount * moduleSpecs.vmp;
+                    const operationalCurrent = moduleSpecs.imp || (moduleSpecs.isc * 0.95);
+                    const dropV = (2 * str.cableLength * operationalCurrent) / (56 * str.cableSection);
+                    const dropPercent = (dropV / strVmpNominal) * 100;
+                    
+                    return (
+                      <tr key={str.name} className="border-t border-slate-800/50 bg-slate-900/30 hover:bg-white/[0.02]">
+                        <td className="py-2 px-4">
+                          <div className="font-mono text-purple-400">ΔV% ({str.name})</div>
+                          <div className="text-[9px] text-slate-500 mt-0.5">Cabo CC: {str.cableLength}m @ {str.cableSection}mm²</div>
+                        </td>
+                        <td className="py-2 px-4 font-mono text-slate-400 leading-relaxed text-[10px]">
+                          [2 × {str.cableLength}m × {operationalCurrent.toFixed(1)}A] ÷ [56 × {str.cableSection}mm²]<br/>
+                          <span className="text-white text-xs font-bold">= {dropV.toFixed(2)} V</span>
+                        </td>
+                        <td className="py-2 px-4 font-mono text-slate-500">
+                          {'<'} 2.00 %
+                        </td>
+                        <td className="py-2 px-4">
+                          <span className={cn(
+                            "px-2 py-0.5 rounded-sm font-bold text-[9px] uppercase tracking-wider",
+                            dropPercent > 2 ? "bg-red-500/20 text-red-400" : dropPercent > 1 ? "bg-amber-500/20 text-amber-400" : "bg-emerald-500/20 text-emerald-400"
+                          )}>
+                            {dropPercent > 2 ? 'Excessivo' : dropPercent > 1 ? 'Elevado' : 'Adequado'} ({dropPercent.toFixed(2)}%)
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

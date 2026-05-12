@@ -22,6 +22,8 @@ export default function InverterDrawer({ inverterEquipment: m, onClose, onMutate
 
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
+    manufacturer: m.manufacturer,
+    model: m.model,
     nominalPowerW: m.nominalPowerW,
     maxInputV: m.maxInputV || '',
     mpptCount: m.mpptCount || '',
@@ -36,7 +38,7 @@ export default function InverterDrawer({ inverterEquipment: m, onClose, onMutate
     iMaxDC: (m.electricalData as any)?.iMaxDC || '',
   });
 
-  const { mutate: patch, loadingId: patchLoadingId } = usePatchEquipment('/catalog/inverters', () => {
+  const { mutate: patch, loadingId: patchLoadingId, error: patchError } = usePatchEquipment('/catalog/inverters', () => {
     setIsEditing(false);
     if (onMutated) onMutated();
   });
@@ -302,6 +304,27 @@ export default function InverterDrawer({ inverterEquipment: m, onClose, onMutate
             <section className="rounded-sm border border-sky-500/20 bg-sky-500/5 p-4 space-y-4">
               <p className="text-[10px] font-bold uppercase tracking-widest text-sky-400">Editor de Parâmetros</p>
               <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-[10px] text-slate-500 uppercase font-bold">Fabricante</label>
+                <input
+                  type="text"
+                  value={formData.manufacturer}
+                  onChange={(e) => setFormData({ ...formData, manufacturer: e.target.value })}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-sm px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500/50"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] text-slate-500 uppercase font-bold">Modelo</label>
+                <input
+                  type="text"
+                  value={formData.model}
+                  onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-sm px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500/50"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-[10px] text-slate-500">Potência Nom. (W)</label>
                   <input
@@ -414,46 +437,56 @@ export default function InverterDrawer({ inverterEquipment: m, onClose, onMutate
         {/* Footer de Ações Fixo */}
         <div className="border-t border-slate-800 bg-slate-950 px-5 py-4 space-y-2">
           {isEditing ? (
-            <div className="flex gap-2">
-              <button
-                onClick={() => setIsEditing(false)}
-                className="flex-1 rounded-sm border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-700 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => {
-                  const payload: any = {
-                    nominalPowerW: Number(formData.nominalPowerW),
-                    maxInputV: formData.maxInputV ? Number(formData.maxInputV) : null,
-                    Voc_max_hardware: formData.maxInputV ? Number(formData.maxInputV) : null,
-                    Isc_max_hardware: formData.iMaxDC ? Number(formData.iMaxDC) : null,
-                    mpptCount: formData.mpptCount ? Number(formData.mpptCount) : null,
-                    efficiency: formData.efficiency ? Number(formData.efficiency) : null,
-                    width: formData.width ? Number(formData.width) : null,
-                    height: formData.height ? Number(formData.height) : null,
-                    depth: formData.depth ? Number(formData.depth) : null,
-                    weight: formData.weight ? Number(formData.weight) : null,
-                  };
+            <div className="flex gap-2 flex-col">
+              {patchError && (
+                <div className="flex items-center gap-2 rounded-sm bg-red-500/10 border border-red-500/20 px-3 py-2 text-[10px] text-red-400">
+                  <AlertTriangle className="h-3 w-3 shrink-0" />
+                  {patchError}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setIsEditing(false)}
+                  className="flex-1 rounded-sm border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-700 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    const payload: any = {
+                      manufacturer: formData.manufacturer,
+                      model: formData.model,
+                      nominalPowerW: formData.nominalPowerW ? Number(formData.nominalPowerW) : null,
+                      maxInputV: formData.maxInputV ? Number(formData.maxInputV) : null,
+                      Voc_max_hardware: formData.maxInputV ? Number(formData.maxInputV) : null,
+                      Isc_max_hardware: formData.iMaxDC ? Number(formData.iMaxDC) : null,
+                      mpptCount: formData.mpptCount ? Number(formData.mpptCount) : null,
+                      efficiency: formData.efficiency ? Number(formData.efficiency) : null,
+                      width: formData.width ? Number(formData.width) : null,
+                      height: formData.height ? Number(formData.height) : null,
+                      depth: formData.depth ? Number(formData.depth) : null,
+                      weight: formData.weight ? Number(formData.weight) : null,
+                    };
 
-                  // Merge e Sincronização de Dados de Engenharia
-                  const currentED = (m.electricalData as any) || {};
-                  const updatedED = mergeTechnicalData(currentED, {
-                    vMinMpp: formData.vMinMpp ? Number(formData.vMinMpp) : currentED.vMinMpp,
-                    vMaxMpp: formData.vMaxMpp ? Number(formData.vMaxMpp) : currentED.vMaxMpp,
-                    iMaxDC: formData.iMaxDC ? Number(formData.iMaxDC) : currentED.iMaxDC,
-                  });
+                    // Merge e Sincronização de Dados de Engenharia
+                    const currentED = (m.electricalData as any) || {};
+                    const updatedED = mergeTechnicalData(currentED, {
+                      vMinMpp: formData.vMinMpp ? Number(formData.vMinMpp) : currentED.vMinMpp,
+                      vMaxMpp: formData.vMaxMpp ? Number(formData.vMaxMpp) : currentED.vMaxMpp,
+                      iMaxDC: formData.iMaxDC ? Number(formData.iMaxDC) : currentED.iMaxDC,
+                    });
 
-                  payload.electricalData = syncInverterData(payload, updatedED);
-                  
-                  patch(m.id, payload);
-                }}
-                disabled={isSaving}
-                className="flex-1 flex items-center justify-center gap-1.5 rounded-sm bg-sky-600 px-3 py-2 text-xs font-medium text-white hover:bg-sky-500 transition-colors disabled:opacity-50"
-              >
-                {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                Salvar
-              </button>
+                    payload.electricalData = syncInverterData(payload, updatedED);
+                    
+                    patch(m.id, payload);
+                  }}
+                  disabled={isSaving}
+                  className="flex-1 flex items-center justify-center gap-1.5 rounded-sm bg-sky-600 px-3 py-2 text-xs font-medium text-white hover:bg-sky-500 transition-colors disabled:opacity-50"
+                >
+                  {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                  Salvar
+                </button>
+              </div>
             </div>
           ) : (
             <button
