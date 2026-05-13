@@ -147,8 +147,8 @@ export const EngineeringKPIStrip: React.FC<{ compact?: boolean }> = ({ compact }
 
       <KPIItem 
         label="Status" 
-        value={globalHealth === 'error' ? 'FALHA' : globalHealth === 'warning' ? 'AVISO' : 'OK'} 
-        severity={globalHealth === 'warning' ? 'warning' : globalHealth === 'error' ? 'error' : 'ok'}
+        value={globalHealth === 'error' ? 'FALHA' : 'OK'} 
+        severity={globalHealth === 'error' ? 'error' : 'ok'}
         tooltip="Saúde geral das conexões e limites de tensão/corrente"
       />
 

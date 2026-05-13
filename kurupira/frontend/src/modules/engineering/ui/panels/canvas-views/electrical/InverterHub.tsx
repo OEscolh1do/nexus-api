@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { Zap, Plus, X, Search, Upload, ChevronDown, Package, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Zap, Plus, X, Search, Upload, ChevronDown, Package, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useInverterCompatibility } from '../../../../hooks/useInverterCompatibility';
 import { type InverterCatalogItem } from '@/core/schemas/inverterSchema';
@@ -57,6 +57,11 @@ interface InverterHubProps {
   };
   /** Quantidade de MPPTs com strings alocadas no inversor ativo */
   activeMpptCount?: number;
+  /** Limites elétricos e valores máximos para dashboard unificado */
+  totalVocMax?: number;
+  totalIscMax?: number;
+  limitInverterVMax?: number;
+  limitIscMaxMppt?: number;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -97,6 +102,10 @@ export const InverterHub: React.FC<InverterHubProps> = ({
   totalKwpCC = 0,
   inventory,
   activeMpptCount = 0,
+  totalVocMax = 0,
+  totalIscMax = 0,
+  limitInverterVMax = 0,
+  limitIscMaxMppt = 0,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -194,122 +203,136 @@ export const InverterHub: React.FC<InverterHubProps> = ({
   const adherenceProgress = (fdiProgress * 0.7) + (mpptUtilization * 100 * 0.3);
 
   return (
-    <div className="bg-slate-900/50 border-b border-slate-800 flex flex-col lg:flex-row lg:items-center shrink-0 z-20 min-h-[3.5rem] lg:h-14 relative">
+    <div className="bg-slate-900/50 border-b border-slate-800 flex flex-col lg:flex-row lg:items-center shrink-0 z-20 min-h-[3.5rem] lg:h-14 relative px-2 gap-4">
 
       {/* PREFIX — Machine Status Header */}
-      <div className="flex items-center px-4 h-14 lg:h-full border-r border-slate-800 shrink-0 bg-slate-950/40">
-        <div className="flex flex-col">
-          <div className="flex items-center gap-1.5">
+      <div className="flex items-center px-2 h-14 lg:h-full shrink-0">
+        <div className="flex flex-col justify-center">
+          <div className="flex items-center gap-2">
             <Zap size={14} className={cn(
               "transition-all duration-700",
-              globalHealth === 'ok' ? "text-emerald-500" : globalHealth === 'warning' ? "text-amber-500" : "text-rose-500"
+              globalHealth === 'error' ? "text-rose-500" : "text-emerald-500"
             )} />
-            <span className="text-[10px] font-black text-slate-200 uppercase tracking-[0.2em]">Power Hub</span>
-          </div>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-[7px] text-slate-600 font-black uppercase tracking-widest">
-              Status: {globalHealth.toUpperCase()}
-            </span>
-            <div className="w-[1px] h-2 bg-slate-800" />
-            <span className="text-[7px] text-slate-600 font-black uppercase tracking-widest">
-              {inverterChips.length} {inverterChips.length === 1 ? 'UNIDADE' : 'UNIDADES'}
+            <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
+              {globalHealth === 'error' ? 'FALHA' : 'Nominal'}
             </span>
           </div>
         </div>
       </div>
 
-      {/* KPIs — P_CC / P_CA / FDI (Refinado via Neurodesign) */}
-      <div className="flex items-center gap-6 px-5 h-14 lg:h-full border-r border-slate-800 shrink-0 bg-slate-900/10">
-        {/* P_CC */}
+      <div className="w-[1px] h-6 bg-slate-800/50" /> {/* Separator sutil */}
+
+      {/* COCKPIT DE POTÊNCIA (P_CC / P_CA / FDI) */}
+      <div className="flex items-center gap-5 px-3 h-14 lg:h-full shrink-0 border-r border-slate-800/30">
         <div className="flex flex-col justify-center">
-          <span className="text-[7px] text-slate-500 font-black uppercase tracking-[0.2em] leading-none mb-1">Potência CC</span>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-[14px] font-mono font-black text-amber-400 tabular-nums leading-none">
+          <span className="text-[9px] text-slate-500 font-black uppercase tracking-tight mb-1">Carga CC</span>
+          <div className="flex items-baseline gap-1">
+            <span className="text-[13px] font-mono font-black text-amber-400 tabular-nums leading-none">
               {totalKwpCC > 0 ? totalKwpCC.toFixed(2) : '—'}
             </span>
-            <span className="text-[8px] text-slate-600 font-black uppercase tracking-widest leading-none">kWp</span>
+            <span className="text-[8px] text-slate-600 font-black uppercase">kWp</span>
           </div>
         </div>
 
-        {/* P_CA */}
         <div className="flex flex-col justify-center">
-          <span className="text-[7px] text-slate-500 font-black uppercase tracking-[0.2em] leading-none mb-1">Potência CA</span>
-          <div className="flex items-baseline gap-1.5">
+          <span className="text-[9px] text-slate-500 font-black uppercase tracking-tight mb-1">Saída CA</span>
+          <div className="flex items-baseline gap-1">
             <span className={cn(
-              'text-[14px] font-mono font-black tabular-nums leading-none',
-              fdi >= 1.05 && fdi <= 1.45 ? 'text-emerald-400' : 'text-slate-400'
+              'text-[13px] font-mono font-black tabular-nums leading-none',
+              fdi >= 1.05 && fdi <= 1.45 ? 'text-emerald-400' : 'text-slate-300'
             )}>
-              {totalPower > 0 ? totalPower.toFixed(1) : '—'}
+              {totalPower > 0 ? totalPower.toFixed(2) : '—'}
             </span>
-            <span className="text-[8px] text-slate-600 font-black uppercase tracking-widest leading-none">kW</span>
+            <span className="text-[8px] text-slate-600 font-black uppercase">kW</span>
           </div>
         </div>
 
-        {/* FDI (Oversizing) */}
         {fdi > 0 && (
-          <div className="flex flex-col justify-center min-w-[45px]">
-            <span className="text-[7px] text-slate-500 font-black uppercase tracking-[0.2em] leading-none mb-1">FDI</span>
+          <div className="flex flex-col justify-center">
+            <span className="text-[9px] text-slate-500 font-black uppercase tracking-tight mb-1">FDI</span>
             <div className="flex items-baseline gap-0.5">
               <span className={cn(
-                'text-[14px] font-mono font-black tabular-nums leading-none transition-colors',
+                'text-[13px] font-mono font-black tabular-nums leading-none transition-colors',
                 fdi < 1.05 || fdi > 1.60 ? 'text-rose-400' :
                 fdi <= 1.35 ? 'text-emerald-400' : 'text-amber-400'
               )}>
                 {(fdi * 100).toFixed(0)}
               </span>
-              <span className="text-[8px] text-slate-600 font-black uppercase tracking-widest leading-none">%</span>
+              <span className="text-[8px] text-slate-600 font-black uppercase">%</span>
             </div>
           </div>
         )}
       </div>
 
-      {/* INVENTORY / MODULE BALANCE - DUAL-STATE COCKPIT (TIER 3) */}
-      {inventory && inventory.inventoryCount > 0 && (
-        <div className="flex items-center px-4 h-14 lg:h-full border-r border-slate-800 shrink-0 bg-slate-900/10" title={inventory.message}>
-          {inventory.remainingCount === 0 ? (
-            // COLLAPSED COMPLETED STATE
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-sm bg-emerald-500/10 border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.1)]">
-              <CheckCircle2 size={13} className="text-emerald-500" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
-                100% Alocado ({inventory.inventoryCount})
-              </span>
+      {/* SAFETY LIMITS (Voc / Isc) — Unificados no Hub para evitar redundância com Pills */}
+      {(totalVocMax > 0 || totalIscMax > 0) && (
+        <div className="flex items-center gap-5 px-3 h-14 lg:h-full shrink-0 border-r border-slate-800/30">
+          {totalVocMax > 0 && (
+            <div className="flex flex-col justify-center" title={`Limite Inversor: ${limitInverterVMax}V`}>
+              <span className="text-[9px] text-slate-500 font-black uppercase tracking-tight mb-1">Voc Máx</span>
+              <div className="flex items-baseline gap-1">
+                <span className={cn(
+                  "text-[13px] font-mono font-black tabular-nums leading-none",
+                  totalVocMax > limitInverterVMax ? "text-rose-500" : totalVocMax > limitInverterVMax * 0.95 ? "text-amber-500" : "text-slate-300"
+                )}>
+                  {totalVocMax.toFixed(0)}
+                </span>
+                <span className="text-[8px] text-slate-600 font-black uppercase">V</span>
+              </div>
             </div>
-          ) : inventory.remainingCount < 0 ? (
-            // EXCEEDED STATE
-            <div className="flex flex-col justify-center min-w-[150px]">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[8px] text-rose-500 font-bold uppercase tracking-[0.15em] leading-none flex items-center gap-1">
-                  <AlertTriangle size={10} />
-                  Orçamento Excedido
+          )}
+
+          {totalIscMax > 0 && (
+            <div className="flex flex-col justify-center" title={`Limite MPPT: ${limitIscMaxMppt}A`}>
+              <span className="text-[9px] text-slate-500 font-black uppercase tracking-tight mb-1">Isc Tot</span>
+              <div className="flex items-baseline gap-1">
+                <span className={cn(
+                  "text-[13px] font-mono font-black tabular-nums leading-none",
+                  totalIscMax > limitIscMaxMppt ? "text-amber-500" : "text-slate-300"
+                )}>
+                  {totalIscMax.toFixed(1)}
                 </span>
-                <span className="text-[9px] font-mono font-black text-rose-400 animate-pulse">
-                  +{Math.abs(inventory.remainingCount)} Mód
-                </span>
+                <span className="text-[8px] text-slate-600 font-black uppercase">A</span>
               </div>
-              <div className="w-full h-1.5 bg-rose-950/50 rounded-full overflow-hidden flex border border-rose-900/50">
-                <div className="h-full bg-rose-500 w-full shadow-[0_0_8px_rgba(225,29,72,0.8)]" />
-              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="w-[1px] h-6 bg-slate-800/50" /> {/* Separator sutil */}
+
+      {/* INVENTORY / MODULE BALANCE — Compactado para otimização de espaço */}
+      {inventory && inventory.inventoryCount > 0 && (
+        <div className="flex items-center px-2 h-14 lg:h-full shrink-0 border-r border-slate-800/30" title={inventory.message}>
+          {inventory.remainingCount === 0 ? (
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-sm bg-emerald-500/5 border border-emerald-500/20">
+              <CheckCircle2 size={10} className="text-emerald-500" />
+              <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400">OK</span>
             </div>
           ) : (
-            // PENDING STATE (DUAL GAUGE)
-            <div className="flex flex-col justify-center min-w-[160px]">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[8px] text-slate-400 font-bold uppercase tracking-[0.15em] leading-none">
-                  Alocados: <span className="text-slate-200">{inventory.logicalCount}</span>
+            <div className="flex flex-col justify-center min-w-[100px]">
+              <div className="flex items-center justify-between mb-1 gap-4">
+                <span className={cn(
+                  "text-[9px] font-black uppercase tracking-tight",
+                  inventory.remainingCount < 0 ? "text-rose-400" : "text-slate-500"
+                )}>
+                  {inventory.remainingCount < 0 ? 'Excesso' : 'Saldo'}
                 </span>
-                <span className="text-[8px] text-amber-500 font-bold uppercase tracking-[0.15em] leading-none animate-pulse">
-                  Restam: <span className="text-amber-400">{inventory.remainingCount}</span>
+                <span className={cn(
+                  "text-[11px] font-mono font-black tabular-nums leading-none",
+                  inventory.remainingCount < 0 ? "text-rose-400" : "text-amber-400"
+                )}>
+                  {Math.abs(inventory.remainingCount)}
                 </span>
               </div>
-              {/* Progress Bar */}
-              <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden flex relative">
+              <div className="w-full h-[3px] bg-slate-800 rounded-full overflow-hidden">
                 <div 
-                  className="h-full bg-sky-500 transition-all duration-500 ease-out"
-                  style={{ width: `${(inventory.logicalCount / inventory.inventoryCount) * 100}%` }}
+                  className={cn(
+                    "h-full transition-all duration-500",
+                    inventory.remainingCount < 0 ? "bg-rose-500" : "bg-sky-500"
+                  )}
+                  style={{ width: `${Math.min(100, (inventory.logicalCount / inventory.inventoryCount) * 100)}%` }}
                 />
-              </div>
-              <div className="text-[7px] text-slate-500 font-black tracking-[0.2em] uppercase mt-1.5 text-center w-full">
-                Orçado: {inventory.inventoryCount} Módulos
               </div>
             </div>
           )}

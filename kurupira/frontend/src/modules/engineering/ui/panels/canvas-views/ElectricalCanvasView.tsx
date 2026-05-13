@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useEffect } from 'react';
+import React, { useMemo, useCallback, useEffect, useState } from 'react';
 import { useSolarStore, selectModules } from '@/core/state/solarStore';
 import { useTechStore } from '../../../store/useTechStore';
 import { useTechKPIs } from '../../../hooks/useTechKPIs';
@@ -15,9 +15,9 @@ import { cn } from '@/lib/utils';
 
 // Componentes do Hub + Strip + Canvas
 import { InverterHub, type InverterChipData, type ValidationPill } from './electrical/InverterHub';
-import { MPPTConfigStrip } from './electrical/MPPTConfigStrip';
+import { MPPTInspectorPanel } from './electrical/MPPTInspectorPanel';
+import { getModuleSpecs } from '../../../utils/specAdapter';
 import { VoltageRangeChart, type MpptThermalProfile } from './electrical/VoltageRangeChart';
-import { StringTopologyViewer } from './electrical/StringTopologyViewer';
 import { OversizingPanel } from './electrical/OversizingPanel';
 import { CalculationAuditPanel } from './electrical/components/CalculationAuditPanel';
 import { DiagnosticAlertsList, AlertDescriptor } from './electrical/components/DiagnosticAlertsList';
@@ -97,22 +97,6 @@ export const ElectricalCanvasView: React.FC = () => {
     [modules]
   );
 
-  // ── Helper: Extração de Specs do Módulo ──────────────────────────────────
-  const getModuleSpecs = useCallback((m: any) => {
-    if (!m) return null;
-    return {
-      voc:         m.voc,
-      vmp:         m.vmp ?? m.voc * ENGINEERING_CONSTANTS.VMP_VOC_RATIO_ESTIMATE,
-      isc:         m.isc ?? 0,
-      imp:         m.imp ?? m.isc * 0.95,
-      pmax:        m.power ?? (m as any).pmax ?? 0,
-      tempCoeffVoc: (m as any).electrical?.tempCoeffVoc ?? m.tempCoeff ?? ENGINEERING_CONSTANTS.DEFAULT_TEMP_COEFF_VOC,
-      tempCoeffVmp: (m as any).electrical?.tempCoeffVmp ?? ENGINEERING_CONSTANTS.DEFAULT_TEMP_COEFF_VMP,
-      noct:        (m as any).noct ?? ENGINEERING_CONSTANTS.DEFAULT_NOCT,
-      isBifacial:  (m as any).isBifacial ?? false,
-      albedo:      ENGINEERING_CONSTANTS.DEFAULT_ALBEDO,
-    };
-  }, []);
 
   // ── Temperaturas com fallback por UF ─────────────────────────────────────
   const { tmin, tamb_max } = useMemo(
@@ -199,10 +183,11 @@ export const ElectricalCanvasView: React.FC = () => {
     return {
       totalVocMax, totalIscMax,
       limitInverterVMax, limitMpptVMin, limitMpptVMax, limitIscMaxMppt,
+      startupVoltage,
       mpptProfiles, alerts,
       minModulesLimit, maxModulesLimit,
     };
-  }, [activeInverter, modules, tmin, electrical, calcVmpCalor, getModuleSpecs]);
+  }, [activeInverter, modules, tmin, electrical, calcVmpCalor]);
 
   // ── Métricas por MPPT para o Strip ────────────────────────────────────────
   const mpptMetrics = useMemo(() => {
@@ -232,7 +217,7 @@ export const ElectricalCanvasView: React.FC = () => {
       result[mppt.mpptId] = {
         vocFrio:    metrics?.vocMax ?? 0,
         vmpCalor,
-        iscTotal:   (specs.isc || 0) * strCount * bifacialFactor,
+        iscTotal:   (specs.isc || 0) * strCount * bifacialFactor * 1.25, // Fator NBR 16690 de 1.25 embutido na métrica
         impTotal:   (specs.imp || 0) * strCount * bifacialFactor,
         powerKwp:   totalMods > 0 ? (specs.pmax * totalMods) / 1000 : 0,
         hasMismatch,
@@ -241,46 +226,23 @@ export const ElectricalCanvasView: React.FC = () => {
       };
     });
     return result;
-  }, [activeInverter, modules, tmin, calcVmpCalor, getModuleSpecs, electrical]);
+  }, [activeInverter, modules, tmin, calcVmpCalor, electrical]);
 
   const activeMpptCount = useMemo(() => {
     return Object.values(mpptMetrics).filter(m => m.powerKwp > 0).length;
   }, [mpptMetrics]);
 
   // ── Chips de validação para o Hub ─────────────────────────────────────────
+   // Pills de status global (apenas se houver algo fora do normal ou informativo)
   const validationPills: ValidationPill[] = useMemo(() => {
     if (!dashboardData) return [];
-    const { totalVocMax, totalIscMax, limitInverterVMax, limitIscMaxMppt } = dashboardData;
-
-    const fdi = kpi.dcAcRatio;
     const pills: ValidationPill[] = [];
 
-    // FDI — 5 faixas
-    if (fdi > 0) {
-      const fdiSev: ValidationPill['severity'] =
-        fdi < 1.00 || fdi > 1.50 ? 'error' :
-        fdi <= 1.10 || (fdi > 1.35 && fdi <= 1.50) ? 'warn' : 'ok';
-      pills.push({ label: 'FDI', value: `${(fdi * 100).toFixed(0)}%`, severity: fdiSev,
-        tooltip: `FDI = P_CC / P_CA. Ideal: 110–135%.` });
-    }
-
-    // Voc
-    if (totalVocMax > 0) {
-      const vocRatio = totalVocMax / limitInverterVMax;
-      const vocSev: ValidationPill['severity'] = vocRatio > 1 ? 'error' : vocRatio > 0.95 ? 'warn' : 'ok';
-      pills.push({ label: 'Voc', value: `${totalVocMax.toFixed(0)}V`, severity: vocSev,
-        tooltip: `Voc corrigido pelo frio (Tmin ${tmin}°C). Limite: ${limitInverterVMax}V` });
-    }
-
-    // Isc
-    if (totalIscMax > 0) {
-      const iscSev: ValidationPill['severity'] = totalIscMax > limitIscMaxMppt ? 'warn' : 'ok';
-      pills.push({ label: 'Isc', value: `${totalIscMax.toFixed(1)}A`, severity: iscSev,
-        tooltip: `Isc total do arranjo. Limite por MPPT: ${limitIscMaxMppt}A` });
-    }
-
+    // Se houver algum erro de inventário que não está no Hub, podemos colocar aqui
+    // Mas por enquanto, o Hub já cobre FDI, Voc e Isc.
+    
     return pills;
-  }, [dashboardData, kpi.dcAcRatio, tmin]);
+  }, [dashboardData]);
 
   // ── Handlers de inversor ─────────────────────────────────────────────────
   const handleAddInverter = useCallback((item: InverterCatalogItem) => {
@@ -335,13 +297,20 @@ export const ElectricalCanvasView: React.FC = () => {
 
   // ── Scroll-to MPPT ao clicar em alerta ───────────────────────────────────
   const setHighlightMpptId = useInverterUIStore(s => s.setHighlightMpptId);
-  
+
+  // Estado local do Inspector — preferência de sessão, não precisa persistir no store
+  const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
+
   const handleAlertClick = useCallback((mpptId: string) => {
     const id = parseInt(mpptId);
     setHighlightMpptId(id);
-    // Quando clicar no alerta, abre o terminal se não estiver e pisca o MPPT
-    document.getElementById(`mppt-strip-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    setTimeout(() => setHighlightMpptId(null), 2500);
+    // Expandir o inspector se estiver colapsado para o scroll funcionar
+    setInspectorCollapsed(false);
+    // Aguarda a animação de expansão (300ms) antes de scrollar
+    setTimeout(() => {
+      document.getElementById(`mppt-inspector-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 320);
+    setTimeout(() => setHighlightMpptId(null), 2800);
   }, [setHighlightMpptId]);
 
   // ── Chips de inversor para o Hub ─────────────────────────────────────────
@@ -454,11 +423,17 @@ export const ElectricalCanvasView: React.FC = () => {
         totalKwpCC={totalKwpCC}
         activeMpptCount={activeMpptCount}
         inventory={inventory}
+        totalVocMax={dashboardData.totalVocMax}
+        totalIscMax={dashboardData.totalIscMax}
+        limitInverterVMax={dashboardData.limitInverterVMax}
+        limitIscMaxMppt={dashboardData.limitIscMaxMppt}
       />
 
-      {/* LEVEL 2: MPPTConfigStrip (Dynamic Capacity Cockpit) */}
-      <div className="shrink-0 max-h-[40vh] overflow-y-auto custom-scrollbar">
-        <MPPTConfigStrip
+      {/* LEVEL 2: Body Principal — Canvas + Inspector (flex-row) */}
+      <div className="flex-1 flex flex-row min-h-0">
+
+        {/* MPPT Inspector Panel — esquerda, colapsível */}
+        <MPPTInspectorPanel
           inverterId={activeInverter.id}
           mpptConfigs={activeInverter.mpptConfigs}
           mpptMetrics={mpptMetrics}
@@ -469,85 +444,81 @@ export const ElectricalCanvasView: React.FC = () => {
           limitVMax={dashboardData.limitInverterVMax}
           limitVMpptMin={dashboardData.limitMpptVMin}
           limitIscMaxMppt={dashboardData.limitIscMaxMppt}
-          maxModulesLimit={dashboardData.maxModulesLimit}
+          startupVoltage={dashboardData.startupVoltage}
+          tmin={tmin}
           module={repModule}
+          isCollapsed={inspectorCollapsed}
+          onToggle={() => setInspectorCollapsed(prev => !prev)}
         />
-      </div>
 
-      {/* LEVEL 3: Canvas Principal (Full-Width) */}
-      <div className="flex-1 flex flex-col min-h-0">
-        {/* Tab Bar */}
-        <div className="flex items-center border-b border-slate-800 shrink-0 bg-slate-950/80 px-4">
-          {([
-            { id: 'voltage',   label: 'Tensão Térmica' },
-            { id: 'oversizing', label: 'FDI / Oversizing' },
-            { id: 'topology',  label: 'Topologia Elétrica' },
-            { id: 'audit',     label: 'Auditoria de Cálculo' },
-          ] as const).map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveCanvasTab(tab.id)}
-              className={cn(
-                'flex items-center gap-1.5 px-6 py-2.5 min-h-[40px] text-[10px] font-black uppercase tracking-widest transition-all border-b-2 -mb-px',
-                activeCanvasTab === tab.id
-                  ? 'text-emerald-400 border-emerald-500 bg-emerald-950/10'
-                  : 'text-slate-500 border-transparent hover:text-slate-300 hover:border-slate-700'
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
+        {/* Canvas Principal — flex-1, ocupa toda a largura menos o inspector */}
+        <div className="flex-1 flex flex-col min-h-0">
+
+          {/* Tab Bar — audit é a tab padrão (memorial NBR 16690 em primeiro plano) */}
+          <div className="flex items-center border-b border-slate-800 shrink-0 bg-slate-950/80 px-4">
+            {([
+              { id: 'audit',      label: 'Auditoria de Cálculo' },
+              { id: 'voltage',    label: 'Tensão Térmica' },
+              { id: 'oversizing', label: 'FDI / Oversizing' },
+            ] as const).map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveCanvasTab(tab.id)}
+                className={cn(
+                  'flex items-center gap-1.5 px-6 py-2.5 min-h-[40px] text-[10px] font-black uppercase tracking-widest transition-all border-b-2 -mb-px',
+                  activeCanvasTab === tab.id
+                    ? 'text-emerald-400 border-emerald-500 bg-emerald-950/10'
+                    : 'text-slate-500 border-transparent hover:text-slate-300 hover:border-slate-700'
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Tab Content */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+            {activeCanvasTab === 'audit' && (
+              <div className="max-w-5xl mx-auto">
+                <CalculationAuditPanel
+                  mpptConfigs={activeInverter.mpptConfigs}
+                  mpptMetrics={mpptMetrics}
+                  dashboardData={dashboardData}
+                  activeInverterSnapshot={activeInverter.snapshot}
+                  moduleSpecs={getModuleSpecs(modules[0])}
+                  fdi={kpi.dcAcRatio}
+                  totalKwpCC={totalKwpCC}
+                  totalKwCA={activeInverter.snapshot.nominalPower}
+                  tmin={tmin}
+                  tambMax={tamb_max}
+                  highlightMpptId={highlightMpptId}
+                />
+              </div>
+            )}
+            {activeCanvasTab === 'voltage' && (
+              <div className="max-w-5xl mx-auto">
+                <VoltageRangeChart
+                  mpptProfiles={dashboardData.mpptProfiles}
+                  limitInversorVMax={dashboardData.limitInverterVMax}
+                  limitMpptVMin={dashboardData.limitMpptVMin}
+                  limitMpptVMax={dashboardData.limitMpptVMax}
+                  limitVStart={dashboardData.limitMpptVMin}
+                />
+              </div>
+            )}
+            {activeCanvasTab === 'oversizing' && (
+              <div className="max-w-4xl mx-auto">
+                <OversizingPanel
+                  fdi={kpi.dcAcRatio}
+                  totalKwpCC={totalKwpCC}
+                  totalKwCA={activeInverter.snapshot.nominalPower}
+                  uf={(clientData as any)?.state}
+                />
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Tab Content */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
-          {activeCanvasTab === 'voltage' && (
-            <div className="max-w-5xl mx-auto">
-              <VoltageRangeChart
-                mpptProfiles={dashboardData.mpptProfiles}
-                limitInversorVMax={dashboardData.limitInverterVMax}
-                limitMpptVMin={dashboardData.limitMpptVMin}
-                limitMpptVMax={dashboardData.limitMpptVMax}
-                limitVStart={dashboardData.limitMpptVMin}
-              />
-            </div>
-          )}
-          {activeCanvasTab === 'oversizing' && (
-            <div className="max-w-4xl mx-auto">
-              <OversizingPanel
-                fdi={kpi.dcAcRatio}
-                totalKwpCC={totalKwpCC}
-                totalKwCA={activeInverter.snapshot.nominalPower}
-                uf={(clientData as any)?.state}
-              />
-            </div>
-          )}
-          {activeCanvasTab === 'topology' && (
-            <div className="w-full">
-              <StringTopologyViewer
-                mpptConfigs={activeInverter.mpptConfigs}
-                mpptMetrics={mpptMetrics}
-                highlightMpptId={highlightMpptId}
-              />
-            </div>
-          )}
-          {activeCanvasTab === 'audit' && (
-            <div className="max-w-5xl mx-auto">
-              <CalculationAuditPanel
-                mpptConfigs={activeInverter.mpptConfigs}
-                mpptMetrics={mpptMetrics}
-                dashboardData={dashboardData}
-                activeInverterSnapshot={activeInverter.snapshot}
-                moduleSpecs={getModuleSpecs(modules[0])}
-                fdi={kpi.dcAcRatio}
-                totalKwpCC={totalKwpCC}
-                totalKwCA={activeInverter.snapshot.nominalPower}
-                tmin={tmin}
-                tambMax={tamb_max}
-              />
-            </div>
-          )}
-        </div>
       </div>
 
       {/* LEVEL 4: Diagnostics Terminal (Rodapé) */}
@@ -568,7 +539,6 @@ export const ElectricalCanvasView: React.FC = () => {
             {hasAlerts ? (
               <div className="flex items-center gap-2 ml-2">
                 {errorCount > 0 && <span className="text-[10px] font-mono font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-sm">{errorCount} Erro{errorCount !== 1 && 's'}</span>}
-                {warnCount > 0 && <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-sm">{warnCount} Alerta{warnCount !== 1 && 's'}</span>}
               </div>
             ) : (
               <span className="text-[10px] font-mono font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-sm ml-2">Sistema Nominal</span>

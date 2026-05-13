@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Navigation, Split, Zap, Sun } from 'lucide-react';
+import { Plus, Navigation, Zap, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { StringRow } from './components/StringRow';
 import { ModulePickerIsland } from './components/ModulePickerIsland';
@@ -7,6 +7,9 @@ import { OrientationModal } from './components/OrientationModal';
 import { StringPropertiesModal } from './components/StringPropertiesModal';
 import { MPPTConfig, StringDef } from '../../../../store/useTechStore';
 import { useSolarStore, selectModules } from '@/core/state/solarStore';
+import { ENGINEERING_CONSTANTS } from '../../../../constants/engineeringConstants';
+import { calculateStringMetrics } from '../../../../utils/electricalMath';
+import { getModuleSpecs } from '../../../../utils/specAdapter';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MPPT CONFIG STRIP — Cockpit de Engenharia v3
@@ -34,8 +37,12 @@ interface MPPTConfigStripProps {
   limitVMax: number;
   limitVMpptMin: number;
   limitIscMaxMppt: number;
-  maxModulesLimit?: number;
+  startupVoltage: number;
+  tmin: number;
   module?: any;
+  /** Quando true, força grid de 1 coluna — usado pelo MPPTInspectorPanel (280px) para
+   *  evitar distorção causada pelos breakpoints de viewport (md:grid-cols-2) */
+  forceSingleColumn?: boolean;
 }
 
 // ─── Sub-componente: Barra de Telemetria ─────────────────────────────────────
@@ -108,8 +115,10 @@ export const MPPTConfigStrip: React.FC<MPPTConfigStripProps> = ({
   limitVMax,
   limitVMpptMin,
   limitIscMaxMppt,
-  maxModulesLimit = 40,
+  startupVoltage,
+  tmin,
   module,
+  forceSingleColumn = false,
 }) => {
   const [orientationModalMppt, setOrientationModalMppt] = React.useState<number | null>(null);
   const [configString, setConfigString] = React.useState<{ mpptId: number, str: StringDef } | null>(null);
@@ -153,7 +162,12 @@ export const MPPTConfigStrip: React.FC<MPPTConfigStripProps> = ({
       role="region"
       aria-label="Cockpit de MPPTs"
     >
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
+      <div className={cn(
+        'grid gap-3',
+        forceSingleColumn
+          ? 'grid-cols-1'
+          : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'
+      )}>
         {mpptConfigs.map((mppt) => {
           const metrics   = mpptMetrics[mppt.mpptId];
           const hasVoc    = metrics && metrics.vocFrio > 0;
@@ -166,141 +180,136 @@ export const MPPTConfigStrip: React.FC<MPPTConfigStripProps> = ({
           const strings   = mppt.strings ?? [];
           const isEmpty   = strings.length === 0;
 
-          // ── Cor do status ──────────────────────────────────────────────
-          const statusDotClass = hasError ? 'bg-red-500 animate-pulse shadow-[0_0_6px_rgba(239,68,68,0.8)]'
-            : hasMism            ? 'bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.6)]'
-            : sectionOk          ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]'
+          const statusDotClass = hasError
+            ? 'bg-red-500 animate-pulse shadow-[0_0_6px_rgba(239,68,68,0.8)]'
+            : sectionOk || hasMism
+            ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]'
             : 'bg-slate-600';
 
-          const cardBorderClass = hasError ? 'border-red-500/30 bg-red-500/[0.02]'
-            : hasMism            ? 'border-amber-500/30 bg-amber-500/[0.02]'
-            : sectionOk          ? 'border-slate-700 hover:border-sky-500/40'
+          // A1: Status bar lateral (ISA-101 pré-atentivo)
+          const statusBarClass = hasError
+            ? 'bg-red-500'
+            : sectionOk || hasMism
+            ? 'bg-emerald-500'
+            : 'bg-slate-700';
+
+          const cardBorderClass = hasError
+            ? 'border-red-500/30'
+            : sectionOk || hasMism
+            ? 'border-slate-700 hover:border-sky-500/30'
             : 'border-slate-800';
+
+          // B1: kWp hero color
+          const kWpColor = sectionOk ? 'text-emerald-400' : hasError ? 'text-red-400' : 'text-slate-300';
+
 
           return (
             <div
               key={mppt.mpptId}
+              id={`mppt-inspector-${mppt.mpptId}`}
               className={cn(
-                'flex flex-col rounded-lg border transition-all duration-300',
+                'flex flex-col rounded-md border transition-all duration-300 relative overflow-hidden',
                 cardBorderClass
               )}
             >
-              {/* ── Header ─────────────────────────────────────────────── */}
-              <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-800/60 bg-slate-900/40">
-                
-                {/* 1. Identidade & 2. Contexto (Esquerda/Centro) */}
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1.5">
-                    <div className={cn('w-1.5 h-1.5 rounded-full shrink-0 transition-all', statusDotClass)} />
-                    <span className="text-[12px] font-black font-mono tracking-widest text-slate-200 uppercase">
-                      MPPT {mppt.mpptId}
-                    </span>
-                  </div>
+              {/* A1: Status Bar Lateral — atributo pré-atentivo ISA-101 */}
+              <div className={cn('absolute left-0 inset-y-0 w-[3px] rounded-l-sm transition-colors duration-300', statusBarClass)} />
 
-                  {/* Identidade do Módulo (Neurodesign: Marca + Potência para menor esforço mental) */}
-                  <div className="relative module-picker-container">
-                    {(() => {
-                      const selObj = mppt.moduleModel 
-                        ? (availableModules as any[]).find(m => m.model === mppt.moduleModel)
-                        : module;
-                      
-                      return (
-                        <div 
-                          onClick={() => setOpenPickerId(openPickerId === mppt.mpptId ? null : mppt.mpptId)}
-                          className={cn(
-                            "flex items-center gap-1.5 px-2 py-0.5 rounded transition-all cursor-pointer",
-                            mppt.moduleModel 
-                              ? "bg-sky-500/10 border border-sky-500/20 text-sky-400" 
-                              : "bg-slate-800/40 border border-slate-700/50 text-slate-400 hover:bg-slate-800/60"
-                          )}
-                        >
-                           <Sun size={9} className={mppt.moduleModel ? "text-sky-400" : "text-amber-500/70"} />
-                           <span className="text-[9px] font-bold uppercase tracking-widest whitespace-nowrap flex items-center gap-1">
-                             <span className="opacity-70">{selObj?.manufacturer?.split(' ')[0] || 'Módulo'}</span>
-                             <span className={mppt.moduleModel ? "text-sky-300" : "text-slate-200"}>{selObj?.power}W</span>
-                           </span>
-                        </div>
-                      );
-                    })()}
-                    
-                    {openPickerId === mppt.mpptId && (
-                      <ModulePickerIsland
-                        options={uniqueModuleModels}
-                        selectedValue={mppt.moduleModel}
-                        defaultModule={module}
-                        onSelect={(model) => updateMPPT(inverterId, mppt.mpptId, { moduleModel: model })}
-                        onClose={() => setOpenPickerId(null)}
-                      />
-                    )}
-                  </div>
-
-                  {/* Alertas sem caixa (Redução de Carga Cognitiva) */}
-                  <div className="flex items-center gap-2">
-                    {metrics.powerKwp === 0 ? (
-                      <span className="text-slate-500 text-[10px] font-black uppercase tracking-widest">
-                        Ocioso
-                      </span>
-                    ) : metrics.vmpCalor < limitVMpptMin ? (
-                      <span className="text-amber-400 text-[9px] font-bold uppercase tracking-wider flex items-center gap-1">
-                        <span className="animate-pulse">⚠️</span> Sub-dimensionado
-                      </span>
-                    ) : null}
-
-                    {metrics.hasMismatch && (
-                      <span 
-                        className="text-amber-400 text-[9px] font-bold uppercase tracking-wider flex items-center gap-1"
-                        title="Mismatch: Este MPPT possui orientação discrepante do restante do sistema."
-                      >
-                        <Split size={10} className="rotate-180" /> Mismatch
-                      </span>
-                    )}
-                  </div>
+              {/* ── ROW 1: Identidade + kWp Hero ───────────────────────── */}
+              <div className="flex items-center justify-between pl-5 pr-3 pt-2.5 pb-1">
+                {/* Esquerda: ID + status dot */}
+                <div className="flex items-center gap-2">
+                  <div className={cn('w-1.5 h-1.5 rounded-full shrink-0 transition-colors duration-300', statusDotClass)} />
+                  <span className="text-[11px] font-black font-mono tracking-widest text-slate-200 uppercase">
+                    MPPT {mppt.mpptId}
+                  </span>
                 </div>
 
-                {/* 3. Ação & Resultado (Direita) */}
-                <div className="flex items-center gap-3">
-                  
-                  {/* Botão de Orientação */}
-                  <button 
-                    onClick={() => setOrientationModalMppt(mppt.mpptId)}
-                    className={cn(
-                      "group/orient flex items-center gap-1.5 px-2 py-1 rounded-[4px] text-[10px] font-bold tracking-tight transition-all",
-                      mppt.azimuth !== undefined 
-                        ? "bg-amber-500/10 text-amber-400 hover:bg-amber-500/20" 
-                        : "text-slate-500 hover:text-slate-300 hover:bg-slate-800"
-                    )}
-                    title={mppt.azimuth !== undefined ? "Orientação Customizada" : "Orientação Herdada do Projeto"}
-                  >
-                    <Navigation size={11} className={cn(
-                      "transition-transform group-hover/orient:rotate-12",
-                      mppt.azimuth !== undefined ? "text-amber-400" : "text-slate-500"
-                    )} />
-                    <span className="font-mono tabular-nums tracking-tighter">
-                      {mppt.azimuth ?? globalAzimuth}° <span className="opacity-40 font-sans font-normal mx-[1px]">/</span> {mppt.inclination ?? globalInclination}°
+                {/* B1: kWp como Hero Metric — maior dado, primeira leitura */}
+                <div className="flex items-baseline gap-1">
+                  {hasVoc ? (
+                    <span
+                      key={metrics.powerKwp}
+                      className={cn(
+                        'text-[20px] font-black font-mono tabular-nums tracking-tighter leading-none animate-in fade-in duration-300',
+                        kWpColor
+                      )}
+                    >
+                      {metrics.powerKwp.toFixed(2)}
                     </span>
-                  </button>
-
-                  {/* Métrica de Saída (kWp) - Neurodesign: O Outcome é o mais importante */}
-                  {hasVoc && (
-                    <div className="flex items-baseline gap-1 pl-3 border-l border-slate-700/50">
-                      <span 
-                        key={metrics.powerKwp}
-                        className={cn(
-                          'text-[17px] font-black font-mono tabular-nums tracking-tighter drop-shadow-sm leading-none animate-in fade-in zoom-in duration-300',
-                          sectionOk ? 'text-emerald-400' : hasError ? 'text-red-400' : 'text-slate-100'
-                        )}
-                      >
-                        {metrics.powerKwp.toFixed(2)}
-                      </span>
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">kWp</span>
-                    </div>
+                  ) : (
+                    <span className="text-[13px] font-black font-mono text-slate-600">———</span>
                   )}
+                  <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">kWp</span>
                 </div>
               </div>
 
-              {/* ── The Twin Engines (Inline Telemetry) ── */}
+              {/* ── ROW 2: Config — Módulo + Orientação + Alertas ─────── */}
+              <div className="flex items-center gap-1.5 pl-5 pr-3 pb-2.5 border-b border-slate-800/60">
+
+                {/* B2: Module Picker ghost — borda apenas no hover */}
+                <div className="relative module-picker-container">
+                  {(() => {
+                    const selObj = mppt.moduleModel
+                      ? (availableModules as any[]).find(m => m.model === mppt.moduleModel)
+                      : module;
+                    return (
+                      <button
+                        onClick={() => setOpenPickerId(openPickerId === mppt.mpptId ? null : mppt.mpptId)}
+                        className={cn(
+                          'flex items-center gap-1 px-1.5 py-0.5 rounded transition-all',
+                          mppt.moduleModel
+                            ? 'text-sky-400 hover:bg-sky-500/10 hover:border hover:border-sky-500/20'
+                            : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/60'
+                        )}
+                        title={selObj?.model ?? 'Selecionar módulo'}
+                      >
+                        <Sun size={9} className={mppt.moduleModel ? 'text-sky-400' : 'text-amber-500/60'} />
+                        <span className="text-[9px] font-bold font-mono tracking-tight whitespace-nowrap">
+                          {selObj?.power ?? '—'}W
+                        </span>
+                      </button>
+                    );
+                  })()}
+                  {openPickerId === mppt.mpptId && (
+                    <ModulePickerIsland
+                      options={uniqueModuleModels}
+                      selectedValue={mppt.moduleModel}
+                      defaultModule={module}
+                      onSelect={(model) => updateMPPT(inverterId, mppt.mpptId, { moduleModel: model })}
+                      onClose={() => setOpenPickerId(null)}
+                    />
+                  )}
+                </div>
+
+                <span className="text-slate-700 select-none">·</span>
+
+                {/* Orientação ghost */}
+                <button
+                  onClick={() => setOrientationModalMppt(mppt.mpptId)}
+                  className={cn(
+                    'flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono tracking-tight transition-all',
+                    mppt.azimuth !== undefined
+                      ? 'text-amber-400 hover:bg-amber-500/10'
+                      : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/60'
+                  )}
+                  title={mppt.azimuth !== undefined ? 'Orientação customizada' : 'Orientação herdada do projeto'}
+                >
+                  <Navigation size={9} className={mppt.azimuth !== undefined ? 'text-amber-400' : 'text-slate-600'} />
+                  <span className="tabular-nums">
+                    {mppt.azimuth ?? globalAzimuth}° / {mppt.inclination ?? globalInclination}°
+                  </span>
+                </button>
+
+                {/* A2: Alertas inline sem caixa — aparecem só quando relevantes */}
+                {metrics.powerKwp === 0 ? (
+                  <span className="ml-auto text-[9px] font-black uppercase tracking-widest text-slate-600">Ocioso</span>
+                ) : null}
+              </div>
+
+              {/* ── Twin Telemetry (só quando tem dados) ─────────────── */}
               {hasVoc && (
-                <div 
+                <div
                   key={mppt.moduleModel || 'default'}
                   className="grid grid-cols-2 divide-x divide-slate-800/60 border-b border-slate-800/60 bg-slate-900/20 animate-in fade-in duration-500"
                 >
@@ -323,7 +332,7 @@ export const MPPTConfigStrip: React.FC<MPPTConfigStripProps> = ({
                 </div>
               )}
 
-              {/* ── Modal de Ajuste Fino ── */}
+              {/* ── Modal de Orientação ──────────────────────────────── */}
               <OrientationModal
                 isOpen={orientationModalMppt === mppt.mpptId}
                 onClose={() => setOrientationModalMppt(null)}
@@ -338,9 +347,9 @@ export const MPPTConfigStrip: React.FC<MPPTConfigStripProps> = ({
               />
 
               {/* ── Seção de Strings ────────────────────────────────────── */}
-              <div className="px-3 py-2 flex flex-col gap-2">
+              <div className="px-2 py-2 flex flex-col gap-1.5">
                 {/* Header da seção */}
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between px-1">
                   <span className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.15em]">
                     Strings
                     {strings.length > 0 && (
@@ -357,8 +366,6 @@ export const MPPTConfigStrip: React.FC<MPPTConfigStripProps> = ({
                     </button>
                   )}
                 </div>
-
-
 
                 {/* Banner de conversão de dados legados */}
                 {isEmpty && (mppt.stringsCount ?? 0) > 0 && (
@@ -386,48 +393,64 @@ export const MPPTConfigStrip: React.FC<MPPTConfigStripProps> = ({
                   </div>
                 )}
 
-                {/* ── Configurações de String ───────────────────────────────────── */}
-                <div className="flex-1 flex flex-col gap-2 p-3 bg-slate-900/40">
-                  {isEmpty ? (
-                    <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-800/20 rounded-lg py-8 opacity-40">
-                      <span className="text-[9px] font-bold text-slate-600 uppercase tracking-widest">Aguardando Módulos</span>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-1.5">
-                      {strings.map((str, idx) => {
-                        // Encontrar a maior string para normalizar o unitVoc
-                        const maxStrModules = Math.max(...strings.map(s => s.modulesCount || 0), 1);
-                        const unitVoc = metrics ? metrics.vocFrio / maxStrModules : 0;
+                {/* B: String list sem container extra (sem double padding) */}
+                {isEmpty ? (
+                  <div className="flex items-center gap-1.5 py-1.5 px-1 opacity-30">
+                    <span className="text-[9px] font-bold text-slate-600 uppercase tracking-widest">Aguardando módulos</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-1.5">
+                    {strings.map((str, idx) => {
+                      const selObj = mppt.moduleModel
+                        ? (availableModules as any[]).find(m => m.model === mppt.moduleModel)
+                        : module;
+                      const repSpecs = getModuleSpecs(selObj);
+                      
+                      let mpptMaxModules = 40;
+                      let mpptMinModules = 0;
+                      let unitVoc = 0;
+                      let unitVmp = metrics?.unitVmp || 0;
+                      let unitImp = metrics?.unitImp || 0;
+                      
+                      if (repSpecs) {
+                        // Limites baseados no Módulo real deste MPPT
+                        const metrics1 = calculateStringMetrics(repSpecs, 1, tmin);
+                        unitVoc = metrics1.vocMax;
+                        const vmpCalor1 = metrics1.vmpMin;
+                        
+                        mpptMaxModules = unitVoc > 0 ? Math.floor(limitVMax / unitVoc) : 40;
+                        const effectiveMinVoltage = Math.max(limitVMpptMin, startupVoltage);
+                        mpptMinModules = vmpCalor1 > 0 ? Math.ceil(effectiveMinVoltage / (vmpCalor1 * ENGINEERING_CONSTANTS.CC_VOLTAGE_DROP_FACTOR)) : 0;
+                        unitVmp = repSpecs.vmp;
+                        unitImp = repSpecs.imp;
+                      }
 
-                        // Cálculo do Mínimo e Máximo
-                        const unitVmpForCalc = metrics?.unitVmp || 1;
-                        const minModules = limitVMpptMin > 0 ? Math.ceil(limitVMpptMin / unitVmpForCalc) : 0;
-
-                        return (
-                          <StringRow
-                            key={str.id}
-                            str={str}
-                            index={idx}
-                            maxModules={maxModulesLimit}
-                            minModules={minModules}
-                            unitVoc={unitVoc}
-                            unitVmp={metrics?.unitVmp}
-                            unitImp={metrics?.unitImp}
-                            onUpdate={(data) =>
-                              updateStringInMPPT?.(inverterId, mppt.mpptId, str.id, data)
-                            }
-                            onOpenProperties={() => setConfigString({ mpptId: mppt.mpptId, str })}
-                            onRemove={
-                              strings.length > 1
-                                ? () => removeStringFromMPPT?.(inverterId, mppt.mpptId, str.id)
-                                : undefined
-                            }
-                          />
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
+                      return (
+                        <StringRow
+                          key={str.id}
+                          str={str}
+                          index={idx}
+                          mpptAzimuth={mppt.azimuth}
+                          mpptInclination={mppt.inclination}
+                          maxModules={mpptMaxModules}
+                          minModules={mpptMinModules}
+                          unitVoc={unitVoc}
+                          unitVmp={unitVmp}
+                          unitImp={unitImp}
+                          onUpdate={(data) =>
+                            updateStringInMPPT?.(inverterId, mppt.mpptId, str.id, data)
+                          }
+                          onOpenProperties={() => setConfigString({ mpptId: mppt.mpptId, str })}
+                          onRemove={
+                            strings.length > 1
+                              ? () => removeStringFromMPPT?.(inverterId, mppt.mpptId, str.id)
+                              : undefined
+                          }
+                        />
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* ── Modal de Propriedades da String ── */}
