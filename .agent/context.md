@@ -1,8 +1,8 @@
 # CONTEXT.md — Ecossistema YWARA (Visão Global)
 
-> **Última Atualização:** 2026-05-11
+> **Última Atualização:** 2026-05-13
 > **Arquiteto:** Antigravity AI
-> **Versão do Ecossistema:** 6.4.0 (Engineering Standards & Regulatory Compliance)
+> **Versão do Ecossistema:** 6.4.2 (Inverter Cockpit Industrialization & Neurodesign)
 
 ---
 
@@ -91,6 +91,7 @@ iaca/.agent/       ← CAMADA 3: Iaçã (ERP, CRM)
 - **Ghost Scrollbars**: Barras de 6px, acabamento `slate-800` sobre fundo transparente, visíveis apenas sob interação (padrão DES-009).
 - Datas em `dd/MM/yyyy HH:mm` (PT-BR).
 - Sem animações de entrada desnecessárias — dados aparecem instantaneamente.
+- **Tipografia de Densidade (Cross-Cutting)**: Distinção canônica entre dois papéis de texto: (1) **Dados primários** (IDs, valores críticos, fallbacks): mínimo `text-[11px]` — o usuário lê sem contexto pai; (2) **Âncoras contextuais** (sufixos de unidade `V`, `kWp`, `A` ao lado de um valor ≥12px): `text-[8px]` a `text-[10px]` é aceito, pois o cérebro reconhece gestalt. Regra de ouro: *nunca use texto abaixo de 11px como o único veículo de uma informação crítica.*
 
 ---
 
@@ -107,8 +108,8 @@ Para garantir que os dados fluam sem perdas do Banco até a UI, seguimos 5 níve
 
 ## 🔄 CHANGELOG DO ECOSSISTEMA
 
-| Versão | Data | Milestone |
-|:---|:---|:---|
+| **v6.4.2** | 2026-05-13 | **Inverter Cockpit Industrialization & Neurodesign**: Simplificação radical do cockpit de engenharia do Kurupira. Implementação de modelo de status binário (Nominal vs. Falha), remoção de avisos (warnings) não críticos e eliminação de redundâncias UI/UX no InverterHub e CalculationAuditPanel. |
+| **v6.4.1** | 2026-05-13 | **UI Density Standards Refinement**: Cockpit Elétrico do Kurupira redesenhado com `MPPTInspectorPanel` lateral colapsável e `StringRow` Two-Line (S+A+B). Resolução definitiva do overflow de layout em painéis estreitos. Refinamento canônico da regra de tipografia (dados primários vs âncoras contextuais). |
 | **v6.4.0** | 2026-05-11 | **Engineering Standards & Regulatory Compliance**: Consolidação do Cockpit de Engenharia v3 no Kurupira. Implementação de conformidade NBR 16690 (fusíveis), cálculos de queda de tensão em tempo real e detecção de mismatch de orientação. |
 | **v6.3.0** | 2026-05-11 | **Data Integrity & Catalog Sync**: Padronização de valores padrão (`@default`) no nível do banco de dados para o catálogo, eliminando fallbacks na UI. |
 | **v6.2.0** | 2026-05-10 | **SemVer Standardization**: Realinhamento de todos os módulos do ecossistema seguindo o rigor do Semantic Versioning. Kurupira fixado em `0.9.0-beta.1` e Sumaúma em `1.0.0-rc.1`. Protocolo registrado no Manual de Boas Práticas. |

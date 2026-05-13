@@ -1,8 +1,8 @@
 # CONTEXT.md — Kurupira (Motor de Engenharia Solar)
 
-> **Última Atualização:** 2026-05-11
+> **Última Atualização:** 2026-05-13
 > **Arquiteto:** Antigravity AI
-> **Versão do Sistema:** 0.9.1-beta.1 (Engineering Cockpit v3 & Regulatory Specs)
+> **Versão do Sistema:** 0.9.0-beta.3 (Inverter Cockpit Industrialization & Neurodesign)
 
 ---
 
@@ -123,10 +123,12 @@ O Pin de localização é o elemento central de ancoragem visual e interatividad
 7. **Rigor Decimal**: Todos os valores numéricos técnicos (kWp, kWh, V, A, W, R$) apresentados em blocos, painéis HUD e tabelas **devem ter exatamente 2 casas decimais** (`.toFixed(2)`), garantindo a estética de precisão. Valores de porcentagem podem ser inteiros se a variância for baixa.
 8. **Scrollbars Ghost**: Devem ter largura de **6px**, acabamento em **slate-800** sobre fundo transparente. Tornam-se visíveis apenas quando necessário para reduzir ruído visual. O utilitário `.scrollbar-hide` deve ser usado para ocultar a barra mantendo a funcionalidade de scroll quando o design exigir.
 9. **Rigor de Tipografia e Acessibilidade**:
-   - **Micro (`text-[11px]`)**: Limite mínimo absoluto. Uso restrito a badges, unidades (W, V, A) e legendas de gráficos.
+   - **Micro (`text-[11px]`)**: Tamanho mínimo para **textos que carregam informação independente** — IDs (S1, MPPT 1), valores de fallback (`---V`), badges de alerta (`Δ1.2%`). O usuário precisa ler esses valores sem contexto pai.
+   - **Âncoras Contextuais (`text-[8px]` a `text-[10px]`)**: Permitido exclusivamente como sufixo/prefixo de um valor principal ≥ 12px (ex: unidade `V` ao lado de `384`, `kWp` ao lado de `12.40`). O cérebro reconhece gestalt, não lê caractere por caractere. Padrão consagrado em Bloomberg, Figma, Grafana.
    - **Small (`text-xs` / 12px)**: Padrão para labels de formulário, títulos de mini-cards e metadados secundários.
    - **Base (`text-sm` / 14px)**: Padrão para dados de engenharia principais, valores numéricos em HUDs e corpo de texto.
-   - **Contraste**: Labels secundárias sobre `bg-slate-950` devem usar no mínimo `text-slate-400`. Nunca usar `slate-500/600` para textos informativos essenciais.
+   - **Contraste**: Textos informativos essenciais sobre `bg-slate-950` devem usar no mínimo `text-slate-400`. Âncoras contextuais (sufixos de unidade) podem usar `text-slate-500/60` pois não são o canal primário de leitura.
+   - **Regra de Ouro**: *Nunca use texto abaixo de 11px como o único veículo de uma informação crítica.*
 10. **Escalas Climáticas Adaptativas (Amplitude Mínima)**: Para evitar gráficos "tendenciosos" e manter a honestidade de engenharia em diferentes latitudes (ex: Norte vs Sul do Brasil), eixos de clima devem impor uma amplitude mínima:
     - **Temperatura**: Span mínimo de **15°C**.
     - **HSP**: Span mínimo de **3.0**.
@@ -153,6 +155,21 @@ O Pin de localização é o elemento central de ancoragem visual e interatividad
 ---
 
 ## 🔄 CHANGELOG
+
+### v0.9.0-beta.3 (2026-05-13) — Inverter Cockpit Industrialization & Neurodesign
+- ✅ **Industrialização do Cockpit**: Interface simplificada com remoção de elementos redundantes e foco em telemetria crítica.
+- ✅ **Neurodesign de Status**: Implementado modelo binário (Nominal vs. Falha) para reduzir a carga cognitiva do engenheiro. Removidos avisos (warnings) não críticos da UI.
+- ✅ **Limpeza do Memorial**: Remoção do botão 'Copiar ART' e labels de 'Atenção' do `CalculationAuditPanel`.
+- ✅ **Performance**: Limpeza de débitos técnicos (Cleanup) e remoção de dead code.
+
+### v0.9.2-beta.1 (2026-05-13) — Engineering Cockpit v3.1: MPPT Inspector & StringRow Two-Line
+
+- ✅ **MPPTInspectorPanel (Lateral Esquerdo)**: Novo painel colapsável (280px↔32px) posicionado à esquerda do canvas. Comportamento ISA-101: configuração à esquerda, auditoria ao centro.
+- ✅ **Card MPPT Redesenhado (A1/S1/B1/A2/B2)**: Status bar lateral pré-atentiva de 3px (vermelho/âmbar/verde). Header em 2 rows separando identidade (Row1: ID + kWp hero 20px) de configuração (Row2: módulo ghost + orientação ghost + alertas inline). Remoção de `animate-pulse` em estados nominais (conformidade ISA-101 anti-dessensibilização).
+- ✅ **StringRow v2 — Two-Line Layout (S+A+B)**: Resolução definitiva do overflow de -23px em painéis estreitos. Barra segmentada em `flex-1` (165px) com overlay de tensão absoluto eliminando a coluna fixa de 85-90px. Line 1 = output (barra + tensão), Line 2 = controles (stepper + Δ% + settings). Touch targets `w-6 h-[24px]` em conformidade WCAG 2.5.8.
+- ✅ **Graceful Degradation de Telemetria**: `---V` e `Δ---%` exibidos quando `unitVoc/unitImp` são zero (módulo não selecionado), com `cursor-help` e tooltips orientativos. Sem `0V` silencioso.
+- ✅ **Limpeza de Padding Duplo (B)**: Remoção do `p-3 bg-slate-900/40` no inner container de strings (+24px de largura útil). Empty state de `py-8` reduzido para `py-1.5` inline (-52px desperdiçados).
+- 📐 **Regra de Tipografia Refinada**: Distinção canônica entre dados primários (≥11px, leitura independente) e âncoras contextuais (8-10px, sufixos de unidade ao lado de valor ≥12px). Veja Padrão Inegociável #9.
 
 ### v0.9.1-beta.1 (2026-05-11) — Engineering Cockpit v3: Regulatory & Orientation Sync
 - ✅ **Spec-05 (Fusíveis gPV)**: Cálculo automático e memorial de fusíveis de string (NBR 16690).

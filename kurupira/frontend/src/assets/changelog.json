@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.9.0-beta.3",
+    "date": "2026-05-13",
+    "logs": [
+      { "type": "improvement", "text": "Industrialização do Cockpit: Interface simplificada com remoção de elementos redundantes e foco em telemetria crítica." },
+      { "type": "improvement", "text": "Neurodesign de Status: Implementado modelo binário (Nominal vs. Falha) para reduzir a carga cognitiva do engenheiro." },
+      { "type": "improvement", "text": "Limpeza do Memorial de Cálculo: Remoção de avisos não críticos para destacar violações normativas reais." },
+      { "type": "performance", "text": "Otimização Interna: Limpeza de débitos técnicos, remoção de dead code e redução do bundle size." }
+    ]
+  },
+  {
     "version": "0.9.0-beta.2",
     "date": "2026-05-12",
     "logs": [

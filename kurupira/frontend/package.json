@@ -1,7 +1,7 @@
 {
   "name": "kurupira-frontend",
   "private": true,
-  "version": "0.9.0-beta.2",
+  "version": "0.9.0-beta.3",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -30,6 +30,7 @@
     "leaflet.gridlayer.googlemutant": "^0.16.0",
     "lodash.throttle": "^4.1.1",
     "lucide-react": "^0.561.0",
+    "pdfjs-dist": "^5.7.284",
     "pino": "^8.17.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
