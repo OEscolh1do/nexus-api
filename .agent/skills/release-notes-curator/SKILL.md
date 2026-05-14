@@ -44,3 +44,4 @@ Ao redigir um Patch Log, siga estas regras:
 - NÃO use linguagem infantilizada. O usuário é um engenheiro.
 - NÃO exponha nomes de arquivos ou classes internas no log público, a menos que seja uma API para desenvolvedores.
 - NÃO invente melhorias. Se foi apenas um ajuste de import, use "Melhorias internas de estabilidade".
+- **FOCO NO APP**: Nunca inclua informações de meta-desenvolvimento (novas skills de agente, workflows internos, mudanças em arquivos do `.agent` ou ferramentas de IA). O log é para o usuário final/engenheiro.

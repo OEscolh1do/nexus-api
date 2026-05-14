@@ -5,7 +5,7 @@
     "logs": [
       { "type": "improvement", "text": "Integridade Térmica Estrita: Implementado suporte canônico para coeficientes Voc e Pmax diferenciados (evita a contaminação 'Lossy Flattening')." },
       { "type": "improvement", "text": "Deep Cleanup: Remoção de componentes legados (Compositor), hooks órfãos e utilitários duplicados para reduzir dívida técnica." },
-      { "type": "performance", "text": "Auditoria Automatizada: Introdução de novas skills de auditoria (Math Engine, Zustand Guard) para prevenir bugs de engenharia e estado." }
+      { "type": "performance", "text": "Estabilização do Motor de Cálculo: Unificação de parsers e reforço de tipagem para maior precisão em projetos de larga escala." }
     ]
   },
   {
