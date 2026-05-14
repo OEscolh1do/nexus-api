@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.9.0-beta.4",
+    "date": "2026-05-14",
+    "logs": [
+      { "type": "improvement", "text": "Integridade Térmica Estrita: Implementado suporte canônico para coeficientes Voc e Pmax diferenciados (evita a contaminação 'Lossy Flattening')." },
+      { "type": "improvement", "text": "Deep Cleanup: Remoção de componentes legados (Compositor), hooks órfãos e utilitários duplicados para reduzir dívida técnica." },
+      { "type": "performance", "text": "Auditoria Automatizada: Introdução de novas skills de auditoria (Math Engine, Zustand Guard) para prevenir bugs de engenharia e estado." }
+    ]
+  },
+  {
     "version": "0.9.0-beta.3",
     "date": "2026-05-13",
     "logs": [
