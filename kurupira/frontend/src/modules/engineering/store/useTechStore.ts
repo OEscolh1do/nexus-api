@@ -72,6 +72,8 @@ export interface InverterState {
         maxCurrentPerMPPT: number;
         maxInputCurrent: number;
         maxEfficiency: number;
+        maxOutputPowerW?: number;
+        deratingTempC?: number;
     };
 }
 
@@ -105,6 +107,7 @@ interface TechState {
   addStringToMPPT: (inverterId: string, mpptId: number) => void;
   removeStringFromMPPT: (inverterId: string, mpptId: number, stringId: string) => void;
   updateStringInMPPT: (inverterId: string, mpptId: number, stringId: string, data: Partial<StringDef>) => void;
+  autoDistributeModules: (inverterId: string, targetModules: number, maxPerString: number) => { success: boolean; message: string };
   
   // V4 String Actions
   createString: (moduleIds: string[]) => void;
@@ -198,12 +201,14 @@ export const useTechStore = create<TechState>()(
                       nominalPower,
                       mppts: mpptCount,
                       // Lendo limites do catálogo com valores padrão de segurança conservadores
-                      maxInputVoltage: equipment.maxInputVoltage || equipment.maxInputV || 600,
-                      minMpptVoltage: equipment.minMpptVoltage || equipment.mpptMinV || 150,
-                      maxMpptVoltage: equipment.maxMpptVoltage || equipment.mpptMaxV || 500,
-                      maxCurrentPerMPPT: equipment.maxCurrentPerMPPT || equipment.maxCurrent || 15,
-                      maxInputCurrent: equipment.maxInputCurrent || (equipment.maxCurrentPerMPPT * mpptCount) || 30,
-                      maxEfficiency: equipment.maxEfficiency || 98.0,
+                      maxInputVoltage: equipment.Voc_max_hardware || equipment.maxInputVoltage || equipment.maxInputV || 600,
+                      minMpptVoltage: equipment.mppts?.[0]?.minMpptVoltage || equipment.minMpptVoltage || equipment.mpptMinV || 150,
+                      maxMpptVoltage: equipment.mppts?.[0]?.maxMpptVoltage || equipment.maxMpptVoltage || equipment.mpptMaxV || 500,
+                      maxCurrentPerMPPT: equipment.mppts?.[0]?.maxCurrentPerMPPT || equipment.maxCurrentPerMPPT || equipment.maxCurrent || 15,
+                      maxInputCurrent: equipment.Isc_max_hardware || equipment.maxInputCurrent || ((equipment.mppts?.[0]?.maxCurrentPerMPPT || 15) * mpptCount) || 30,
+                      maxEfficiency: equipment.efficiency?.euro || equipment.efficiency?.cec || equipment.maxEfficiency || 98.0,
+                      maxOutputPowerW: equipment.maxOutputPowerW,
+                      deratingTempC: equipment.deratingTempC,
                   },
               };
               newIds.push(instanceId);
@@ -281,8 +286,16 @@ export const useTechStore = create<TechState>()(
                   newEntities[newId] = { 
                       ...baseInstance, 
                       id: newId,
-                      // Reseta o mpptConfigs criando um deep clone fresquinho
-                      mpptConfigs: baseInstance.mpptConfigs.map(m => ({ ...m, stringIds: [] }))
+                      // Deep Clone e Isolamento de Strings (V5)
+                      mpptConfigs: baseInstance.mpptConfigs.map(m => ({ 
+                          ...m, 
+                          stringIds: [],
+                          strings: (m.strings || []).map(s => ({
+                              ...s,
+                              id: Math.random().toString(36).substring(2, 9),
+                              modulesCount: 0 // Instâncias adicionais começam limpas
+                          }))
+                      }))
                   };
               }
           } else {
@@ -414,6 +427,134 @@ export const useTechStore = create<TechState>()(
           }
         };
       }),
+
+      autoDistributeModules: (inverterId, targetModules, maxPerString) => {
+          let success = false;
+          let message = 'Erro ao distribuir módulos.';
+          
+          set(state => {
+              const inv = state.inverters.entities[inverterId];
+              if (!inv || inv.mpptConfigs.length === 0) {
+                  message = 'Inversor não encontrado.';
+                  return state;
+              }
+
+              if (targetModules === 0) {
+                  const newMpptConfigs = inv.mpptConfigs.map(mppt => ({
+                      ...mppt,
+                      stringsCount: 1,
+                      strings: [{
+                          id: Math.random().toString(36).substring(2, 9),
+                          name: `INV.M${mppt.mpptId}.S1`,
+                          modulesCount: 0,
+                          cableLength: 10,
+                          cableSection: 4
+                      }]
+                  }));
+                  success = true;
+                  message = 'Módulos zerados com sucesso.';
+                  return {
+                      inverters: {
+                          ...state.inverters,
+                          entities: { ...state.inverters.entities, [inverterId]: { ...inv, mpptConfigs: newMpptConfigs } }
+                      }
+                  };
+              }
+
+              const mpptCount = inv.mpptConfigs.length;
+              let k = Array(mpptCount).fill(1);
+              let bestDistribution: { stringsCount: number, size: number }[] | null = null;
+
+              // Tenta achar a topologia
+              for (let iter = 0; iter < 100; iter++) {
+                  let totalStrings = k.reduce((a, b) => a + b, 0);
+                  let S = Array(mpptCount).fill(Math.floor(targetModules / totalStrings));
+                  let allocated = S.reduce((sum, size, idx) => sum + size * k[idx], 0);
+                  let remaining = targetModules - allocated;
+                  
+                  let valid = true;
+                  
+                  while (remaining > 0) {
+                      let bestIdx = -1;
+                      for (let i = 0; i < mpptCount; i++) {
+                          if (k[i] <= remaining && S[i] < maxPerString) {
+                              if (bestIdx === -1) {
+                                  bestIdx = i;
+                              } else if (S[i] < S[bestIdx]) {
+                                  bestIdx = i;
+                              } else if (S[i] === S[bestIdx] && k[i] > k[bestIdx]) {
+                                  bestIdx = i;
+                              }
+                          }
+                      }
+                      if (bestIdx !== -1) {
+                          S[bestIdx]++;
+                          remaining -= k[bestIdx];
+                      } else {
+                          valid = false;
+                          break;
+                      }
+                  }
+                  
+                  for (let i = 0; i < mpptCount; i++) {
+                      if (S[i] > maxPerString) valid = false;
+                  }
+                  
+                  if (valid) {
+                      bestDistribution = k.map((stringsCount, i) => ({ stringsCount, size: S[i] }));
+                      break;
+                  }
+                  
+                  let minK = Math.min(...k);
+                  let idxToIncrement = k.indexOf(minK);
+                  k[idxToIncrement]++;
+                  
+                  if (k.reduce((a, b) => a + b, 0) > targetModules) {
+                      break;
+                  }
+              }
+
+              if (!bestDistribution) {
+                  message = `Impossível distribuir ${targetModules} módulos uniformemente respeitando limite de ${maxPerString} por string. Tente outra quantidade.`;
+                  return state;
+              }
+
+              const invIndex = state.inverters.ids.indexOf(inverterId) + 1;
+              const formattedInvId = invIndex.toString().padStart(2, '0');
+
+              const newMpptConfigs = inv.mpptConfigs.map((mppt, idx) => {
+                  const dist = bestDistribution![idx];
+                  const newStrings = Array.from({ length: dist.stringsCount }).map((_, sIdx) => ({
+                      id: Math.random().toString(36).substring(2, 9),
+                      name: `INV-${formattedInvId}.M${mppt.mpptId}.S${sIdx + 1}`,
+                      modulesCount: dist.size,
+                      cableLength: 10,
+                      cableSection: 4,
+                  }));
+
+                  return {
+                      ...mppt,
+                      stringsCount: dist.stringsCount,
+                      strings: newStrings
+                  };
+              });
+
+              success = true;
+              message = 'Distribuição concluída com sucesso.';
+              
+              return {
+                  inverters: {
+                      ...state.inverters,
+                      entities: {
+                          ...state.inverters.entities,
+                          [inverterId]: { ...inv, mpptConfigs: newMpptConfigs }
+                      }
+                  }
+              };
+          });
+          
+          return { success, message };
+      },
 
       updateLoss: (key, value) => set((state) => ({
         lossProfile: {

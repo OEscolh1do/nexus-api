@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type InverterCanvasTab = 'voltage' | 'oversizing' | 'topology' | 'audit';
+export type InverterCanvasTab = 'oversizing' | 'audit' | 'temperatura';
 
 interface InverterUIState {
   activeInverterId: string | null;
@@ -20,7 +20,7 @@ export const useInverterUIStore = create<InverterUIState>((set) => ({
   activeInverterId: null,
   setActiveInverterId: (id) => set({ activeInverterId: id }),
 
-  activeCanvasTab: 'voltage',
+  activeCanvasTab: 'audit',
   setActiveCanvasTab: (tab) => set({ activeCanvasTab: tab }),
 
   terminalOpen: false,

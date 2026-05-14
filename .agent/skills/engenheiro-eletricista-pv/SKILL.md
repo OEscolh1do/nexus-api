@@ -75,29 +75,40 @@ Ativado quando a tarefa envolve:
 
 Quando ativado para revisar o Kurupira, siga este protocolo em 5 eixos:
 
-### Eixo 1 — Dimensionamento de Strings (NBR 16690 §6.3)
+### Eixo 1 — Dimensionamento de Strings (NBR 16690 §4.3.1.2)
 
 Verificar se o sistema calcula corretamente:
 
-1. **Voc máx corrigido pela temperatura mínima:**
+1. **Voc máx corrigido pela temperatura mínima (NBR 16690 §4.3.1.2):**
    ```
-   Voc_max = Voc_stc × [1 + (TempCoeff_Voc / 100) × (Tmin - 25)]
+   Voc_max = M × Voc_mod × [1 + (TempCoeff_Voc / 100) × (Tmin - 25)]
    ```
-   - Tmin deve ser a temperatura mínima **histórica** do local (não -5°C fixo)
+   - Tmin deve ser a **temperatura ambiente mínima histórica** do local
+   - Quando o coeficiente de temperatura não for conhecido, usar a **Tabela 1 da NBR 16690**:
+
+   | Temperatura mínima esperada | Fator de correção de Voc |
+   |----------------------------|-------------------------|
+   | 20°C a 24°C | 1,02 |
+   | 10°C a 14°C | 1,06 |
+   | 0°C a 4°C | 1,10 |
+   | -10°C a -6°C | 1,14 |
+
    - Voc_max × N_série ≤ Vinput_max_inversor (com margem de 5%)
 
 2. **Vmp operacional no pior caso quente:**
    ```
    Vmp_hot = Vmp_stc × [1 + (TempCoeff_Vmp / 100) × (Tcell_max - 25)]
-   Tcell_max = Tambiente_max + NOCT - 20
+   Tcell_max = Tambiente_max + (NOCT - 20) × (1000 / 800)
    ```
+   > ⚠️ O fator `(1000/800)` é obrigatório — corrige a irradiância de NOCT (800 W/m²) para STC (1000 W/m²). Omiti-lo subestima Tcell e aprova janelas MPPT falsamente seguras.
    - Vmp_hot × N_série deve permanecer dentro da janela MPPT do inversor
 
-3. **Corrente de curto-circuito por MPPT:**
+3. **Corrente de curto-circuito por MPPT (NBR 16690 §5.4.3.2):**
    ```
-   Isc_string = Isc_stc × N_paralelo × 1.25 (fator de segurança NBR)
+   Isc_arr = Isc_stc × N_paralelo × 1,25 (fator de segurança)
    ```
-   - Isc_string ≤ Iinput_max_mppt do inversor
+   - `Isc_arr ≤ Iinput_max_mppt` do inversor (comparar o valor **corrigido** com o **limite de hardware por MPPT**, não o total do inversor)
+   - O fator 1,25 é aplicado sobre o **arranjo** — nunca sobre o limite do inversor
 
 4. **Carregamento do inversor (oversize ratio):**
    ```
@@ -146,19 +157,33 @@ Verificar se o módulo `electrical/` cobre adequadamente:
    - Queda de tensão DC ≤ 1% (recomendação de campo; NBR aceita até 3%)
    - Temperatura de operação do cabo: 90°C para cabo solar (norma EN 50618)
 
-2. **Fusíveis de string (quando necessário):**
-   - Obrigatórios quando N_paralelo ≥ 3 strings por MPPT (NBR 16690 §7.4)
-   - Calibre: 1.5 × Isc_string ≤ If ≤ 2.4 × Isc_string
-   - Categoria de utilização: gG ou gPV
+2. **Fusíveis de string — critério real de obrigatoriedade (NBR 16690 §5.3.9):**
+   - A proteção é **obrigatória** quando a corrente reversa de outras strings puder exceder a capacidade do módulo:
+   ```
+   (S_A - 1) × Isc_mod > Imod_max_ocpr
+   ```
+   Onde `S_A` = nº de strings em paralelo e `Imod_max_ocpr` = corrente máxima de proteção reversa do módulo (datasheet).
+   > 🔔 Na prática de campo, com **3 ou mais strings em paralelo** esse critério é quase sempre satisfeito. Usar N ≥ 3 como gatilho conservador é correto mas não é o critério literal da norma.
+   - **Calibre do fusível (NBR 16690 §5.3.11.1):**
+     - Mínimo: `In ≥ 1,5 × Isc_mod_stc`
+     - Máximo: `In ≤ 2,4 × Isc_mod_stc` E `In ≤ Imod_max_ocpr` (dado pelo fabricante do módulo)
+   - **Categoria:** Exclusivamente **gPV** (IEC 60269-6) — a categoria gG não é admitida para CC fotovoltaico
 
-3. **DPS (Dispositivo de Proteção contra Surtos):**
-   - Classe I+II no quadro DC (instalações > 1 km de área aberta ou com histórico de descargas)
+3. **DPS — Dispositivo de Proteção contra Surtos (NBR 16690 §6.3):**
+   - Devem ser específicos para o lado CC de sistemas FV (IEC 61643-31)
+   - **Tipo 1:** Obrigatório quando há SPDA (Sistema de Proteção contra Descargas Atmosféricas) no prédio
+   - **Tipo 2:** Quando não há SPDA instalado
    - Nível de proteção Up ≤ 80% da tensão suportável do inversor
-   - Obrigatório em instalações acima de 75 kWp (REN 1000)
+   - Para instalações ≥ 75 kWp, verificar exigência adicional da REN 1000/2021
 
 4. **Disjuntor AC de interligação:**
    - Corrente nominal: In_AC = Pac_nominal_inversor / (√3 × VCA × fp)
    - Curva B ou C dependendo do tipo de carga
+
+5. **Aterramento e Equipotencialização (NBR 16690 §6.4):**
+   - Molduras metálicas dos módulos e estruturas de suporte devem ser conectadas ao sistema de equipotencialização
+   - Seção mínima do condutor de equipotencialização: **6 mm² de cobre** (ou equivalente)
+   - Este requisito é frequentemente ignorado em projetos residenciais — verificar se o Kurupira o inclui no memorial
 
 **O que verificar no código:** `modules/electrical/`, `electricalMath.ts`
 

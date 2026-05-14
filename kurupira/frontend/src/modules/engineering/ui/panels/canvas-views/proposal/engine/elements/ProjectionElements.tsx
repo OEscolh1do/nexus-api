@@ -15,6 +15,7 @@ import { useProposalPageData } from '../useProposalPageData';
 import { formatBRL } from '@/modules/engineering/utils/formatters';
 import type { CanvasElement } from '../types';
 import { DAYS_IN_MONTH } from '@/modules/engineering/utils/projectionMath';
+import { EmptyState } from './EmptyState';
 
 // ─── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -63,6 +64,10 @@ export function ChartGenConsumptionElement({ element }: GenConsProps) {
   const showLegend = p.showLegend !== false;
   const title = p.title ? String(p.title) : undefined;
 
+  if (!stats.barData || stats.barData.length === 0) {
+    return <EmptyState label="Geração vs Consumo" />;
+  }
+
   return (
     <ChartShell title={title}>
       <ResponsiveContainer width="100%" height="100%">
@@ -89,6 +94,10 @@ export function ChartROIElement({ element }: ROIProps) {
   const p = element.props as Record<string, unknown>;
   const colorArea = String(p.colorArea ?? '#10b981');
   const title = p.title ? String(p.title) : undefined;
+
+  if (!stats.roiData || stats.roiData.length === 0) {
+    return <EmptyState label="ROI Acumulado" />;
+  }
 
   return (
     <ChartShell title={title}>
@@ -142,6 +151,10 @@ export function ChartFinancialBalanceElement({ element }: FinBalProps) {
     result:    String(p.colorResult    ?? COLOR_MAP_DEFAULT.result),
   };
 
+  if (!stats.waterfallData || stats.waterfallData.length === 0) {
+    return <EmptyState label="Balanço Financeiro" />;
+  }
+
   return (
     <ChartShell title={title}>
       <ResponsiveContainer width="100%" height="100%">
@@ -182,6 +195,10 @@ export function ChartCreditBankElement({ element }: CreditBankProps) {
   const colorWithdraw = String(p.colorWithdraw ?? '#f87171');
   const colorBalance  = String(p.colorBalance  ?? '#0ea5e9');
   const title = p.title ? String(p.title) : undefined;
+
+  if (!stats.bankData || stats.bankData.length === 0) {
+    return <EmptyState label="Banco de Créditos" />;
+  }
 
   return (
     <ChartShell title={title}>
@@ -225,6 +242,8 @@ export function ChartDailyElement({ element }: DailyProps) {
   const hoursInDay   = DAYS_IN_MONTH[repMonthIdx] ?? 30;
   const avgGenPerDay = repBarEntry ? repBarEntry.gen / hoursInDay : 0;
 
+  const hasData = stats.barData.length > 0 && avgMonthlyGen > 0;
+
   const dailyData = useMemo(() => {
     // Synthetic hourly profile based on bell curve (solar peak around noon)
     return Array.from({ length: 24 }, (_, hour) => {
@@ -237,6 +256,10 @@ export function ChartDailyElement({ element }: DailyProps) {
       return { hour: `${String(hour).padStart(2,'0')}h`, gen: +(avgGenPerDay * factor / 6).toFixed(2) };
     });
   }, [avgGenPerDay]);
+
+  if (!hasData) {
+    return <EmptyState label="Geração Diária Estimada" />;
+  }
 
   return (
     <ChartShell title={title}>
@@ -350,6 +373,10 @@ export function TableAnalyticsElement({ element }: TableAnalyticsProps) {
   const { stats, clientData } = useProposalPageData();
   const p = element.props as Record<string, unknown>;
   const title = p.title ? String(p.title) : undefined;
+
+  if (!stats.barData || stats.barData.length === 0) {
+    return <EmptyState label="Tabela Analítica" />;
+  }
 
   return (
     <ChartShell title={title}>

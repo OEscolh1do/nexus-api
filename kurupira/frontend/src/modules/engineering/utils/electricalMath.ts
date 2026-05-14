@@ -63,10 +63,9 @@ export const calculateStringMetrics = (
     const vocMax = calculateCorrectedVoltage(specs.voc, specs.tempCoeffVoc, minAmbientTemp) * modulesPerString;
 
     // 2. Vmp Min (Hottest Temperature) - MPPT Window start
-    // Note: If tempCoeffPmax is available, sometimes better proxy for Vmp drift, 
-    // but usually Vmp follows Voc coeff roughly or has its own. 
-    // Fallback to Voc coeff if Vmp coeff missing (conservative approx).
-    const vmpCoeff = specs.tempCoeffVoc; 
+    // Note: O coeficiente térmico de Vmp (ou Pmax como proxy) representa melhor a queda de tensão
+    // em regime de potência máxima do que o coeficiente de Voc.
+    const vmpCoeff = specs.tempCoeffPmax ?? specs.tempCoeffVoc; 
     const vmpMin = calculateCorrectedVoltage(specs.vmp, vmpCoeff, maxCellTemp) * modulesPerString;
 
     // 3. Vmp Max (Coldest Temperature) - MPPT Window end
@@ -254,14 +253,14 @@ export const validateSystemStrings = (
             );
         }
 
-        // 4. Isc Total vs Max Current Per MPPT (IEC 60364-7-712 §712.443)
-        const iscTotal = moduleSpecs.isc * activeStrings.length;
-        const ISC_TOLERANCE = 1.25;
-        const iscLimit = input.maxCurrentPerMPPT * ISC_TOLERANCE;
-        if (iscTotal > iscLimit) {
-            if (status !== 'error') status = 'warning';
+        // 4. Isc Total vs Max Current Per MPPT (NBR 16690 / IEC 60364-7-712 §712.443)
+        const ISC_SAFETY_FACTOR = 1.25;
+        const iscTotalArr = moduleSpecs.isc * activeStrings.length * ISC_SAFETY_FACTOR;
+        const iscLimitHardware = input.maxCurrentPerMPPT;
+        if (iscTotalArr > iscLimitHardware) {
+            status = 'error'; // Violou hardware físico (não é clipping operacional de Imp, é curto-circuito)
             messages.push(
-                `Isc(${iscTotal.toFixed(1)}A) > ${ISC_TOLERANCE}× limite MPPT(${(iscLimit).toFixed(1)}A). Verifique o datasheet do inversor.`
+                `Isc Corrigido (${iscTotalArr.toFixed(1)}A) > limite MPPT (${(iscLimitHardware).toFixed(1)}A). Risco severo de falha (NBR 16690).`
             );
         }
 
@@ -270,7 +269,7 @@ export const validateSystemStrings = (
             const fuseRating = calculateFuseRating(moduleSpecs.isc);
             if (status !== 'error') status = 'warning';
             messages.push(
-                `Exigência NBR 16690: Fusível gPV de ${fuseRating}A obrigatório (${activeStrings.length} strings em paralelo).`
+                `Exigência NBR 16690: Fusível gPV de ${fuseRating}A obrigatório (${activeStrings.length} strings em paralelo). Nota: Usando N≥3 como proxy conservador ao invés de (Sa-1)×Isc > Imod_max_ocpr.`
             );
         }
 
@@ -311,7 +310,7 @@ export const validateSystemStrings = (
             status,
             vocMax: metrics.vocMax,
             vmpMin: metrics.vmpMin,
-            iscTotal,
+            iscTotal: iscTotalArr,
             messages
         };
     });

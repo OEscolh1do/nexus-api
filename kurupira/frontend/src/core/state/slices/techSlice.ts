@@ -133,6 +133,7 @@ const initialSettings: EngineeringSettings = {
   pricingModel: 'margin',
   serviceMarkup: 0.23,
   serviceCommissionFixed: 500,
+  manualTmax: undefined,
 };
 
 /**

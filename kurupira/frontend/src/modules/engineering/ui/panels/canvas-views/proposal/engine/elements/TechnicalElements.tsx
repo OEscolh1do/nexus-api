@@ -6,6 +6,7 @@
 import { Sparkles, Zap, Shield, ClipboardCheck, Wrench } from 'lucide-react';
 import { useProposalPageData } from '../useProposalPageData';
 import type { CanvasElement } from '../types';
+import { EmptyState } from './EmptyState';
 
 const GREEN       = '#2D6A4F';
 const GREEN_LIGHT = '#4CAF50';
@@ -82,6 +83,10 @@ export function KpiCapacityBadgeElement({ element }: KpiCapacityBadgeProps) {
   const colorGen = String(p.colorGen ?? GREEN_LIGHT);
   const labelColor = String(p.labelColor ?? '#064E3B');
   const showClientName = p.showClientName !== false;
+
+  if (totalPowerKwp <= 0 || stats.totalGen <= 0) {
+    return <EmptyState label="Badge de Capacidade" />;
+  }
 
   const monthlyGen = Math.round(stats.totalGen / 12);
 
@@ -344,6 +349,10 @@ export function EquipmentPanelElement({ element }: EquipmentPanelProps) {
 
   const labelBgColor = String(p.labelBgColor ?? GREEN);
   const labelColor = String(p.labelColor ?? '#ffffff');
+
+  if (totalModules === 0 && !firstModule && !firstInverter) {
+    return <EmptyState label="Painel de Equipamentos" />;
+  }
 
   return (
     <div

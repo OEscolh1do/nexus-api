@@ -1,89 +1,89 @@
-/**
- * PVSyst Parser (.PAN / .OND)
- * 
- * Este utilitário implementa o parsing de arquivos hierárquicos do PVSyst
- * estritamente compatível com a biblioteca pvlib.iotools.read_panond.
- */
-
 export interface PVSystObject {
-  [key: string]: string | number | PVSystObject;
+  [key: string]: string | number | PVSystObject | PVSystObject[];
 }
 
 /**
- * Sanitiza valores de entrada para evitar injeção ou caracteres inválidos
+ * Sanitiza campos de input contra injeções básicas e falhas no parser.
  */
 function sanitizeField(value: string): string {
   return value
-    .replace(/[<>"']/g, '') // Previne injeção HTML/XSS na UI
-    .replace(/[\x00-\x08\x0b-\x1f]/g, '') // Remove chars de controle
+    .replace(/[<>"']/g, '')          // XSS mitigation
+    .replace(/[\x00-\x08\x0b-\x1f]/g, '') // remove controle
     .trim()
-    .slice(0, 500); // Impede sobrecarga de memória (buffer attack)
+    .slice(0, 500);                  // cap em 500 chars por campo
 }
 
 /**
- * Infere o tipo (string, int ou float) de forma segura
+ * Infere float e inteiros.
  */
 function inferType(value: string): string | number {
-  // Tenta parsing de float se tiver ponto e for numérico
-  if (value.includes('.') && /^-?\d+\.\d+$/.test(value)) {
+  if (value.includes('.')) {
     const f = parseFloat(value);
     if (!isNaN(f)) return f;
   }
-  
-  // Tenta parsing de inteiro
   const i = parseInt(value, 10);
   if (!isNaN(i) && String(i) === value) return i;
-  
-  // Fallback string
   return value;
 }
 
 /**
- * Faz o parsing de um conteúdo .PAN ou .OND em texto
- * @param content Conteúdo em texto do arquivo carregado
- * @returns Objeto hierárquico PVSystObject
+ * Parser canônico de arquivos PVSyst (.PAN e .OND).
+ * Baseado na hierarquia de 2 espaços por nível (similar ao pvlib.iotools).
+ *
+ * @param content String bruta do arquivo lido
+ * @returns Objeto PVSyst estruturado
  */
 export function parsePanOnd(content: string): PVSystObject {
-  // Normaliza quebras de linha (Windows/Unix)
   const lines = content.replace(/\r\n/g, '\n').split('\n');
-  
   const stack: Array<{ obj: PVSystObject; level: number }> = [];
   const root: PVSystObject = {};
+  
   stack.push({ obj: root, level: -1 });
 
-  for (const rawLine of lines) {
-    // Ignora linhas vazias, blocos de comentários e "End of PVObject"
-    if (!rawLine.trim() || !rawLine.includes('=')) continue;
-    if (rawLine.trimStart().startsWith('End of PVObject')) continue;
+  for (const line of lines) {
+    if (!line.trim() || !line.includes('=')) continue;
+    if (line.trimStart().startsWith('End of PVObject')) continue;
 
-    // Calcula indentação: O PVSyst usa EXATAMENTE 2 espaços por nível
-    const indent = rawLine.length - rawLine.trimStart().length;
+    // A hierarquia do PVSyst depende estritamente dos espaços à esquerda.
+    // 2 espaços = 1 nível aprofundado.
+    const indent = line.length - line.trimStart().length;
     const level = Math.floor(indent / 2);
-    const eqIdx = rawLine.indexOf('=');
+    const eqIdx = line.indexOf('=');
     
+    // Fallback caso a linha não tenha `=`
     if (eqIdx === -1) continue;
 
-    const key = rawLine.slice(indent, eqIdx).trim();
-    let rawVal = rawLine.slice(eqIdx + 1).trim();
-    
-    // Sanitização e tipagem
-    rawVal = sanitizeField(rawVal);
-    const value = inferType(rawVal);
+    const key = line.slice(indent, eqIdx).trim();
+    const rawVal = line.slice(eqIdx + 1).trim();
 
-    // Ajusta a pilha (stack pop) até encontrar o nó pai correspondente à indentação
+    // Pop stack até o nível correto da árvore
     while (stack.length > 1 && stack[stack.length - 1].level >= level) {
       stack.pop();
     }
 
     const parent = stack[stack.length - 1].obj;
+    const safeVal = sanitizeField(rawVal);
+    const value = inferType(safeVal);
 
-    // Detecta início de sub-objeto (geralmente começa com 'pv', ex: 'pvCommercial')
     if (typeof value === 'string' && value.startsWith('pv')) {
-      // Conforme convenção, a própria chave é repetida dentro do objeto filho
+      // Declaração de um novo sub-objeto
       const child: PVSystObject = { [key]: value };
-      parent[key] = child;
+
+      // Lógica pvlib para tratamento de chaves repetidas:
+      // Se já existir, transforma em Array (útil para múltiplos MPPTs ou perfis de eficiência)
+      if (parent[key] !== undefined) {
+         if (Array.isArray(parent[key])) {
+            (parent[key] as PVSystObject[]).push(child);
+         } else {
+            parent[key] = [parent[key] as PVSystObject, child];
+         }
+      } else {
+         parent[key] = child;
+      }
+      
       stack.push({ obj: child, level });
     } else {
+      // Atribuição de valor simples (Folha da árvore)
       parent[key] = value;
     }
   }

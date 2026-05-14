@@ -4,7 +4,7 @@ import { CanvasElementWrapper } from './CanvasElementWrapper';
 import { GridOverlay } from './GridOverlay';
 import { SmartGuides } from './SmartGuides';
 import type { CanvasPage as CanvasPageType, CanvasElement, GridConfig, GuideLines } from './types';
-import { A4_WIDTH, A4_HEIGHT } from './types';
+import { getPageDimensions, parseBackgroundImageUrl } from './types';
 
 interface Props {
   page: CanvasPageType;
@@ -16,22 +16,54 @@ interface Props {
   onMutationStart?: () => void;
   onDuplicateElement?: (elementId: string) => void;
   onRemoveElement?: (elementId: string) => void;
+  editingGroupId?: string | null;
+  onEnterGroupEdit?: (groupId: string, elementId: string) => void;
+  onExitGroupEdit?: () => void;
+  onPanDelta?: (dx: number, dy: number) => void;
+  /** Called when an image file is dropped directly onto the A4 canvas from the OS */
+  onDropImage?: (data: { url: string; x: number; y: number }) => void;
 }
 
 export function CanvasPage({
   page, scale, selectedIds, gridConfig,
   onSelect, onUpdateElement, onMutationStart,
   onDuplicateElement, onRemoveElement,
+  editingGroupId, onEnterGroupEdit, onExitGroupEdit,
+  onPanDelta, onDropImage,
 }: Props) {
+  const { width: pageW, height: pageH } = getPageDimensions(page.orientation);
+
   const pageRef = useRef<HTMLDivElement>(null);
   const [activeGuides, setActiveGuides] = useState<GuideLines>({ x: [], y: [] });
   const groupDragStartRef = useRef<Map<string, { x: number; y: number }> | null>(null);
   const [rubberBand, setRubberBand] = useState<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
   const rubberBandAbortRef = useRef<AbortController | null>(null);
+  const spaceRef = useRef(false);
+  const panAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    return () => { rubberBandAbortRef.current?.abort(); };
+    return () => {
+      rubberBandAbortRef.current?.abort();
+      panAbortRef.current?.abort();
+    };
   }, []);
+
+  // Track Space key for pan-with-space gesture (only when pan is enabled)
+  useEffect(() => {
+    if (!onPanDelta) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && e.target === document.body) spaceRef.current = true;
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') spaceRef.current = false;
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+    };
+  }, [onPanDelta]);
 
   const { setNodeRef, isOver } = useDroppable({
     id: `droppable-${page.id}`,
@@ -39,14 +71,25 @@ export function CanvasPage({
   });
 
   const handleElementSelect = useCallback((element: CanvasElement, shiftKey: boolean) => {
+    if (editingGroupId && element.groupId === editingGroupId) {
+      // Dentro do modo de edição: seleção individual
+      if (shiftKey) {
+        const alreadySelected = selectedIds.includes(element.id);
+        onSelect(alreadySelected
+          ? selectedIds.filter((id) => id !== element.id)
+          : [...selectedIds, element.id]);
+      } else {
+        onSelect([element.id]);
+      }
+      return;
+    }
+    // Modo normal
     if (shiftKey) {
       const alreadySelected = selectedIds.includes(element.id);
-      if (alreadySelected) {
-        onSelect(selectedIds.filter((id) => id !== element.id));
-      } else {
-        onSelect([...selectedIds, element.id]);
-      }
-    } else if (element.groupId) {
+      onSelect(alreadySelected
+        ? selectedIds.filter((id) => id !== element.id)
+        : [...selectedIds, element.id]);
+    } else if (element.groupId && !editingGroupId) {
       const groupMembers = page.elements
         .filter((e) => e.groupId === element.groupId)
         .map((e) => e.id);
@@ -54,7 +97,12 @@ export function CanvasPage({
     } else {
       onSelect([element.id]);
     }
-  }, [page.elements, onSelect, selectedIds]);
+  }, [page.elements, onSelect, selectedIds, editingGroupId]);
+
+  const handleEnterGroupEdit = useCallback((element: CanvasElement) => {
+    if (!element.groupId) return;
+    onEnterGroupEdit?.(element.groupId, element.id);
+  }, [onEnterGroupEdit]);
 
   const handleGroupDragStart = useCallback((selectedIds: string[]) => {
     groupDragStartRef.current = new Map();
@@ -70,8 +118,8 @@ export function CanvasPage({
       const el = page.elements.find((e) => e.id === id);
       if (!start || !el) return;
       onUpdateElement(id, {
-        x: Math.round(Math.max(0, Math.min(A4_WIDTH  - el.width,  start.x + dx))),
-        y: Math.round(Math.max(0, Math.min(A4_HEIGHT - el.height, start.y + dy))),
+        x: Math.round(Math.max(0, Math.min(pageW - el.width,  start.x + dx))),
+        y: Math.round(Math.max(0, Math.min(pageH - el.height, start.y + dy))),
       });
     });
   }, [page.elements, onUpdateElement]);
@@ -82,7 +130,10 @@ export function CanvasPage({
 
   const background = (() => {
     if (page.background.gradient) return page.background.gradient;
-    if (page.background.imageUrl)  return `url(${page.background.imageUrl}) center/cover no-repeat`;
+    if (page.background.imageUrl) {
+      const { url, size } = parseBackgroundImageUrl(page.background.imageUrl);
+      return `url(${url}) center/${size} no-repeat`;
+    }
     return page.background.color ?? '#ffffff';
   })();
 
@@ -106,21 +157,66 @@ export function CanvasPage({
     return ids;
   }, [selectedIds, page.elements]);
 
+  // Pre-compute per-element "others" outside the render loop to avoid repeated .filter() calls
+  // during each child's reconcile. O(n²) data but computed once per nonPageElements change.
+  const otherElementsMap = useMemo(() => {
+    const m = new Map<string, CanvasElement[]>();
+    nonPageElements.forEach((el) => {
+      m.set(el.id, nonPageElements.filter((o) => o.id !== el.id));
+    });
+    return m;
+  }, [nonPageElements]);
+
   return (
     <div
       style={{
-        width: A4_WIDTH,
-        height: A4_HEIGHT,
+        width: pageW,
+        height: pageH,
         position: 'relative',
         boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
         flexShrink: 0,
         outline: isOver ? '2px dashed #6366f1' : 'none',
         outlineOffset: 2,
-        overflow: 'visible',
+        overflow: 'hidden',
         background,
       }}
       onMouseDown={(e) => {
+        const startPan = (startX: number, startY: number) => {
+          panAbortRef.current?.abort();
+          panAbortRef.current = new AbortController();
+          const { signal } = panAbortRef.current;
+          let lastX = startX;
+          let lastY = startY;
+          window.addEventListener('mousemove', (ev: MouseEvent) => {
+            onPanDelta!(ev.clientX - lastX, ev.clientY - lastY);
+            lastX = ev.clientX;
+            lastY = ev.clientY;
+          }, { signal });
+          window.addEventListener('mouseup', () => { panAbortRef.current?.abort(); }, { signal });
+        };
+
+        // Middle-mouse-button pan
+        if (e.button === 1 && onPanDelta) {
+          e.preventDefault();
+          e.stopPropagation();
+          startPan(e.clientX, e.clientY);
+          return;
+        }
+
+        // Space+drag pan
+        if (e.button === 0 && spaceRef.current && onPanDelta) {
+          e.preventDefault();
+          e.stopPropagation();
+          startPan(e.clientX, e.clientY);
+          return;
+        }
+
         if (e.target !== e.currentTarget) return;
+        if (editingGroupId) {
+          onExitGroupEdit?.();
+          onSelect([]);
+          return;
+        }
         e.preventDefault();
         const rect = e.currentTarget.getBoundingClientRect();
         const startX = (e.clientX - rect.left) / scale;
@@ -163,6 +259,27 @@ export function CanvasPage({
         window.addEventListener('mousemove', onMove, { signal });
         window.addEventListener('mouseup', onUp, { signal });
       }}
+      onDragOver={(e) => {
+        // Only intercept OS file drops (not @dnd-kit internal drags)
+        if (e.dataTransfer.types.includes('Files')) e.preventDefault();
+      }}
+      onDrop={(e) => {
+        if (!onDropImage) return;
+        const file = e.dataTransfer.files?.[0];
+        if (!file || !file.type.startsWith('image/')) return;
+        if (file.size > 5 * 1024 * 1024) return;
+        e.preventDefault();
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const url = ev.target?.result as string;
+          if (!url) return;
+          const rect = e.currentTarget.getBoundingClientRect();
+          const x = Math.round((e.clientX - rect.left) / scale);
+          const y = Math.round((e.clientY - rect.top) / scale);
+          onDropImage({ url, x, y });
+        };
+        reader.readAsDataURL(file);
+      }}
     >
       {/* Drop zone invisível (@dnd-kit) */}
       <div
@@ -180,7 +297,6 @@ export function CanvasPage({
       {sortedElements.map((element) => {
         const isSelected = selectedIds.includes(element.id);
         const isGrouped  = !!element.groupId && selectedGroupIds.has(element.groupId);
-        const others = nonPageElements.filter((el) => el.id !== element.id);
         return (
           <CanvasElementWrapper
             key={element.id}
@@ -191,7 +307,7 @@ export function CanvasPage({
             gridSize={gridConfig.size}
             snapEnabled={gridConfig.snap}
             guidesEnabled={gridConfig.guides}
-            otherElements={others}
+            otherElements={otherElementsMap.get(element.id) ?? []}
             onSelect={(shiftKey) => handleElementSelect(element, shiftKey ?? false)}
             onUpdate={(updates) => onUpdateElement(element.id, updates)}
             onGuideChange={setActiveGuides}
@@ -201,6 +317,9 @@ export function CanvasPage({
             onMutationStart={onMutationStart}
             onDuplicate={() => onDuplicateElement?.(element.id)}
             onRemove={() => onRemoveElement?.(element.id)}
+            groupEditMode={!!editingGroupId}
+            isInGroupEdit={editingGroupId ? element.groupId === editingGroupId : false}
+            onEnterGroupEdit={() => handleEnterGroupEdit(element)}
           />
         );
       })}
@@ -249,6 +368,50 @@ export function CanvasPage({
               zIndex: 997,
             }}
           />
+        );
+      })()}
+
+      {/* Bounding box do grupo em edição */}
+      {editingGroupId && (() => {
+        const groupEls = page.elements.filter((e) => e.groupId === editingGroupId);
+        if (groupEls.length === 0) return null;
+        const minX = Math.min(...groupEls.map((e) => e.x)) - 10;
+        const minY = Math.min(...groupEls.map((e) => e.y)) - 10;
+        const maxX = Math.max(...groupEls.map((e) => e.x + e.width)) + 10;
+        const maxY = Math.max(...groupEls.map((e) => e.y + e.height)) + 10;
+        return (
+          <div
+            style={{
+              position: 'absolute',
+              left: minX,
+              top: minY,
+              width: maxX - minX,
+              height: maxY - minY,
+              border: '2px dashed rgba(99,102,241,0.7)',
+              borderRadius: 6,
+              pointerEvents: 'none',
+              zIndex: 996,
+            }}
+          >
+            <span
+              style={{
+                position: 'absolute',
+                top: -20,
+                left: 0,
+                fontSize: 10,
+                fontWeight: 700,
+                color: '#6366f1',
+                background: 'white',
+                padding: '1px 6px',
+                borderRadius: 3,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                userSelect: 'none',
+              }}
+            >
+              Editando grupo
+            </span>
+          </div>
         );
       })()}
 

@@ -3,93 +3,87 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider          = "mysql"
   url               = env("DATABASE_URL")
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
-// ============================================
-// DOMÍNIO DE FUNDAÇÃO (YWARA CORE)
-// ============================================
-
 model Tenant {
-  id              String     @id @default(cuid())
+  id              String         @id @default(cuid())
   name            String
-  type            String     @default("CORPORATE") // MASTER, INDIVIDUAL, CORPORATE
+  type            String         @default("CORPORATE")
   parentId        String?
-  apiPlan         String     @default("FREE")
-  apiMonthlyQuota Int        @default(1000)
-  apiCurrentUsage Int        @default(0)
+  apiPlan         String         @default("FREE")
+  apiMonthlyQuota Int            @default(1000)
+  apiCurrentUsage Int            @default(0)
   ssoProvider     String?
   ssoDomain       String?
-  ssoEnforced     Boolean    @default(false)
-  status          String     @default("ACTIVE") // ACTIVE, BLOCKED, TRIAL_EXPIRED
-  logtoOrgId      String?    @unique // ID da Organization correspondente no Logto
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
-
-  users     User[]
-  auditLogs AuditLog[]
-  apiKeys   TenantApiKey[]
-  orgUnits  OrgUnit[]
-  roles     Role[]
+  ssoEnforced     Boolean        @default(false)
+  status          String         @default("ACTIVE")
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  logtoOrgId      String?        @unique
+  auditLogs       AuditLog[]
+  orgUnits        OrgUnit[]
+  roles           Role[]
+  apiKeys         TenantApiKey[]
+  users           User[]
 
   @@index([parentId])
 }
 
 model OrgUnit {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   tenantId  String
   name      String
-  type      String   // DEPARTAMENTO, FILIAL, EQUIPE
+  type      String
   parentId  String?
-  path      String?  // Path de hierarquia (ex: /1/5/12)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  tenant   Tenant    @relation(fields: [tenantId], references: [id])
-  parent   OrgUnit?  @relation("OrgHierarchy", fields: [parentId], references: [id])
-  children OrgUnit[] @relation("OrgHierarchy")
-  users    User[]
+  path      String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  parent    OrgUnit?  @relation("OrgHierarchy", fields: [parentId], references: [id])
+  children  OrgUnit[] @relation("OrgHierarchy")
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  users     User[]
 
   @@index([tenantId])
   @@index([parentId])
 }
 
 model User {
-  id             String    @id @default(cuid())
-  username       String    @unique
-  email          String?   @unique
-  password       String
-  fullName       String
-  role           String    // PLATFORM_ADMIN, TENANT_ADMIN, ENGINEER, VIEWER (Legacy)
-  roleId         String?
-  orgUnitId      String?
-  tenantId       String
-  jobTitle       String?
-  mustChangePassword Boolean @default(false)
-  authProviderId String?   @unique // Logto Subject ID
-  status         String    @default("ACTIVE") // ACTIVE, BLOCKED, PENDING_VERIFICATION
-  lastLoginAt    DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-
-  tenant    Tenant     @relation(fields: [tenantId], references: [id])
-  orgUnit   OrgUnit?   @relation(fields: [orgUnitId], references: [id])
-  roleRef   Role?      @relation(fields: [roleId], references: [id])
-  auditLogs AuditLog[]
-  sessions  Session[]
+  id                 String     @id @default(cuid())
+  username           String     @unique
+  password           String
+  fullName           String
+  role               String
+  roleId             String?
+  orgUnitId          String?
+  tenantId           String
+  jobTitle           String?
+  mustChangePassword Boolean    @default(false)
+  authProviderId     String?    @unique
+  status             String     @default("ACTIVE")
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  lastLoginAt        DateTime?
+  email              String?    @unique
+  auditLogs          AuditLog[]
+  sessions           Session[]
+  orgUnit            OrgUnit?   @relation(fields: [orgUnitId], references: [id])
+  roleRef            Role?      @relation(fields: [roleId], references: [id])
+  tenant             Tenant     @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
   @@index([roleId])
+  @@index([orgUnitId], map: "User_orgUnitId_fkey")
 }
 
 model AuditLog {
   id         String   @id @default(cuid())
   tenantId   String?
   userId     String?
-  action     String   // CREATE, UPDATE, DELETE, LOGIN, EXPORT
-  entity     String?  // User, Tenant, Project, etc.
+  action     String
+  entity     String?
   resourceId String
   details    String?  @db.Text
   before     Json?
@@ -97,10 +91,8 @@ model AuditLog {
   ipAddress  String?
   userAgent  String?
   timestamp  DateTime @default(now())
-
-  tenant Tenant? @relation(fields: [tenantId], references: [id])
-  user   User?   @relation(fields: [userId], references: [id])
-
+  tenant     Tenant?  @relation(fields: [tenantId], references: [id])
+  user       User?    @relation(fields: [userId], references: [id])
 
   @@index([tenantId])
   @@index([userId])
@@ -116,7 +108,6 @@ model TenantApiKey {
   expiresAt DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
-
   tenant    Tenant    @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
@@ -128,7 +119,6 @@ model Session {
   token     String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
-
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -143,48 +133,40 @@ model CronLock {
 model IdentityAuditHistory {
   id           String   @id @default(cuid())
   checkedAt    DateTime @default(now())
-  summary      Json     // KPIs resumidos
-  report       Json?    // Dados detalhados da auditoria
-  status       String   @default("SUCCESS") // SUCCESS, FAILED
+  summary      Json
+  report       Json?
+  status       String   @default("SUCCESS")
   errorMessage String?  @db.Text
 }
 
-// ============================================
-// RBAC (ROLES & PERMISSIONS)
-// ============================================
-
 model Role {
-  id          String   @id @default(cuid())
-  name        String   // "Projetista Sênior"
-  level       String   @default("TENANT") // PLATFORM, TENANT
-  tenantId    String?  // Se null, é uma role global (ex: PLATFORM_ADMIN)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
+  id          String           @id @default(cuid())
+  name        String
+  level       String           @default("TENANT")
+  tenantId    String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  tenant      Tenant?          @relation(fields: [tenantId], references: [id])
   permissions RolePermission[]
   users       User[]
 
-  tenant      Tenant?  @relation(fields: [tenantId], references: [id])
-  
   @@index([tenantId])
 }
 
 model Permission {
-  id          String   @id @default(cuid())
-  slug        String   @unique // ex: "catalog:write", "users:manage"
+  id          String           @id @default(cuid())
+  slug        String           @unique
   description String?
-  createdAt   DateTime @default(now())
-  
+  createdAt   DateTime         @default(now())
   roles       RolePermission[]
 }
 
 model RolePermission {
-  id           String @id @default(cuid())
+  id           String     @id @default(cuid())
   roleId       String
   permissionId String
-
-  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
   permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@unique([roleId, permissionId])
   @@index([roleId])

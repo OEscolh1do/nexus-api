@@ -60,6 +60,7 @@ export const ModuleForm: React.FC<Props> = ({ initialData, onConfirm }) => {
       inmetroId: 'Aprovado',
       maxFuseRating: dbEntry.electrical.maxFuseRating || 20,
       tempCoeff: dbEntry.electrical.tempCoeffVoc,
+      noct: dbEntry.electrical.noct || 45,
       annualDepreciation: 0.8
     };
 

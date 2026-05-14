@@ -19,7 +19,7 @@ function makePageBlock(id: string, type: 'page-technical') {
 export const CLASSIC_TEMPLATE: ProposalTemplate = {
   id: 'classic',
   name: 'Clássico Neonorte',
-  description: 'Layout completo de 5 páginas da proposta comercial.',
+  description: 'Layout técnico com página de dimensionamento.',
   isBuiltIn: true,
   createdAt: '2025-01-01T00:00:00.000Z',
   theme: {
@@ -32,6 +32,7 @@ export const CLASSIC_TEMPLATE: ProposalTemplate = {
       id: 'classic-p0',
       label: 'Dimensionamento',
       background: { color: '#ffffff' },
+      orientation: 'portrait',
       elements: [makePageBlock('classic-p0-main', 'page-technical')],
     },
   ],

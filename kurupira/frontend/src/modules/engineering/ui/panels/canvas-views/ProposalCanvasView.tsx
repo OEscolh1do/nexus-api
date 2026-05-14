@@ -11,8 +11,9 @@ import {
 } from '@dnd-kit/core';
 import { useUIStore } from '@/core/state/uiStore';
 import { useSolarStore } from '@/core/state/solarStore';
-import { FileText, LayoutTemplate, Pencil, Save, Layers, ChevronLeft, ChevronRight, Plus, Trash2, Grid3x3, Magnet, Target, PanelLeft, LayoutList, RotateCcw, ZoomIn, ZoomOut, Maximize2, Undo2, Redo2, Copy, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter } from 'lucide-react';
+import { FileText, LayoutTemplate, Save, Layers, ChevronLeft, ChevronRight, Plus, Trash2, Grid3x3, Magnet, Target, PanelLeft, LayoutList, RotateCcw, ZoomIn, ZoomOut, Maximize2, Undo2, Redo2, Copy, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, FileDown, History, FileImage, Palette, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ImportMediaDialog } from './proposal/engine/ImportMediaDialog';
 
 import { ProposalDocumentPreview } from './proposal/ProposalDocumentPreview';
 import { ProposalBlockedScreen } from './proposal/ProposalBlockedScreen';
@@ -21,41 +22,78 @@ import { ElementPalette } from './proposal/engine/ElementPalette';
 import { ElementPropertiesPanel } from './proposal/engine/ElementPropertiesPanel';
 import { LayersPanel } from './proposal/engine/LayersPanel';
 import { CanvasPage } from './proposal/engine/CanvasPage';
+import { useAutosave } from './proposal/engine/useAutosave';
+import { VersionHistoryPanel } from './proposal/engine/VersionHistoryPanel';
+import { PageBackgroundPanel } from './proposal/engine/PageBackgroundPanel';
 import { CLASSIC_TEMPLATE } from './proposal/engine/templates/classicTemplate';
 import { TECHNICAL_PAGE_ELEMENTS } from './proposal/engine/templates/technicalPageDecomposed';
-import type { CanvasElement, CanvasPage as CanvasPageType, GridConfig } from './proposal/engine/types';
-// CanvasPage[] is used for undo/redo history snapshots
+import type { CanvasElement, CanvasPage as CanvasPageType, GridConfig, CanvasElementType } from './proposal/engine/types';
+import type { PdfPageResult } from './proposal/engine/ImportMediaDialog';
 type CanvasPageSnapshot = CanvasPageType[];
-import { A4_WIDTH, A4_HEIGHT, DEFAULT_ELEMENT_PROPS, DEFAULT_GRID_CONFIG } from './proposal/engine/types';
+import { A4_WIDTH, A4_HEIGHT, DEFAULT_ELEMENT_PROPS, DEFAULT_GRID_CONFIG, parseBackgroundImageUrl } from './proposal/engine/types';
 
 type ViewMode = 'templates' | 'editor' | 'preview';
 
 const ZOOM_STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1.0, 1.1, 1.25, 1.5, 2.0];
 
-const DRAG_GHOST_META: Record<string, { label: string; icon: string }> = {
-  'text':               { label: 'Texto',              icon: '𝐓' },
-  'image':              { label: 'Imagem',              icon: '🖼' },
-  'logo':               { label: 'Logo',               icon: '✦' },
-  'watermark':          { label: 'Marca d\'água',       icon: '⬡' },
-  'divider':            { label: 'Divisória',           icon: '—' },
-  'box':                { label: 'Caixa',               icon: '▭' },
-  'icon':               { label: 'Ícone',               icon: '★' },
-  'placeholder':        { label: 'Campo dinâmico',      icon: '{}' },
-  'kpi-box':            { label: 'KPI',                 icon: '◈' },
-  'chart-generation':   { label: 'Gráfico Geração',     icon: '▦' },
-  'chart-financial':    { label: 'Gráfico Financeiro',  icon: '▦' },
-  'chart-irradiance':   { label: 'Gráfico Irradiância', icon: '☀' },
-  'payment-table':      { label: 'Tabela Investimento', icon: '⊟' },
-  'schedule-timeline':  { label: 'Cronograma',          icon: '⊞' },
-  'map-static':         { label: 'Mapa',                icon: '⊙' },
+function computeNextZoom(prev: number | null, fitScale: number, direction: 'in' | 'out'): number {
+  const current = prev ?? fitScale;
+  const idx = ZOOM_STEPS.findIndex((s) => s >= current);
+  const newIdx = direction === 'in'
+    ? Math.min(ZOOM_STEPS.length - 1, (idx < 0 ? ZOOM_STEPS.length - 1 : idx) + 1)
+    : Math.max(0, (idx < 0 ? 0 : idx) - 1);
+  return ZOOM_STEPS[newIdx] ?? current;
+}
+
+const DRAG_GHOST_META: Partial<Record<CanvasElementType, { label: string; icon: string }>> = {
+  text:               { label: 'Texto',              icon: '𝐓' },
+  image:              { label: 'Imagem',              icon: '🖼' },
+  logo:               { label: 'Logo',               icon: '✦' },
+  watermark:          { label: 'Marca d\'água',       icon: '⬡' },
+  divider:            { label: 'Divisória',           icon: '—' },
+  box:                { label: 'Caixa',               icon: '▭' },
+  icon:               { label: 'Ícone',               icon: '★' },
+  placeholder:        { label: 'Campo dinâmico',      icon: '{}' },
+  'kpi-box':          { label: 'KPI',                 icon: '◈' },
+  'chart-generation': { label: 'Gráfico Geração',     icon: '▦' },
+  'chart-financial':  { label: 'Gráfico Financeiro',  icon: '▦' },
+  'payment-table':    { label: 'Tabela Investimento', icon: '⊟' },
+  'schedule-timeline':{ label: 'Cronograma',          icon: '⊞' },
+  'map-static':       { label: 'Mapa',                icon: '⊙' },
 };
+
+const ELEMENT_DISPLAY_NAMES: Partial<Record<CanvasElementType, string>> = {
+  text: 'Texto', image: 'Imagem', logo: 'Logotipo', watermark: 'Marca d\'água',
+  divider: 'Divisória', box: 'Caixa', icon: 'Ícone', placeholder: 'Campo dinâmico',
+  'kpi-box': 'KPI', 'chart-generation': 'Gráfico de Geração', 'chart-financial': 'Gráfico Financeiro',
+  'payment-table': 'Tabela de Pagamento', 'schedule-timeline': 'Cronograma', 'map-static': 'Mapa',
+  'page-technical': 'Página Técnica',
+  'chart-gen-consumption': 'Geração vs Consumo', 'chart-roi': 'Retorno do Investimento',
+  'chart-financial-balance': 'Balanço Financeiro', 'chart-daily': 'Geração Diária',
+  'chart-credit-bank': 'Banco de Créditos', 'chart-loss-waterfall': 'Análise de Perdas',
+  'kpi-projection': 'KPI de Projeção', 'table-analytics': 'Tabela Analítica',
+  'section-header': 'Cabeçalho', 'kpi-capacity-badge': 'Badge de Capacidade',
+  'guarantees-list': 'Lista de Garantias', 'equipment-panel': 'Painel de Equipamentos',
+};
+
+const PortraitIcon = () => (
+  <svg width="8" height="11" viewBox="0 0 8 11" fill="none">
+    <rect x="0.5" y="0.5" width="7" height="10" rx="1" stroke="currentColor" strokeWidth="1.2"/>
+  </svg>
+);
+
+const LandscapeIcon = () => (
+  <svg width="11" height="8" viewBox="0 0 11 8" fill="none">
+    <rect x="0.5" y="0.5" width="10" height="7" rx="1" stroke="currentColor" strokeWidth="1.2"/>
+  </svg>
+);
 
 function SaveTemplateDialog({ onSave, onCancel }: { onSave: (name: string) => void; onCancel: () => void }) {
   const [name, setName] = useState('Meu Template');
   return (
-    <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-2xl p-6 w-80">
-        <h3 className="text-sm font-semibold text-slate-800 mb-1">Salvar como template</h3>
+    <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-50">
+      <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-6 w-80">
+        <h3 className="text-sm font-semibold text-slate-100 mb-1">Salvar como template</h3>
         <p className="text-xs text-slate-400 mb-4">Este layout ficará disponível na galeria de templates.</p>
         <input
           autoFocus
@@ -63,12 +101,12 @@ function SaveTemplateDialog({ onSave, onCancel }: { onSave: (name: string) => vo
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') onSave(name); if (e.key === 'Escape') onCancel(); }}
-          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:border-blue-400"
+          className="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
           placeholder="Nome do template"
         />
         <div className="flex gap-2 justify-end">
-          <button onClick={onCancel} className="text-xs text-slate-500 px-3 py-1.5 hover:bg-slate-100 rounded-lg">Cancelar</button>
-          <button onClick={() => onSave(name)} className="text-xs font-medium bg-slate-800 text-white px-4 py-1.5 rounded-lg hover:bg-slate-700">Salvar</button>
+          <button onClick={onCancel} className="text-slate-400 hover:text-slate-200 hover:bg-slate-800 px-3 py-1.5 rounded-lg text-xs transition-colors">Cancelar</button>
+          <button onClick={() => onSave(name)} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded-lg text-xs font-medium transition-colors">Salvar</button>
         </div>
       </div>
     </div>
@@ -80,40 +118,49 @@ export const ProposalCanvasView: React.FC = () => {
   const setFocusedBlock = useUIStore((s) => s.setFocusedBlock);
 
   const activeLayout        = useSolarStore((s) => s.proposalData.activeLayout);
-  const addCanvasElement    = useSolarStore((s) => s.addCanvasElement);
-  const updateCanvasElement = useSolarStore((s) => s.updateCanvasElement);
+  const addCanvasElement         = useSolarStore((s) => s.addCanvasElement);
+  const batchAddCanvasElements   = useSolarStore((s) => s.batchAddCanvasElements);
+  const updateCanvasElement  = useSolarStore((s) => s.updateCanvasElement);
+  const updateCanvasPage     = useSolarStore((s) => s.updateCanvasPage);
   const removeCanvasElement = useSolarStore((s) => s.removeCanvasElement);
   const addCanvasPage            = useSolarStore((s) => s.addCanvasPage);
+  const batchAddCanvasPages      = useSolarStore((s) => s.batchAddCanvasPages);
   const removeCanvasPage         = useSolarStore((s) => s.removeCanvasPage);
   const saveCurrentAsTemplate    = useSolarStore((s) => s.saveCurrentAsTemplate);
   const applyTemplate            = useSolarStore((s) => s.applyTemplate);
-  const updateCanvasPageBackground = useSolarStore((s) => s.updateCanvasPageBackground);
+  const setExportingPdf               = useSolarStore((s) => s.setExportingPdf);
 
   const [viewMode, setViewMode]             = useState<ViewMode>('preview');
   const [canvasPageIdx, setCanvasPageIdx]   = useState(0);
   const [selectedIds, setSelectedIds]       = useState<string[]>([]);
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [clipboard, setClipboard]           = useState<CanvasElement[]>([]);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [showBgPanel, setShowBgPanel] = useState(false);
   const [activeDragType, setActiveDragType] = useState<string | null>(null);
   const [gridConfig, setGridConfig]         = useState<GridConfig>(DEFAULT_GRID_CONFIG);
   const [sidebarTab, setSidebarTab]         = useState<'elements' | 'layers'>('elements');
   const [renamingPageId, setRenamingPageId] = useState<string | null>(null);
   const [renamingPageLabel, setRenamingPageLabel] = useState<string>('');
-  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
-    const saved = localStorage.getItem('kurupira-proposal-sidebar-w');
-    return saved ? Math.max(200, Math.min(420, Number(saved))) : 260;
-  });
-  const [deleteToast, setDeleteToast] = useState<string | null>(null);
-  const deleteToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
+  const [showImportMedia, setShowImportMedia] = useState(false);
+  // Pending-print flag: set true before switching to preview to auto-fire window.print()
+  const pendingPrintRef = useRef(false);
 
   // ── Undo / Redo ────────────────────────────────────────────────────────────
   const [undoStack, setUndoStack] = useState<CanvasPageSnapshot[]>([]);
   const [redoStack, setRedoStack] = useState<CanvasPageSnapshot[]>([]);
+  // Suppresses repeated history pushes during a continuous drag stroke
+  const isMutatingRef = useRef(false);
 
   const updateGrid = (patch: Partial<GridConfig>) =>
     setGridConfig((prev) => ({ ...prev, ...patch }));
 
-  const canvasAreaRef       = useRef<HTMLDivElement>(null);
+  const canvasAreaRef   = useRef<HTMLDivElement>(null);
+  const canvasScrollRef = useRef<HTMLDivElement>(null);
   const lastHistoryPushRef  = useRef<number>(0);
   const [fitScale, setFitScale]       = useState(0.6);
   const [manualScale, setManualScale] = useState<number | null>(null);
@@ -130,6 +177,13 @@ export const ProposalCanvasView: React.FC = () => {
   const safePageIdx     = Math.min(canvasPageIdx, pages.length - 1);
   const currentPage     = pages[safePageIdx] ?? null;
   const currentPageId   = currentPage?.id ?? '';
+
+  // Autosave + version history
+  const { saveVersion } = useAutosave(
+    effectiveLayout,
+    isDirty,
+    (layout) => { applyTemplate(layout); setIsDirty(false); },
+  );
 
   // Selected element object (single element)
   const selectedElement = selectedIds.length === 1
@@ -163,16 +217,35 @@ export const ProposalCanvasView: React.FC = () => {
 
   // ── Undo / Redo helpers ───────────────────────────────────────────────────
 
+  const MAX_HISTORY = 50;
+
   const pushToHistory = useCallback(() => {
-    setUndoStack((prev) => [...prev.slice(-30), effectiveLayout.pages]);
+    setUndoStack((prev) => {
+      const next = [...prev, effectiveLayout.pages];
+      return next.length > MAX_HISTORY ? next.slice(next.length - MAX_HISTORY) : next;
+    });
     setRedoStack([]);
   }, [effectiveLayout]);
 
-  const showDeleteToast = useCallback((count: number) => {
-    if (deleteToastTimerRef.current) clearTimeout(deleteToastTimerRef.current);
-    setDeleteToast(`${count} elemento${count !== 1 ? 's' : ''} excluído${count !== 1 ? 's' : ''} • Ctrl+Z para desfazer`);
-    deleteToastTimerRef.current = setTimeout(() => setDeleteToast(null), 3500);
+  const showToast = useCallback((message: string, duration = 3000) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast(message);
+    toastTimerRef.current = setTimeout(() => setToast(null), duration);
   }, []);
+
+  const showDeleteToast = useCallback((count: number) => {
+    showToast(`${count} elemento${count !== 1 ? 's' : ''} excluído${count !== 1 ? 's' : ''} • Ctrl+Z para desfazer`, 3500);
+  }, [showToast]);
+
+  useEffect(() => {
+    if (!isDirty || viewMode !== 'editor') return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty, viewMode]);
 
   const handleUndo = useCallback(() => {
     if (undoStack.length === 0) return;
@@ -287,7 +360,16 @@ export const ProposalCanvasView: React.FC = () => {
       }
 
       if (e.key === 'Escape') {
-        setSelectedIds([]);
+        if (editingGroupId && currentPage) {
+          // Sai do modo de edição e restaura seleção do grupo
+          const groupMembers = currentPage.elements
+            .filter((el) => el.groupId === editingGroupId)
+            .map((el) => el.id);
+          setSelectedIds(groupMembers);
+          setEditingGroupId(null);
+        } else {
+          setSelectedIds([]);
+        }
         return;
       }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIds.length > 0 && currentPage) {
@@ -300,7 +382,7 @@ export const ProposalCanvasView: React.FC = () => {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [viewMode, selectedIds, clipboard, currentPage, removeCanvasElement, handleUndo, handleRedo, pushToHistory, addCanvasElement, updateCanvasElement, showDeleteToast]);
+  }, [viewMode, selectedIds, clipboard, currentPage, removeCanvasElement, handleUndo, handleRedo, pushToHistory, addCanvasElement, updateCanvasElement, showDeleteToast, editingGroupId]);
 
   const isApproved = projectStatus === 'approved';
 
@@ -347,36 +429,35 @@ export const ProposalCanvasView: React.FC = () => {
     const x = snap(Math.max(0, Math.min(A4_WIDTH  - w, rawX - w / 2)));
     const y = snap(Math.max(0, Math.min(A4_HEIGHT - h, rawY - h / 2)));
 
-    // If no custom layout yet, clone classic
-    if (!activeLayout) applyTemplate(CLASSIC_TEMPLATE);
-
+    // addCanvasElement handles null activeLayout internally — no need to guard here
     const baseZIndex = (currentPage.elements.length + 1) * 10;
 
-    // ── Preset: adiciona múltiplos elementos de uma vez ────────────────────────
+    // ── Preset: adiciona múltiplos elementos de uma vez (único set()) ─────────
     if (data.isPreset) {
+      setIsDirty(true);
       pushToHistory();
       type PresetDef = { type: CanvasElement['type']; dx: number; dy: number; width: number; height: number; zIndex: number; groupId?: string; props: Record<string, unknown> };
       const defs = (data.presetElements as PresetDef[]) ?? [];
-      defs.forEach((def, i) => {
-        const el: CanvasElement = {
-          id:      `el-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${i}`,
-          type:    def.type,
-          x:       Math.round(snap(Math.max(0, x + def.dx))),
-          y:       Math.round(snap(Math.max(0, y + def.dy))),
-          width:   def.width,
-          height:  def.height,
-          zIndex:  baseZIndex + def.zIndex,
-          locked:  false,
-          visible: true,
-          groupId: def.groupId ?? undefined,
-          props:   { ...def.props },
-        };
-        addCanvasElement(currentPage.id, el);
-      });
+      const ts = Date.now();
+      const newElements: CanvasElement[] = defs.map((def, i) => ({
+        id:      `el-${ts}-${Math.random().toString(36).slice(2, 7)}-${i}`,
+        type:    def.type,
+        x:       Math.round(snap(Math.max(0, x + def.dx))),
+        y:       Math.round(snap(Math.max(0, y + def.dy))),
+        width:   def.width,
+        height:  def.height,
+        zIndex:  baseZIndex + def.zIndex,
+        locked:  false,
+        visible: true,
+        groupId: def.groupId ?? undefined,
+        props:   { ...def.props },
+      }));
+      batchAddCanvasElements(currentPage.id, newElements);
       return;
     }
 
     // ── Elemento único ─────────────────────────────────────────────────────────
+    setIsDirty(true);
     pushToHistory();
     const newElement: CanvasElement = {
       id:      `el-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -393,12 +474,17 @@ export const ProposalCanvasView: React.FC = () => {
 
     addCanvasElement(currentPage.id, newElement);
     setSelectedIds([newElement.id]);
-  }, [currentPage, canvasScale, gridConfig, activeLayout, applyTemplate, addCanvasElement, pushToHistory]);
+  }, [currentPage, canvasScale, gridConfig, addCanvasElement, batchAddCanvasElements, pushToHistory]);
 
   // ─── Page management ───────────────────────────────────────────────────────
 
   const handleAddPage = useCallback(() => {
-    if (!activeLayout) applyTemplate(CLASSIC_TEMPLATE);
+    setIsDirty(true);
+    if (!activeLayout) {
+      // applyTemplate mutates Zustand but the closure still sees null — let re-render happen
+      applyTemplate(CLASSIC_TEMPLATE);
+      return;
+    }
     const newPage: CanvasPageType = {
       id: `p-${Date.now()}`,
       label: `Página ${pages.length + 1}`,
@@ -412,6 +498,7 @@ export const ProposalCanvasView: React.FC = () => {
 
   const handleRemovePage = useCallback((idx: number) => {
     if (pages.length <= 1) return;
+    setIsDirty(true);
     removeCanvasPage(pages[idx].id);
     setCanvasPageIdx((prev) => Math.min(prev, pages.length - 2));
     setSelectedIds([]);
@@ -445,16 +532,21 @@ export const ProposalCanvasView: React.FC = () => {
 
   const handleUpdateElement = useCallback((elementId: string, updates: Partial<CanvasElement>) => {
     if (!currentPage) return;
-    const now = Date.now();
-    if (now - lastHistoryPushRef.current > 500) {
-      pushToHistory();
-      lastHistoryPushRef.current = now;
+    setIsDirty(true);
+    // Pre-drag snapshot already pushed by onMutationStart — skip during the drag stroke.
+    if (!isMutatingRef.current) {
+      const now = Date.now();
+      if (now - lastHistoryPushRef.current > 500) {
+        pushToHistory();
+        lastHistoryPushRef.current = now;
+      }
     }
     updateCanvasElement(currentPage.id, elementId, updates);
   }, [currentPage, updateCanvasElement, pushToHistory]);
 
   const handleRemoveElement = useCallback((elementId: string) => {
     if (!currentPage) return;
+    setIsDirty(true);
     pushToHistory();
     removeCanvasElement(currentPage.id, elementId);
     if (selectedIds.includes(elementId)) setSelectedIds(selectedIds.filter(id => id !== elementId));
@@ -464,24 +556,30 @@ export const ProposalCanvasView: React.FC = () => {
 
   const handleGroupSelected = useCallback(() => {
     if (!currentPage || selectedIds.length < 2) return;
-    if (!activeLayout) applyTemplate(CLASSIC_TEMPLATE);
+    if (!activeLayout) {
+      applyTemplate(CLASSIC_TEMPLATE);
+      return;
+    }
     const newGroupId = `grp-${Date.now()}`;
-    selectedIds.forEach((id) => updateCanvasElement(currentPage.id, id, { groupId: newGroupId }));
-  }, [currentPage, selectedIds, activeLayout, applyTemplate, updateCanvasElement]);
+    const elements = currentPage.elements.map((el) =>
+      selectedIds.includes(el.id) ? { ...el, groupId: newGroupId } : el
+    );
+    updateCanvasPage(currentPage.id, { elements });
+  }, [currentPage, selectedIds, activeLayout, applyTemplate, updateCanvasPage]);
 
   const handleUngroupSelected = useCallback(() => {
     if (!currentPage) return;
-    selectedIds.forEach((id) => updateCanvasElement(currentPage.id, id, { groupId: undefined }));
+    const elements = currentPage.elements.map((el) =>
+      selectedIds.includes(el.id) ? { ...el, groupId: undefined } : el
+    );
+    updateCanvasPage(currentPage.id, { elements });
     setSelectedIds([]);
-  }, [currentPage, selectedIds, updateCanvasElement]);
+  }, [currentPage, selectedIds, updateCanvasPage]);
 
   // ─── Decompose / Restore page handlers ─────────────────────────────────────
 
   const handleDecomposePage = useCallback(() => {
     if (!currentPage) return;
-    // Clone classic first if still on built-in
-    if (!activeLayout) applyTemplate(CLASSIC_TEMPLATE);
-    // Remove the locked page-technical element
     const pageTechEl = currentPage.elements.find((e) => e.type === 'page-technical');
     if (pageTechEl) removeCanvasElement(currentPage.id, pageTechEl.id);
     // Add all decomposed elements — capture timestamp + index to guarantee unique IDs
@@ -493,78 +591,105 @@ export const ProposalCanvasView: React.FC = () => {
   }, [currentPage, activeLayout, applyTemplate, removeCanvasElement, addCanvasElement]);
 
   const handleRestorePage = useCallback(() => {
-    if (!currentPage) return;
-    if (!activeLayout) return;
-    // Remove everything that is not a page block AND remove any stray page-* elements
-    // that don't belong to this page (e.g. if page-cover was dragged in manually).
-    // Only the page-technical block should remain — everything else is cleared.
-    [...currentPage.elements].forEach((el) => {
-      removeCanvasElement(currentPage.id, el.id);
-    });
-    // Add back the locked page-technical element
-    addCanvasElement(currentPage.id, {
-      id: `classic-p0-main-${Date.now()}`,
-      type: 'page-technical',
-      x: 0,
-      y: 0,
-      width: 794,
-      height: 1123,
-      zIndex: 0,
-      locked: true,
-      visible: true,
-      props: {},
+    if (!currentPage || !activeLayout) return;
+    // Clear all elements and restore the canonical page-technical block in one mutation
+    updateCanvasPage(currentPage.id, {
+      elements: [{
+        id: `classic-p0-main-${Date.now()}`,
+        type: 'page-technical',
+        x: 0, y: 0, width: 794, height: 1123,
+        zIndex: 0, locked: true, visible: true, props: {},
+      }],
     });
     setSelectedIds([]);
-  }, [currentPage, activeLayout, removeCanvasElement, addCanvasElement]);
+  }, [currentPage, activeLayout, updateCanvasPage]);
+
+  // Stable pan callback — must be memoised so CanvasPage's space-key useEffect
+  // doesn't re-register listeners on every parent render.
+  const handlePanDelta = useCallback((dx: number, dy: number) => {
+    canvasScrollRef.current?.scrollBy({ left: -dx, top: -dy });
+  }, []);
 
   // ─── Zoom controls ────────────────────────────────────────────────────────────
 
   const handleZoomIn  = useCallback(() => {
-    setManualScale((prev) => {
-      const cur = prev ?? fitScale;
-      return ZOOM_STEPS.find((s) => s > cur + 0.01) ?? cur;
-    });
+    setManualScale((prev) => computeNextZoom(prev, fitScale, 'in'));
   }, [fitScale]);
 
   const handleZoomOut = useCallback(() => {
-    setManualScale((prev) => {
-      const cur = prev ?? fitScale;
-      return [...ZOOM_STEPS].reverse().find((s) => s < cur - 0.01) ?? cur;
-    });
+    setManualScale((prev) => computeNextZoom(prev, fitScale, 'out'));
   }, [fitScale]);
 
   const handleZoomFit = useCallback(() => setManualScale(null), []);
 
-  // CHANGE 3 — Ctrl+scroll zoom
-  const handleCanvasWheel = useCallback((e: React.WheelEvent) => {
-    if (!e.ctrlKey && !e.metaKey) return;
-    e.preventDefault();
-    const direction = e.deltaY < 0 ? 'in' : 'out';
-    setManualScale((prev) => {
-      const current = prev ?? fitScale;
-      const idx = ZOOM_STEPS.findIndex((s) => s >= current);
-      const newIdx = direction === 'in'
-        ? Math.min(ZOOM_STEPS.length - 1, (idx < 0 ? ZOOM_STEPS.length - 1 : idx) + 1)
-        : Math.max(0, (idx < 0 ? 0 : idx) - 1);
-      return ZOOM_STEPS[newIdx] ?? current;
-    });
-  }, [fitScale]);
+  // Export: switch to preview (which mounts ProposalDocumentPreview), then fire window.print()
+  // ProposalDocumentPreview listens to isExportingPdf in the store and calls window.print() itself.
+  const handleExportPdf = useCallback(() => {
+    pendingPrintRef.current = true;
+    setViewMode('preview');
+  }, []);
 
-  // Non-passive wheel listener for Ctrl+scroll — attached to window so zoom works regardless of cursor position
+  // When preview mode becomes active with a pending print, fire after mount delay
+  useEffect(() => {
+    if (viewMode !== 'preview' || !pendingPrintRef.current) return;
+    pendingPrintRef.current = false;
+    const timer = setTimeout(() => setExportingPdf(true), 400);
+    return () => clearTimeout(timer);
+  }, [viewMode, setExportingPdf]);
+
+  // ── Import: imagem ou única página de PDF → elemento no canvas ───────────
+  const handleImportConfirm = useCallback((dataUrl: string) => {
+    if (!currentPage) return;
+    setIsDirty(true);
+    pushToHistory();
+    const baseZIndex = (currentPage.elements.length + 1) * 10;
+    const newEl: CanvasElement = {
+      id: `el-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      type: 'image',
+      x: 197,
+      y: 311,
+      width: 400,
+      height: 400,
+      zIndex: baseZIndex,
+      locked: false,
+      visible: true,
+      props: { url: dataUrl, objectFit: 'contain' },
+    };
+    addCanvasElement(currentPage.id, newEl);
+    setSelectedIds([newEl.id]);
+    setShowImportMedia(false);
+  }, [currentPage, pushToHistory, addCanvasElement]);
+
+  // ── Import: páginas de PDF → novas páginas com imagem de fundo ───────────
+  const handleImportAsPages = useCallback((pdfPages: PdfPageResult[]) => {
+    if (pdfPages.length === 0) return;
+    pushToHistory();
+    setIsDirty(true);
+
+    const newPages: CanvasPageType[] = pdfPages.map(({ dataUrl, pageNumber }, i) => ({
+      id:          `page-pdf-${Date.now()}-${i}`,
+      label:       `PDF pág. ${pageNumber}`,
+      background:  { imageUrl: `${dataUrl}|cover` },
+      elements:    [],
+      orientation: 'portrait' as const,
+    }));
+    batchAddCanvasPages(newPages);
+
+    setCanvasPageIdx(pages.length);
+    setSelectedIds([]);
+    setShowImportMedia(false);
+  }, [pages.length, batchAddCanvasPages, pushToHistory]);
+
+  // Non-passive wheel listener for Ctrl+scroll — single source of truth for zoom.
+  // Must be on window (passive:false) so e.preventDefault() works; React's onWheel is passive in React 19.
+  // Attached only in editor mode to avoid interfering with other views.
   useEffect(() => {
     if (viewMode !== 'editor') return;
     const handler = (e: WheelEvent) => {
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
       const direction = e.deltaY < 0 ? 'in' : 'out';
-      setManualScale((prev) => {
-        const current = prev ?? fitScale;
-        const idx = ZOOM_STEPS.findIndex((s) => s >= current);
-        const newIdx = direction === 'in'
-          ? Math.min(ZOOM_STEPS.length - 1, (idx < 0 ? ZOOM_STEPS.length - 1 : idx) + 1)
-          : Math.max(0, (idx < 0 ? 0 : idx) - 1);
-        return ZOOM_STEPS[newIdx] ?? current;
-      });
+      setManualScale((prev) => computeNextZoom(prev, fitScale, direction));
     };
     window.addEventListener('wheel', handler, { passive: false });
     return () => window.removeEventListener('wheel', handler);
@@ -649,25 +774,55 @@ export const ProposalCanvasView: React.FC = () => {
             >
               {tab.icon}
               {tab.label}
+              {tab.id === 'editor' && isDirty && viewMode === 'editor' && (
+                <div className="w-1.5 h-1.5 rounded-full bg-amber-400 ml-1" title="Alterações não salvas" />
+              )}
             </button>
           ))}
         </div>
 
-        {viewMode === 'editor' && (
+        <div className="flex items-center gap-0.5">
+          {viewMode === 'editor' && (
+            <>
+              <button
+                onClick={() => setShowVersionHistory(true)}
+                className="p-1.5 rounded-md text-indigo-400 hover:text-white hover:bg-slate-800 transition-colors"
+                title="Histórico de versões"
+              >
+                <History size={14} />
+              </button>
+              <button
+                onClick={() => setShowImportMedia(true)}
+                className="p-1.5 rounded-md text-violet-400 hover:text-white hover:bg-slate-800 transition-colors"
+                title="Importar imagem ou página de PDF"
+              >
+                <FileImage size={14} />
+              </button>
+              <div className="w-px h-4 bg-slate-700 mx-1" />
+              <button
+                onClick={() => setShowSaveDialog(true)}
+                className="p-1.5 rounded-md text-emerald-400 hover:text-white hover:bg-slate-800 transition-colors"
+                title="Salvar como template"
+              >
+                <Save size={14} />
+              </button>
+              <div className="w-px h-4 bg-slate-700 mx-1" />
+            </>
+          )}
           <button
-            onClick={() => setShowSaveDialog(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-emerald-400 hover:bg-slate-800 transition-colors"
+            onClick={handleExportPdf}
+            title="Exportar todas as páginas como PDF (Ctrl+P)"
+            className="p-1.5 rounded-md text-sky-400 hover:text-white hover:bg-slate-800 transition-colors"
           >
-            <Save size={12} />
-            Salvar template
+            <FileDown size={14} />
           </button>
-        )}
+        </div>
       </div>
 
       {/* ── TEMPLATES MODE ───────────────────────────────────────────────── */}
       {viewMode === 'templates' && (
         <div className="flex-1 overflow-hidden bg-slate-50">
-          <ProposalTemplateGallery onUseTemplate={() => setViewMode('editor')} />
+          <ProposalTemplateGallery onUseTemplate={() => { setViewMode('editor'); setIsDirty(false); }} />
         </div>
       )}
 
@@ -676,139 +831,111 @@ export const ProposalCanvasView: React.FC = () => {
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           <div className="flex-1 flex overflow-hidden relative">
 
-            {/* Left sidebar */}
-            <div style={{ width: sidebarWidth, minWidth: sidebarWidth }} className="shrink-0 flex flex-col overflow-hidden bg-slate-950">
-              {selectedElement ? (
-                <>
-                  {/* Back button */}
-                  <div className="shrink-0 flex items-center gap-1 px-2 py-1.5 border-b border-slate-800 bg-slate-900/40">
-                    <button
-                      onClick={() => setSelectedIds([])}
-                      className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-200 transition-colors px-1.5 py-0.5 rounded hover:bg-slate-800"
-                    >
-                      <ChevronLeft size={11} />
-                      {sidebarTab === 'layers' ? 'Camadas' : 'Elementos'}
-                    </button>
-                  </div>
-                  <ElementPropertiesPanel
-                    element={selectedElement}
-                    onUpdate={(updates) => handleUpdateElement(selectedElement.id, updates)}
-                    onDecompose={handleDecomposePage}
+            {/* Left sidebar — fixed 224px */}
+            <div className="w-56 shrink-0 flex flex-col overflow-hidden bg-slate-950">
+              {/* Tab switcher */}
+              <div className="shrink-0 flex border-b border-slate-800 bg-slate-900/20">
+                <button
+                  onClick={() => setSidebarTab('elements')}
+                  className={cn(
+                    'flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] font-medium transition-colors',
+                    sidebarTab === 'elements'
+                      ? 'text-indigo-400 border-b-2 border-indigo-500 bg-indigo-500/5'
+                      : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/40',
+                  )}
+                >
+                  <PanelLeft size={12} />
+                  Elementos
+                </button>
+                <button
+                  onClick={() => setSidebarTab('layers')}
+                  className={cn(
+                    'flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] font-medium transition-colors',
+                    sidebarTab === 'layers'
+                      ? 'text-indigo-400 border-b-2 border-indigo-500 bg-indigo-500/5'
+                      : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/40',
+                  )}
+                >
+                  <LayoutList size={12} />
+                  Camadas
+                </button>
+              </div>
+
+              {/* Content — always show palette or layers */}
+              {sidebarTab === 'elements'
+                ? <ElementPalette hasCustomLayout={!!activeLayout} />
+                : <LayersPanel
+                    elements={currentPage?.elements ?? []}
+                    selectedIds={selectedIds}
+                    onSelect={(ids) => setSelectedIds(ids)}
+                    onUpdate={handleUpdateElement}
+                    onRemove={handleRemoveElement}
+                    onReorderElements={(orderedIds) => {
+                      if (!currentPage) return;
+                      const total = orderedIds.length;
+                      const zMap = new Map(orderedIds.map((id, i) => [id, (total - i) * 10]));
+                      const elements = currentPage.elements.map((el) =>
+                        zMap.has(el.id) ? { ...el, zIndex: zMap.get(el.id)! } : el
+                      );
+                      updateCanvasPage(currentPage.id, { elements });
+                    }}
                   />
-                  {selectedElement.groupId && (
-                    <div className="shrink-0 border-t border-slate-800 px-3 py-2">
-                      <button
-                        onClick={handleUngroupSelected}
-                        className="w-full text-xs text-amber-500 hover:bg-amber-500/10 border border-amber-500/30 rounded px-2 py-1.5 transition-colors"
-                      >
-                        Desagrupar ({currentPage?.elements.filter(e => e.groupId === selectedElement.groupId).length ?? 0} elementos)
-                      </button>
-                    </div>
-                  )}
-                </>
-              ) : selectedGroupId ? (
-                <>
-                  {/* Back button — dark theme consistent with the rest of the editor */}
-                  <div className="shrink-0 flex items-center gap-1 px-2 py-1.5 border-b border-slate-800 bg-slate-900/40">
-                    <button
-                      onClick={() => setSelectedIds([])}
-                      className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-200 transition-colors px-1.5 py-0.5 rounded hover:bg-slate-800"
-                    >
-                      <ChevronLeft size={11} />
-                      {sidebarTab === 'layers' ? 'Camadas' : 'Elementos'}
-                    </button>
-                  </div>
-                  <div className="flex-1 flex flex-col items-center justify-center gap-3 p-4 text-center">
-                    <Layers size={24} className="text-indigo-400 opacity-60" />
-                    <div>
-                      <p className="text-xs font-semibold text-slate-300">Grupo selecionado</p>
-                      <p className="text-[10px] text-slate-500 mt-0.5">{selectedIds.length} elementos agrupados</p>
-                    </div>
-                    <button
-                      onClick={handleUngroupSelected}
-                      className="w-full text-xs text-amber-500 hover:bg-amber-500/10 border border-amber-500/30 rounded px-3 py-2 transition-colors font-medium"
-                    >
-                      Desagrupar elementos
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  {/* Tab switcher */}
-                  <div className="shrink-0 flex border-b border-slate-800 bg-slate-900/20">
-                    <button
-                      onClick={() => setSidebarTab('elements')}
-                      className={cn(
-                        'flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] font-medium transition-colors',
-                        sidebarTab === 'elements'
-                          ? 'text-indigo-400 border-b-2 border-indigo-500 bg-indigo-500/5'
-                          : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/40',
-                      )}
-                    >
-                      <PanelLeft size={12} />
-                      Elementos
-                    </button>
-                    <button
-                      onClick={() => setSidebarTab('layers')}
-                      className={cn(
-                        'flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] font-medium transition-colors',
-                        sidebarTab === 'layers'
-                          ? 'text-indigo-400 border-b-2 border-indigo-500 bg-indigo-500/5'
-                          : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/40',
-                      )}
-                    >
-                      <LayoutList size={12} />
-                      Camadas
-                    </button>
-                  </div>
+              }
 
-                  {sidebarTab === 'elements'
-                    ? <ElementPalette hasCustomLayout={!!activeLayout} />
-                    : <LayersPanel
-                        elements={currentPage?.elements ?? []}
-                        selectedIds={selectedIds}
-                        onSelect={(ids) => setSelectedIds(ids)}
-                        onUpdate={handleUpdateElement}
-                        onRemove={handleRemoveElement}
-                      />
-                  }
-
-                  {/* Page background panel — shown when nothing is selected */}
-                  {selectedIds.length === 0 && currentPage && (
-                    <div className="shrink-0 border-t border-slate-800 px-3 py-2">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-2">Página</span>
-                      <div className="flex items-center gap-2">
-                        <label className="text-xs text-slate-400 flex-1">Cor de fundo</label>
-                        <input
-                          type="color"
-                          value={currentPage.background.color ?? '#ffffff'}
-                          onChange={(e) => updateCanvasPageBackground(currentPageId, { color: e.target.value })}
-                          className="w-8 h-8 rounded cursor-pointer border border-slate-700 bg-transparent"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {/* Page list at bottom */}
-              <div className="shrink-0 border-t border-slate-800 bg-slate-900/40 px-3 py-2">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Páginas</span>
-                  <button onClick={handleAddPage} className="p-0.5 text-slate-500 hover:text-slate-200 hover:bg-slate-800 rounded">
-                    <Plus size={12} />
+              {/* Page background button — bottom fixed when nothing selected */}
+              {selectedIds.length === 0 && currentPage && (
+                <div className="shrink-0 border-t border-slate-800 px-3 py-2">
+                  <button
+                    onClick={() => setShowBgPanel(true)}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 hover:bg-slate-800 hover:border-indigo-500/50 transition-colors group"
+                  >
+                    <div
+                      className="w-5 h-5 rounded-md border border-slate-600 shrink-0"
+                      style={{
+                        background: currentPage.background.gradient
+                          ? currentPage.background.gradient
+                          : currentPage.background.imageUrl
+                          ? `url(${parseBackgroundImageUrl(currentPage.background.imageUrl).url}) center/cover`
+                          : (currentPage.background.color ?? '#ffffff'),
+                      }}
+                    />
+                    <span className="text-xs text-slate-400 group-hover:text-slate-200 flex-1 text-left transition-colors">Fundo</span>
+                    <Palette size={11} className="text-slate-600 group-hover:text-indigo-400 transition-colors" />
                   </button>
                 </div>
-                <div className="flex flex-col gap-0.5 max-h-32 overflow-y-auto custom-scrollbar">
+              )}
+
+              {/* Page list */}
+              <div className="shrink-0 border-t border-slate-800 bg-slate-900/40 px-2 py-2">
+                <div className="flex items-center justify-between mb-1.5 px-1">
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-600">Páginas</span>
+                  <button onClick={handleAddPage} className="p-0.5 text-slate-500 hover:text-slate-200 hover:bg-slate-800 rounded">
+                    <Plus size={11} />
+                  </button>
+                </div>
+
+                <div className="flex flex-col gap-0.5 max-h-40 overflow-y-auto custom-scrollbar">
                   {pages.map((page, idx) => (
                     <div
                       key={page.id}
                       className={cn(
-                        'flex items-center justify-between px-2 py-1 rounded text-xs cursor-pointer group',
-                        idx === safePageIdx ? 'bg-indigo-500/10 text-indigo-400 font-medium' : 'text-slate-400 hover:bg-slate-800'
+                        'flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer group transition-colors',
+                        idx === safePageIdx
+                          ? 'bg-indigo-500/15 text-indigo-300'
+                          : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-300'
                       )}
                       onClick={() => { setCanvasPageIdx(idx); setSelectedIds([]); }}
                     >
+                      {/* Page number badge */}
+                      <div className={cn(
+                        'w-5 h-6 rounded shrink-0 flex items-center justify-center text-[9px] font-bold transition-colors',
+                        page.orientation === 'landscape' ? 'w-6 h-5' : '',
+                        idx === safePageIdx ? 'bg-indigo-500/30 text-indigo-300' : 'bg-slate-800 text-slate-500'
+                      )}>
+                        {idx + 1}
+                      </div>
+
+                      {/* Label — inline edit on double click */}
                       {renamingPageId === page.id ? (
                         <input
                           autoFocus
@@ -822,31 +949,33 @@ export const ProposalCanvasView: React.FC = () => {
                             if (e.key === 'Enter') { handleRenamePage(page.id, renamingPageLabel); setRenamingPageId(null); }
                             if (e.key === 'Escape') setRenamingPageId(null);
                           }}
-                          className="flex-1 bg-slate-800 text-slate-200 text-xs px-1 py-0.5 rounded outline-none border border-indigo-500/50"
+                          className="flex-1 bg-slate-800 text-slate-200 text-[11px] px-1 py-0.5 rounded outline-none border border-indigo-500/50"
                         />
                       ) : (
                         <span
-                          className="truncate flex-1"
+                          className="truncate flex-1 text-[11px]"
                           onDoubleClick={(e) => { e.stopPropagation(); setRenamingPageId(page.id); setRenamingPageLabel(page.label); }}
                         >
                           {page.label}
                         </span>
                       )}
-                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
+
+                      {/* Actions on hover */}
+                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 shrink-0">
                         <button
                           onClick={(e) => { e.stopPropagation(); handleDuplicatePage(page.id); }}
-                          className="p-1 text-slate-500 hover:text-indigo-400"
-                          title="Duplicar página"
+                          className="p-0.5 text-slate-500 hover:text-indigo-400"
+                          title="Duplicar"
                         >
-                          <Copy size={12} />
+                          <Copy size={11} />
                         </button>
                         {pages.length > 1 && (
                           <button
                             onClick={(e) => { e.stopPropagation(); handleRemovePage(idx); }}
-                            className="p-1 text-slate-500 hover:text-rose-400"
-                            title="Remover página"
+                            className="p-0.5 text-slate-500 hover:text-rose-400"
+                            title="Remover"
                           >
-                            <Trash2 size={12} />
+                            <Trash2 size={11} />
                           </button>
                         )}
                       </div>
@@ -856,27 +985,9 @@ export const ProposalCanvasView: React.FC = () => {
               </div>
             </div>
 
-            {/* Sidebar resize handle */}
-            <div
-              className="w-[3px] shrink-0 cursor-col-resize bg-slate-800 hover:bg-indigo-500/50 active:bg-indigo-500/80 transition-colors"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                const startX = e.clientX;
-                const startW = sidebarWidth;
-                const ctrl = new AbortController();
-                const { signal } = ctrl;
-                window.addEventListener('mousemove', (ev: MouseEvent) => {
-                  const newW = Math.max(200, Math.min(420, startW + (ev.clientX - startX)));
-                  setSidebarWidth(newW);
-                  localStorage.setItem('kurupira-proposal-sidebar-w', String(newW));
-                }, { signal });
-                window.addEventListener('mouseup', () => ctrl.abort(), { signal, once: true });
-              }}
-            />
-
             {/* Canvas area */}
-            <div ref={canvasAreaRef} className="flex-1 flex flex-col overflow-hidden bg-slate-900/80">
-              {/* Canvas toolbar */}
+            <div ref={canvasAreaRef} className="flex-1 flex flex-col overflow-hidden bg-slate-900/80 relative">
+              {/* Canvas toolbar — clean single line */}
               <div className="shrink-0 flex items-center justify-between px-3 py-1.5 border-b border-slate-800 gap-3">
                 {/* Navegação de páginas */}
                 <div className="flex items-center gap-1.5 shrink-0">
@@ -888,7 +999,7 @@ export const ProposalCanvasView: React.FC = () => {
                     <ChevronLeft size={13} />
                   </button>
                   <span className="text-xs text-slate-400 whitespace-nowrap">
-                    {currentPage?.label ?? ''} ({safePageIdx + 1}/{pages.length})
+                    Pág {safePageIdx + 1}/{pages.length}
                   </span>
                   <button
                     disabled={safePageIdx >= pages.length - 1}
@@ -899,112 +1010,51 @@ export const ProposalCanvasView: React.FC = () => {
                   </button>
                 </div>
 
-                {/* Actions when elements are selected */}
-                {selectedIds.length > 0 && (
-                  <div className="flex items-center gap-1">
-                    {selectedIds.length >= 2 && !selectedGroupId && (
-                      <button
-                        onClick={handleGroupSelected}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-blue-400 hover:bg-slate-800 transition-colors"
-                      >
-                        <Layers size={12} />
-                        Agrupar ({selectedIds.length})
-                      </button>
-                    )}
-                    {selectedIds.length >= 2 && (
-                      <>
-                        <div className="w-px h-5 bg-slate-700 mx-1" />
-                        <button onClick={() => handleAlign('left')}         title="Alinhar à esquerda"          className="p-1 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"><AlignStartVertical size={14} /></button>
-                        <button onClick={() => handleAlign('center-h')}    title="Centralizar horizontal"      className="p-1 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"><AlignCenterVertical size={14} /></button>
-                        <button onClick={() => handleAlign('right')}        title="Alinhar à direita"           className="p-1 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"><AlignEndVertical size={14} /></button>
-                        <div className="w-px h-4 bg-slate-800 mx-0.5" />
-                        <button onClick={() => handleAlign('top')}          title="Alinhar ao topo"             className="p-1 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"><AlignStartHorizontal size={14} /></button>
-                        <button onClick={() => handleAlign('center-v')}    title="Centralizar vertical"        className="p-1 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"><AlignCenterHorizontal size={14} /></button>
-                        <button onClick={() => handleAlign('bottom')}       title="Alinhar à base"              className="p-1 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"><AlignEndHorizontal size={14} /></button>
-                        <div className="w-px h-4 bg-slate-800 mx-0.5" />
-                        <button onClick={() => handleAlign('distribute-h')} title="Distribuir horizontalmente"  className="p-1 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"><AlignHorizontalDistributeCenter size={14} /></button>
-                        <button onClick={() => handleAlign('distribute-v')} title="Distribuir verticalmente"    className="p-1 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"><AlignVerticalDistributeCenter size={14} /></button>
-                      </>
-                    )}
-                    <button
-                      onClick={() => {
-                        if (!currentPage) return;
-                        pushToHistory();
-                        const count = selectedIds.length;
-                        selectedIds.forEach((id) => removeCanvasElement(currentPage.id, id));
-                        setSelectedIds([]);
-                        showDeleteToast(count);
-                      }}
-                      title="Excluir selecionados (Delete)"
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-rose-400 hover:bg-slate-800 transition-colors"
-                    >
-                      <Trash2 size={12} />
-                      {selectedIds.length > 1 ? `Excluir (${selectedIds.length})` : 'Excluir'}
-                    </button>
-                  </div>
-                )}
-
-                {/* Restore default button (only when decomposed) */}
-                {isPageDecomposed && (
-                  <button
-                    onClick={handleRestorePage}
-                    className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-amber-400 hover:text-amber-300 hover:bg-slate-800 rounded transition-colors"
-                  >
-                    <RotateCcw size={12} />
-                    <span className="hidden sm:inline">Restaurar padrão</span>
-                  </button>
-                )}
+                <div className="w-px h-4 bg-slate-700" />
 
                 {/* Grid controls */}
                 <div className="flex items-center gap-0.5 bg-slate-800 rounded-lg px-1 py-1">
-                  {/* Toggle grid visual */}
                   <button
                     onClick={() => updateGrid({ visible: !gridConfig.visible })}
-                    title={gridConfig.visible ? 'Ocultar grid' : 'Mostrar grid'}
+                    title={gridConfig.visible ? 'Ocultar grid (G)' : 'Mostrar grid (G)'}
                     className={cn(
-                      'flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors',
-                      gridConfig.visible ? 'text-blue-400 bg-slate-700' : 'text-slate-500 hover:text-slate-300'
+                      'p-1.5 rounded transition-colors',
+                      gridConfig.visible ? 'text-indigo-400 bg-indigo-500/10' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
                     )}
                   >
-                    <Grid3x3 size={12} />
-                    <span className="hidden sm:inline">Grid</span>
+                    <Grid3x3 size={13} />
                   </button>
 
                   <div className="w-px h-4 bg-slate-700" />
 
-                  {/* Toggle snap */}
                   <button
                     onClick={() => updateGrid({ snap: !gridConfig.snap })}
-                    title={gridConfig.snap ? 'Desativar snap' : 'Ativar snap'}
+                    title={gridConfig.snap ? 'Desativar snap (S)' : 'Ativar snap (S)'}
                     className={cn(
-                      'flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors',
-                      gridConfig.snap ? 'text-emerald-400 bg-slate-700' : 'text-slate-500 hover:text-slate-300'
+                      'p-1.5 rounded transition-colors',
+                      gridConfig.snap ? 'text-indigo-400 bg-indigo-500/10' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
                     )}
                   >
-                    <Magnet size={12} />
-                    <span className="hidden sm:inline">Snap</span>
+                    <Magnet size={13} />
                   </button>
 
                   <div className="w-px h-4 bg-slate-700" />
 
-                  {/* Toggle smart guides */}
                   <button
                     onClick={() => updateGrid({ guides: !gridConfig.guides })}
-                    title={gridConfig.guides ? 'Desativar guias' : 'Ativar guias'}
+                    title={gridConfig.guides ? 'Desativar guias inteligentes' : 'Ativar guias inteligentes'}
                     className={cn(
-                      'flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors',
-                      gridConfig.guides ? 'text-rose-400 bg-slate-700' : 'text-slate-500 hover:text-slate-300'
+                      'p-1.5 rounded transition-colors',
+                      gridConfig.guides ? 'text-indigo-400 bg-indigo-500/10' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
                     )}
                   >
-                    <Target size={12} />
-                    <span className="hidden sm:inline">Guias</span>
+                    <Target size={13} />
                   </button>
 
                   <div className="w-px h-4 bg-slate-700" />
 
-                  {/* Tamanho do grid */}
                   <div className="flex items-center gap-0.5 px-1">
-                    {([8, 16, 24] as const).map((size) => (
+                    {([8, 16] as const).map((size) => (
                       <button
                         key={size}
                         onClick={() => updateGrid({ size })}
@@ -1020,6 +1070,8 @@ export const ProposalCanvasView: React.FC = () => {
                     ))}
                   </div>
                 </div>
+
+                <div className="w-px h-4 bg-slate-700" />
 
                 {/* Undo / Redo */}
                 <div className="flex items-center gap-0.5 bg-slate-800 rounded-lg px-1 py-1">
@@ -1041,59 +1093,101 @@ export const ProposalCanvasView: React.FC = () => {
                   </button>
                 </div>
 
-                {/* Zoom controls + dica */}
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-[10px] text-slate-600 hidden lg:flex items-center gap-1">
-                    <Pencil size={10} />
-                    Arraste para a página
-                  </span>
+                <div className="w-px h-4 bg-slate-700" />
 
-                  <div className="flex items-center gap-0.5 bg-slate-800 rounded-lg px-1 py-1">
-                    <button
-                      onClick={handleZoomOut}
-                      title="Diminuir zoom (−)"
-                      disabled={canvasScale <= 0.25}
-                      className="p-1 text-slate-400 hover:text-white disabled:opacity-30 hover:bg-slate-700 rounded transition-colors"
-                    >
-                      <ZoomOut size={12} />
-                    </button>
+                {/* Zoom controls */}
+                <div className="flex items-center gap-0.5 bg-slate-800 rounded-lg px-1 py-1 shrink-0">
+                  <button
+                    onClick={handleZoomOut}
+                    title="Diminuir zoom (Ctrl+−)"
+                    disabled={canvasScale <= 0.25}
+                    className="p-1 text-slate-400 hover:text-white disabled:opacity-30 hover:bg-slate-700 rounded transition-colors"
+                  >
+                    <ZoomOut size={12} />
+                  </button>
 
-                    <span className="px-2 py-0.5 text-[10px] font-mono min-w-[44px] text-center text-slate-300 tabular-nums select-none">
-                      {Math.round(canvasScale * 100)}%
-                    </span>
+                  <button
+                    onClick={handleZoomFit}
+                    className="px-2 py-0.5 text-xs text-slate-400 hover:text-white hover:bg-slate-700 rounded font-mono tabular-nums min-w-[3rem] text-center transition-colors"
+                    title="Ajustar à tela"
+                  >
+                    {Math.round(canvasScale * 100)}%
+                  </button>
 
-                    <button
-                      onClick={handleZoomIn}
-                      title="Aumentar zoom (+)"
-                      disabled={canvasScale >= 2.0}
-                      className="p-1 text-slate-400 hover:text-white disabled:opacity-30 hover:bg-slate-700 rounded transition-colors"
-                    >
-                      <ZoomIn size={12} />
-                    </button>
+                  <button
+                    onClick={handleZoomIn}
+                    title="Aumentar zoom (Ctrl++)"
+                    disabled={canvasScale >= 2.0}
+                    className="p-1 text-slate-400 hover:text-white disabled:opacity-30 hover:bg-slate-700 rounded transition-colors"
+                  >
+                    <ZoomIn size={12} />
+                  </button>
 
-                    <div className="w-px h-4 bg-slate-700 mx-0.5" />
+                  <div className="w-px h-4 bg-slate-700 mx-0.5" />
 
-                    <button
-                      onClick={handleZoomFit}
-                      title="Ajustar à tela"
-                      className={cn(
-                        'p-1 rounded transition-colors',
-                        manualScale === null
-                          ? 'text-emerald-400 bg-slate-700'
-                          : 'text-slate-400 hover:text-white hover:bg-slate-700'
-                      )}
-                    >
-                      <Maximize2 size={12} />
-                    </button>
-                  </div>
+                  <button
+                    onClick={handleZoomFit}
+                    title="Ajustar à tela"
+                    className={cn(
+                      'p-1 rounded transition-colors',
+                      manualScale === null
+                        ? 'text-emerald-400 bg-slate-700'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                    )}
+                  >
+                    <Maximize2 size={12} />
+                  </button>
                 </div>
               </div>
 
+              {/* Floating alignment bar */}
+              {selectedIds.length >= 2 && (
+                <div style={{
+                  position: 'absolute',
+                  top: 48,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  zIndex: 990,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2,
+                  background: '#0f172a',
+                  border: '1px solid #334155',
+                  borderRadius: 10,
+                  padding: '4px 8px',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+                  pointerEvents: 'auto',
+                }}>
+                  {!selectedGroupId && (
+                    <button onClick={handleGroupSelected}
+                      className="flex items-center gap-1 px-2 py-1 rounded text-xs text-blue-400 hover:bg-slate-800 transition-colors font-medium"
+                      title="Agrupar seleção">
+                      <Layers size={12} /> {selectedIds.length}
+                    </button>
+                  )}
+                  <div style={{ width: 1, height: 16, background: '#334155', margin: '0 2px' }} />
+                  <button onClick={() => handleAlign('left')} title="Alinhar à esquerda" className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"><AlignStartVertical size={13} /></button>
+                  <button onClick={() => handleAlign('center-h')} title="Centralizar horizontalmente" className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"><AlignCenterVertical size={13} /></button>
+                  <button onClick={() => handleAlign('right')} title="Alinhar à direita" className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"><AlignEndVertical size={13} /></button>
+                  <div style={{ width: 1, height: 16, background: '#334155', margin: '0 2px' }} />
+                  <button onClick={() => handleAlign('top')} title="Alinhar ao topo" className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"><AlignStartHorizontal size={13} /></button>
+                  <button onClick={() => handleAlign('center-v')} title="Centralizar verticalmente" className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"><AlignCenterHorizontal size={13} /></button>
+                  <button onClick={() => handleAlign('bottom')} title="Alinhar ao fundo" className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"><AlignEndHorizontal size={13} /></button>
+                  {selectedIds.length >= 3 && (
+                    <>
+                      <div style={{ width: 1, height: 16, background: '#334155', margin: '0 2px' }} />
+                      <button onClick={() => handleAlign('distribute-h')} title="Distribuir horizontalmente" className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"><AlignHorizontalDistributeCenter size={13} /></button>
+                      <button onClick={() => handleAlign('distribute-v')} title="Distribuir verticalmente" className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"><AlignVerticalDistributeCenter size={13} /></button>
+                    </>
+                  )}
+                </div>
+              )}
+
               {/* A4 Canvas */}
               <div
+                ref={canvasScrollRef}
                 className="flex-1 overflow-auto flex items-start justify-center p-8 custom-scrollbar"
                 onClick={() => setSelectedIds([])}
-                onWheel={handleCanvasWheel}
               >
                 {currentPage && (
                   <div
@@ -1111,7 +1205,16 @@ export const ProposalCanvasView: React.FC = () => {
                       gridConfig={gridConfig}
                       onSelect={(ids) => setSelectedIds(ids)}
                       onUpdateElement={handleUpdateElement}
-                      onMutationStart={pushToHistory}
+                      onPanDelta={handlePanDelta}
+                      onMutationStart={() => {
+                        isMutatingRef.current = true;
+                        pushToHistory();
+                        lastHistoryPushRef.current = Date.now();
+                        // Defer reset so the synchronous drag-start onUpdate is still
+                        // suppressed, but subsequent independent edits are not.
+                        setTimeout(() => { isMutatingRef.current = false; }, 0);
+                        setIsDirty(true);
+                      }}
                       onDuplicateElement={(elementId) => {
                         if (!currentPage) return;
                         const el = currentPage.elements.find((e) => e.id === elementId);
@@ -1130,16 +1233,185 @@ export const ProposalCanvasView: React.FC = () => {
                         setSelectedIds([newEl.id]);
                       }}
                       onRemoveElement={handleRemoveElement}
+                      editingGroupId={editingGroupId}
+                      onEnterGroupEdit={(groupId: string, elementId: string) => {
+                        setEditingGroupId(groupId);
+                        setSelectedIds([elementId]);
+                      }}
+                      onExitGroupEdit={() => {
+                        setEditingGroupId(null);
+                      }}
+                      onDropImage={({ url, x, y }) => {
+                        if (!currentPage) return;
+                        if (!activeLayout) applyTemplate(CLASSIC_TEMPLATE);
+                        setIsDirty(true);
+                        pushToHistory();
+                        const baseZIndex = (currentPage.elements.length + 1) * 10;
+                        const newEl: CanvasElement = {
+                          id: `el-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                          type: 'image',
+                          x: Math.max(0, Math.min(A4_WIDTH - 200, x - 100)),
+                          y: Math.max(0, Math.min(A4_HEIGHT - 150, y - 75)),
+                          width: 200,
+                          height: 150,
+                          zIndex: baseZIndex,
+                          locked: false,
+                          visible: true,
+                          props: { url, objectFit: 'contain' },
+                        };
+                        addCanvasElement(currentPage.id, newEl);
+                        setSelectedIds([newEl.id]);
+                      }}
                     />
                   </div>
                 )}
               </div>
             </div>
 
+            {/* Right properties panel */}
+            {(selectedElement || selectedGroupId || (!selectedElement && !selectedGroupId && currentPage)) && (
+              <div className="w-64 shrink-0 flex flex-col overflow-hidden bg-slate-950 border-l border-slate-800">
+                {selectedElement ? (
+                  <>
+                    {/* Header */}
+                    <div className="shrink-0 px-3 py-2.5 border-b border-slate-800 flex items-center justify-between">
+                      <div>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-600">Propriedades</p>
+                        <p className="text-xs font-semibold text-slate-200 mt-0.5">
+                          {ELEMENT_DISPLAY_NAMES[selectedElement.type] ?? selectedElement.type}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setSelectedIds([])}
+                        className="p-1 rounded hover:bg-slate-800 text-slate-500 hover:text-slate-300 transition-colors"
+                        title="Fechar"
+                      >
+                        <X size={13} />
+                      </button>
+                    </div>
+
+                    {/* Properties panel - flex-1 scrollable */}
+                    <ElementPropertiesPanel
+                      element={selectedElement}
+                      onUpdate={(updates) => handleUpdateElement(selectedElement.id, updates)}
+                      onDecompose={handleDecomposePage}
+                    />
+
+                    {/* Ungroup button (when grouped) */}
+                    {selectedElement.groupId && (
+                      <div className="shrink-0 border-t border-slate-800 px-3 py-2">
+                        <button
+                          onClick={handleUngroupSelected}
+                          className="w-full text-xs text-amber-500 hover:bg-amber-500/10 border border-amber-500/30 rounded px-2 py-1.5 transition-colors"
+                        >
+                          Desagrupar
+                        </button>
+                      </div>
+                    )}
+                  </>
+                ) : selectedGroupId ? (
+                  <div className="flex flex-col h-full">
+                    <div className="shrink-0 px-3 py-2.5 border-b border-slate-800 flex items-center justify-between">
+                      <div>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-600">Grupo</p>
+                        <p className="text-xs font-semibold text-slate-200 mt-0.5">{selectedIds.length} elementos</p>
+                      </div>
+                      <button
+                        onClick={() => setSelectedIds([])}
+                        className="p-1 rounded hover:bg-slate-800 text-slate-500 hover:text-slate-300 transition-colors"
+                        title="Fechar"
+                      >
+                        <X size={13} />
+                      </button>
+                    </div>
+                    <div className="flex-1 flex flex-col items-center justify-center gap-3 p-4 text-center">
+                      <Layers size={24} className="text-indigo-400 opacity-60" />
+                      <button
+                        onClick={handleUngroupSelected}
+                        className="w-full text-xs text-amber-500 hover:bg-amber-500/10 border border-amber-500/30 rounded px-3 py-2 transition-colors"
+                      >
+                        Desagrupar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col h-full">
+                    <div className="shrink-0 px-3 py-2.5 border-b border-slate-800">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-slate-600">Página</p>
+                      <p className="text-xs font-semibold text-slate-200 mt-0.5">{currentPage?.label}</p>
+                    </div>
+                    <div className="flex-1 p-3 flex flex-col gap-2">
+                      <button
+                        onClick={() => setShowBgPanel(true)}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 hover:bg-slate-800 hover:border-indigo-500/50 transition-colors group"
+                      >
+                        <div
+                          className="w-5 h-5 rounded-md border border-slate-600 shrink-0"
+                          style={{
+                            background: currentPage.background.gradient
+                              ? currentPage.background.gradient
+                              : currentPage.background.imageUrl
+                              ? `url(${parseBackgroundImageUrl(currentPage.background.imageUrl).url}) center/cover`
+                              : (currentPage.background.color ?? '#ffffff'),
+                          }}
+                        />
+                        <span className="text-xs text-slate-400 group-hover:text-slate-200 flex-1 text-left">Fundo</span>
+                        <Palette size={11} className="text-slate-600 group-hover:text-indigo-400" />
+                      </button>
+
+                      {/* Orientation buttons */}
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => updateCanvasPage(currentPage.id, { orientation: 'portrait' })}
+                          className={cn(
+                            'flex-1 flex items-center justify-center gap-1.5 py-2 text-xs rounded-lg border transition-colors',
+                            (currentPage?.orientation ?? 'portrait') === 'portrait'
+                              ? 'border-indigo-500/50 bg-indigo-500/10 text-indigo-400'
+                              : 'border-slate-700 text-slate-500 hover:text-slate-300'
+                          )}
+                        >
+                          <PortraitIcon /> Retrato
+                        </button>
+                        <button
+                          onClick={() => updateCanvasPage(currentPage.id, { orientation: 'landscape' })}
+                          className={cn(
+                            'flex-1 flex items-center justify-center gap-1.5 py-2 text-xs rounded-lg border transition-colors',
+                            currentPage?.orientation === 'landscape'
+                              ? 'border-indigo-500/50 bg-indigo-500/10 text-indigo-400'
+                              : 'border-slate-700 text-slate-500 hover:text-slate-300'
+                          )}
+                        >
+                          <LandscapeIcon /> Paisagem
+                        </button>
+                      </div>
+
+                      {/* Decompose / Restore */}
+                      {!isPageDecomposed && currentPage?.elements.some(e => e.type === 'page-technical') && (
+                        <button
+                          onClick={handleDecomposePage}
+                          className="w-full text-xs text-violet-400 hover:bg-violet-400/10 border border-violet-400/30 rounded px-2 py-1.5 transition-colors"
+                        >
+                          Decompor em blocos
+                        </button>
+                      )}
+                      {isPageDecomposed && (
+                        <button
+                          onClick={handleRestorePage}
+                          className="w-full text-xs text-amber-400 hover:bg-amber-400/10 border border-amber-400/30 rounded px-2 py-1.5 transition-colors flex items-center justify-center gap-1.5"
+                        >
+                          <RotateCcw size={11} /> Restaurar padrão
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Drag overlay ghost */}
             <DragOverlay dropAnimation={null}>
               {activeDragType && (() => {
-                const meta = DRAG_GHOST_META[activeDragType] ?? { label: activeDragType, icon: '◻' };
+                const meta = DRAG_GHOST_META[activeDragType as CanvasElementType] ?? { label: activeDragType, icon: '◻' };
                 return (
                   <div
                     style={{
@@ -1169,13 +1441,19 @@ export const ProposalCanvasView: React.FC = () => {
 
           {showSaveDialog && (
             <SaveTemplateDialog
-              onSave={(name) => { saveCurrentAsTemplate(name); setShowSaveDialog(false); }}
+              onSave={(name) => {
+                saveCurrentAsTemplate(name);
+                saveVersion(effectiveLayout, true);
+                setShowSaveDialog(false);
+                setIsDirty(false);
+                showToast('Template salvo com sucesso!');
+              }}
               onCancel={() => setShowSaveDialog(false)}
             />
           )}
 
-          {/* Delete toast */}
-          {deleteToast && (
+          {/* Toast */}
+          {toast && (
             <div
               style={{
                 position: 'absolute',
@@ -1194,7 +1472,7 @@ export const ProposalCanvasView: React.FC = () => {
                 pointerEvents: 'none',
               }}
             >
-              {deleteToast}
+              {toast}
             </div>
           )}
         </DndContext>
@@ -1206,6 +1484,43 @@ export const ProposalCanvasView: React.FC = () => {
           <ProposalDocumentPreview />
         </div>
       )}
+
+      {/* Import media dialog */}
+      {showImportMedia && (
+        <ImportMediaDialog
+          onConfirmElement={handleImportConfirm}
+          onConfirmPages={handleImportAsPages}
+          onClose={() => setShowImportMedia(false)}
+        />
+      )}
+
+      {/* Page background editor modal */}
+      {showBgPanel && currentPage && (
+        <PageBackgroundPanel
+          page={currentPage}
+          onUpdate={(bg) => {
+            updateCanvasPage(currentPage.id, { background: bg });
+            pushToHistory();
+          }}
+          onClose={() => setShowBgPanel(false)}
+        />
+      )}
+
+      {/* Version history modal */}
+      {showVersionHistory && (
+        <VersionHistoryPanel
+          onRestore={(layout) => {
+            applyTemplate(layout);
+            setShowVersionHistory(false);
+            setIsDirty(false);
+          }}
+          onClose={() => setShowVersionHistory(false)}
+          onSaveManual={() => {
+            saveVersion(effectiveLayout, true);
+          }}
+        />
+      )}
+
     </div>
   );
 };

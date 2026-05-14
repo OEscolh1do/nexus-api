@@ -1,8 +1,8 @@
 # CONTEXT.md — Ecossistema YWARA (Visão Global)
 
-> **Última Atualização:** 2026-05-13
+> **Última Atualização:** 2026-05-14
 > **Arquiteto:** Antigravity AI
-> **Versão do Ecossistema:** 6.4.2 (Inverter Cockpit Industrialization & Neurodesign)
+> **Versão do Ecossistema:** 6.5.0 (Math Integrity & Deep Cleanup)
 
 ---
 
@@ -108,6 +108,7 @@ Para garantir que os dados fluam sem perdas do Banco até a UI, seguimos 5 níve
 
 ## 🔄 CHANGELOG DO ECOSSISTEMA
 
+| **v6.5.0** | 2026-05-14 | **Math Integrity & Deep Cleanup**: Industrialização da integridade térmica no Kurupira (tempCoeffVoc/Pmax). Cleanup profundo de componentes legados e hooks órfãos. Introdução de skills de auditoria: `math-engine-auditor`, `zustand-mutation-guard` e `mock-sweeper`. |
 | **v6.4.2** | 2026-05-13 | **Inverter Cockpit Industrialization & Neurodesign**: Simplificação radical do cockpit de engenharia do Kurupira. Implementação de modelo de status binário (Nominal vs. Falha), remoção de avisos (warnings) não críticos e eliminação de redundâncias UI/UX no InverterHub e CalculationAuditPanel. |
 | **v6.4.1** | 2026-05-13 | **UI Density Standards Refinement**: Cockpit Elétrico do Kurupira redesenhado com `MPPTInspectorPanel` lateral colapsável e `StringRow` Two-Line (S+A+B). Resolução definitiva do overflow de layout em painéis estreitos. Refinamento canônico da regra de tipografia (dados primários vs âncoras contextuais). |
 | **v6.4.0** | 2026-05-11 | **Engineering Standards & Regulatory Compliance**: Consolidação do Cockpit de Engenharia v3 no Kurupira. Implementação de conformidade NBR 16690 (fusíveis), cálculos de queda de tensão em tempo real e detecção de mismatch de orientação. |

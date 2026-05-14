@@ -37,8 +37,18 @@ export function mapPanToModule(parsed: PVSystObject, originalFilename: string): 
   const imp = parseNum(pvModule.Imp, 0);
   
   // Coeficientes de Temperatura (PVSyst v7 usa muVocSpec/muPmpReq, PVSyst v6 usa TempCoeff_*)
-  const tempCoeffVoc = parseNum(pvModule.muVocSpec ?? pvModule.TempCoeff_Voc, -0.30);
+  let tempCoeffVoc = parseNum(pvModule.muVocSpec ?? pvModule.TempCoeff_Voc, -0.30);
   const tempCoeffPmax = parseNum(pvModule.muPmpReq ?? pvModule.TempCoeff_Pmax, -0.40);
+
+  // Tratamento específico PVSyst: muVocSpec frequentemente vem em mV/°C (ex: -121.0)
+  // O motor elétrico do Kurupira espera %/°C. Precisamos converter se o valor absoluto for grande.
+  if (Math.abs(tempCoeffVoc) > 2) {
+    if (voc > 0) {
+      tempCoeffVoc = ((tempCoeffVoc / 1000) / voc) * 100;
+    } else {
+      tempCoeffVoc = -0.30;
+    }
+  }
 
   // Parâmetros Físicos e Dimensões
   // .PAN armazena dimensões em Metros. O Kurupira exige Milímetros.

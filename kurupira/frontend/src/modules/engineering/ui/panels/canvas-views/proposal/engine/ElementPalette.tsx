@@ -4,12 +4,10 @@ import {
   Type, Image, Star, Droplets, Minus, BarChart2, TrendingUp,
   Table, ListOrdered, Map, Zap, LayoutTemplate,
   Sun, CandlestickChart, Activity, PieChart, Layers, BarChart,
-  Braces, Square, Sparkles, LayoutGrid, Shield, ALargeSmall, Cpu,
+  Braces, Square, Sparkles,
 } from 'lucide-react';
 import type { CanvasElementType } from './types';
 import { DEFAULT_ELEMENT_PROPS } from './types';
-import type { CanvasPreset } from './presets';
-import { ALL_PRESETS } from './presets';
 import { cn } from '@/lib/utils';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -58,14 +56,6 @@ const DESIGN_ITEMS: PaletteItem[] = [
   { type: 'divider',   label: 'Divisória',     icon: <Minus size={14} />,       defaultWidth: 600, defaultHeight: 16  },
 ];
 
-// Dimensionamento (elementos monolíticos — mantidos como atalho)
-const TECHNICAL_ITEMS: PaletteItem[] = [
-  { type: 'section-header',     label: 'Cabeçalho de Seção',     icon: <ALargeSmall size={14} />, defaultWidth: 500, defaultHeight: 130 },
-  { type: 'kpi-capacity-badge', label: 'Badge (monolítico)',      icon: <Layers size={14} />,      defaultWidth: 325, defaultHeight: 100 },
-  { type: 'guarantees-list',    label: 'Lista de Garantias',      icon: <Shield size={14} />,      defaultWidth: 325, defaultHeight: 240 },
-  { type: 'equipment-panel',    label: 'Painel (monolítico)',     icon: <Cpu size={14} />,         defaultWidth: 343, defaultHeight: 150 },
-];
-
 // ─── DraggableItem — elemento único ──────────────────────────────────────────
 
 function DraggableItem({ item }: { item: PaletteItem }) {
@@ -99,51 +89,6 @@ function DraggableItem({ item }: { item: PaletteItem }) {
   );
 }
 
-// ─── DraggablePreset — combinação de elementos ────────────────────────────────
-
-const PRESET_ICONS: Record<string, React.ReactNode> = {
-  'kpi-badge':         <Layers size={14} />,
-  'equipment-panel':   <Cpu size={14} />,
-  'section-header':    <ALargeSmall size={14} />,
-  'kpi-card':          <PieChart size={14} />,
-  'guarantee-bullet':  <Shield size={14} />,
-};
-
-function DraggablePreset({ preset }: { preset: CanvasPreset }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `preset-${preset.id}`,
-    data: {
-      fromPalette:    true,
-      isPreset:       true,
-      presetId:       preset.id,
-      defaultWidth:   preset.defaultWidth,
-      defaultHeight:  preset.defaultHeight,
-      presetElements: preset.elements,
-    },
-  });
-
-  return (
-    <div
-      ref={setNodeRef}
-      {...listeners}
-      {...attributes}
-      title={preset.description}
-      className={cn(
-        'flex items-center gap-2 px-3 py-2 rounded-md border border-transparent',
-        'text-xs text-slate-400 cursor-grab select-none',
-        'hover:bg-indigo-500/10 hover:border-indigo-500/30 active:cursor-grabbing',
-        isDragging && 'opacity-40'
-      )}
-    >
-      <span className="text-indigo-400">{PRESET_ICONS[preset.id] ?? <LayoutGrid size={14} />}</span>
-      <span className="flex-1">{preset.label}</span>
-      <span className="text-[9px] text-indigo-400 font-medium bg-indigo-500/10 px-1 rounded">
-        {preset.elements.length} el.
-      </span>
-    </div>
-  );
-}
-
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 interface Props {
@@ -169,19 +114,8 @@ export function ElementPalette({ hasCustomLayout }: Props) {
 
       <div className="flex-1 overflow-y-auto py-2 custom-scrollbar">
 
-        {/* Presets — composições de múltiplos elementos */}
-        <div className="px-3 py-1.5">
-          <div className="flex items-center gap-1.5 mb-1">
-            <p className="text-[10px] font-semibold text-indigo-400 uppercase tracking-wider">Presets</p>
-            <span className="text-[9px] text-indigo-300">· adicionam vários elementos</span>
-          </div>
-          {ALL_PRESETS.map((preset) => (
-            <DraggablePreset key={preset.id} preset={preset} />
-          ))}
-        </div>
-
         {/* Campos dinâmicos */}
-        <div className="px-3 py-1.5 border-t border-slate-800">
+        <div className="px-3 py-1.5">
           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Campos Dinâmicos</p>
           {DYNAMIC_ITEMS.map((item) => (
             <DraggableItem key={item.type} item={item} />
@@ -208,17 +142,6 @@ export function ElementPalette({ hasCustomLayout }: Props) {
         <div className="px-3 py-1.5 border-t border-slate-800">
           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Conteúdo</p>
           {CONTENT_ITEMS.map((item) => (
-            <DraggableItem key={item.type} item={item} />
-          ))}
-        </div>
-
-        {/* Dimensionamento (atalhos monolíticos — legado) */}
-        <div className="px-3 py-1.5 border-t border-slate-800">
-          <div className="flex items-center gap-1.5 mb-1">
-            <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Dimensionamento</p>
-            <span className="text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 bg-slate-800 text-slate-500 rounded">legado</span>
-          </div>
-          {TECHNICAL_ITEMS.map((item) => (
             <DraggableItem key={item.type} item={item} />
           ))}
         </div>

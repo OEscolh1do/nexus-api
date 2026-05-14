@@ -3,14 +3,16 @@ import { createPortal } from 'react-dom';
 import { useSolarStore, selectModules } from '@/core/state/solarStore';
 import { useTechStore } from '@/modules/engineering/store/useTechStore';
 import { calculateProjectionStats } from '@/modules/engineering/utils/projectionMath';
-import { 
-  ChevronLeft, ChevronRight, EyeOff, 
-  Maximize2, MoveHorizontal, ZoomIn 
+import {
+  ChevronLeft, ChevronRight, EyeOff,
+  Maximize2, MoveHorizontal, ZoomIn
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // Pages
 import { ProposalPageTechnical } from './pages/ProposalPageTechnical';
+import { CanvasElementRenderer } from './engine/CanvasElementRenderer';
+import { getPageDimensions } from './engine/types';
 
 export const ProposalDocumentPreview: React.FC = () => {
   const clientData = useSolarStore(s => s.clientData);
@@ -21,6 +23,7 @@ export const ProposalDocumentPreview: React.FC = () => {
   const setActivePage = useSolarStore(s => s.setProposalActivePage);
   const isExportingPdf = useSolarStore(s => s.isExportingPdf);
   const setExportingPdf = useSolarStore(s => s.setExportingPdf);
+  const activeLayout = useSolarStore(s => s.proposalData.activeLayout);
 
   const inverters = useTechStore(s => s.inverters.entities);
   const inverterIds = useTechStore(s => s.inverters.ids);
@@ -112,10 +115,20 @@ export const ProposalDocumentPreview: React.FC = () => {
     if (!isExportingPdf) return;
     const handlePrint = async () => {
       await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // Inject @page orientation rule based on the first page's orientation
+      const layout = useSolarStore.getState().proposalData.activeLayout;
+      const firstOrientation = layout?.pages?.[0]?.orientation ?? 'portrait';
+      const styleEl = document.createElement('style');
+      styleEl.id = 'kurupira-print-orientation';
+      styleEl.textContent = `@page { size: A4 ${firstOrientation}; margin: 0; }`;
+      document.head.appendChild(styleEl);
+
       window.print();
     };
     const handleAfterPrint = () => {
       setExportingPdf(false);
+      document.getElementById('kurupira-print-orientation')?.remove();
       window.removeEventListener('afterprint', handleAfterPrint);
     };
     window.addEventListener('afterprint', handleAfterPrint);
@@ -127,9 +140,13 @@ export const ProposalDocumentPreview: React.FC = () => {
   // ─────────────────────────────────────────────────────────────────
   // ─────────────────────────────────────────────────────────────────
 
-  const pages = [
+  // Classic mode pages (used when activeLayout is null)
+  const classicPages = [
     <ProposalPageTechnical key="technical" {...pageData} />,
   ];
+
+  // Unified page count — drives navigation controls
+  const pageCount = activeLayout ? activeLayout.pages.length : classicPages.length;
 
   return (
     <div ref={containerRef} className="flex flex-col items-center w-full h-full overflow-hidden">
@@ -169,7 +186,44 @@ export const ProposalDocumentPreview: React.FC = () => {
               transition: 'transform 0.2s ease-out',
             }}
           >
-            {pages[activePage]}
+            {activeLayout ? (() => {
+              const page = activeLayout.pages[activePage];
+              if (!page) return null;
+              const { width: pw, height: ph } = getPageDimensions(page.orientation);
+              return (
+                <div
+                  style={{
+                    width: pw,
+                    height: ph,
+                    position: 'relative',
+                    overflow: 'hidden',
+                    background: page.background.color ?? '#ffffff',
+                  }}
+                >
+                  {[...page.elements]
+                    .sort((a, b) => a.zIndex - b.zIndex)
+                    .map((el) => (
+                      <div
+                        key={el.id}
+                        style={{
+                          position: 'absolute',
+                          left: el.x,
+                          top: el.y,
+                          width: el.width,
+                          height: el.height,
+                          opacity: el.opacity ?? 1,
+                          transform: `rotate(${el.rotation ?? 0}deg) scaleX(${el.flipX ? -1 : 1}) scaleY(${el.flipY ? -1 : 1})`,
+                          visibility: el.visible ? 'visible' : 'hidden',
+                          zIndex: el.zIndex,
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <CanvasElementRenderer element={el} />
+                      </div>
+                    ))}
+                </div>
+              );
+            })() : classicPages[activePage]}
           </div>
         </div>
 
@@ -229,16 +283,16 @@ export const ProposalDocumentPreview: React.FC = () => {
             Página
           </span>
           <span className="text-[11px] sm:text-[12px] font-mono font-bold text-slate-300 tabular-nums">
-            {activePage + 1} <span className="text-slate-600">/</span> {pages.length}
+            {activePage + 1} <span className="text-slate-600">/</span> {pageCount}
           </span>
         </div>
 
         <button
           onClick={() => setActivePage(activePage + 1)}
-          disabled={activePage === pages.length - 1}
+          disabled={activePage === pageCount - 1}
           className={cn(
             "flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-sm text-[10px] font-black uppercase tracking-widest transition-all border",
-            activePage === pages.length - 1
+            activePage === pageCount - 1
               ? "text-slate-800 border-slate-900 cursor-not-allowed bg-slate-900/20"
               : "text-slate-400 border-slate-800 hover:text-indigo-400 hover:bg-slate-800 hover:border-indigo-500/50 bg-slate-900/40 shadow-sm"
           )}
@@ -250,40 +304,82 @@ export const ProposalDocumentPreview: React.FC = () => {
 
       {/* ── EXPORT PORTAL CONTAINER ──────────────────────── */}
       {isExportingPdf && createPortal(
-        <div 
+        <div
           id="pdf-export-container"
-          style={{ 
-            position: 'fixed', 
-            left: 0, 
-            top: 0, 
+          style={{
+            position: 'fixed',
+            left: 0,
+            top: 0,
             width: '794px',
             pointerEvents: 'none',
             zIndex: -1000,
             opacity: 0.01,
             visibility: 'visible',
             display: 'block'
-          }} 
+          }}
         >
-          {pages.map((page, i) => {
-            if (proposalData.excludedPages?.includes(i)) return null;
-            return (
-              <div 
-                key={`export-page-${i}`} 
-                id={`export-page-${i}`} 
-                className="export-page"
-                style={{ 
-                  width: '210mm', 
-                  height: '297mm', 
-                  display: 'block', 
-                  backgroundColor: 'white',
-                  position: 'relative',
-                  overflow: 'hidden'
-                }}
-              >
-                {page}
-              </div>
-            );
-          })}
+          {activeLayout
+            ? activeLayout.pages.map((page, i) => {
+                if (proposalData.excludedPages?.includes(i)) return null;
+                const isLandscape = page.orientation === 'landscape';
+                return (
+                  <div
+                    key={`export-page-${i}`}
+                    id={`export-page-${i}`}
+                    className="export-page"
+                    style={{
+                      width: isLandscape ? '297mm' : '210mm',
+                      height: isLandscape ? '210mm' : '297mm',
+                      display: 'block',
+                      backgroundColor: page.background.color ?? 'white',
+                      position: 'relative',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {[...page.elements]
+                      .sort((a, b) => a.zIndex - b.zIndex)
+                      .map((el) => (
+                        <div
+                          key={el.id}
+                          style={{
+                            position: 'absolute',
+                            left: el.x,
+                            top: el.y,
+                            width: el.width,
+                            height: el.height,
+                            opacity: el.opacity ?? 1,
+                            transform: `rotate(${el.rotation ?? 0}deg) scaleX(${el.flipX ? -1 : 1}) scaleY(${el.flipY ? -1 : 1})`,
+                            visibility: el.visible ? 'visible' : 'hidden',
+                            zIndex: el.zIndex,
+                            overflow: 'hidden',
+                          }}
+                        >
+                          <CanvasElementRenderer element={el} />
+                        </div>
+                      ))}
+                  </div>
+                );
+              })
+            : classicPages.map((page, i) => {
+                if (proposalData.excludedPages?.includes(i)) return null;
+                return (
+                  <div
+                    key={`export-page-${i}`}
+                    id={`export-page-${i}`}
+                    className="export-page"
+                    style={{
+                      width: '210mm',
+                      height: '297mm',
+                      display: 'block',
+                      backgroundColor: 'white',
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    {page}
+                  </div>
+                );
+              })}
         </div>,
         document.body
       )}

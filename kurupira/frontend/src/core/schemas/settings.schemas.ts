@@ -107,6 +107,7 @@ export const EngineeringSettingsSchema = z.object({
   // Configurações de Dimensionamento
   targetOversizing: z.number().min(1).max(2).default(1.2), // 20% over
   minPerformanceRatio: z.number().min(0.5).max(1).default(0.75),
+  manualTmax: z.number().optional(),
 });
 
 export type EngineeringSettings = z.infer<typeof EngineeringSettingsSchema>;

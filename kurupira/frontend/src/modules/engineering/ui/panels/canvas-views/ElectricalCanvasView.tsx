@@ -3,6 +3,7 @@ import { useSolarStore, selectModules } from '@/core/state/solarStore';
 import { useTechStore } from '../../../store/useTechStore';
 import { useTechKPIs } from '../../../hooks/useTechKPIs';
 import { useElectricalValidation } from '../../../hooks/useElectricalValidation';
+import { useThermalPremises } from '../../../hooks/useThermalPremises';
 import { useInverterUIStore } from '../../../store/useInverterUIStore';
 import { useCatalogStore } from '../../../store/useCatalogStore';
 import { toArray } from '@/core/types/normalized.types';
@@ -17,47 +18,23 @@ import { cn } from '@/lib/utils';
 import { InverterHub, type InverterChipData, type ValidationPill } from './electrical/InverterHub';
 import { MPPTInspectorPanel } from './electrical/MPPTInspectorPanel';
 import { getModuleSpecs } from '../../../utils/specAdapter';
-import { VoltageRangeChart, type MpptThermalProfile } from './electrical/VoltageRangeChart';
+import { type MpptThermalProfile } from './electrical/VoltageRangeChart';
 import { OversizingPanel } from './electrical/OversizingPanel';
 import { CalculationAuditPanel } from './electrical/components/CalculationAuditPanel';
 import { DiagnosticAlertsList, AlertDescriptor } from './electrical/components/DiagnosticAlertsList';
-import { parsePanOnd } from '../../../utils/pvsystParser';
+import { TemperatureTab } from './electrical/TemperatureTab';
+import { parsePanOnd } from '@/utils/pvsystParser';
 import { mapOndToInverter } from '../../../utils/ondAdapter';
 import { ENGINEERING_CONSTANTS } from '../../../constants/engineeringConstants';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CONSTANTES DE FALLBACK POR UF (pior cenário — Q5 sem manualTmax)
+// Importar componentes do canvas elétrico
 // ─────────────────────────────────────────────────────────────────────────────
-const ESTADOS_TROPICAIS = new Set(['AM','PA','RR','AP','AC','RO','TO','MA','PI','CE','RN','PB','PE','AL','SE','BA']);
-
-const TMIN_POR_UF: Record<string, number> = {
-  RS: 0, SC: 2, PR: 5, SP: 8, MG: 8, RJ: 12, ES: 12,
-  MS: 8, GO: 10, DF: 8, MT: 15,
-  BA: 15, SE: 18, AL: 18, PE: 18, PB: 18, RN: 18,
-  CE: 20, PI: 20, MA: 22, TO: 20,
-  PA: 22, AM: 22, AC: 20, RO: 20, RR: 22, AP: 22,
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// HELPERS
-// ─────────────────────────────────────────────────────────────────────────────
-const resolveTemps = (
-  settings: any,
-  clientData: any
-): { tmin: number; tamb_max: number } => {
-  const uf = clientData?.state ?? '';
-  const isTropical = ESTADOS_TROPICAIS.has(uf);
-  const tmin = settings?.manualTmin ?? TMIN_POR_UF[uf] ?? 10;
-  const tamb_max = settings?.manualTmax ?? (isTropical ? 35 : 30);
-  return { tmin, tamb_max };
-};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ELECTRICAL CANVAS VIEW v2.0 — Hub + Strip + Canvas
 // ─────────────────────────────────────────────────────────────────────────────
 export const ElectricalCanvasView: React.FC = () => {
-  const settings   = useSolarStore(state => state.settings);
-  const clientData  = useSolarStore(state => state.clientData);
   const modules     = useSolarStore(selectModules);
 
   const invertersNorm    = useTechStore(state => state.inverters);
@@ -98,20 +75,21 @@ export const ElectricalCanvasView: React.FC = () => {
   );
 
 
-  // ── Temperaturas com fallback por UF ─────────────────────────────────────
-  const { tmin, tamb_max } = useMemo(
-    () => resolveTemps(settings, clientData),
-    [settings, clientData]
-  );
+  // ── Premissas Térmicas — fonte única de verdade (useThermalPremises) ──────
+  // Substitui resolveTemps() local que causava divergência com useElectricalValidation.
+  const { tmin, tambMax: tamb_max, tcellMax, uf } = useThermalPremises();
 
   // ── Cálculo de Vmp(calor) por MPPT ───────────────────────────────────────
+  // FIX B1: usa tempCoeffVmp (coeficiente correto para Vmp) em vez de tempCoeffVoc.
+  // tempCoeffVmp ≈ -0.34 %/°C vs tempCoeffVoc ≈ -0.29 %/°C — diferença de ~17%.
+  // Norma: NBR 16690:2019, §4.3.1.2
   const calcVmpCalor = useCallback((specs: any, modulesPerString: number): number => {
     if (!specs || modulesPerString <= 0) return 0;
-    const noct = specs.noct ?? ENGINEERING_CONSTANTS.DEFAULT_NOCT;
-    const tcell_max = tamb_max + (noct - 20) * (1000 / 800);
-    const vmpCalor = specs.vmp * (1 + (specs.tempCoeffVoc / 100) * (tcell_max - 25)) * modulesPerString;
+    // Prioridade: tempCoeffVmp > tempCoeffPmax > tempCoeffVoc (fallback conservador)
+    const tCoeffVmp = specs.tempCoeffVmp ?? specs.tempCoeffPmax ?? specs.tempCoeffVoc;
+    const vmpCalor = specs.vmp * (1 + (tCoeffVmp / 100) * (tcellMax - 25)) * modulesPerString;
     return vmpCalor;
-  }, [tamb_max]);
+  }, [tcellMax]);
 
   // ── Dados derivados do inversor ativo ─────────────────────────────────────
   const dashboardData = useMemo(() => {
@@ -217,7 +195,12 @@ export const ElectricalCanvasView: React.FC = () => {
       result[mppt.mpptId] = {
         vocFrio:    metrics?.vocMax ?? 0,
         vmpCalor,
-        iscTotal:   (specs.isc || 0) * strCount * bifacialFactor * 1.25, // Fator NBR 16690 de 1.25 embutido na métrica
+        // FIX D2: iscTotal SEM fator 1.25 — para comparação com limite de hardware do MPPT.
+        // O fator 1.25 (NBR 16690 §5.3.11.1) é para dimensionamento de proteções (fusíveis),
+        // NÃO para comparar com maxCurrentPerMPPT do datasheet do inversor.
+        iscTotal:      (specs.isc || 0) * strCount * bifacialFactor,
+        // iscProtection: valor majorado 1.25× para dimensionar fusíveis/DPS (exibir separado)
+        iscProtection: (specs.isc || 0) * strCount * bifacialFactor * 1.25,
         impTotal:   (specs.imp || 0) * strCount * bifacialFactor,
         powerKwp:   totalMods > 0 ? (specs.pmax * totalMods) / 1000 : 0,
         hasMismatch,
@@ -457,9 +440,9 @@ export const ElectricalCanvasView: React.FC = () => {
           {/* Tab Bar — audit é a tab padrão (memorial NBR 16690 em primeiro plano) */}
           <div className="flex items-center border-b border-slate-800 shrink-0 bg-slate-950/80 px-4">
             {([
-              { id: 'audit',      label: 'Auditoria de Cálculo' },
-              { id: 'voltage',    label: 'Tensão Térmica' },
-              { id: 'oversizing', label: 'FDI / Oversizing' },
+              { id: 'audit',       label: 'Auditoria de Cálculo' },
+              { id: 'temperatura', label: 'Temperatura' },
+              { id: 'oversizing',  label: 'FDI / Oversizing' },
             ] as const).map(tab => (
               <button
                 key={tab.id}
@@ -495,24 +478,29 @@ export const ElectricalCanvasView: React.FC = () => {
                 />
               </div>
             )}
-            {activeCanvasTab === 'voltage' && (
+            {activeCanvasTab === 'temperatura' && (
               <div className="max-w-5xl mx-auto">
-                <VoltageRangeChart
+                <TemperatureTab
                   mpptProfiles={dashboardData.mpptProfiles}
-                  limitInversorVMax={dashboardData.limitInverterVMax}
-                  limitMpptVMin={dashboardData.limitMpptVMin}
-                  limitMpptVMax={dashboardData.limitMpptVMax}
-                  limitVStart={dashboardData.limitMpptVMin}
+                  mpptMetrics={mpptMetrics}
+                  mpptConfigs={activeInverter.mpptConfigs}
+                  moduleSpecs={getModuleSpecs(modules[0])}
+                  activeInverterSnapshot={activeInverter.snapshot}
+                  dashboardData={dashboardData}
+                  fdi={kpi.dcAcRatio}
+                  totalKwpCC={totalKwpCC}
+                  totalKwCA={activeInverter.snapshot.nominalPower}
                 />
               </div>
             )}
+
             {activeCanvasTab === 'oversizing' && (
               <div className="max-w-4xl mx-auto">
                 <OversizingPanel
                   fdi={kpi.dcAcRatio}
                   totalKwpCC={totalKwpCC}
                   totalKwCA={activeInverter.snapshot.nominalPower}
-                  uf={(clientData as any)?.state}
+                  uf={uf}
                 />
               </div>
             )}

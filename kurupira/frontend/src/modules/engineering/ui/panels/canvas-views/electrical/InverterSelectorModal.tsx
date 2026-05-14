@@ -3,7 +3,7 @@ import { X, Search, Cpu, AlertTriangle, CheckCircle2, Info, Upload } from 'lucid
 import { cn } from '@/lib/utils';
 import { useInverterCompatibility, DecoratedInverterCatalogItem } from '../../../../hooks/useInverterCompatibility';
 import type { InverterCatalogItem } from '@/core/schemas/inverterSchema';
-import { parsePanOnd } from '../../../../utils/pvsystParser';
+import { parsePanOnd } from '@/utils/pvsystParser';
 import { mapOndToInverter } from '../../../../utils/ondAdapter';
 
 interface InverterSelectorModalProps {

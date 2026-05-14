@@ -64,14 +64,19 @@ export const useCatalogStore = create<CatalogState>((set) => ({
         const ed = i.electricalData || {};
         // The DB electricalData JSON now contains the explicit `mppts` matrix (seeded by seed-catalog).
         // This is the authentic source of truth for asymmetrical topologies and stringsAllowed.
-        const defaultMaxI = ed.maxInputCurrent || 12;
-        const count = i.mpptCount || 1;
+        const defaultTotalMaxI = ed.maxInputCurrent || i.Isc_max_hardware || ed.Isc_max_hardware || i.maxInputCurrent || 12;
+        const count = i.mpptCount || i.mppts || 1;
+        
+        // Se não há objeto ed.mppts explícito, o valor defaultTotalMaxI representa a corrente global do inversor.
+        // O limite real por MPPT é a corrente global dividida pela quantidade de MPPTs.
+        const defaultMpptMaxI = Number((defaultTotalMaxI / count).toFixed(2));
+
         const fallbackMppts = Array.from({ length: count }, (_, idx) => ({
             mpptId: idx + 1,
             minMpptVoltage: ed.vMinMpp || ed.minInputV || 40,
             maxMpptVoltage: ed.vMaxMpp || i.maxInputV || 600,
             maxInputVoltage: i.maxInputV || 600,
-            maxCurrentPerMPPT: defaultMaxI, // Conservador: assume valor do datasheet é por-MPPT
+            maxCurrentPerMPPT: defaultMpptMaxI,
             stringsAllowed: 1
         }));
 

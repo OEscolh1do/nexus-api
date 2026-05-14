@@ -2,13 +2,13 @@
  * LayersPanel.tsx
  *
  * Painel de camadas: lista todos os elementos da página atual ordenados por
- * z-index (frente → fundo). Permite reordenar, alternar visibilidade/trava e
- * selecionar/excluir elementos.
+ * z-index (frente → fundo). Permite reordenar via drag-and-drop, alternar
+ * visibilidade/trava e selecionar/excluir elementos.
  */
 
-import React from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
-  Eye, EyeOff, Lock, LockOpen, ArrowUp, ArrowDown, Trash2, Link2Off,
+  Eye, EyeOff, Lock, LockOpen, Trash2, Link2Off,
   Type, ImageIcon, Tag, Droplets, Minus, BarChart2, TrendingUp,
   Table, Map as MapIcon, FileText, Braces, Layers, Sun, Wallet,
 } from 'lucide-react';
@@ -51,33 +51,6 @@ function getMeta(type: string): TypeMeta {
   return TYPE_META[type] ?? { label: type, icon: <Layers size={11} /> };
 }
 
-// ─── Reorder helpers ──────────────────────────────────────────────────────────
-
-/**
- * Returns z-index updates for moving one element up (toward front) or down in
- * the stack. The sorted array is descending by z-index (index 0 = frontmost).
- * Moving "up" in the list = higher z-index = toward the front.
- */
-function buildReorderUpdates(
-  sorted: CanvasElement[],
-  elementId: string,
-  direction: 'up' | 'down',
-): Array<{ id: string; zIndex: number }> {
-  const idx = sorted.findIndex((e) => e.id === elementId);
-  if (idx < 0) return [];
-
-  const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
-  if (swapIdx < 0 || swapIdx >= sorted.length) return [];
-
-  // Clone the sorted array and swap positions
-  const next = [...sorted];
-  [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
-
-  // Assign new z-indexes: highest position (index 0) → highest z-index
-  const total = next.length;
-  return next.map((el, i) => ({ id: el.id, zIndex: (total - i) * 10 }));
-}
-
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface Props {
@@ -86,37 +59,46 @@ interface Props {
   onSelect: (ids: string[]) => void;
   onUpdate: (id: string, updates: Partial<CanvasElement>) => void;
   onRemove: (id: string) => void;
+  /** Called when the user reorders layers via drag-and-drop.
+   *  Receives all element IDs in the new desired order (descending z-index: index 0 = frontmost). */
+  onReorderElements?: (orderedIds: string[]) => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function LayersPanel({ elements, selectedIds, onSelect, onUpdate, onRemove }: Props) {
-  // Sort descending by z-index: index 0 = frontmost element
-  const sorted = [...elements].sort((a, b) => b.zIndex - a.zIndex);
+export function LayersPanel({ elements, selectedIds, onSelect, onUpdate, onRemove, onReorderElements }: Props) {
+  // Native HTML5 drag state
+  const dragIdRef   = useRef<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
 
-  // Group elements by groupId — single-pass O(n) using a Map
-  const groupMap = new Map<string, CanvasElement[]>();
-  const ungrouped: CanvasElement[] = [];
+  // GAP-48: memoised sort — only recomputes when elements array reference changes
+  const sorted = useMemo(
+    () => [...elements].sort((a, b) => b.zIndex - a.zIndex),
+    [elements],
+  );
 
-  sorted.forEach((el) => {
-    if (el.groupId) {
-      const existing = groupMap.get(el.groupId);
-      if (existing) {
-        existing.push(el);
+  // GAP-48: memoised group/ungroup split — O(n) single pass
+  const { grouped, ungrouped } = useMemo(() => {
+    const groupMap = new Map<string, CanvasElement[]>();
+    const ungroupedList: CanvasElement[] = [];
+
+    sorted.forEach((el) => {
+      if (el.groupId) {
+        const existing = groupMap.get(el.groupId);
+        if (existing) {
+          existing.push(el);
+        } else {
+          groupMap.set(el.groupId, [el]);
+        }
       } else {
-        groupMap.set(el.groupId, [el]);
+        ungroupedList.push(el);
       }
-    } else {
-      ungrouped.push(el);
-    }
-  });
+    });
 
-  const grouped = Array.from(groupMap.entries());
+    return { grouped: Array.from(groupMap.entries()), ungrouped: ungroupedList };
+  }, [sorted]);
 
-  const handleMove = (id: string, direction: 'up' | 'down') => {
-    const updates = buildReorderUpdates(sorted, id, direction);
-    updates.forEach(({ id: elId, zIndex }) => onUpdate(elId, { zIndex }));
-  };
+  const ungroupedIds = useMemo(() => ungrouped.map((el) => el.id), [ungrouped]);
 
   const handleSelectElement = (element: CanvasElement) => {
     if (element.groupId) {
@@ -134,6 +116,59 @@ export function LayersPanel({ elements, selectedIds, onSelect, onUpdate, onRemov
       .filter((e) => e.groupId === groupId)
       .forEach((e) => onUpdate(e.id, { groupId: undefined }));
     onSelect([]);
+  };
+
+  // ── Native HTML5 drag-and-drop handlers for ungrouped rows ────────────────
+
+  const handleDragStart = (id: string) => {
+    dragIdRef.current = id;
+  };
+
+  const handleDragOver = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    if (id !== dragIdRef.current) setDragOverId(id);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    const sourceId = dragIdRef.current;
+    setDragOverId(null);
+    dragIdRef.current = null;
+    if (!sourceId || sourceId === targetId) return;
+
+    const oldIndex = ungroupedIds.indexOf(sourceId);
+    const newIndex = ungroupedIds.indexOf(targetId);
+    if (oldIndex < 0 || newIndex < 0) return;
+
+    // Build the new order by moving the dragged item before/after the target
+    const next = [...ungroupedIds];
+    next.splice(oldIndex, 1);
+    next.splice(newIndex, 0, sourceId);
+
+    if (onReorderElements) {
+      // Reconstruct full ordered list preserving grouped element positions
+      const fullReordered: string[] = [];
+      let cursor = 0;
+      sorted.forEach((el) => {
+        if (!el.groupId) {
+          fullReordered.push(next[cursor++]);
+        } else {
+          fullReordered.push(el.id);
+        }
+      });
+      onReorderElements(fullReordered);
+    } else {
+      // Fallback: reassign zIndex directly
+      const total = next.length;
+      next.forEach((id, i) => {
+        onUpdate(id, { zIndex: (total - i) * 10 });
+      });
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDragOverId(null);
+    dragIdRef.current = null;
   };
 
   if (sorted.length === 0) {
@@ -157,7 +192,7 @@ export function LayersPanel({ elements, selectedIds, onSelect, onUpdate, onRemov
 
       {/* Layer rows */}
       <div className="flex-1 overflow-y-auto custom-scrollbar">
-        {/* Render grouped elements */}
+        {/* Render grouped elements (not draggable as units) */}
         {grouped.map(([groupId, members]) => {
           const allSelected = members.every((m) => selectedIds.includes(m.id));
           const firstMember = members[0];
@@ -189,7 +224,7 @@ export function LayersPanel({ elements, selectedIds, onSelect, onUpdate, onRemov
                 </button>
               </div>
 
-              {/* Group members (indented) */}
+              {/* Group members (indented, non-sortable) */}
               {members.map((el) => {
                 const meta = getMeta(el.type);
                 const isSelected = selectedIds.includes(el.id);
@@ -227,27 +262,39 @@ export function LayersPanel({ elements, selectedIds, onSelect, onUpdate, onRemov
           );
         })}
 
-        {/* Render ungrouped elements */}
+        {/* Render ungrouped elements with native HTML5 drag-and-drop */}
         {ungrouped.map((el) => {
           const meta = getMeta(el.type);
           const isSelected = selectedIds.includes(el.id);
-          // Position in the full sorted stack (includes grouped elements)
-          const sortedIdx = sorted.findIndex((s) => s.id === el.id);
-          const isFirst = sortedIdx === 0;
-          const isLast  = sortedIdx === sorted.length - 1;
+          const isDropTarget = dragOverId === el.id;
 
           return (
             <div
               key={el.id}
+              draggable
+              onDragStart={() => handleDragStart(el.id)}
+              onDragOver={(e) => handleDragOver(e, el.id)}
+              onDrop={(e) => handleDrop(e, el.id)}
+              onDragEnd={handleDragEnd}
               onClick={() => handleSelectElement(el)}
               className={cn(
-                'group flex items-center gap-2 px-2.5 py-1.5 cursor-pointer border-b border-slate-800/40 transition-colors',
+                'group flex items-center gap-1.5 px-1.5 py-1.5 cursor-pointer border-b border-slate-800/40 transition-colors',
                 isSelected
                   ? 'bg-blue-500/10 border-l-2 border-l-blue-500'
                   : 'hover:bg-slate-800/40 border-l-2 border-l-transparent',
                 !el.visible && 'opacity-50',
+                isDropTarget && 'border-t-2 border-t-indigo-400',
               )}
             >
+              {/* Drag handle */}
+              <span
+                title="Arrastar para reordenar"
+                onClick={(e) => e.stopPropagation()}
+                className="shrink-0 cursor-grab active:cursor-grabbing text-slate-600 hover:text-slate-400 px-0.5 select-none"
+                style={{ fontSize: 13, lineHeight: 1 }}
+              >
+                ⠿
+              </span>
               <span className={cn('shrink-0', isSelected ? 'text-blue-500' : 'text-slate-400')}>
                 {meta.icon}
               </span>
@@ -255,19 +302,25 @@ export function LayersPanel({ elements, selectedIds, onSelect, onUpdate, onRemov
                 {meta.label}
               </span>
               <div className={cn('flex items-center gap-0.5 shrink-0 transition-opacity', isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100')}>
-                <button title="Mover para frente" disabled={isFirst} onClick={(e) => { e.stopPropagation(); handleMove(el.id, 'up'); }} className="p-0.5 rounded text-slate-400 hover:text-slate-700 disabled:opacity-20 hover:bg-slate-200">
-                  <ArrowUp size={11} />
-                </button>
-                <button title="Mover para trás" disabled={isLast} onClick={(e) => { e.stopPropagation(); handleMove(el.id, 'down'); }} className="p-0.5 rounded text-slate-400 hover:text-slate-700 disabled:opacity-20 hover:bg-slate-200">
-                  <ArrowDown size={11} />
-                </button>
-                <button title={el.visible ? 'Ocultar' : 'Mostrar'} onClick={(e) => { e.stopPropagation(); onUpdate(el.id, { visible: !el.visible }); }} className="p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200">
+                <button
+                  title={el.visible ? 'Ocultar' : 'Mostrar'}
+                  onClick={(e) => { e.stopPropagation(); onUpdate(el.id, { visible: !el.visible }); }}
+                  className="p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200"
+                >
                   {el.visible ? <Eye size={11} /> : <EyeOff size={11} />}
                 </button>
-                <button title={el.locked ? 'Desbloquear' : 'Bloquear'} onClick={(e) => { e.stopPropagation(); onUpdate(el.id, { locked: !el.locked }); }} className="p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200">
+                <button
+                  title={el.locked ? 'Desbloquear' : 'Bloquear'}
+                  onClick={(e) => { e.stopPropagation(); onUpdate(el.id, { locked: !el.locked }); }}
+                  className="p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200"
+                >
                   {el.locked ? <Lock size={11} /> : <LockOpen size={11} />}
                 </button>
-                <button title="Excluir elemento" onClick={(e) => { e.stopPropagation(); onRemove(el.id); }} className="p-0.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50">
+                <button
+                  title="Excluir elemento"
+                  onClick={(e) => { e.stopPropagation(); onRemove(el.id); }}
+                  className="p-0.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50"
+                >
                   <Trash2 size={11} />
                 </button>
               </div>
@@ -279,7 +332,7 @@ export function LayersPanel({ elements, selectedIds, onSelect, onUpdate, onRemov
       {/* Footer hint */}
       <div className="shrink-0 px-3 py-1.5 border-t border-slate-800 bg-slate-900/40">
         <p className="text-[9px] text-slate-500 leading-relaxed font-mono uppercase tracking-widest">
-          ↑ Frente · ↓ Fundo · Clique para selecionar
+          ⠿ Arrastar · Clique para selecionar · ↑ Frente · ↓ Fundo
         </p>
       </div>
     </div>

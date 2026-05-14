@@ -1,5 +1,5 @@
 import { InverterCatalogItem } from '@/core/schemas/inverterSchema';
-import { PVSystObject } from './pvsystParser';
+import { PVSystObject } from '@/utils/pvsystParser';
 
 export class ONDValidationError extends Error {
   constructor(message: string) {
@@ -55,8 +55,11 @@ export function mapOndToInverter(pvsystRoot: PVSystObject): Omit<InverterCatalog
   const pnomKW = Number(getCaseInsensitiveVal(root, ['Pnom', 'PnomAC', 'PNom', 'PNomAC', 'Pnom_AC', 'PNom_AC']) || 0); 
   const pnomW = pnomKW * 1000;
   
-  const pmaxKW = Number(getCaseInsensitiveVal(root, ['Pmax', 'PMax', 'PmaxAC', 'PMaxAC', 'Pmax_AC', 'PMax_AC']) || pnomKW || 0);
+  const pmaxKW = Number(getCaseInsensitiveVal(root, ['Pmax', 'PMax', 'PmaxAC', 'PMaxAC', 'Pmax_AC', 'PMax_AC', 'PMaxOUT', 'PmaxOUT']) || pnomKW || 0);
   const pmaxW = pmaxKW * 1000;
+  
+  // Parâmetros de Derating
+  const tpLim1 = Number(getCaseInsensitiveVal(root, ['TPLim1', 'TPlim1', 'TPLim', 'TPlim_1']) || 0);
 
   // Parâmetros de Tensão (MPPT e Absoluto)
   const vMinMpp = Number(getCaseInsensitiveVal(root, ['Vmin', 'VMin', 'Vmin_MPP', 'VminMPP']) || 0);
@@ -78,7 +81,8 @@ export function mapOndToInverter(pvsystRoot: PVSystObject): Omit<InverterCatalog
 
   // MPPTs e Correntes
   const nbMPPT = Number(getCaseInsensitiveVal(root, ['NbMPPT', 'NbInputs', 'Nb_MPPT']) || 1);
-  const mpptMaxCurrent = Number(getCaseInsensitiveVal(root, ['IMax', 'Imax', 'ImaxDC', 'IMax_DC']) || 15);
+  const totalMaxCurrent = Number(getCaseInsensitiveVal(root, ['IMax', 'Imax', 'ImaxDC', 'IMax_DC']) || (15 * nbMPPT));
+  const mpptMaxCurrent = Number((totalMaxCurrent / nbMPPT).toFixed(2));
   
   // Rendimento
   const effMax = Number(getCaseInsensitiveVal(root, ['Eff_Max', 'EffMax', 'MaxEff', 'Eff_max']) || 98.0);
@@ -123,7 +127,9 @@ export function mapOndToInverter(pvsystRoot: PVSystObject): Omit<InverterCatalog
     maxOutputCurrent: pnomW / pacOutputVolt,
     weight: weight > 0 ? weight : undefined,
     Voc_max_hardware: vAbsMax,
-    Isc_max_hardware: mpptMaxCurrent * nbMPPT,
+    Isc_max_hardware: totalMaxCurrent,
+    maxOutputPowerW: pmaxW,
+    deratingTempC: tpLim1 > 0 ? tpLim1 : undefined,
     coolingType: 'passive',
     afci: true, // Defaults mercadológicos atuais
     rsd: false,

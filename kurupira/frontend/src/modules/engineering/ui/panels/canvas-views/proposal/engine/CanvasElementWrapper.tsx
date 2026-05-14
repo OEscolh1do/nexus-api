@@ -154,6 +154,9 @@ interface Props {
   onMutationStart?: () => void;
   onDuplicate?: () => void;
   onRemove?: () => void;
+  groupEditMode?: boolean;
+  isInGroupEdit?: boolean;
+  onEnterGroupEdit?: () => void;
 }
 
 export function CanvasElementWrapper({
@@ -162,18 +165,24 @@ export function CanvasElementWrapper({
   onSelect, onUpdate, onGuideChange,
   onGroupDragStart, onGroupDragDelta, onGroupDragEnd, onMutationStart,
   onDuplicate, onRemove,
+  groupEditMode, isInGroupEdit, onEnterGroupEdit,
 }: Props) {
   const [isTextEditing, setIsTextEditing] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [resizeTooltip, setResizeTooltip] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [rotationTooltip, setRotationTooltip] = useState<{ x: number; y: number; angle: number } | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const dragStartRef   = useRef<{ mouseX: number; mouseY: number; elemX: number; elemY: number } | null>(null);
   const resizeStartRef = useRef<{ mouseX: number; mouseY: number; elemX: number; elemY: number; elemW: number; elemH: number; handle: ResizeHandle } | null>(null);
   const dragAbortRef   = useRef<AbortController | null>(null);
+  const rotationAbortRef = useRef<AbortController | null>(null);
 
   // Clean up any dangling window listeners when the element is removed mid-drag
-  useEffect(() => () => { dragAbortRef.current?.abort(); }, []);
+  useEffect(() => () => {
+    dragAbortRef.current?.abort();
+    rotationAbortRef.current?.abort();
+  }, []);
 
   // Close context menu on outside click or Escape
   useEffect(() => {
@@ -343,14 +352,64 @@ export function CanvasElementWrapper({
     }, { signal });
   }, [isLocked, element, canvasScale, gridSize, snapEnabled, onUpdate, onMutationStart]);
 
+  // ── Rotation handle drag ───────────────────────────────────────────────────
+
+  const handleRotationMouseDown = useCallback((e: React.MouseEvent) => {
+    if (isLocked) return;
+    onMutationStart?.();
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Compute element center in screen coordinates from the wrapper's bounding rect.
+    // We locate the wrapper's DOM node via the event's currentTarget's parent (the wrapper div).
+    const handleEl = e.currentTarget as HTMLElement;
+    const wrapperEl = handleEl.closest('[data-canvas-wrapper]') as HTMLElement | null;
+    let centerX: number;
+    let centerY: number;
+    if (wrapperEl) {
+      const rect = wrapperEl.getBoundingClientRect();
+      centerX = rect.left + rect.width / 2;
+      centerY = rect.top + rect.height / 2;
+    } else {
+      // Fallback: approximate from element position + scale (less accurate but safe)
+      centerX = e.clientX;
+      centerY = e.clientY;
+    }
+
+    rotationAbortRef.current?.abort();
+    rotationAbortRef.current = new AbortController();
+    const { signal } = rotationAbortRef.current;
+
+    window.addEventListener('mousemove', (ev: MouseEvent) => {
+      const rawAngle = Math.atan2(ev.clientY - centerY, ev.clientX - centerX) * 180 / Math.PI + 90;
+      // Normalise to [0, 360)
+      const normalised = ((rawAngle % 360) + 360) % 360;
+      const snapped = ev.shiftKey ? Math.round(normalised / 15) * 15 : Math.round(normalised);
+      setRotationTooltip({ x: ev.clientX + 12, y: ev.clientY + 12, angle: snapped });
+      onUpdate({ rotation: snapped });
+    }, { signal });
+
+    window.addEventListener('mouseup', () => {
+      rotationAbortRef.current?.abort();
+      setTimeout(() => setRotationTooltip(null), 800);
+    }, { signal });
+  }, [isLocked, onUpdate, onMutationStart]);
+
   // ── Double click para editar texto ─────────────────────────────────────────
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
+    // Se elemento está em grupo e NÃO estamos em modo de edição: entra no modo
+    if (element.groupId && !isInGroupEdit && !groupEditMode) {
+      e.stopPropagation();
+      onEnterGroupEdit?.();
+      return;
+    }
+    // Edição de texto (dentro ou fora de grupo)
     if (element.type === 'text') {
       e.stopPropagation();
       setIsTextEditing(true);
     }
-  }, [element.type]);
+  }, [element.groupId, element.type, isInGroupEdit, groupEditMode, onEnterGroupEdit]);
 
   const handlePropsChange = useCallback((props: Record<string, unknown>) => {
     onUpdate({ props });
@@ -359,9 +418,13 @@ export function CanvasElementWrapper({
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
+  const isOutsideGroup = groupEditMode && !isInGroupEdit;
+  const opacity = isOutsideGroup ? 0.2 : element.visible ? 1 : 0.3;
+
   return (
     <>
     <div
+      data-canvas-wrapper
       style={{
         position: 'absolute',
         left: element.x,
@@ -369,7 +432,8 @@ export function CanvasElementWrapper({
         width: element.width,
         height: element.height,
         zIndex: element.zIndex,
-        opacity: element.visible ? 1 : 0.3,
+        opacity,
+        pointerEvents: isOutsideGroup ? 'none' : 'auto',
         outline: isGrouped
           ? '1.5px dashed #818cf8'
           : isSelected
@@ -388,6 +452,8 @@ export function CanvasElementWrapper({
         userSelect: 'none',
         boxSizing: 'border-box',
         overflow: isPageBlock ? 'visible' : 'hidden',
+        transform: `rotate(${element.rotation ?? 0}deg) scaleX(${element.flipX ? -1 : 1}) scaleY(${element.flipY ? -1 : 1})`,
+        transformOrigin: 'center center',
       }}
       onMouseDown={handleMouseDownMove}
       onMouseEnter={() => setIsHovered(true)}
@@ -408,7 +474,7 @@ export function CanvasElementWrapper({
         onPropsChange={handlePropsChange}
       />
 
-      {/* Resize handles + toolbar quando selecionado */}
+      {/* Resize handles + rotation handle quando selecionado */}
       {isSelected && !isPageBlock && (
         <>
           {!isLocked && HANDLES.map((handle) => (
@@ -435,6 +501,47 @@ export function CanvasElementWrapper({
             />
           ))}
 
+          {/* Rotation handle — stem + circle above top-center */}
+          {!isLocked && (
+            <>
+              {/* Connecting stem: 1px wide, 28px tall (screen-space), centered above top edge */}
+              <div
+                style={{
+                  position: 'absolute',
+                  width: 1,
+                  height: 28,
+                  background: '#6366f1',
+                  left: '50%',
+                  top: -4,
+                  // stem sits between top handle (-4px) and rotation circle (-32px screen-space)
+                  // We translate up so its bottom aligns with the element's top edge
+                  transform: `translateX(-50%) translateY(-100%) scale(${1 / canvasScale})`,
+                  transformOrigin: 'bottom center',
+                  pointerEvents: 'none',
+                  zIndex: 11,
+                }}
+              />
+              {/* Rotation circle handle */}
+              <div
+                style={{
+                  position: 'absolute',
+                  width: 10,
+                  height: 10,
+                  borderRadius: '50%',
+                  background: '#6366f1',
+                  border: '1.5px solid #ffffff',
+                  cursor: 'crosshair',
+                  left: '50%',
+                  top: -4,
+                  // Position the circle 28px above the element top in screen space
+                  transform: `translateX(-50%) translateY(calc(-100% - 28px)) scale(${1 / canvasScale})`,
+                  transformOrigin: 'bottom center',
+                  zIndex: 12,
+                }}
+                onMouseDown={handleRotationMouseDown}
+              />
+            </>
+          )}
         </>
       )}
 
@@ -481,6 +588,28 @@ export function CanvasElementWrapper({
         whiteSpace: 'nowrap',
       }}>
         {resizeTooltip.w} × {resizeTooltip.h}
+      </div>,
+      document.body,
+    )}
+
+    {rotationTooltip && createPortal(
+      <div style={{
+        position: 'fixed',
+        left: rotationTooltip.x,
+        top: rotationTooltip.y,
+        background: '#0f172a',
+        border: '1px solid #1e293b',
+        color: '#94a3b8',
+        padding: '2px 6px',
+        borderRadius: 3,
+        fontSize: 10,
+        fontFamily: 'monospace',
+        fontVariantNumeric: 'tabular-nums',
+        pointerEvents: 'none',
+        zIndex: 99999,
+        whiteSpace: 'nowrap',
+      }}>
+        {rotationTooltip.angle}°
       </div>,
       document.body,
     )}

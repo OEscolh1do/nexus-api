@@ -269,7 +269,8 @@ export const useSolarStore = create<SolarState>()(
           // Journey: apenas o fator de crescimento persiste; kWpAlvo é recalculado
           loadGrowthFactor: state.loadGrowthFactor,
           
-          // Proposta (Comercial)
+          // Proposta (Comercial) — inclui activeLayout, customTemplates e activeTemplateId
+          // GAP-26+18: canvas layout e templates custom persistidos via proposalData completo
           proposalData: state.proposalData,
         }),
       }

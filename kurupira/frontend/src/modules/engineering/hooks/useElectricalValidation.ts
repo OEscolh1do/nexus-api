@@ -3,6 +3,7 @@ import { useSolarStore, selectModules } from '@/core/state/solarStore';
 import { useTechStore } from '@/modules/engineering/store/useTechStore';
 import { useCatalogStore } from '@/modules/engineering/store/useCatalogStore';
 import { validateSystemStrings, type MPPTInput, type SystemValidationReport } from '@/modules/engineering/utils/electricalMath';
+import { useThermalPremises } from './useThermalPremises';
 
 export interface InventorySyncStatus {
     isSynced: boolean;
@@ -25,29 +26,29 @@ export const useElectricalValidation = (): UnifiedValidationResult => {
     // 1. Fetch dependencies (avoiding deep object listening if possible, but keeping it simple for now)
     const modules = useSolarStore(selectModules);
     const placedModules = useSolarStore(state => state.project.placedModules);
-    const settings = useSolarStore(state => state.settings);
-    const engineeringData = useSolarStore(state => state.engineeringData);
     const catalogInverters = useCatalogStore(state => state.inverters);
+    const engineeringData  = useSolarStore(state => state.engineeringData);
     
     // TechStore data
     const invertersNorm = useTechStore(state => state.inverters);
     const stringsNorm = useTechStore(state => state.strings);
-    
-    // We only recalculate when these specific serializations change to avoid 3D vector-drag re-renders
+
+    // Premissas térmicas centralizadas — fonte única de verdade (NBR 16690:2019 §4.3.1.2)
+    const { tmin: settingsSig, tcellMax } = useThermalPremises();
+    const thermalSig = tcellMax;
+
+    // Primitivos para evitar re-renders por referência de objeto
     const placedCount = placedModules.length;
     const inventoryCount = modules.length;
-    const representativeModule = modules[0]; // Assume uniform modules for now
-    
-    // By extracting the IDs and relevant nested properties instead of full stringification, we save CPU cycles
+    const representativeModule = modules[0];
+
     const invertersSig = Object.values(invertersNorm.entities)
         .map(inv => `${inv.id}-${inv.mpptConfigs.map(m => `${m.stringIds.join(',')}|${m.modulesPerString}|${m.stringsCount}|${m.cableLength}`).join('|')}`)
         .join('::');
-        
+
     const stringsSig = Object.values(stringsNorm.entities)
         .map(str => `${str.id}-${str.mpptId}-${str.moduleIds.length}`)
         .join('::');
-        
-    const settingsSig = settings?.minHistoricalTemp ?? -5;
 
     return useMemo(() => {
         const techInverters = Object.values(invertersNorm.entities);
@@ -170,8 +171,8 @@ export const useElectricalValidation = (): UnifiedValidationResult => {
                         maxCurrentPerMPPT: inv.snapshot?.maxCurrentPerMPPT ?? 15,
                         cableLength: cfg.cableLength,
                         cableSection: cfg.cableSection,
-                        azimuth: cfg.azimuth ?? engineeringData.azimute,
-                        inclination: cfg.inclination ?? engineeringData.roofTilt,
+                        azimuth: cfg.azimuth ?? (engineeringData?.azimute ?? 0),
+                        inclination: cfg.inclination ?? (engineeringData?.roofTilt ?? 15),
                     } as MPPTInput;
                 }).filter(input => input.stringsCount > 0 && input.modulesPerString > 0);
             });
@@ -180,7 +181,8 @@ export const useElectricalValidation = (): UnifiedValidationResult => {
                 electricalReport = validateSystemStrings(
                     mpptInputs, 
                     moduleSpecs, 
-                    settingsSig
+                    settingsSig,
+                    tcellMax
                 );
             }
         }
@@ -206,7 +208,8 @@ export const useElectricalValidation = (): UnifiedValidationResult => {
         representativeModule?.id, 
         invertersSig, 
         stringsSig, 
-        settingsSig, 
+        settingsSig,
+        thermalSig,
         catalogInverters.length,
         invertersNorm.ids.length, // Força recálculo se deletar inversor
         stringsNorm.ids.length    // Força recálculo se deletar string

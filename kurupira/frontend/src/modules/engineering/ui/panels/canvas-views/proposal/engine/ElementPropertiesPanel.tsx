@@ -1,5 +1,5 @@
 import React from 'react';
-import { Lock, Unlock, Eye, EyeOff, ChevronUp, ChevronDown, Edit3, FileText } from 'lucide-react';
+import { Lock, Unlock, Eye, EyeOff, ChevronUp, ChevronDown, Edit3, FileText, Link2, Unlink } from 'lucide-react';
 import { ICON_CATALOG } from './elements/IconElement';
 import type { CanvasElement } from './types';
 import { PLACEHOLDER_FIELDS, DEFAULT_PLACEHOLDER_FIELD } from './elements/PlaceholderElement';
@@ -106,12 +106,38 @@ interface TextStyleControlsProps {
   p: Record<string, unknown>;
   update: (key: string, val: unknown) => void;
   defaultFontSize?: number;
-  showItalic?: boolean;
 }
 
-function TextStyleControls({ p, update, defaultFontSize = 16, showItalic = false }: TextStyleControlsProps) {
+const TOGGLE_BTN_BASE: React.CSSProperties = {
+  fontSize: 11,
+  padding: '3px 7px',
+  border: '1px solid #334155',
+  borderRadius: 4,
+  cursor: 'pointer',
+  minWidth: 28,
+  minHeight: 24,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+};
+
+function TextStyleControls({ p, update, defaultFontSize = 16 }: TextStyleControlsProps) {
   return (
     <>
+      <FieldRow label="Fonte">
+        <select
+          value={String(p.fontFamily ?? 'system')}
+          onChange={(e) => update('fontFamily', e.target.value)}
+          className="flex-1 text-xs border border-slate-800 rounded px-2 py-1 bg-slate-900 text-slate-200 outline-none focus:border-indigo-500/50"
+        >
+          <option value="system">Sistema</option>
+          <option value="inter">Inter</option>
+          <option value="montserrat">Montserrat</option>
+          <option value="roboto">Roboto</option>
+          <option value="poppins">Poppins</option>
+          <option value="lato">Lato</option>
+        </select>
+      </FieldRow>
       <FieldRow label="Tamanho">
         <NumInput value={Number(p.fontSize ?? defaultFontSize)} onChange={(v) => update('fontSize', v)} min={8} />
       </FieldRow>
@@ -125,6 +151,55 @@ function TextStyleControls({ p, update, defaultFontSize = 16, showItalic = false
             <option key={w} value={w}>{w}</option>
           ))}
         </select>
+      </FieldRow>
+      <FieldRow label="Estilo">
+        <div style={{ display: 'flex', gap: 4 }}>
+          <button
+            onClick={() => update('italic', !Boolean(p.italic ?? false))}
+            style={{
+              ...TOGGLE_BTN_BASE,
+              background: Boolean(p.italic) ? '#4f46e5' : '#1e293b',
+              color: Boolean(p.italic) ? '#fff' : '#94a3b8',
+              fontStyle: 'italic',
+              fontWeight: 600,
+            }}
+            aria-label="Itálico"
+            aria-pressed={Boolean(p.italic)}
+            title="Itálico"
+          >
+            I
+          </button>
+          <button
+            onClick={() => update('underline', !Boolean(p.underline ?? false))}
+            style={{
+              ...TOGGLE_BTN_BASE,
+              background: Boolean(p.underline) ? '#4f46e5' : '#1e293b',
+              color: Boolean(p.underline) ? '#fff' : '#94a3b8',
+              textDecoration: 'underline',
+              fontWeight: 600,
+            }}
+            aria-label="Sublinhado"
+            aria-pressed={Boolean(p.underline)}
+            title="Sublinhado"
+          >
+            U
+          </button>
+          <button
+            onClick={() => update('strikethrough', !Boolean(p.strikethrough ?? false))}
+            style={{
+              ...TOGGLE_BTN_BASE,
+              background: Boolean(p.strikethrough) ? '#4f46e5' : '#1e293b',
+              color: Boolean(p.strikethrough) ? '#fff' : '#94a3b8',
+              textDecoration: 'line-through',
+              fontWeight: 600,
+            }}
+            aria-label="Tachado"
+            aria-pressed={Boolean(p.strikethrough)}
+            title="Tachado"
+          >
+            S
+          </button>
+        </div>
       </FieldRow>
       <FieldRow label="Alinhamento">
         <select
@@ -151,16 +226,6 @@ function TextStyleControls({ p, update, defaultFontSize = 16, showItalic = false
       </FieldRow>
       <TextPropRow label="Espaç. letras" value={String(p.letterSpacing ?? '')} onChange={(v) => update('letterSpacing', v)} />
       <TextPropRow label="Alt. linha" value={String(p.lineHeight ?? '')} onChange={(v) => update('lineHeight', v)} />
-      {showItalic && (
-        <FieldRow label="Itálico">
-          <input
-            type="checkbox"
-            checked={Boolean(p.italic ?? false)}
-            onChange={(e) => update('italic', e.target.checked)}
-            className="cursor-pointer"
-          />
-        </FieldRow>
-      )}
       <ColorPropRow label="Cor" value={String(p.color ?? '#1a1a1a')} onChange={(v) => update('color', v)} />
     </>
   );
@@ -181,18 +246,6 @@ function TextElementProps({ element, onUpdate }: Props) {
         />
       </FieldRow>
       <TextStyleControls p={p} update={update} defaultFontSize={16} />
-      <FieldRow label="Rotação">
-        <select
-          value={String(p.rotation ?? 0)}
-          onChange={(e) => update('rotation', Number(e.target.value))}
-          className="flex-1 text-xs border border-slate-800 rounded px-2 py-1 bg-slate-900 text-slate-200 outline-none focus:border-indigo-500/50"
-        >
-          <option value={0}>0° — Horizontal</option>
-          <option value={90}>90° — Vertical ↓</option>
-          <option value={-90}>-90° — Vertical ↑</option>
-          <option value={180}>180° — Invertido</option>
-        </select>
-      </FieldRow>
     </>
   );
 }
@@ -309,6 +362,11 @@ function ImageElementProps({ element, onUpdate }: Props) {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Imagem muito grande. Limite: 5 MB');
+      e.target.value = '';
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (ev) => {
       const dataUrl = ev.target?.result as string;
@@ -368,6 +426,74 @@ function ImageElementProps({ element, onUpdate }: Props) {
           <option value="none">Original (none)</option>
         </select>
       </FieldRow>
+
+      {/* Crop controls — viewport crop via object-fit: none + object-position */}
+      <details style={{ marginTop: 8 }}>
+        <summary
+          style={{
+            fontSize: 11,
+            color: '#94a3b8',
+            cursor: 'pointer',
+            userSelect: 'none',
+            marginBottom: 6,
+            listStyle: 'none',
+          }}
+        >
+          Corte e posicao
+        </summary>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 6 }}>
+          <label style={{ fontSize: 10, color: '#64748b' }}>
+            Deslocamento X
+            <input
+              type="number"
+              step={1}
+              value={Number(p.cropX ?? 0)}
+              onChange={(e) => update('cropX', Number(e.target.value))}
+              className="w-full text-xs border border-slate-800 rounded px-2 py-1 bg-slate-900 text-slate-200 focus:outline-none focus:border-indigo-500/50"
+              style={{ display: 'block', marginTop: 2 }}
+            />
+          </label>
+          <label style={{ fontSize: 10, color: '#64748b' }}>
+            Deslocamento Y
+            <input
+              type="number"
+              step={1}
+              value={Number(p.cropY ?? 0)}
+              onChange={(e) => update('cropY', Number(e.target.value))}
+              className="w-full text-xs border border-slate-800 rounded px-2 py-1 bg-slate-900 text-slate-200 focus:outline-none focus:border-indigo-500/50"
+              style={{ display: 'block', marginTop: 2 }}
+            />
+          </label>
+        </div>
+        <label style={{ fontSize: 10, color: '#64748b', display: 'block', marginTop: 6 }}>
+          Escala ({Math.round(Number(p.cropScale ?? 1) * 100)}%)
+          <input
+            type="range"
+            min={100}
+            max={400}
+            step={5}
+            value={Math.round(Number(p.cropScale ?? 1) * 100)}
+            onChange={(e) => update('cropScale', Number(e.target.value) / 100)}
+            aria-label="Escala de corte"
+            style={{ width: '100%', marginTop: 2 }}
+          />
+        </label>
+        <button
+          onClick={() => onUpdate({ props: { ...p, cropX: 0, cropY: 0, cropScale: 1 } })}
+          style={{
+            fontSize: 10,
+            marginTop: 6,
+            padding: '3px 10px',
+            borderRadius: 4,
+            border: '1px solid #334155',
+            background: 'none',
+            color: '#94a3b8',
+            cursor: 'pointer',
+          }}
+        >
+          Resetar corte
+        </button>
+      </details>
 
       {/* Clear image button — only when there is a URL */}
       {p.url && (
@@ -572,7 +698,7 @@ function PlaceholderProps({ element, onUpdate }: Props) {
 
       <div className="border-t border-slate-800 pt-2 mt-1">
         <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mb-1">Estilo</p>
-        <TextStyleControls p={p} update={update} defaultFontSize={14} showItalic />
+        <TextStyleControls p={p} update={update} defaultFontSize={14} />
       </div>
     </>
   );
@@ -641,6 +767,27 @@ function EquipmentPanelProps({ element, onUpdate }: Props) {
 
 export function ElementPropertiesPanel({ element, onUpdate, onDecompose }: Props) {
   const isPageBlock = element.type.startsWith('page-');
+  const [aspectRatioLocked, setAspectRatioLocked] = React.useState(false);
+
+  const onElementChange = (updates: Partial<CanvasElement>) => onUpdate(updates);
+
+  const handleWidthChange = (v: number) => {
+    if (aspectRatioLocked && element.width > 0) {
+      const ratio = element.height / element.width;
+      onUpdate({ width: v, height: Math.round(v * ratio) });
+    } else {
+      onUpdate({ width: v });
+    }
+  };
+
+  const handleHeightChange = (v: number) => {
+    if (aspectRatioLocked && element.height > 0) {
+      const ratio = element.width / element.height;
+      onUpdate({ height: v, width: Math.round(v * ratio) });
+    } else {
+      onUpdate({ height: v });
+    }
+  };
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-slate-950 border-r border-slate-800">
@@ -680,13 +827,35 @@ export function ElementPropertiesPanel({ element, onUpdate, onDecompose }: Props
               <FieldRow label="Y">
                 <NumInput value={element.y} onChange={(v) => onUpdate({ y: v })} min={0} aria-label="Posição Y" />
               </FieldRow>
-              <FieldRow label="Largura">
-                <NumInput value={element.width} onChange={(v) => onUpdate({ width: v })} min={10} aria-label="Largura" />
-              </FieldRow>
-              <FieldRow label="Altura">
-                <NumInput value={element.height} onChange={(v) => onUpdate({ height: v })} min={10} aria-label="Altura" />
-              </FieldRow>
             </div>
+
+            {/* Width / Height with aspect ratio lock */}
+            <div className="flex items-center gap-1">
+              <div className="flex-1">
+                <FieldRow label="Largura">
+                  <NumInput value={element.width} onChange={handleWidthChange} min={10} aria-label="Largura" />
+                </FieldRow>
+              </div>
+              <button
+                onClick={() => setAspectRatioLocked((v) => !v)}
+                className={cn(
+                  'p-1 rounded border mt-0.5 shrink-0 transition-colors',
+                  aspectRatioLocked
+                    ? 'border-indigo-500/60 bg-indigo-500/20 text-indigo-400'
+                    : 'border-slate-800 hover:bg-slate-800 text-slate-500',
+                )}
+                aria-label={aspectRatioLocked ? 'Desbloquear proporção' : 'Travar proporção'}
+                title={aspectRatioLocked ? 'Proporção travada' : 'Travar proporção'}
+              >
+                {aspectRatioLocked ? <Link2 size={11} /> : <Unlink size={11} />}
+              </button>
+              <div className="flex-1">
+                <FieldRow label="Altura">
+                  <NumInput value={element.height} onChange={handleHeightChange} min={10} aria-label="Altura" />
+                </FieldRow>
+              </div>
+            </div>
+
             <FieldRow label="Z-index">
               <div className="flex items-center gap-1 flex-1">
                 <NumInput value={element.zIndex} onChange={(v) => onUpdate({ zIndex: v })} min={0} />
@@ -695,6 +864,72 @@ export function ElementPropertiesPanel({ element, onUpdate, onDecompose }: Props
                 </button>
                 <button onClick={() => onUpdate({ zIndex: Math.max(0, element.zIndex - 1) })} className="p-1 border border-slate-800 rounded hover:bg-slate-800">
                   <ChevronDown size={12} className="text-slate-500" />
+                </button>
+              </div>
+            </FieldRow>
+
+            {/* Rotation */}
+            <FieldRow label="Rotação">
+              <input
+                type="number"
+                min={0}
+                max={360}
+                step={1}
+                value={element.rotation ?? 0}
+                onChange={(e) => onElementChange({ rotation: Number(e.target.value) })}
+                aria-label="Rotação em graus"
+                className="w-full text-xs border border-slate-800 rounded px-2 py-1 bg-slate-900 text-slate-200 focus:outline-none focus:border-indigo-500/50"
+              />
+              <span className="text-[10px] text-slate-500 ml-1 shrink-0">°</span>
+            </FieldRow>
+
+            {/* Opacity */}
+            <FieldRow label="Opacidade">
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                value={Math.round((element.opacity ?? 1) * 100)}
+                onChange={(e) => onElementChange({ opacity: Number(e.target.value) / 100 })}
+                aria-label="Opacidade"
+                className="flex-1"
+              />
+              <span className="text-[10px] text-slate-500 w-7 text-right shrink-0">
+                {Math.round((element.opacity ?? 1) * 100)}%
+              </span>
+            </FieldRow>
+
+            {/* Flip H/V */}
+            <FieldRow label="Espelhar">
+              <div className="flex gap-1.5">
+                <button
+                  onClick={() => onElementChange({ flipX: !element.flipX })}
+                  className={cn(
+                    'p-1 rounded border text-[10px] transition-colors flex items-center gap-0.5',
+                    element.flipX
+                      ? 'border-indigo-500/60 bg-indigo-500/20 text-indigo-400'
+                      : 'border-slate-800 hover:bg-slate-800 text-slate-500',
+                  )}
+                  aria-label="Espelhar horizontal"
+                  aria-pressed={element.flipX ?? false}
+                  title="Espelhar horizontal"
+                >
+                  ↔ H
+                </button>
+                <button
+                  onClick={() => onElementChange({ flipY: !element.flipY })}
+                  className={cn(
+                    'p-1 rounded border text-[10px] transition-colors flex items-center gap-0.5',
+                    element.flipY
+                      ? 'border-indigo-500/60 bg-indigo-500/20 text-indigo-400'
+                      : 'border-slate-800 hover:bg-slate-800 text-slate-500',
+                  )}
+                  aria-label="Espelhar vertical"
+                  aria-pressed={element.flipY ?? false}
+                  title="Espelhar vertical"
+                >
+                  ↕ V
                 </button>
               </div>
             </FieldRow>

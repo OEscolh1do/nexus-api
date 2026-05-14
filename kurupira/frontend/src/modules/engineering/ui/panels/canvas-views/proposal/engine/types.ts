@@ -45,6 +45,10 @@ export interface CanvasElement {
   locked: boolean;
   visible: boolean;
   groupId?: string;
+  opacity?: number;    // 0–1, default 1
+  rotation?: number;   // degrees, default 0
+  flipX?: boolean;     // mirror horizontal
+  flipY?: boolean;     // mirror vertical
   props: Record<string, unknown>;
 }
 
@@ -53,6 +57,26 @@ export interface CanvasPage {
   label: string;
   background: { color?: string; gradient?: string; imageUrl?: string };
   elements: CanvasElement[];
+  orientation?: 'portrait' | 'landscape'; // default portrait
+}
+
+// Portrait:  A4_WIDTH × A4_HEIGHT  (794 × 1123)
+// Landscape: A4_HEIGHT × A4_WIDTH  (1123 × 794)
+export function getPageDimensions(orientation?: 'portrait' | 'landscape') {
+  return orientation === 'landscape'
+    ? { width: A4_HEIGHT, height: A4_WIDTH }
+    : { width: A4_WIDTH,  height: A4_HEIGHT };
+}
+
+/**
+ * Parses the `url|size` convention stored in `CanvasPage.background.imageUrl`.
+ * The size token is a CSS background-size value (cover / contain / fill).
+ */
+export function parseBackgroundImageUrl(raw: string): { url: string; size: string } {
+  const idx = raw.lastIndexOf('|');
+  return idx > 0
+    ? { url: raw.slice(0, idx), size: raw.slice(idx + 1) }
+    : { url: raw, size: 'cover' };
 }
 
 export interface ProposalTheme {

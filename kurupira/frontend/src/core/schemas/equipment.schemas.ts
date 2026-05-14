@@ -35,7 +35,10 @@ export const ModuleSpecsSchema = z.object({
   dimensions: z.string(),
   inmetroId: z.string(),
   maxFuseRating: z.number().positive(),
-  tempCoeff: z.number(),
+  tempCoeff: z.number(), // Mantido para compatibilidade, geralmente guarda Pmax
+  tempCoeffVoc: z.number().optional(),
+  tempCoeffPmax: z.number().optional(),
+  noct: z.number().optional().default(45),
   annualDepreciation: z.number().min(0).max(0.05),
 });
 

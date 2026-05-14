@@ -1,8 +1,8 @@
 # CONTEXT.md — Kurupira (Motor de Engenharia Solar)
 
-> **Última Atualização:** 2026-05-13
+> **Última Atualização:** 2026-05-14
 > **Arquiteto:** Antigravity AI
-> **Versão do Sistema:** 0.9.0-beta.3 (Inverter Cockpit Industrialization & Neurodesign)
+> **Versão do Sistema:** 0.9.0-beta.4 (Math Integrity & Deep Cleanup)
 
 ---
 
@@ -155,6 +155,13 @@ O Pin de localização é o elemento central de ancoragem visual e interatividad
 ---
 
 ## 🔄 CHANGELOG
+
+### v0.9.0-beta.4 (2026-05-14) — Math Integrity & Deep Cleanup
+- ✅ **Math Engine Integrity**: Substituição de coeficientes genéricos (`tempCoeff`) por granularidade estrita (`tempCoeffVoc` e `tempCoeffPmax`) em toda a cadeia da verdade (Importação → Catálogo → Dimensionamento).
+- ✅ **Deep Cleanup**: Remoção definitiva do diretório `composer/` e componentes órfãos (`ElectricalDiagnosticPanel`, `ValidationChip`, `CatalogSelectors`, `StatusChip`).
+- ✅ **Orphan Hooks Sweep**: Deletados `useStringValidation`, `useAutoSizing` e `useStringAssignment`.
+- ✅ **Parser Consolidation**: Unificação do `pvsystParser.ts` na raiz (`src/utils/`) com suporte a chaves repetidas (MPPT Profiles).
+- ✅ **Skill Creator**: Implementadas novas skills de auditoria: `math-engine-auditor`, `zustand-mutation-guard` e `mock-sweeper`.
 
 ### v0.9.0-beta.3 (2026-05-13) — Inverter Cockpit Industrialization & Neurodesign
 - ✅ **Industrialização do Cockpit**: Interface simplificada com remoção de elementos redundantes e foco em telemetria crítica.

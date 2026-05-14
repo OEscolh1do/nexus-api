@@ -215,23 +215,87 @@ export const MPPTConfigStrip: React.FC<MPPTConfigStripProps> = ({
               {/* A1: Status Bar Lateral — atributo pré-atentivo ISA-101 */}
               <div className={cn('absolute left-0 inset-y-0 w-[3px] rounded-l-sm transition-colors duration-300', statusBarClass)} />
 
-              {/* ── ROW 1: Identidade + kWp Hero ───────────────────────── */}
-              <div className="flex items-center justify-between pl-5 pr-3 pt-2.5 pb-1">
-                {/* Esquerda: ID + status dot */}
-                <div className="flex items-center gap-2">
-                  <div className={cn('w-1.5 h-1.5 rounded-full shrink-0 transition-colors duration-300', statusDotClass)} />
-                  <span className="text-[11px] font-black font-mono tracking-widest text-slate-200 uppercase">
-                    MPPT {mppt.mpptId}
-                  </span>
+              {/* ── HEADER DENSE: Identidade + Config + kWp Hero ────────── */}
+              <div className="flex items-center justify-between pl-5 pr-3 py-1.5 border-b border-slate-800/60 bg-slate-950/40">
+                
+                {/* Esquerda: Identidade e Config */}
+                <div className="flex items-center gap-2 overflow-hidden">
+                  {/* Status Dot + ID */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <div className={cn('w-1.5 h-1.5 rounded-full shrink-0 transition-colors duration-300', statusDotClass)} />
+                    <span className="text-[11px] font-black font-mono tracking-widest text-slate-200 uppercase">
+                      MPPT {mppt.mpptId}
+                    </span>
+                  </div>
+
+                  {/* Separator */}
+                  <div className="w-[1px] h-3 bg-slate-800 shrink-0 hidden sm:block" />
+
+                  {/* Config (Módulo + Orientação) inline */}
+                  <div className="flex items-center gap-0.5 min-w-0">
+                    {/* B2: Module Picker ghost */}
+                    <div className="relative module-picker-container shrink-0">
+                      {(() => {
+                        const selObj = mppt.moduleModel
+                          ? (availableModules as any[]).find(m => m.model === mppt.moduleModel)
+                          : module;
+                        return (
+                          <button
+                            onClick={() => setOpenPickerId(openPickerId === mppt.mpptId ? null : mppt.mpptId)}
+                            className={cn(
+                              'flex items-center gap-1 px-1.5 py-0.5 rounded transition-all',
+                              mppt.moduleModel
+                                ? 'text-sky-400 hover:bg-sky-500/10 hover:border-sky-500/20'
+                                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/60'
+                            )}
+                            title={selObj?.model ?? 'Selecionar módulo'}
+                          >
+                            <Sun size={9} className={mppt.moduleModel ? 'text-sky-400' : 'text-amber-500/60'} />
+                            <span className="text-[9px] font-bold font-mono tracking-tight whitespace-nowrap">
+                              {selObj?.power ?? '—'}W
+                            </span>
+                          </button>
+                        );
+                      })()}
+                      {openPickerId === mppt.mpptId && (
+                        <ModulePickerIsland
+                          options={uniqueModuleModels}
+                          selectedValue={mppt.moduleModel}
+                          defaultModule={module}
+                          onSelect={(model) => updateMPPT(inverterId, mppt.mpptId, { moduleModel: model })}
+                          onClose={() => setOpenPickerId(null)}
+                        />
+                      )}
+                    </div>
+
+                    <span className="text-slate-700 select-none shrink-0">·</span>
+
+                    {/* Orientação ghost */}
+                    <button
+                      onClick={() => setOrientationModalMppt(mppt.mpptId)}
+                      className={cn(
+                        'flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono tracking-tight transition-all shrink-0',
+                        mppt.azimuth !== undefined
+                          ? 'text-amber-400 hover:bg-amber-500/10'
+                          : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/60'
+                      )}
+                      title={mppt.azimuth !== undefined ? 'Orientação customizada' : 'Orientação herdada do projeto'}
+                    >
+                      <Navigation size={9} className={mppt.azimuth !== undefined ? 'text-amber-400' : 'text-slate-600'} />
+                      <span className="tabular-nums">
+                        {mppt.azimuth ?? globalAzimuth}° / {mppt.inclination ?? globalInclination}°
+                      </span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* B1: kWp como Hero Metric — maior dado, primeira leitura */}
-                <div className="flex items-baseline gap-1">
+                <div className="flex items-baseline gap-1 shrink-0 ml-2">
                   {hasVoc ? (
                     <span
                       key={metrics.powerKwp}
                       className={cn(
-                        'text-[20px] font-black font-mono tabular-nums tracking-tighter leading-none animate-in fade-in duration-300',
+                        'text-[18px] font-black font-mono tabular-nums tracking-tighter leading-none animate-in fade-in duration-300',
                         kWpColor
                       )}
                     >
@@ -242,69 +306,6 @@ export const MPPTConfigStrip: React.FC<MPPTConfigStripProps> = ({
                   )}
                   <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">kWp</span>
                 </div>
-              </div>
-
-              {/* ── ROW 2: Config — Módulo + Orientação + Alertas ─────── */}
-              <div className="flex items-center gap-1.5 pl-5 pr-3 pb-2.5 border-b border-slate-800/60">
-
-                {/* B2: Module Picker ghost — borda apenas no hover */}
-                <div className="relative module-picker-container">
-                  {(() => {
-                    const selObj = mppt.moduleModel
-                      ? (availableModules as any[]).find(m => m.model === mppt.moduleModel)
-                      : module;
-                    return (
-                      <button
-                        onClick={() => setOpenPickerId(openPickerId === mppt.mpptId ? null : mppt.mpptId)}
-                        className={cn(
-                          'flex items-center gap-1 px-1.5 py-0.5 rounded transition-all',
-                          mppt.moduleModel
-                            ? 'text-sky-400 hover:bg-sky-500/10 hover:border hover:border-sky-500/20'
-                            : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/60'
-                        )}
-                        title={selObj?.model ?? 'Selecionar módulo'}
-                      >
-                        <Sun size={9} className={mppt.moduleModel ? 'text-sky-400' : 'text-amber-500/60'} />
-                        <span className="text-[9px] font-bold font-mono tracking-tight whitespace-nowrap">
-                          {selObj?.power ?? '—'}W
-                        </span>
-                      </button>
-                    );
-                  })()}
-                  {openPickerId === mppt.mpptId && (
-                    <ModulePickerIsland
-                      options={uniqueModuleModels}
-                      selectedValue={mppt.moduleModel}
-                      defaultModule={module}
-                      onSelect={(model) => updateMPPT(inverterId, mppt.mpptId, { moduleModel: model })}
-                      onClose={() => setOpenPickerId(null)}
-                    />
-                  )}
-                </div>
-
-                <span className="text-slate-700 select-none">·</span>
-
-                {/* Orientação ghost */}
-                <button
-                  onClick={() => setOrientationModalMppt(mppt.mpptId)}
-                  className={cn(
-                    'flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono tracking-tight transition-all',
-                    mppt.azimuth !== undefined
-                      ? 'text-amber-400 hover:bg-amber-500/10'
-                      : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/60'
-                  )}
-                  title={mppt.azimuth !== undefined ? 'Orientação customizada' : 'Orientação herdada do projeto'}
-                >
-                  <Navigation size={9} className={mppt.azimuth !== undefined ? 'text-amber-400' : 'text-slate-600'} />
-                  <span className="tabular-nums">
-                    {mppt.azimuth ?? globalAzimuth}° / {mppt.inclination ?? globalInclination}°
-                  </span>
-                </button>
-
-                {/* A2: Alertas inline sem caixa — aparecem só quando relevantes */}
-                {metrics.powerKwp === 0 ? (
-                  <span className="ml-auto text-[9px] font-black uppercase tracking-widest text-slate-600">Ocioso</span>
-                ) : null}
               </div>
 
               {/* ── Twin Telemetry (só quando tem dados) ─────────────── */}

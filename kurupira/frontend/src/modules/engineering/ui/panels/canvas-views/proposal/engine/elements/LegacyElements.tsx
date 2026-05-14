@@ -14,6 +14,9 @@ import { useProposalPageData } from '../useProposalPageData';
 import { useSolarStore } from '@/core/state/solarStore';
 import { formatBRL } from '@/modules/engineering/utils/formatters';
 import type { CanvasElement } from '../types';
+import { EmptyState } from './EmptyState';
+
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
 
 // ─── Shared ────────────────────────────────────────────────────────────────────
 
@@ -88,6 +91,10 @@ export function ChartGenerationElement({ element }: { element: CanvasElement }) 
   const title = p.title ? String(p.title) : undefined;
   const showLegend = Boolean(p.showLegend ?? false);
 
+  if (!stats.barData || stats.barData.length === 0) {
+    return <EmptyState label="Gráfico de Geração" />;
+  }
+
   return (
     <ShellBox title={title}>
       <ResponsiveContainer width="100%" height="100%">
@@ -112,6 +119,10 @@ export function ChartFinancialElement({ element }: { element: CanvasElement }) {
   const color     = String(p.color ?? '#6366f1');
   const title     = p.title ? String(p.title) : undefined;
   const showLegend = Boolean(p.showLegend ?? false);
+
+  if (!stats.roiData || stats.roiData.length === 0) {
+    return <EmptyState label="Gráfico Financeiro" />;
+  }
 
   return (
     <ShellBox title={title}>
@@ -241,43 +252,43 @@ export function MapStaticElement({ element }: { element: CanvasElement }) {
   const clientData = useSolarStore((s) => s.clientData);
   const p          = element.props as Record<string, unknown>;
   const showMarker = Boolean(p.showMarker ?? true);
+  const zoom       = Number(p.zoom ?? 20);
+  const mapType    = (p.mapType as string) || 'hybrid';
 
-  const lat = (clientData as Record<string, unknown>).lat ?? (clientData as Record<string, unknown>).latitude;
-  const lng = (clientData as Record<string, unknown>).lng ?? (clientData as Record<string, unknown>).longitude;
+  const raw = clientData as Record<string, unknown>;
+  const lat = raw.lat ?? raw.latitude;
+  const lng = raw.lng ?? raw.longitude;
   const hasCoords = lat !== undefined && lng !== undefined;
 
-  // If Google Maps Static API key is configured, use it; otherwise show styled placeholder
-  const apiKey = (p.googleMapsKey as string) || '';
-  const zoom   = Number(p.zoom ?? 17);
-
-  if (apiKey && hasCoords) {
-    const src = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=${zoom}&size=640x480&scale=2&maptype=satellite${showMarker ? `&markers=color:red|${lat},${lng}` : ''}&key=${apiKey}`;
-    return <img src={src} alt="Mapa" style={{ width: '100%', height: '100%', objectFit: 'cover' }} draggable={false} />;
+  if (!hasCoords || !GOOGLE_MAPS_API_KEY) {
+    return (
+      <div style={{
+        width: '100%', height: '100%',
+        background: 'linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        gap: 6,
+      }}>
+        <MapPin size={28} color="#6366f1" />
+        <p style={{ fontSize: 11, fontWeight: 700, color: '#475569', margin: 0 }}>
+          Localização do Projeto
+        </p>
+        <p style={{ fontSize: 9, color: '#94a3b8', margin: 0 }}>
+          {!hasCoords ? 'Coordenadas não definidas' : 'Chave Google Maps não configurada'}
+        </p>
+      </div>
+    );
   }
 
+  const center  = `${lat},${lng}`;
+  const markers = showMarker ? `&markers=color:red|${center}` : '';
+  const src     = `https://maps.googleapis.com/maps/api/staticmap?center=${center}&zoom=${zoom}&size=640x640&scale=2&maptype=${mapType}${markers}&key=${GOOGLE_MAPS_API_KEY}`;
+
   return (
-    <div style={{
-      width: '100%', height: '100%',
-      background: 'linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)',
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      gap: 6, color: '#64748b',
-    }}>
-      <MapPin size={28} color="#6366f1" />
-      <div style={{ textAlign: 'center' }}>
-        <p style={{ fontSize: 11, fontWeight: 700, color: '#475569', margin: 0 }}>Localização do Projeto</p>
-        {hasCoords ? (
-          <p style={{ fontSize: 9, color: '#94a3b8', margin: '2px 0 0', fontFamily: 'monospace' }}>
-            {Number(lat).toFixed(6)}, {Number(lng).toFixed(6)}
-          </p>
-        ) : (
-          <p style={{ fontSize: 9, color: '#94a3b8', margin: '2px 0 0' }}>Coordenadas não definidas</p>
-        )}
-      </div>
-      {!apiKey && (
-        <p style={{ fontSize: 8, color: '#cbd5e1', margin: 0, textAlign: 'center', maxWidth: 120 }}>
-          Configure a chave Google Maps Static API nas props para ativar o mapa real
-        </p>
-      )}
-    </div>
+    <img
+      src={src}
+      alt="Mapa da localização do projeto"
+      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+      draggable={false}
+    />
   );
 }

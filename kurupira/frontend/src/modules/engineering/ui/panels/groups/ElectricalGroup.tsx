@@ -12,11 +12,12 @@
 
 import React, { useState } from 'react';
 import {
-  Activity, Hexagon, RotateCcw, Flame,
+  Activity, Hexagon, RotateCcw, Thermometer, AlertTriangle,
 } from 'lucide-react';
 import { useSolarStore } from '@/core/state/solarStore';
 import { useTechStore, type LossProfile } from '../../../store/useTechStore';
 import { LOSS_CONFIG } from '../../../constants/lossConfig';
+import { useThermalPremises } from '../../../hooks/useThermalPremises';
 
 // =============================================================================
 // CONSTANTS
@@ -162,8 +163,15 @@ const ThermalConfigBlock: React.FC = () => {
   const settings = useSolarStore((state) => state.settings);
   const updateSettings = useSolarStore((state) => state.updateSettings);
 
-  const handleTempChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Premissas térmicas resolvidas — para exibir de onde vem cada valor
+  const { usingFallbackTmin, usingFallbackTmax, uf, isTropical } = useThermalPremises();
+
+  const handleTminChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     updateSettings({ minHistoricalTemp: parseFloat(e.target.value) || 0 });
+  };
+
+  const handleTmaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    updateSettings({ manualTmax: parseFloat(e.target.value) || 0 } as any);
   };
 
   const handleCoeffChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -174,19 +182,33 @@ const ThermalConfigBlock: React.FC = () => {
     <section className="mt-4 pt-4 border-t border-slate-800">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-          <Flame size={12} className="text-red-400" />
-          <span>Termodinâmica Local</span>
+          <Thermometer size={12} className="text-red-400" />
+          <span>Premissas Térmicas</span>
         </div>
       </div>
 
       <div className="space-y-3 bg-slate-900 rounded-lg p-3 border border-slate-800 relative">
+        {/* Referência normativa correta */}
         <p className="text-[9px] text-slate-500 mb-2 leading-tight">
-          Esses parâmetros afetam dinamicamente o cálculo de limite de tensão (VocMax) durante as madrugadas frias de inverno (NEC 690.7).
+          Parâmetros que afetam o cálculo de Voc máximo por temperatura.
+          <span className="text-slate-600"> Conforme NBR 16690:2019, §4.3.1.2.</span>
         </p>
 
+        {/* Tmin */}
         <div className="flex flex-col gap-1.5" title="Temperatura Mínima Histórica">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-medium text-slate-400 leading-none">Temp. Mínima Histórica</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-medium text-slate-400 leading-none">Temp. Mínima Histórica</span>
+              {usingFallbackTmin && (
+                <span
+                  title={uf ? `Fallback por UF: ${uf}` : 'UF não informada — usando 10°C genérico'}
+                  className="flex items-center gap-0.5 text-[8px] text-amber-500 font-bold uppercase tracking-wider"
+                >
+                  <AlertTriangle size={8} />
+                  {uf ? `Padrão (${uf})` : 'Fallback'}
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-0.5">
               <input
                 type="number"
@@ -194,7 +216,7 @@ const ThermalConfigBlock: React.FC = () => {
                 min="-40"
                 max="50"
                 step="1"
-                onChange={handleTempChange}
+                onChange={handleTminChange}
                 className="w-12 text-right bg-transparent border-b border-transparent hover:border-slate-700 focus:border-red-500 focus:outline-none text-[10px] font-mono text-slate-300 tabular-nums transition-colors"
               />
               <span className="text-[10px] font-mono text-slate-500">°C</span>
@@ -206,15 +228,56 @@ const ThermalConfigBlock: React.FC = () => {
             max="30"
             step="1"
             value={settings.minHistoricalTemp}
-            onChange={handleTempChange}
+            onChange={handleTminChange}
             style={{ backgroundColor: 'rgba(30, 41, 59, 1)', height: '4px' }}
             className="w-full rounded-lg appearance-none cursor-pointer accent-red-500 hover:accent-red-400 focus:outline-none"
           />
         </div>
 
+        {/* Tmax */}
+        <div className="flex flex-col gap-1.5 mt-2" title="Temperatura Máxima Ambiente (usada para Tcell máx e Vmp calor)">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-medium text-slate-400 leading-none">Temp. Máxima Ambiente</span>
+              {usingFallbackTmax && (
+                <span
+                  title={isTropical ? 'Padrão tropical: 35°C' : 'Padrão temperado: 30°C'}
+                  className="flex items-center gap-0.5 text-[8px] text-amber-500 font-bold uppercase tracking-wider"
+                >
+                  <AlertTriangle size={8} />
+                  {isTropical ? 'Trop.' : 'Temp.'}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-0.5">
+              <input
+                type="number"
+                value={(settings as any).manualTmax ?? (isTropical ? 35 : 30)}
+                min="20"
+                max="50"
+                step="1"
+                onChange={handleTmaxChange}
+                className="w-12 text-right bg-transparent border-b border-transparent hover:border-slate-700 focus:border-orange-500 focus:outline-none text-[10px] font-mono text-slate-300 tabular-nums transition-colors"
+              />
+              <span className="text-[10px] font-mono text-slate-500">°C</span>
+            </div>
+          </div>
+          <input
+            type="range"
+            min="20"
+            max="50"
+            step="1"
+            value={(settings as any).manualTmax ?? (isTropical ? 35 : 30)}
+            onChange={handleTmaxChange}
+            style={{ backgroundColor: 'rgba(30, 41, 59, 1)', height: '4px' }}
+            className="w-full rounded-lg appearance-none cursor-pointer accent-orange-500 hover:accent-orange-400 focus:outline-none"
+          />
+        </div>
+
+        {/* Coeficiente de Temperatura Voc */}
         <div className="flex flex-col gap-1.5 mt-2" title="Coeficiente de Temperatura Voc (%/°C)">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-medium text-slate-400 leading-none">Coeficiente de Voc</span>
+            <span className="text-[10px] font-medium text-slate-400 leading-none">Coeficiente β(Voc)</span>
             <div className="flex items-center gap-0.5">
               <input
                 type="number"

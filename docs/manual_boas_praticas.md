@@ -866,3 +866,43 @@ De acordo com o SemVer, a versão `0.y.z` é para o desenvolvimento inicial. Iss
 
 #### Regra de Ouro
 > "A versão `0.x.x` indica apenas instabilidade de desenvolvimento inicial. O status real de pré-lançamento (Alpha, Beta, RC) é definido pelo sufixo após o hífen. Uma versão `1.0.0-alpha.1` é a forma correta de comunicar a maturidade do release, e não apenas o fato de começar com zero."
+
+---
+
+## 16. Gestão de Estado Global (Zustand)
+
+### 16.1. O Bug da Cópia Rasa (Shared Reference Leak)
+**Data:** 14/05/2026
+**Módulo:** Kurupira Frontend (Engineering Store / Zustand)
+
+#### O Problema
+Ao gerenciar estados aninhados complexos (ex: `Inverter` -> `MPPTs` -> `Strings`), o uso comum do operador spread (`{ ...m }`) cria apenas uma cópia rasa (Shallow Clone) do objeto.
+**O Erro:** Se você duplicar ou instanciar um novo equipamento usando cópia rasa em seus arrays internos, a nova instância compartilhará a *mesma referência de memória* para esses arrays. Mudar os módulos de uma String no Inversor B alterará silenciosamente a String do Inversor A.
+
+#### A Solução (Padrão Adotado)
+Sempre implemente o **Deep Clone (Isolamento de Estado)** ao expandir o inventário a partir de instâncias base.
+
+1. **Mapeamento Recursivo**: Se não estiver usando bibliotecas como `immer`, você deve iterar explicitamente (`.map`) sobre cada nível de array aninhado.
+2. **Geração de IDs Dinâmicos**: Durante a clonagem profunda, regenere os IDs (ex: `Math.random().toString(36)`) das subentidades copiadas para garantir que sejam únicas no ecossistema.
+3. **Reset de Carga**: Instâncias "clonadas" via incremento de quantidade (`targetQty > currentQty`) geralmente devem começar com estados zerados (ex: `modulesCount: 0`) para evitar a "alucinação" de equipamentos que não existem no projeto.
+
+#### Regra de Ouro
+> "Ao criar novas instâncias a partir de um template em stores do Zustand, o spread operator (`...`) não é suficiente para arrays aninhados. Aplique o Deep Clone recursivo e regenere IDs para evitar o Vazamento de Referência Compartilhada (Shared Reference Bug)."
+
+---
+
+### 5.3. Achatamento com Perda de Dados (Lossy Flattening) e Contaminação Matemática
+**Data:** 14/05/2026
+**Módulo:** Kurupira Frontend (Catalog Mappers / Engineering Math)
+
+#### O Problema
+Ao converter um objeto rico e hierárquico (ex: `ModuleCatalogItem` vindo de um arquivo `.PAN`) para um schema achatado (`ModuleSpecs`) focado no inventário da interface, é comum condensar múltiplas propriedades técnicas em uma só genérica.
+**Exemplo:** O `.PAN` possui `tempCoeffVoc` e `tempCoeffPmax`. O schema achatado do projeto exigia apenas um genérico `tempCoeff`. O mapeador repassava o valor de Pmax para o Voc.
+**A Contaminação:** Funções matemáticas puras (`electricalMath.ts`) que dependem de ambas as propriedades precisaram adotar contornos (workarounds) usando type casting (`(specs as any).tempCoeffVmp ?? specs.tempCoeffVoc`), o que desativa a segurança do TypeScript e utiliza a propriedade errada (-0.35 ao invés de -0.28) para calcular a tensão térmica em clima extremo, comprometendo o dimensionamento (The 0.00 kWp Trap).
+
+#### A Solução (Padrão Adotado)
+1. **Preservação de Granularidade no Schema:** Nunca sacrifique a precisão da engenharia em favor de schemas curtos na interface. Se o motor matemático (Level 5) exige variáveis distintas, o schema de dados achatados (Level 3) DEVE possuir todas elas separadamente, mesmo que a UI não mostre todas.
+2. **Remoção de Casts em Motores Puros:** Motores matemáticos (`electricalMath.ts`, `roiEngine.ts`) são sagrados. Se uma função pura precisa de `as any` para extrair um valor que "deveria estar lá", significa que a Cadeia da Verdade se rompeu nas camadas superiores (Mappers/Adapters).
+
+#### Regra de Ouro
+> "Nunca achate (flatten) variáveis de domínio específico em um único campo genérico se o motor de cálculo exigir a distinção entre elas. A perda de granularidade forçará o uso de casts inseguros (`as any`) mais abaixo na cadeia, quebrando silenciosamente a integridade matemática da engenharia."

@@ -148,12 +148,14 @@ export interface ProposalSlice {
 
   /** Actions — Canvas Layout Editing */
   addCanvasElement: (pageId: string, element: CanvasElement) => void;
+  batchAddCanvasElements: (pageId: string, elements: CanvasElement[]) => void;
   updateCanvasElement: (pageId: string, elementId: string, updates: Partial<CanvasElement>) => void;
   removeCanvasElement: (pageId: string, elementId: string) => void;
   addCanvasPage: (page: CanvasPage) => void;
+  batchAddCanvasPages: (pages: CanvasPage[]) => void;
   removeCanvasPage: (pageId: string) => void;
   reorderCanvasPages: (pageIds: string[]) => void;
-  updateCanvasPageBackground: (pageId: string, bg: CanvasPage['background']) => void;
+  updateCanvasPage: (pageId: string, patch: Partial<CanvasPage>) => void;
 }
 
 // =============================================================================
@@ -277,6 +279,7 @@ export const initialProposalData: ProposalData = {
 // =============================================================================
 // SLICE CREATOR
 // =============================================================================
+// Persistence is handled by solarStore's `persist` middleware via `partialize` — do not add it here.
 
 export const createProposalSlice: StateCreator<
   ProposalSlice,
@@ -422,7 +425,7 @@ export const createProposalSlice: StateCreator<
       proposalData: {
         ...state.proposalData,
         activeTemplateId: template.id,
-        activeLayout: JSON.parse(JSON.stringify(template)),
+        activeLayout: structuredClone(template),
       },
     })),
 
@@ -430,7 +433,7 @@ export const createProposalSlice: StateCreator<
     set((state) => {
       const layout = state.proposalData.activeLayout ?? CLASSIC_TEMPLATE;
       const newTemplate: ProposalTemplate = {
-        ...JSON.parse(JSON.stringify(layout)),
+        ...structuredClone(layout),
         id: `custom-${Date.now()}`,
         name,
         isBuiltIn: false,
@@ -456,7 +459,7 @@ export const createProposalSlice: StateCreator<
 
   addCanvasElement: (pageId, element) =>
     set((state) => {
-      const base = state.proposalData.activeLayout ?? JSON.parse(JSON.stringify(CLASSIC_TEMPLATE));
+      const base = state.proposalData.activeLayout ?? structuredClone(CLASSIC_TEMPLATE);
       const layout: ProposalTemplate = state.proposalData.activeLayout
         ? base
         : { ...base, id: `custom-${Date.now()}`, isBuiltIn: false, createdAt: new Date().toISOString() };
@@ -470,6 +473,27 @@ export const createProposalSlice: StateCreator<
               p.id === pageId
                 ? { ...p, elements: [...p.elements, element] }
                 : p
+            ),
+          },
+        },
+      };
+    }),
+
+  batchAddCanvasElements: (pageId, elements) =>
+    set((state) => {
+      if (elements.length === 0) return {};
+      const base = state.proposalData.activeLayout ?? structuredClone(CLASSIC_TEMPLATE);
+      const layout: ProposalTemplate = state.proposalData.activeLayout
+        ? base
+        : { ...base, id: `custom-${Date.now()}`, isBuiltIn: false, createdAt: new Date().toISOString() };
+      return {
+        proposalData: {
+          ...state.proposalData,
+          activeTemplateId: layout.id,
+          activeLayout: {
+            ...layout,
+            pages: layout.pages.map((p) =>
+              p.id === pageId ? { ...p, elements: [...p.elements, ...elements] } : p
             ),
           },
         },
@@ -560,7 +584,7 @@ export const createProposalSlice: StateCreator<
       };
     }),
 
-  updateCanvasPageBackground: (pageId, bg) =>
+  updateCanvasPage: (pageId, patch) =>
     set((state) => {
       const layout = state.proposalData.activeLayout;
       if (!layout) return {};
@@ -569,10 +593,20 @@ export const createProposalSlice: StateCreator<
           ...state.proposalData,
           activeLayout: {
             ...layout,
-            pages: layout.pages.map((p) =>
-              p.id === pageId ? { ...p, background: bg } : p
-            ),
+            pages: layout.pages.map((p) => p.id === pageId ? { ...p, ...patch } : p),
           },
+        },
+      };
+    }),
+
+  batchAddCanvasPages: (newPages) =>
+    set((state) => {
+      const layout = state.proposalData.activeLayout;
+      if (!layout || newPages.length === 0) return {};
+      return {
+        proposalData: {
+          ...state.proposalData,
+          activeLayout: { ...layout, pages: [...layout.pages, ...newPages] },
         },
       };
     }),

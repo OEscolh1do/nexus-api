@@ -41,6 +41,8 @@ export const InverterCatalogItemSchema = z.object({
   // -- Engineering PV Specs (v3.7) --
   Voc_max_hardware: z.number().optional(),
   Isc_max_hardware: z.number().optional(),
+  maxOutputPowerW: z.number().optional(),
+  deratingTempC: z.number().optional(),
   coolingType: z.enum(['passive', 'active']).optional(),
   afci: z.boolean().default(true),
   rsd: z.boolean().default(false),

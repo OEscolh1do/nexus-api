@@ -83,6 +83,9 @@ export const EngineeringInputSchema = z.object({
 
   /** Espaçamento entre módulos em metros (ex: 0.02 para 2cm) */
   moduleSpacingM: z.number().min(0).max(0.5).default(0.02),
+  
+  /** Indica se o projeto é em região tropical (Norte/Nordeste) */
+  isTropical: z.boolean().default(true),
 });
 
 // Tipo TypeScript inferido do schema - use este em toda a aplicação

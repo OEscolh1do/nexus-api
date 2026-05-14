@@ -33,6 +33,9 @@ export const mapCatalogToSpecs = (catalogItem: ModuleCatalogItem): ModuleSpecs =
     inmetroId: (catalogItem as any).inmetroRegistration || "N/A",
     maxFuseRating: catalogItem.electrical.maxFuseRating || 20,
     tempCoeff: catalogItem.electrical.tempCoeffPmax || -0.35,
+    tempCoeffVoc: catalogItem.electrical.tempCoeffVoc || -0.28,
+    tempCoeffPmax: catalogItem.electrical.tempCoeffPmax || -0.35,
+    noct: (catalogItem as any).electrical?.noct || 45,
     annualDepreciation: 0.005, // 0.5% a.a default
   };
 };

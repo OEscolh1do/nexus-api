@@ -49,6 +49,7 @@ const initialEngineeringData: EngineeringInput = {
   shadingFactor: 0, // Assumir sem sombra até análise
   moduleOrientation: 'portrait',
   moduleSpacingM: 0.02,
+  isTropical: true,
 };
 
 /**

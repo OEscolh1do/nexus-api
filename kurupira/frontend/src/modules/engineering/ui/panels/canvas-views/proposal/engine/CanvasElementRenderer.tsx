@@ -49,6 +49,48 @@ function PageRenderer({ element }: Pick<Props, 'element'>) {
 
 const NOOP_PROPS_CHANGE = (_props: Record<string, unknown>) => {};
 
+type ElementRenderer = (props: {
+  element: CanvasElement;
+  isEditing?: boolean;
+  onPropsChange?: (props: Record<string, unknown>) => void;
+}) => React.ReactElement | null;
+
+// Registry mapping element.type to its renderer component.
+// Replaces the switch statement — add new element types here.
+const ELEMENT_REGISTRY: Partial<Record<CanvasElement['type'], ElementRenderer>> = {
+  // ── Core elements ─────────────────────────────────────────────────────────
+  text:     ({ element, isEditing, onPropsChange }) => <TextElement element={element} isEditing={isEditing ?? false} onPropsChange={onPropsChange ?? NOOP_PROPS_CHANGE} />,
+  image:    ({ element }) => <ImageElement element={element} />,
+  logo:     ({ element }) => <LogoElement element={element} />,
+  watermark:({ element }) => <WatermarkElement element={element} />,
+  divider:  ({ element }) => <DividerElement element={element} />,
+  // ── Legacy elements ───────────────────────────────────────────────────────
+  'kpi-box':           ({ element }) => <KpiBoxElement element={element} />,
+  'chart-generation':  ({ element }) => <ChartGenerationElement element={element} />,
+  'chart-financial':   ({ element }) => <ChartFinancialElement element={element} />,
+  'payment-table':     ({ element }) => <PaymentTableElement element={element} />,
+  'schedule-timeline': ({ element }) => <ScheduleTimelineElement element={element} />,
+  'map-static':        ({ element }) => <MapStaticElement element={element} />,
+  // ── Elementos de Projeção ─────────────────────────────────────────────────
+  'chart-gen-consumption':  ({ element }) => <ChartGenConsumptionElement element={element} />,
+  'chart-roi':              ({ element }) => <ChartROIElement element={element} />,
+  'chart-financial-balance':({ element }) => <ChartFinancialBalanceElement element={element} />,
+  'chart-credit-bank':      ({ element }) => <ChartCreditBankElement element={element} />,
+  'chart-daily':            ({ element }) => <ChartDailyElement element={element} />,
+  'chart-loss-waterfall':   ({ element }) => <ChartLossWaterfallElement element={element} />,
+  'kpi-projection':         ({ element }) => <KpiProjectionElement element={element} />,
+  'table-analytics':        ({ element }) => <TableAnalyticsElement element={element} />,
+  placeholder:              ({ element }) => <PlaceholderElement element={element} />,
+  // ── Elementos de Dimensionamento Técnico ──────────────────────────────────
+  'section-header':     ({ element }) => <SectionHeaderElement element={element} />,
+  'kpi-capacity-badge': ({ element }) => <KpiCapacityBadgeElement element={element} />,
+  'guarantees-list':    ({ element }) => <GuaranteesListElement element={element} />,
+  'equipment-panel':    ({ element }) => <EquipmentPanelElement element={element} />,
+  // ── Primitivos de design ──────────────────────────────────────────────────
+  box:  ({ element }) => <BoxElement element={element} />,
+  icon: ({ element }) => <IconElement element={element} />,
+};
+
 export function CanvasElementRenderer({ element, isEditing = false, onPropsChange }: Props) {
   const handlePropsChange = onPropsChange ?? NOOP_PROPS_CHANGE;
 
@@ -56,57 +98,7 @@ export function CanvasElementRenderer({ element, isEditing = false, onPropsChang
     return <PageRenderer element={element} />;
   }
 
-  switch (element.type) {
-    case 'text':
-      return <TextElement element={element} isEditing={isEditing} onPropsChange={handlePropsChange} />;
-    case 'image':
-      return <ImageElement element={element} />;
-    case 'logo':
-      return <LogoElement element={element} />;
-    case 'watermark':
-      return <WatermarkElement element={element} />;
-    case 'divider':
-      return <DividerElement element={element} />;
-    case 'kpi-box':            return <KpiBoxElement element={element} />;
-    case 'chart-generation':   return <ChartGenerationElement element={element} />;
-    case 'chart-financial':    return <ChartFinancialElement element={element} />;
-    case 'payment-table':      return <PaymentTableElement element={element} />;
-    case 'schedule-timeline':  return <ScheduleTimelineElement element={element} />;
-    case 'map-static':         return <MapStaticElement element={element} />;
-    // ── Elementos de Projeção ──────────────────────────────────────────────────
-    case 'chart-gen-consumption':
-      return <ChartGenConsumptionElement element={element} />;
-    case 'chart-roi':
-      return <ChartROIElement element={element} />;
-    case 'chart-financial-balance':
-      return <ChartFinancialBalanceElement element={element} />;
-    case 'chart-credit-bank':
-      return <ChartCreditBankElement element={element} />;
-    case 'chart-daily':
-      return <ChartDailyElement element={element} />;
-    case 'chart-loss-waterfall':
-      return <ChartLossWaterfallElement element={element} />;
-    case 'kpi-projection':
-      return <KpiProjectionElement element={element} />;
-    case 'table-analytics':
-      return <TableAnalyticsElement element={element} />;
-    case 'placeholder':
-      return <PlaceholderElement element={element} />;
-    // ── Elementos de Dimensionamento Técnico ───────────────────────────────────
-    case 'section-header':
-      return <SectionHeaderElement element={element} />;
-    case 'kpi-capacity-badge':
-      return <KpiCapacityBadgeElement element={element} />;
-    case 'guarantees-list':
-      return <GuaranteesListElement element={element} />;
-    case 'equipment-panel':
-      return <EquipmentPanelElement element={element} />;
-    // ── Primitivos de design ───────────────────────────────────────────────────
-    case 'box':
-      return <BoxElement element={element} />;
-    case 'icon':
-      return <IconElement element={element} />;
-    default:
-      return null;
-  }
+  const Renderer = ELEMENT_REGISTRY[element.type];
+  if (!Renderer) return null;
+  return <Renderer element={element} isEditing={isEditing} onPropsChange={handlePropsChange} />;
 }

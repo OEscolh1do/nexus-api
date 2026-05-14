@@ -1,7 +1,7 @@
 import React from 'react';
 import { AlertTriangle, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ValidationSeverity } from './ValidationChip';
+export type ValidationSeverity = 'ok' | 'warning' | 'error' | 'warn';
 
 export interface AlertDescriptor {
   id: string;

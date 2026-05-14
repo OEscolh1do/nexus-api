@@ -109,6 +109,7 @@ function TemplateCard({
 
 export function ProposalTemplateGallery({ onUseTemplate }: Props) {
   const activeTemplateId  = useSolarStore((s) => s.proposalData.activeTemplateId);
+  const activeLayout      = useSolarStore((s) => s.proposalData.activeLayout);
   const customTemplates   = useSolarStore((s) => s.proposalData.customTemplates);
   const applyTemplate     = useSolarStore((s) => s.applyTemplate);
   const deleteCustomTemplate = useSolarStore((s) => s.deleteCustomTemplate);
@@ -119,7 +120,12 @@ export function ProposalTemplateGallery({ onUseTemplate }: Props) {
 
   const allTemplates: ProposalTemplate[] = [...BUILT_IN_TEMPLATES, ...customTemplates];
 
+  // GAP-20: confirm before overwriting an existing layout with a new template
   const handleUse = (template: ProposalTemplate) => {
+    if (activeLayout) {
+      const ok = window.confirm('Aplicar este template irá substituir o layout atual. Continuar?');
+      if (!ok) return;
+    }
     applyTemplate(template);
     onUseTemplate();
   };
