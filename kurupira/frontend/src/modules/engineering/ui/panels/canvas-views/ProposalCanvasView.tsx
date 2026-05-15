@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -11,7 +11,7 @@ import {
 } from '@dnd-kit/core';
 import { useUIStore } from '@/core/state/uiStore';
 import { useSolarStore } from '@/core/state/solarStore';
-import { FileText, LayoutTemplate, Save, Layers, ChevronLeft, ChevronRight, Plus, Trash2, Grid3x3, Magnet, Target, PanelLeft, LayoutList, RotateCcw, ZoomIn, ZoomOut, Maximize2, Undo2, Redo2, Copy, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, FileDown, History, FileImage, Palette, X } from 'lucide-react';
+import { FileText, LayoutTemplate, Save, Layers, Grid3x3, Magnet, Target, PanelLeft, LayoutList, RotateCcw, ZoomIn, ZoomOut, Maximize2, Undo2, Redo2, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, FileDown, History, FileImage, Palette, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ImportMediaDialog } from './proposal/engine/ImportMediaDialog';
 
@@ -25,6 +25,7 @@ import { CanvasPage } from './proposal/engine/CanvasPage';
 import { useAutosave } from './proposal/engine/useAutosave';
 import { VersionHistoryPanel } from './proposal/engine/VersionHistoryPanel';
 import { PageBackgroundPanel } from './proposal/engine/PageBackgroundPanel';
+import { PageNavigatorBar } from './proposal/engine/PageNavigatorBar';
 import { CLASSIC_TEMPLATE } from './proposal/engine/templates/classicTemplate';
 import { TECHNICAL_PAGE_ELEMENTS } from './proposal/engine/templates/technicalPageDecomposed';
 import type { CanvasElement, CanvasPage as CanvasPageType, GridConfig, CanvasElementType } from './proposal/engine/types';
@@ -35,6 +36,20 @@ import { A4_WIDTH, A4_HEIGHT, DEFAULT_ELEMENT_PROPS, DEFAULT_GRID_CONFIG, parseB
 type ViewMode = 'templates' | 'editor' | 'preview';
 
 const ZOOM_STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1.0, 1.1, 1.25, 1.5, 2.0];
+
+function createImageElement(url: string, x: number, y: number, zIndex: number): CanvasElement {
+  return {
+    id:      `el-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    type:    'image',
+    x, y,
+    width:   400,
+    height:  400,
+    zIndex,
+    locked:  false,
+    visible: true,
+    props:   { url, objectFit: 'contain' },
+  };
+}
 
 function computeNextZoom(prev: number | null, fitScale: number, direction: 'in' | 'out'): number {
   const current = prev ?? fitScale;
@@ -117,18 +132,14 @@ export const ProposalCanvasView: React.FC = () => {
   const projectStatus   = useSolarStore((s) => s.project.projectStatus);
   const setFocusedBlock = useUIStore((s) => s.setFocusedBlock);
 
-  const activeLayout        = useSolarStore((s) => s.proposalData.activeLayout);
-  const addCanvasElement         = useSolarStore((s) => s.addCanvasElement);
-  const batchAddCanvasElements   = useSolarStore((s) => s.batchAddCanvasElements);
-  const updateCanvasElement  = useSolarStore((s) => s.updateCanvasElement);
-  const updateCanvasPage     = useSolarStore((s) => s.updateCanvasPage);
-  const removeCanvasElement = useSolarStore((s) => s.removeCanvasElement);
-  const addCanvasPage            = useSolarStore((s) => s.addCanvasPage);
-  const batchAddCanvasPages      = useSolarStore((s) => s.batchAddCanvasPages);
-  const removeCanvasPage         = useSolarStore((s) => s.removeCanvasPage);
-  const saveCurrentAsTemplate    = useSolarStore((s) => s.saveCurrentAsTemplate);
-  const applyTemplate            = useSolarStore((s) => s.applyTemplate);
-  const setExportingPdf               = useSolarStore((s) => s.setExportingPdf);
+  const activeLayout = useSolarStore((s) => s.proposalData.activeLayout);
+
+  // Action functions are created once at slice init — stable references, no subscription needed.
+  const {
+    addCanvasElement, batchAddCanvasElements, updateCanvasElement, updateCanvasPage,
+    removeCanvasElement, addCanvasPage, batchAddCanvasPages, removeCanvasPage,
+    saveCurrentAsTemplate, applyTemplate, setExportingPdf,
+  } = useSolarStore.getState();
 
   const [viewMode, setViewMode]             = useState<ViewMode>('preview');
   const [canvasPageIdx, setCanvasPageIdx]   = useState(0);
@@ -142,7 +153,7 @@ export const ProposalCanvasView: React.FC = () => {
   const [gridConfig, setGridConfig]         = useState<GridConfig>(DEFAULT_GRID_CONFIG);
   const [sidebarTab, setSidebarTab]         = useState<'elements' | 'layers'>('elements');
   const [renamingPageId, setRenamingPageId] = useState<string | null>(null);
-  const [renamingPageLabel, setRenamingPageLabel] = useState<string>('');
+  // renamingPageLabel removed — draft label now lives inside PageNavigatorBar.
   const [toast, setToast] = useState<string | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isDirty, setIsDirty] = useState(false);
@@ -165,6 +176,10 @@ export const ProposalCanvasView: React.FC = () => {
   const [fitScale, setFitScale]       = useState(0.6);
   const [manualScale, setManualScale] = useState<number | null>(null);
   const canvasScale = manualScale ?? fitScale;
+  // Shadow fitScale in a ref so the wheel listener always reads the latest value
+  // without needing fitScale in its dependency array (avoids re-registration on every resize).
+  const fitScaleRef = useRef(fitScale);
+  useEffect(() => { fitScaleRef.current = fitScale; }, [fitScale]);
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -191,16 +206,15 @@ export const ProposalCanvasView: React.FC = () => {
     : null;
 
   // A group is selected only when ALL selected elements share the same groupId.
-  // Using only selectedIds[0] would wrongly show "Grupo" when elements from
-  // different groups are selected together via the LayersPanel.
-  const selectedGroupId = (() => {
+  // Memoized to avoid O(n × selectedIds) find() on every render (runs on every drag frame).
+  const selectedGroupId = useMemo(() => {
     if (selectedIds.length < 2 || !currentPage) return null;
     const groupIds = selectedIds.map(
       (id) => currentPage.elements.find((e) => e.id === id)?.groupId ?? null,
     );
     const first = groupIds[0];
     return first && groupIds.every((g) => g === first) ? first : null;
-  })();
+  }, [selectedIds, currentPage]);
 
   // Resize observer — keeps the "fit" scale in sync with the container
   useEffect(() => {
@@ -307,6 +321,15 @@ export const ProposalCanvasView: React.FC = () => {
         return;
       }
 
+      // Arrow Left/Right — navigate pages when no element is selected
+      if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && selectedIds.length === 0 && !renamingPageId) {
+        e.preventDefault();
+        if (e.key === 'ArrowLeft') setCanvasPageIdx((i) => Math.max(0, i - 1));
+        else                       setCanvasPageIdx((i) => Math.min(pages.length - 1, i + 1));
+        // selectedIds is already [] per the guard above — no-op setSelectedIds omitted
+        return;
+      }
+
       // Arrow keys — nudge selected elements
       const NUDGE = e.shiftKey ? 10 : 1;
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && selectedIds.length > 0 && currentPage) {
@@ -382,7 +405,7 @@ export const ProposalCanvasView: React.FC = () => {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [viewMode, selectedIds, clipboard, currentPage, removeCanvasElement, handleUndo, handleRedo, pushToHistory, addCanvasElement, updateCanvasElement, showDeleteToast, editingGroupId]);
+  }, [viewMode, selectedIds, clipboard, currentPage, renamingPageId, pages.length, removeCanvasElement, handleUndo, handleRedo, pushToHistory, addCanvasElement, updateCanvasElement, showDeleteToast, editingGroupId]);
 
   const isApproved = projectStatus === 'approved';
 
@@ -496,18 +519,22 @@ export const ProposalCanvasView: React.FC = () => {
     setSelectedIds([]);
   }, [activeLayout, applyTemplate, addCanvasPage, pages.length]);
 
-  const handleRemovePage = useCallback((idx: number) => {
+  const handleRemovePage = useCallback((pageId: string) => {
     if (pages.length <= 1) return;
     setIsDirty(true);
-    removeCanvasPage(pages[idx].id);
+    removeCanvasPage(pageId);
     setCanvasPageIdx((prev) => Math.min(prev, pages.length - 2));
     setSelectedIds([]);
-  }, [pages, removeCanvasPage]);
+  // pages.length instead of pages: we no longer index into the array (we have the ID directly),
+  // and this produces a more stable memoization (array ref changes every store update).
+  }, [pages.length, removeCanvasPage]);
 
   const handleDuplicatePage = useCallback((pageId: string) => {
-    const layout = activeLayout;
-    if (!layout) return;
-    const src = layout.pages.find((p) => p.id === pageId);
+    if (!activeLayout) {
+      applyTemplate(CLASSIC_TEMPLATE);
+      return; // re-render will have a layout; user clicks again
+    }
+    const src = activeLayout.pages.find((p) => p.id === pageId);
     if (!src) return;
     const ts = Date.now();
     const newPage = {
@@ -516,17 +543,18 @@ export const ProposalCanvasView: React.FC = () => {
       label: `${src.label} (cópia)`,
       elements: src.elements.map((el, i) => ({ ...el, id: `${el.id}-dup-${ts}-${i}` })),
     };
+    setIsDirty(true);
     addCanvasPage(newPage);
-  }, [activeLayout, addCanvasPage]);
+    setCanvasPageIdx(pages.length); // navigate to the newly appended duplicate
+  }, [activeLayout, addCanvasPage, pages.length]);
 
   const handleRenamePage = useCallback((pageId: string, newLabel: string) => {
-    const layout = activeLayout;
-    if (!layout) return;
-    applyTemplate({
-      ...layout,
-      pages: layout.pages.map((p) => p.id === pageId ? { ...p, label: newLabel } : p),
-    });
-  }, [activeLayout, applyTemplate]);
+    const trimmed = newLabel.trim();
+    if (!trimmed) return; // child guards via fallback, but defence-in-depth against empty labels
+    pushToHistory();
+    setIsDirty(true);
+    updateCanvasPage(pageId, { label: trimmed });
+  }, [pushToHistory, updateCanvasPage]);
 
   // ─── Element handlers ──────────────────────────────────────────────────────
 
@@ -582,13 +610,14 @@ export const ProposalCanvasView: React.FC = () => {
     if (!currentPage) return;
     const pageTechEl = currentPage.elements.find((e) => e.type === 'page-technical');
     if (pageTechEl) removeCanvasElement(currentPage.id, pageTechEl.id);
-    // Add all decomposed elements — capture timestamp + index to guarantee unique IDs
+    // Unique IDs per session timestamp + index; single set() via batch
     const ts = Date.now();
-    TECHNICAL_PAGE_ELEMENTS.forEach((el, i) => {
-      addCanvasElement(currentPage.id, { ...el, id: `${el.id}-${ts}-${i}` });
-    });
+    batchAddCanvasElements(
+      currentPage.id,
+      TECHNICAL_PAGE_ELEMENTS.map((el, i) => ({ ...el, id: `${el.id}-${ts}-${i}` })),
+    );
     setSelectedIds([]);
-  }, [currentPage, activeLayout, applyTemplate, removeCanvasElement, addCanvasElement]);
+  }, [currentPage, removeCanvasElement, batchAddCanvasElements]);
 
   const handleRestorePage = useCallback(() => {
     if (!currentPage || !activeLayout) return;
@@ -642,19 +671,7 @@ export const ProposalCanvasView: React.FC = () => {
     if (!currentPage) return;
     setIsDirty(true);
     pushToHistory();
-    const baseZIndex = (currentPage.elements.length + 1) * 10;
-    const newEl: CanvasElement = {
-      id: `el-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      type: 'image',
-      x: 197,
-      y: 311,
-      width: 400,
-      height: 400,
-      zIndex: baseZIndex,
-      locked: false,
-      visible: true,
-      props: { url: dataUrl, objectFit: 'contain' },
-    };
+    const newEl = createImageElement(dataUrl, 197, 311, (currentPage.elements.length + 1) * 10);
     addCanvasElement(currentPage.id, newEl);
     setSelectedIds([newEl.id]);
     setShowImportMedia(false);
@@ -682,18 +699,18 @@ export const ProposalCanvasView: React.FC = () => {
 
   // Non-passive wheel listener for Ctrl+scroll — single source of truth for zoom.
   // Must be on window (passive:false) so e.preventDefault() works; React's onWheel is passive in React 19.
-  // Attached only in editor mode to avoid interfering with other views.
+  // Uses fitScaleRef (not fitScale) so fitScale changes don't re-register the listener.
   useEffect(() => {
     if (viewMode !== 'editor') return;
     const handler = (e: WheelEvent) => {
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
       const direction = e.deltaY < 0 ? 'in' : 'out';
-      setManualScale((prev) => computeNextZoom(prev, fitScale, direction));
+      setManualScale((prev) => computeNextZoom(prev, fitScaleRef.current, direction));
     };
     window.addEventListener('wheel', handler, { passive: false });
     return () => window.removeEventListener('wheel', handler);
-  }, [viewMode, fitScale]);
+  }, [viewMode]);
 
   // CHANGE 4 — Alignment handler
   const handleAlign = useCallback((direction: 'left' | 'center-h' | 'right' | 'top' | 'center-v' | 'bottom' | 'distribute-h' | 'distribute-v') => {
@@ -744,10 +761,10 @@ export const ProposalCanvasView: React.FC = () => {
     });
   }, [currentPage, currentPageId, selectedIds, pushToHistory, updateCanvasElement]);
 
-  // Detect if the current page is decomposed (no page-technical element)
-  const isPageDecomposed = currentPage
-    ? !currentPage.elements.some((e) => e.type === 'page-technical')
-    : false;
+  const isPageDecomposed = useMemo(
+    () => currentPage ? !currentPage.elements.some((e) => e.type === 'page-technical') : false,
+    [currentPage],
+  );
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
@@ -882,135 +899,12 @@ export const ProposalCanvasView: React.FC = () => {
                   />
               }
 
-              {/* Page background button — bottom fixed when nothing selected */}
-              {selectedIds.length === 0 && currentPage && (
-                <div className="shrink-0 border-t border-slate-800 px-3 py-2">
-                  <button
-                    onClick={() => setShowBgPanel(true)}
-                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 hover:bg-slate-800 hover:border-indigo-500/50 transition-colors group"
-                  >
-                    <div
-                      className="w-5 h-5 rounded-md border border-slate-600 shrink-0"
-                      style={{
-                        background: currentPage.background.gradient
-                          ? currentPage.background.gradient
-                          : currentPage.background.imageUrl
-                          ? `url(${parseBackgroundImageUrl(currentPage.background.imageUrl).url}) center/cover`
-                          : (currentPage.background.color ?? '#ffffff'),
-                      }}
-                    />
-                    <span className="text-xs text-slate-400 group-hover:text-slate-200 flex-1 text-left transition-colors">Fundo</span>
-                    <Palette size={11} className="text-slate-600 group-hover:text-indigo-400 transition-colors" />
-                  </button>
-                </div>
-              )}
-
-              {/* Page list */}
-              <div className="shrink-0 border-t border-slate-800 bg-slate-900/40 px-2 py-2">
-                <div className="flex items-center justify-between mb-1.5 px-1">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-600">Páginas</span>
-                  <button onClick={handleAddPage} className="p-0.5 text-slate-500 hover:text-slate-200 hover:bg-slate-800 rounded">
-                    <Plus size={11} />
-                  </button>
-                </div>
-
-                <div className="flex flex-col gap-0.5 max-h-40 overflow-y-auto custom-scrollbar">
-                  {pages.map((page, idx) => (
-                    <div
-                      key={page.id}
-                      className={cn(
-                        'flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer group transition-colors',
-                        idx === safePageIdx
-                          ? 'bg-indigo-500/15 text-indigo-300'
-                          : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-300'
-                      )}
-                      onClick={() => { setCanvasPageIdx(idx); setSelectedIds([]); }}
-                    >
-                      {/* Page number badge */}
-                      <div className={cn(
-                        'w-5 h-6 rounded shrink-0 flex items-center justify-center text-[9px] font-bold transition-colors',
-                        page.orientation === 'landscape' ? 'w-6 h-5' : '',
-                        idx === safePageIdx ? 'bg-indigo-500/30 text-indigo-300' : 'bg-slate-800 text-slate-500'
-                      )}>
-                        {idx + 1}
-                      </div>
-
-                      {/* Label — inline edit on double click */}
-                      {renamingPageId === page.id ? (
-                        <input
-                          autoFocus
-                          value={renamingPageLabel}
-                          placeholder="Nome da página"
-                          onChange={(e) => setRenamingPageLabel(e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          onBlur={() => { handleRenamePage(page.id, renamingPageLabel); setRenamingPageId(null); }}
-                          onKeyDown={(e) => {
-                            e.stopPropagation();
-                            if (e.key === 'Enter') { handleRenamePage(page.id, renamingPageLabel); setRenamingPageId(null); }
-                            if (e.key === 'Escape') setRenamingPageId(null);
-                          }}
-                          className="flex-1 bg-slate-800 text-slate-200 text-[11px] px-1 py-0.5 rounded outline-none border border-indigo-500/50"
-                        />
-                      ) : (
-                        <span
-                          className="truncate flex-1 text-[11px]"
-                          onDoubleClick={(e) => { e.stopPropagation(); setRenamingPageId(page.id); setRenamingPageLabel(page.label); }}
-                        >
-                          {page.label}
-                        </span>
-                      )}
-
-                      {/* Actions on hover */}
-                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 shrink-0">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleDuplicatePage(page.id); }}
-                          className="p-0.5 text-slate-500 hover:text-indigo-400"
-                          title="Duplicar"
-                        >
-                          <Copy size={11} />
-                        </button>
-                        {pages.length > 1 && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleRemovePage(idx); }}
-                            className="p-0.5 text-slate-500 hover:text-rose-400"
-                            title="Remover"
-                          >
-                            <Trash2 size={11} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
 
             {/* Canvas area */}
             <div ref={canvasAreaRef} className="flex-1 flex flex-col overflow-hidden bg-slate-900/80 relative">
               {/* Canvas toolbar — clean single line */}
               <div className="shrink-0 flex items-center justify-between px-3 py-1.5 border-b border-slate-800 gap-3">
-                {/* Navegação de páginas */}
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    disabled={safePageIdx === 0}
-                    onClick={() => { setCanvasPageIdx((i) => i - 1); setSelectedIds([]); }}
-                    className="p-1 text-slate-400 hover:text-white disabled:opacity-30 hover:bg-slate-700 rounded"
-                  >
-                    <ChevronLeft size={13} />
-                  </button>
-                  <span className="text-xs text-slate-400 whitespace-nowrap">
-                    Pág {safePageIdx + 1}/{pages.length}
-                  </span>
-                  <button
-                    disabled={safePageIdx >= pages.length - 1}
-                    onClick={() => { setCanvasPageIdx((i) => i + 1); setSelectedIds([]); }}
-                    className="p-1 text-slate-400 hover:text-white disabled:opacity-30 hover:bg-slate-700 rounded"
-                  >
-                    <ChevronRight size={13} />
-                  </button>
-                </div>
-
-                <div className="w-px h-4 bg-slate-700" />
 
                 {/* Grid controls */}
                 <div className="flex items-center gap-0.5 bg-slate-800 rounded-lg px-1 py-1">
@@ -1183,6 +1077,20 @@ export const ProposalCanvasView: React.FC = () => {
                 </div>
               )}
 
+              {/* Floating page navigator — Figma/Canva style, bottom-center of canvas area */}
+              <PageNavigatorBar
+                pages={pages}
+                activeIdx={safePageIdx}
+                renamingPageId={renamingPageId}
+                onNavigate={(idx) => { setCanvasPageIdx(idx); setSelectedIds([]); }}
+                onAddPage={handleAddPage}
+                onDuplicate={handleDuplicatePage}
+                onRemove={handleRemovePage}
+                onStartRename={(id) => setRenamingPageId(id)}
+                onCommitRename={(id, label) => { handleRenamePage(id, label); setRenamingPageId(null); }}
+                onCancelRename={() => setRenamingPageId(null)}
+              />
+
               {/* A4 Canvas */}
               <div
                 ref={canvasScrollRef}
@@ -1220,6 +1128,7 @@ export const ProposalCanvasView: React.FC = () => {
                         const el = currentPage.elements.find((e) => e.id === elementId);
                         if (!el || el.locked) return;
                         pushToHistory();
+                        setIsDirty(true);
                         const ts = Date.now();
                         const newEl: CanvasElement = {
                           ...el,
@@ -1243,22 +1152,11 @@ export const ProposalCanvasView: React.FC = () => {
                       }}
                       onDropImage={({ url, x, y }) => {
                         if (!currentPage) return;
-                        if (!activeLayout) applyTemplate(CLASSIC_TEMPLATE);
                         setIsDirty(true);
                         pushToHistory();
-                        const baseZIndex = (currentPage.elements.length + 1) * 10;
-                        const newEl: CanvasElement = {
-                          id: `el-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-                          type: 'image',
-                          x: Math.max(0, Math.min(A4_WIDTH - 200, x - 100)),
-                          y: Math.max(0, Math.min(A4_HEIGHT - 150, y - 75)),
-                          width: 200,
-                          height: 150,
-                          zIndex: baseZIndex,
-                          locked: false,
-                          visible: true,
-                          props: { url, objectFit: 'contain' },
-                        };
+                        const clampedX = Math.max(0, Math.min(A4_WIDTH - 200, x - 100));
+                        const clampedY = Math.max(0, Math.min(A4_HEIGHT - 150, y - 75));
+                        const newEl = createImageElement(url, clampedX, clampedY, (currentPage.elements.length + 1) * 10);
                         addCanvasElement(currentPage.id, newEl);
                         setSelectedIds([newEl.id]);
                       }}
@@ -1268,8 +1166,8 @@ export const ProposalCanvasView: React.FC = () => {
               </div>
             </div>
 
-            {/* Right properties panel */}
-            {(selectedElement || selectedGroupId || (!selectedElement && !selectedGroupId && currentPage)) && (
+            {/* Right properties panel — always visible when a page is loaded */}
+            {currentPage && (
               <div className="w-64 shrink-0 flex flex-col overflow-hidden bg-slate-950 border-l border-slate-800">
                 {selectedElement ? (
                   <>

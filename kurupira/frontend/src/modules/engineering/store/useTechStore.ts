@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { NormalizedCollection, createEmptyCollection } from '@/core/types/normalized.types';
+import type { ParametricSymbolConfig } from '@/core/schemas/inverterSchema';
 
 export interface LossProfile {
   orientation: number;
@@ -74,8 +75,10 @@ export interface InverterState {
         maxEfficiency: number;
         maxOutputPowerW?: number;
         deratingTempC?: number;
+        symbolConfig?: ParametricSymbolConfig | null;  // PSB: config paramétrico do símbolo unifilar
     };
 }
+
 
 export interface Inverter { id?: string; manufacturer: string; model: string; nominalPower: number; mppts?: number; connectionType: string; maxInputVoltage?: number; [key: string]: any; }
 
@@ -209,7 +212,9 @@ export const useTechStore = create<TechState>()(
                       maxEfficiency: equipment.efficiency?.euro || equipment.efficiency?.cec || equipment.maxEfficiency || 98.0,
                       maxOutputPowerW: equipment.maxOutputPowerW,
                       deratingTempC: equipment.deratingTempC,
+                      symbolConfig: equipment.symbolConfig ?? null,  // PSB
                   },
+
               };
               newIds.push(instanceId);
               newEntities[instanceId] = newInverter;

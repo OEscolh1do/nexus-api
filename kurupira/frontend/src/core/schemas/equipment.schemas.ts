@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ParametricSymbolConfigSchema } from './inverterSchema';
 
 export {
   ModuleCatalogItemSchema,
@@ -65,6 +66,8 @@ export const InverterSpecsSchema = z.object({
   maxEfficiency: z.number().positive().max(100),
   weight: z.number().positive(),
   connectionType: z.string(),
+  mpptCount: z.number().int().positive().optional(),     // IC-03: campo existente no banco
+  symbolConfig: ParametricSymbolConfigSchema.nullable().optional(), // PSB
 });
 
 export type InverterSpecs = z.infer<typeof InverterSpecsSchema>;

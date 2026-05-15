@@ -121,9 +121,52 @@ router.post('/inverters', idempotencyCheck, async (req, res) => {
 
 router.patch('/inverters/:id', async (req, res) => {
   try {
+    const { symbolConfig, ...rest } = req.body;
+
+    // Validação estrita do symbolConfig quando presente
+    let validatedSymbolConfig = undefined;
+    if (symbolConfig !== undefined) {
+      const { z } = require('zod');
+
+      const ParametricPortSchema = z.object({
+        side: z.enum(['top', 'right', 'bottom', 'left']),
+        offset: z.number().min(0).max(1),
+        label: z.string().max(40).transform(s => s.replace(/[<>"'&]/g, '')), // XSS sanitize
+        polarity: z.enum(['positive', 'negative', 'ac-out']),
+        mpptIndex: z.number().int().min(0).optional(),
+      });
+
+      const ParametricSymbolConfigSchema = z.discriminatedUnion('type', [
+        z.object({
+          type: z.literal('parametric-block'),
+          dimensions: z.object({ width: z.number().positive(), height: z.number().positive() }),
+          ports: z.record(z.string().regex(/^mppt_\d+_(pos|neg)$|^ac_out$/), ParametricPortSchema),
+        }),
+      ]);
+
+      if (symbolConfig === null) {
+        validatedSymbolConfig = null;
+      } else {
+        const parsed = ParametricSymbolConfigSchema.safeParse(symbolConfig);
+        if (!parsed.success) {
+          return res.status(400).json({
+            success: false,
+            error: 'symbolConfig inválido',
+            details: parsed.error.issues,
+          });
+        }
+        validatedSymbolConfig = parsed.data;
+      }
+    }
+
+    const dataToUpdate = {
+      ...rest,
+      ...(validatedSymbolConfig !== undefined ? { symbolConfig: validatedSymbolConfig } : {}),
+    };
+
     const inverter = await prisma.inverterCatalog.update({
       where: { id: req.params.id },
-      data: req.body
+      data: dataToUpdate,
     });
     invalidateCache('catalog:inverters');
     res.json({ success: true, data: inverter });
@@ -132,6 +175,7 @@ router.patch('/inverters/:id', async (req, res) => {
     res.status(500).json({ success: false, error: safeError(error) });
   }
 });
+
 
 router.delete('/inverters/:id', async (req, res) => {
   try {

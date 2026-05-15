@@ -49,6 +49,7 @@ function applySmartGuides(
   others: CanvasElement[],
   scaledThreshold: number,
   enabled: boolean,
+  selfId?: string,
 ): SnapResult {
   if (!enabled || others.length === 0) return { x, y, guides: { x: [], y: [] } };
 
@@ -68,6 +69,7 @@ function applySmartGuides(
   const myBottom  = y + h;
 
   for (const other of others) {
+    if (other.id === selfId) continue; // skip self when full element list is passed
     const oRight  = other.x + other.width;
     const oBottom = other.y + other.height;
     const oCx     = other.x + other.width / 2;
@@ -258,7 +260,7 @@ export function CanvasElementWrapper({
 
       const { x, y, guides } = applySmartGuides(
         rawX, rawY, element.width, element.height,
-        otherElements, scaledThreshold, guidesEnabled,
+        otherElements, scaledThreshold, guidesEnabled, element.id,
       );
 
       onGuideChange(guides);

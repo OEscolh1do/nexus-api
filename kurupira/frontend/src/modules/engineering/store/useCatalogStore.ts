@@ -90,6 +90,7 @@ export const useCatalogStore = create<CatalogState>((set) => ({
           model: i.model,
           imageUrl: i.imageUrl,
           unifilarSymbolRef: i.unifilarSymbolRef,
+          symbolConfig: (i as any).symbolConfig ?? null,   // PSB: propagar config paramétrico
           nominalPowerW: i.nominalPowerW,
           maxDCPowerW: i.nominalPowerW * 1.5,
           maxInputVoltage: i.maxInputV || 600,
@@ -108,6 +109,7 @@ export const useCatalogStore = create<CatalogState>((set) => ({
           portaria515Compliant: ed.portaria515Compliant ?? false,
           isActive: i.active ?? true,
         };
+
       });
 
       set(state => {

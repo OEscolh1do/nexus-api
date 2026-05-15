@@ -157,15 +157,6 @@ export function CanvasPage({
     return ids;
   }, [selectedIds, page.elements]);
 
-  // Pre-compute per-element "others" outside the render loop to avoid repeated .filter() calls
-  // during each child's reconcile. O(n²) data but computed once per nonPageElements change.
-  const otherElementsMap = useMemo(() => {
-    const m = new Map<string, CanvasElement[]>();
-    nonPageElements.forEach((el) => {
-      m.set(el.id, nonPageElements.filter((o) => o.id !== el.id));
-    });
-    return m;
-  }, [nonPageElements]);
 
   return (
     <div
@@ -181,6 +172,8 @@ export function CanvasPage({
         background,
       }}
       onMouseDown={(e) => {
+        // Capture onPanDelta into a local so startPan doesn't need a non-null assertion.
+        const panDelta = onPanDelta;
         const startPan = (startX: number, startY: number) => {
           panAbortRef.current?.abort();
           panAbortRef.current = new AbortController();
@@ -188,7 +181,7 @@ export function CanvasPage({
           let lastX = startX;
           let lastY = startY;
           window.addEventListener('mousemove', (ev: MouseEvent) => {
-            onPanDelta!(ev.clientX - lastX, ev.clientY - lastY);
+            panDelta!(ev.clientX - lastX, ev.clientY - lastY);
             lastX = ev.clientX;
             lastY = ev.clientY;
           }, { signal });
@@ -196,7 +189,7 @@ export function CanvasPage({
         };
 
         // Middle-mouse-button pan
-        if (e.button === 1 && onPanDelta) {
+        if (e.button === 1 && panDelta) {
           e.preventDefault();
           e.stopPropagation();
           startPan(e.clientX, e.clientY);
@@ -204,7 +197,7 @@ export function CanvasPage({
         }
 
         // Space+drag pan
-        if (e.button === 0 && spaceRef.current && onPanDelta) {
+        if (e.button === 0 && spaceRef.current && panDelta) {
           e.preventDefault();
           e.stopPropagation();
           startPan(e.clientX, e.clientY);
@@ -307,7 +300,7 @@ export function CanvasPage({
             gridSize={gridConfig.size}
             snapEnabled={gridConfig.snap}
             guidesEnabled={gridConfig.guides}
-            otherElements={otherElementsMap.get(element.id) ?? []}
+            otherElements={nonPageElements}
             onSelect={(shiftKey) => handleElementSelect(element, shiftKey ?? false)}
             onUpdate={(updates) => onUpdateElement(element.id, updates)}
             onGuideChange={setActiveGuides}

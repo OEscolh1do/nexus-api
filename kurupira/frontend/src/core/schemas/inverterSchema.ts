@@ -9,24 +9,51 @@ export const MPPTSpecSchema = z.object({
   stringsAllowed: z.number().int().min(1), // nº máximo de strings em paralelo
 });
 
+// ── Parametric Symbol Config (Fase PSB) ──────────────────────────────────────
+
+/** Chave tipada de porta: `mppt_N_pos`, `mppt_N_neg`, ou `ac_out` */
+export type PortKey = `mppt_${number}_${'pos' | 'neg'}` | 'ac_out';
+
+export const ParametricPortSchema = z.object({
+  side: z.enum(['top', 'right', 'bottom', 'left']),
+  offset: z.number().min(0).max(1),     // 0–1 ao longo do lado
+  label: z.string(),
+  polarity: z.enum(['positive', 'negative', 'ac-out']),
+  mpptIndex: z.number().int().min(0).optional(), // undefined apenas para 'ac_out'
+});
+
+export const ParametricSymbolConfigSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('parametric-block'),
+    dimensions: z.object({ width: z.number().positive(), height: z.number().positive() }),
+    ports: z.record(z.string(), ParametricPortSchema),
+  }),
+]);
+
+export type ParametricPort = z.infer<typeof ParametricPortSchema>;
+export type ParametricSymbolConfig = z.infer<typeof ParametricSymbolConfigSchema>;
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const InverterCatalogItemSchema = z.object({
   id: z.string().min(1), // slug
   manufacturer: z.string().min(1),
   model: z.string().min(1),
   imageUrl: z.string().optional(),
   unifilarSymbolRef: z.string().optional(),
+  symbolConfig: ParametricSymbolConfigSchema.nullable().optional(), // PSB
   nominalPowerW: z.number().positive(), // W — potência nominal CA
-  maxDCPowerW: z.number().positive(), // W — potência máxima CC
+  maxDCPowerW: z.number().positive(),   // W — potência máxima CC
   mppts: z.array(MPPTSpecSchema).min(1),
   efficiency: z.object({
     euro: z.number().optional(), // %
-    cec: z.number().optional(), // %
+    cec: z.number().optional(),  // %
   }).optional(),
   asset: z.object({
     glbAsset: z.string().optional(),
     featureId: z.string().optional(),
   }).optional(),
-  // Maintained for backward compatibility for some calculations if needed, though replaced mostly by nested
+  // Maintained for backward compatibility for some calculations if needed
   maxInputVoltage: z.number().optional(),
   // ── Display / Inventory fields (unified catalog) ──
   connectionType: z.string().optional(),       // "Monofásico" | "Trifásico"
@@ -37,7 +64,7 @@ export const InverterCatalogItemSchema = z.object({
   outputVoltage: z.number().optional(),         // V (CA)
   outputFrequency: z.number().optional(),       // Hz
   maxOutputCurrent: z.number().optional(),      // A (CA)
-  
+
   // -- Engineering PV Specs (v3.7) --
   Voc_max_hardware: z.number().optional(),
   Isc_max_hardware: z.number().optional(),

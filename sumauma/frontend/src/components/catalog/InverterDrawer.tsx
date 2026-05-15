@@ -4,6 +4,8 @@ import { useToggleEquipment, useDeleteEquipment, type InverterEquipment } from '
 import { usePatchEquipment } from '@/hooks/usePatchEquipment';
 import { mergeTechnicalData, syncInverterData } from '@/lib/catalogSync';
 import TenantStatusBadge from '@/components/tenants/TenantStatusBadge';
+import ParametricSymbolBuilder from '@/components/catalog/ParametricSymbolBuilder';
+import type { ParametricSymbolConfig } from '@/lib/types/parametricSymbol';
 
 interface InverterDrawerProps {
   inverterEquipment: InverterEquipment;
@@ -36,6 +38,8 @@ export default function InverterDrawer({ inverterEquipment: m, onClose, onMutate
     vMinMpp: (m.electricalData as any)?.vMinMpp || '',
     vMaxMpp: (m.electricalData as any)?.vMaxMpp || '',
     iMaxDC: (m.electricalData as any)?.iMaxDC || '',
+    // PSB
+    symbolConfig: ((m as any).symbolConfig as ParametricSymbolConfig | null) ?? null,
   });
 
   const { mutate: patch, loadingId: patchLoadingId, error: patchError } = usePatchEquipment('/catalog/inverters', () => {
@@ -299,7 +303,7 @@ export default function InverterDrawer({ inverterEquipment: m, onClose, onMutate
             </section>
           )}
 
-          {/* Editor Inline (se ativo) */}
+            {/* Editor Inline (se ativo) */}
           {isEditing && (
             <section className="rounded-sm border border-sky-500/20 bg-sky-500/5 p-4 space-y-4">
               <p className="text-[10px] font-bold uppercase tracking-widest text-sky-400">Editor de Parâmetros</p>
@@ -430,6 +434,14 @@ export default function InverterDrawer({ inverterEquipment: m, onClose, onMutate
                   />
                 </div>
               </div>
+
+              {/* PSB: Configuração de Símbolo Paramétrico */}
+              <div className="border-t border-slate-800 pt-3">
+                <ParametricSymbolBuilder
+                  initialConfig={formData.symbolConfig}
+                  onChange={(cfg) => setFormData(s => ({ ...s, symbolConfig: cfg }))}
+                />
+              </div>
             </section>
           )}
         </div>
@@ -466,6 +478,7 @@ export default function InverterDrawer({ inverterEquipment: m, onClose, onMutate
                       height: formData.height ? Number(formData.height) : null,
                       depth: formData.depth ? Number(formData.depth) : null,
                       weight: formData.weight ? Number(formData.weight) : null,
+                      symbolConfig: formData.symbolConfig,  // PSB: null ou ParametricSymbolConfig
                     };
 
                     // Merge e Sincronização de Dados de Engenharia

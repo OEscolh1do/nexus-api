@@ -159,6 +159,7 @@ model InverterCatalog {
   portaria515Compliant Boolean @default(false)
 
   electricalData    Json?
+  symbolConfig      Json?
 
   @@index([manufacturer])
   @@map("inverter_catalog")
