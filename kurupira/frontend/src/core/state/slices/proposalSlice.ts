@@ -151,6 +151,8 @@ export interface ProposalSlice {
   batchAddCanvasElements: (pageId: string, elements: CanvasElement[]) => void;
   updateCanvasElement: (pageId: string, elementId: string, updates: Partial<CanvasElement>) => void;
   removeCanvasElement: (pageId: string, elementId: string) => void;
+  batchRemoveCanvasElements: (pageId: string, ids: string[]) => void;
+  batchUpdateCanvasElements: (pageId: string, updates: { id: string; patch: Partial<CanvasElement> }[]) => void;
   addCanvasPage: (page: CanvasPage) => void;
   batchAddCanvasPages: (pages: CanvasPage[]) => void;
   removeCanvasPage: (pageId: string) => void;
@@ -543,6 +545,52 @@ export const createProposalSlice: StateCreator<
       };
     }),
 
+  batchRemoveCanvasElements: (pageId, ids) =>
+    set((state) => {
+      const layout = state.proposalData.activeLayout;
+      if (!layout || ids.length === 0) return {};
+      const idSet = new Set(ids);
+      return {
+        proposalData: {
+          ...state.proposalData,
+          activeLayout: {
+            ...layout,
+            pages: layout.pages.map((p) =>
+              p.id === pageId
+                ? { ...p, elements: p.elements.filter((el) => !idSet.has(el.id)) }
+                : p
+            ),
+          },
+        },
+      };
+    }),
+
+  batchUpdateCanvasElements: (pageId, updates) =>
+    set((state) => {
+      const layout = state.proposalData.activeLayout;
+      if (!layout || updates.length === 0) return {};
+      const patchMap = new Map(updates.map(({ id, patch }) => [id, patch]));
+      return {
+        proposalData: {
+          ...state.proposalData,
+          activeLayout: {
+            ...layout,
+            pages: layout.pages.map((p) =>
+              p.id === pageId
+                ? {
+                    ...p,
+                    elements: p.elements.map((el) => {
+                      const patch = patchMap.get(el.id);
+                      return patch ? { ...el, ...patch } : el;
+                    }),
+                  }
+                : p
+            ),
+          },
+        },
+      };
+    }),
+
   addCanvasPage: (page) =>
     set((state) => {
       const layout = state.proposalData.activeLayout;
@@ -559,6 +607,9 @@ export const createProposalSlice: StateCreator<
     set((state) => {
       const layout = state.proposalData.activeLayout;
       if (!layout) return {};
+      // Guard: never remove the last page — an empty pages[] array would crash
+      // every downstream renderer and break the safePageIdx invariant.
+      if (layout.pages.length <= 1) return {};
       return {
         proposalData: {
           ...state.proposalData,

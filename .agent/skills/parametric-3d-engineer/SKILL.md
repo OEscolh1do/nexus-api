@@ -1,8 +1,13 @@
 ---
 name: parametric-3d-engineer
-description: Especialista na arquitetura híbrida 2D/3D (Leaflet + WebGL), metadados glTF, estado normalizado (Zustand/Jotai) e dimensionamento funcional.
+description: >
+  ⚠️ DEPRECIADA — Domínio absorvido por `diagram-engine` (dados/contratos) e `canvas-layers` (performance de canvas). Esta skill é mantida como arquivo histórico.
 ---
 
+> [!WARNING]
+> **SKILL DEPRECIADA.** O domínio desta skill foi dividido em duas skills especializadas:
+> - **Modelo de dados, contratos, glTF metadata** → `diagram-engine` (`.agent/skills/diagram-engine/SKILL.md`)
+> - **Arquitetura de viewport, WebGL, ResizeObserver, undo/redo** → `canvas-layers` (`.agent/skills/canvas-layers/SKILL.md`)
 # Skill: Parametric 3D Engineer
 
 ## Gatilho Semântico

@@ -27,6 +27,8 @@ import { VisionIsland } from './toolbars/VisionIsland';
 import { DraftingIsland } from './toolbars/DraftingIsland';
 import { SearchIsland } from './toolbars/SearchIsland';
 import { NeonorteLoader } from '@/components/ui/NeonorteLoader';
+import { DiagramCanvasView } from './DiagramCanvasView';
+import { ElectricalCanvasView } from './ElectricalCanvasView';
 
 // =============================================================================
 // TYPES & CONSTANTS
@@ -718,6 +720,21 @@ export const PhysicalCanvasView: React.FC = () => {
               <StringPathOverlay moduleIds={selectedModuleIds} placedModules={placedModules} />
             </MapCore>
           </div>
+
+          {/* Layer 2: Diagrama de Blocos (Topologia) */}
+          {canvasViewMode === 'DIAGRAM' && (
+            <div className="absolute inset-0 z-[10] animate-in fade-in zoom-in-95 duration-500">
+               <DiagramCanvasView />
+            </div>
+          )}
+
+          {/* Layer 3: Diagrama Unifilar (IEC 60617) */}
+          {canvasViewMode === 'UNIFILAR' && (
+            <div className="absolute inset-0 z-[10] animate-in fade-in zoom-in-95 duration-500">
+               <ElectricalCanvasView />
+            </div>
+          )}
+
           <div className={cn(
             "absolute inset-0 pointer-events-none transition-opacity duration-500", 
             canvasViewMode === 'BLUEPRINT' ? "opacity-10" : "opacity-0"

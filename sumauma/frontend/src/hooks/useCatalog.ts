@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/api';
+import { ParametricSymbolConfig } from '@/lib/types/parametricSymbol';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -51,6 +52,22 @@ export interface ModuleEquipment {
   };
 }
 
+// -- BlockDiagramFootprint Types --
+export interface MPPTChannel {
+  mpptIndex: number;
+  inputCount: number;
+  inputLabels?: string[];
+}
+
+export interface BlockDiagramFootprint {
+  inverterId?: string;
+  mpptChannels: MPPTChannel[];
+  acOutput: {
+    label: string;
+    phase: 'mono' | 'tri';
+  };
+}
+
 export interface InverterEquipment {
   id: string;
   manufacturer: string;
@@ -75,6 +92,12 @@ export interface InverterEquipment {
   afci?: boolean;
   rsd?: boolean;
   portaria515Compliant?: boolean;
+
+  // -- PSB: Parametric Symbol Engine (Unifilar) --
+  symbolConfig?: ParametricSymbolConfig;
+
+  // -- Block Diagram Footprint (Diagrama de Blocos) --
+  blockDiagramFootprint?: BlockDiagramFootprint;
 
   // Parâmetros técnicos vindos de `electricalData` (JSON):
   electricalData?: {

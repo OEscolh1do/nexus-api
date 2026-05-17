@@ -1,11 +1,3 @@
-/**
- * LayersPanel.tsx
- *
- * Painel de camadas: lista todos os elementos da página atual ordenados por
- * z-index (frente → fundo). Permite reordenar via drag-and-drop, alternar
- * visibilidade/trava e selecionar/excluir elementos.
- */
-
 import React, { useMemo, useRef, useState } from 'react';
 import {
   Eye, EyeOff, Lock, LockOpen, Trash2, Link2Off,
@@ -64,6 +56,46 @@ interface Props {
   onReorderElements?: (orderedIds: string[]) => void;
 }
 
+// ─── Shared action buttons ────────────────────────────────────────────────────
+
+function LayerRowActions({ el, onUpdate, onRemove, showRemove }: {
+  el: CanvasElement;
+  onUpdate: (id: string, updates: Partial<CanvasElement>) => void;
+  onRemove?: (id: string) => void;
+  showRemove?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-0.5 shrink-0">
+      <button
+        title={el.visible ? 'Ocultar' : 'Mostrar'}
+        aria-label={el.visible ? 'Ocultar elemento' : 'Mostrar elemento'}
+        onClick={(e) => { e.stopPropagation(); onUpdate(el.id, { visible: !el.visible }); }}
+        className="p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200"
+      >
+        {el.visible ? <Eye size={11} /> : <EyeOff size={11} />}
+      </button>
+      <button
+        title={el.locked ? 'Desbloquear' : 'Bloquear'}
+        aria-label={el.locked ? 'Desbloquear elemento' : 'Bloquear elemento'}
+        onClick={(e) => { e.stopPropagation(); onUpdate(el.id, { locked: !el.locked }); }}
+        className="p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200"
+      >
+        {el.locked ? <Lock size={11} /> : <LockOpen size={11} />}
+      </button>
+      {showRemove && onRemove && (
+        <button
+          title="Excluir elemento"
+          aria-label="Excluir elemento"
+          onClick={(e) => { e.stopPropagation(); onRemove(el.id); }}
+          className="p-0.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50"
+        >
+          <Trash2 size={11} />
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function LayersPanel({ elements, selectedIds, onSelect, onUpdate, onRemove, onReorderElements }: Props) {
@@ -71,13 +103,12 @@ export function LayersPanel({ elements, selectedIds, onSelect, onUpdate, onRemov
   const dragIdRef   = useRef<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 
-  // GAP-48: memoised sort — only recomputes when elements array reference changes
   const sorted = useMemo(
     () => [...elements].sort((a, b) => b.zIndex - a.zIndex),
     [elements],
   );
 
-  // GAP-48: memoised group/ungroup split — O(n) single pass
+  // Single O(n) pass: partition into groups and ungrouped list.
   const { grouped, ungrouped } = useMemo(() => {
     const groupMap = new Map<string, CanvasElement[]>();
     const ungroupedList: CanvasElement[] = [];
@@ -97,8 +128,6 @@ export function LayersPanel({ elements, selectedIds, onSelect, onUpdate, onRemov
 
     return { grouped: Array.from(groupMap.entries()), ungrouped: ungroupedList };
   }, [sorted]);
-
-  const ungroupedIds = useMemo(() => ungrouped.map((el) => el.id), [ungrouped]);
 
   const handleSelectElement = (element: CanvasElement) => {
     if (element.groupId) {
@@ -136,11 +165,11 @@ export function LayersPanel({ elements, selectedIds, onSelect, onUpdate, onRemov
     dragIdRef.current = null;
     if (!sourceId || sourceId === targetId) return;
 
+    const ungroupedIds = ungrouped.map((el) => el.id);
     const oldIndex = ungroupedIds.indexOf(sourceId);
     const newIndex = ungroupedIds.indexOf(targetId);
     if (oldIndex < 0 || newIndex < 0) return;
 
-    // Build the new order by moving the dragged item before/after the target
     const next = [...ungroupedIds];
     next.splice(oldIndex, 1);
     next.splice(newIndex, 0, sourceId);
@@ -247,13 +276,8 @@ export function LayersPanel({ elements, selectedIds, onSelect, onUpdate, onRemov
                     <span className={cn('flex-1 text-xs truncate', isSelected ? 'text-blue-400 font-bold' : 'text-slate-500')}>
                       {meta.label}
                     </span>
-                    <div className={cn('flex items-center gap-0.5 shrink-0 transition-opacity', isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100')}>
-                      <button title={el.visible ? 'Ocultar' : 'Mostrar'} onClick={(e) => { e.stopPropagation(); onUpdate(el.id, { visible: !el.visible }); }} className="p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200">
-                        {el.visible ? <Eye size={11} /> : <EyeOff size={11} />}
-                      </button>
-                      <button title={el.locked ? 'Desbloquear' : 'Bloquear'} onClick={(e) => { e.stopPropagation(); onUpdate(el.id, { locked: !el.locked }); }} className="p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200">
-                        {el.locked ? <Lock size={11} /> : <LockOpen size={11} />}
-                      </button>
+                    <div className={cn('transition-opacity', isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100')}>
+                      <LayerRowActions el={el} onUpdate={onUpdate} />
                     </div>
                   </div>
                 );
@@ -288,7 +312,10 @@ export function LayersPanel({ elements, selectedIds, onSelect, onUpdate, onRemov
             >
               {/* Drag handle */}
               <span
+                role="button"
+                tabIndex={-1}
                 title="Arrastar para reordenar"
+                aria-label="Arrastar para reordenar camada"
                 onClick={(e) => e.stopPropagation()}
                 className="shrink-0 cursor-grab active:cursor-grabbing text-slate-600 hover:text-slate-400 px-0.5 select-none"
                 style={{ fontSize: 13, lineHeight: 1 }}
@@ -301,28 +328,8 @@ export function LayersPanel({ elements, selectedIds, onSelect, onUpdate, onRemov
               <span className={cn('flex-1 text-xs truncate', isSelected ? 'text-blue-400 font-bold' : 'text-slate-500')}>
                 {meta.label}
               </span>
-              <div className={cn('flex items-center gap-0.5 shrink-0 transition-opacity', isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100')}>
-                <button
-                  title={el.visible ? 'Ocultar' : 'Mostrar'}
-                  onClick={(e) => { e.stopPropagation(); onUpdate(el.id, { visible: !el.visible }); }}
-                  className="p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200"
-                >
-                  {el.visible ? <Eye size={11} /> : <EyeOff size={11} />}
-                </button>
-                <button
-                  title={el.locked ? 'Desbloquear' : 'Bloquear'}
-                  onClick={(e) => { e.stopPropagation(); onUpdate(el.id, { locked: !el.locked }); }}
-                  className="p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200"
-                >
-                  {el.locked ? <Lock size={11} /> : <LockOpen size={11} />}
-                </button>
-                <button
-                  title="Excluir elemento"
-                  onClick={(e) => { e.stopPropagation(); onRemove(el.id); }}
-                  className="p-0.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50"
-                >
-                  <Trash2 size={11} />
-                </button>
+              <div className={cn('transition-opacity', isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100')}>
+                <LayerRowActions el={el} onUpdate={onUpdate} onRemove={onRemove} showRemove />
               </div>
             </div>
           );

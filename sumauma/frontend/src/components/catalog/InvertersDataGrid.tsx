@@ -35,8 +35,20 @@ export default function InvertersDataGrid({ refreshTrigger }: { refreshTrigger: 
     setPage(1);
   }, []);
 
+  if (selectedInverter) {
+    return (
+      <div className="flex-1 min-h-0 animate-in fade-in duration-500">
+        <InverterDrawer
+          inverterEquipment={selectedInverter}
+          onClose={() => setSelectedInverter(null)}
+          onMutated={refetch}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex h-full flex-col gap-4 mt-4">
+    <div className="flex h-full flex-col gap-4 mt-4 animate-in fade-in duration-500">
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative">
@@ -64,32 +76,33 @@ export default function InvertersDataGrid({ refreshTrigger }: { refreshTrigger: 
       </div>
 
       {/* Grid */}
-      <div className="flex flex-1 flex-col overflow-hidden rounded-sm border border-slate-800 bg-slate-900">
+      <div className="flex flex-1 flex-col overflow-hidden rounded-sm border border-slate-800 bg-slate-900 shadow-xl">
         <div className="flex-1 overflow-x-auto overflow-y-auto">
           <table className="w-full min-w-[800px] border-collapse text-left">
-            <thead className="sticky top-0 z-10 bg-slate-900">
-              <tr className="border-b border-slate-800">
-                <th className="px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-slate-500">Fabricante</th>
-                <th className="px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-slate-500">Modelo</th>
-                <th className="px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-slate-500">Potência AC</th>
-                <th className="px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-slate-500">Vmax CC</th>
-                <th className="px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-slate-500">Eficiência</th>
-                <th className="px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-slate-500">MPPTs</th>
-                <th className="px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-slate-500">Status</th>
+            <thead className="sticky top-0 z-10 bg-slate-900 border-b border-slate-800">
+              <tr>
+                <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Fabricante</th>
+                <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Modelo</th>
+                <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 text-right">Potência AC</th>
+                <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 text-right">Vmax CC</th>
+                <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 text-right">Eficiência</th>
+                <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 text-center">MPPTs</th>
+                <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 text-center">Diagramas</th>
+                <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 text-center">Status</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-800/50">
               {loading &&
-                Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i} className="border-b border-slate-800/50">
-                    <td colSpan={7} className="px-4 py-3"><div className="h-3 w-full animate-pulse rounded-sm bg-slate-800" /></td>
+                Array.from({ length: 8 }).map((_, i) => (
+                  <tr key={i}>
+                    <td colSpan={8} className="px-4 py-4"><div className="h-3 w-full animate-pulse rounded-full bg-slate-800/50" /></td>
                   </tr>
                 ))}
               
               {!loading && inverters.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-xs text-slate-500">
-                    Nenhum inversor encontrado.
+                  <td colSpan={8} className="px-4 py-16 text-center text-xs text-slate-600 font-bold uppercase tracking-widest italic">
+                    Nenhum equipamento localizado no catálogo global.
                   </td>
                 </tr>
               )}
@@ -98,22 +111,28 @@ export default function InvertersDataGrid({ refreshTrigger }: { refreshTrigger: 
                 <tr
                   key={m.id}
                   onClick={() => setSelectedInverter(m)}
-                  className="grid-row cursor-pointer"
+                  className="group cursor-pointer hover:bg-sky-500/[0.03] transition-colors"
                 >
-                  <td className="px-4 py-3 text-xs font-medium text-slate-200">{m.manufacturer}</td>
-                  <td className="px-4 py-3 text-xs text-slate-300 font-mono">{m.model}</td>
-                  <td className="px-4 py-3 text-xs text-slate-300 font-mono">{(m.nominalPowerW / 1000).toFixed(1)} kW</td>
-                  <td className="px-4 py-3 text-xs text-slate-400 font-mono">
+                  <td className="px-4 py-3.5 text-xs font-bold text-slate-300">{m.manufacturer}</td>
+                  <td className="px-4 py-3.5 text-xs text-slate-400 font-mono group-hover:text-sky-400 transition-colors">{m.model}</td>
+                  <td className="px-4 py-3.5 text-xs text-slate-400 font-mono text-right">{(m.nominalPowerW / 1000).toFixed(1)} kW</td>
+                  <td className="px-4 py-3.5 text-xs text-slate-500 font-mono text-right">
                     {m.maxInputV ? `${m.maxInputV}V` : '—'}
                   </td>
-                  <td className="px-4 py-3 text-xs text-slate-400 font-mono">
+                  <td className="px-4 py-3.5 text-xs text-slate-500 font-mono text-right">
                     {m.efficiency ? `${(m.efficiency * (m.efficiency <= 1 ? 100 : 1)).toFixed(1)}%` : '—'}
                   </td>
-                  <td className="px-4 py-3 text-xs font-mono text-slate-400">
+                  <td className="px-4 py-3.5 text-xs font-mono text-slate-500 text-center">
                     {m.mpptCount ?? '—'}
                   </td>
-                  <td className="px-4 py-3">
-                    <span className={`badge ${m.isActive ? 'badge-active' : 'badge-blocked'}`}>
+                  <td className="px-4 py-3.5">
+                    <div className="flex items-center justify-center gap-2">
+                      <div title="Unifilar" className={`h-1.5 w-1.5 rounded-full ${m.symbolConfig ? 'bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.5)]' : 'bg-slate-800'}`} />
+                      <div title="Hardware" className={`h-1.5 w-1.5 rounded-full ${m.blockDiagramFootprint ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-800'}`} />
+                    </div>
+                  </td>
+                  <td className="px-4 py-3.5 text-center">
+                    <span className={`inline-flex items-center rounded px-2 py-0.5 text-[9px] font-black uppercase tracking-tighter ${m.isActive ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-slate-800 text-slate-600 border border-slate-700'}`}>
                       {m.isActive ? 'Ativo' : 'Inativo'}
                     </span>
                   </td>
@@ -125,38 +144,30 @@ export default function InvertersDataGrid({ refreshTrigger }: { refreshTrigger: 
 
         {/* Pagination */}
         {pagination && (
-          <div className="flex items-center justify-between border-t border-slate-800 px-4 py-3">
-            <p className="text-[11px] text-slate-500">{pagination.total} inversores</p>
+          <div className="flex items-center justify-between border-t border-slate-800 px-6 py-3 bg-slate-900/50">
+            <p className="text-[10px] text-slate-600 font-black uppercase tracking-widest">{pagination.total} Equipamentos Registrados</p>
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setPage((p) => p - 1)}
                 disabled={page <= 1}
-                className="flex h-7 w-7 items-center justify-center rounded-sm border border-slate-700 bg-slate-800 text-slate-400 hover:text-slate-200 disabled:opacity-30"
+                className="flex h-8 w-8 items-center justify-center rounded border border-slate-700 bg-slate-800 text-slate-400 hover:text-slate-200 disabled:opacity-30 transition-colors"
               >
-                <ChevronLeft className="h-3.5 w-3.5" />
+                <ChevronLeft className="h-4 w-4" />
               </button>
-              <span className="font-tabular min-w-[64px] text-center text-[11px] text-slate-500">
-                {page} / {pagination.totalPages}
+              <span className="font-mono min-w-[80px] text-center text-[11px] text-slate-400 font-bold">
+                {page} de {pagination.totalPages}
               </span>
               <button
                 onClick={() => setPage((p) => p + 1)}
                 disabled={page >= pagination.totalPages}
-                className="flex h-7 w-7 items-center justify-center rounded-sm border border-slate-700 bg-slate-800 text-slate-400 hover:text-slate-200 disabled:opacity-30"
+                className="flex h-8 w-8 items-center justify-center rounded border border-slate-700 bg-slate-800 text-slate-400 hover:text-slate-200 disabled:opacity-30 transition-colors"
               >
-                <ChevronRight className="h-3.5 w-3.5" />
+                <ChevronRight className="h-4 w-4" />
               </button>
             </div>
           </div>
         )}
       </div>
-
-      {selectedInverter && (
-        <InverterDrawer
-          inverterEquipment={selectedInverter}
-          onClose={() => setSelectedInverter(null)}
-          onMutated={refetch}
-        />
-      )}
     </div>
   );
 }

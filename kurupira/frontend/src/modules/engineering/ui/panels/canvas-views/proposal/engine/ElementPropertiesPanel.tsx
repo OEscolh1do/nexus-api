@@ -26,13 +26,37 @@ function NumInput({ value, onChange, min, 'aria-label': ariaLabel }: {
   min?: number;
   'aria-label'?: string;
 }) {
+  const [draft, setDraft] = React.useState(() => String(Math.round(value)));
+  const isFocusedRef = React.useRef(false);
+
+  // Sync from parent whenever the value changes externally (e.g. canvas drag update),
+  // but only when the input is not actively being edited to avoid cursor-position jumps.
+  React.useEffect(() => {
+    if (!isFocusedRef.current) {
+      setDraft(String(Math.round(value)));
+    }
+  }, [value]);
+
+  const commit = () => {
+    const n = Number(draft);
+    if (!Number.isFinite(n)) {
+      setDraft(String(Math.round(value))); // revert invalid input
+      return;
+    }
+    const clamped = min !== undefined ? Math.max(min, n) : n;
+    onChange(Math.round(clamped));
+  };
+
   return (
     <input
       type="number"
-      value={Math.round(value)}
+      value={draft}
       min={min}
       aria-label={ariaLabel}
-      onChange={(e) => onChange(Number(e.target.value))}
+      onFocus={() => { isFocusedRef.current = true; }}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => { isFocusedRef.current = false; commit(); }}
+      onKeyDown={(e) => { if (e.key === 'Enter') { commit(); (e.target as HTMLInputElement).blur(); } }}
       className="w-full text-xs border border-slate-800 rounded px-2 py-1 bg-slate-900 text-slate-200 focus:outline-none focus:border-indigo-500/50"
     />
   );
@@ -379,7 +403,6 @@ function ImageElementProps({ element, onUpdate }: Props) {
 
   return (
     <>
-      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
@@ -388,7 +411,6 @@ function ImageElementProps({ element, onUpdate }: Props) {
         onChange={handleFileChange}
       />
 
-      {/* Upload button */}
       <FieldRow label="Arquivo">
         <button
           onClick={() => fileInputRef.current?.click()}
@@ -410,10 +432,8 @@ function ImageElementProps({ element, onUpdate }: Props) {
         </button>
       </FieldRow>
 
-      {/* URL text input (secondary, for pasting links) */}
       <TextPropRow label="ou URL" value={String(p.url ?? '')} onChange={(v) => update('url', v)} />
 
-      {/* objectFit select */}
       <FieldRow label="Ajuste">
         <select
           value={String(p.objectFit ?? 'contain')}
@@ -427,7 +447,6 @@ function ImageElementProps({ element, onUpdate }: Props) {
         </select>
       </FieldRow>
 
-      {/* Crop controls — viewport crop via object-fit: none + object-position */}
       <details style={{ marginTop: 8 }}>
         <summary
           style={{
@@ -495,7 +514,6 @@ function ImageElementProps({ element, onUpdate }: Props) {
         </button>
       </details>
 
-      {/* Clear image button — only when there is a URL */}
       {p.url && (
         <FieldRow label="">
           <button
@@ -769,8 +787,6 @@ export function ElementPropertiesPanel({ element, onUpdate, onDecompose }: Props
   const isPageBlock = element.type.startsWith('page-');
   const [aspectRatioLocked, setAspectRatioLocked] = React.useState(false);
 
-  const onElementChange = (updates: Partial<CanvasElement>) => onUpdate(updates);
-
   const handleWidthChange = (v: number) => {
     if (aspectRatioLocked && element.width > 0) {
       const ratio = element.height / element.width;
@@ -876,7 +892,7 @@ export function ElementPropertiesPanel({ element, onUpdate, onDecompose }: Props
                 max={360}
                 step={1}
                 value={element.rotation ?? 0}
-                onChange={(e) => onElementChange({ rotation: Number(e.target.value) })}
+                onChange={(e) => onUpdate({ rotation: Number(e.target.value) })}
                 aria-label="Rotação em graus"
                 className="w-full text-xs border border-slate-800 rounded px-2 py-1 bg-slate-900 text-slate-200 focus:outline-none focus:border-indigo-500/50"
               />
@@ -891,7 +907,7 @@ export function ElementPropertiesPanel({ element, onUpdate, onDecompose }: Props
                 max={100}
                 step={5}
                 value={Math.round((element.opacity ?? 1) * 100)}
-                onChange={(e) => onElementChange({ opacity: Number(e.target.value) / 100 })}
+                onChange={(e) => onUpdate({ opacity: Number(e.target.value) / 100 })}
                 aria-label="Opacidade"
                 className="flex-1"
               />
@@ -904,7 +920,7 @@ export function ElementPropertiesPanel({ element, onUpdate, onDecompose }: Props
             <FieldRow label="Espelhar">
               <div className="flex gap-1.5">
                 <button
-                  onClick={() => onElementChange({ flipX: !element.flipX })}
+                  onClick={() => onUpdate({ flipX: !element.flipX })}
                   className={cn(
                     'p-1 rounded border text-[10px] transition-colors flex items-center gap-0.5',
                     element.flipX
@@ -918,7 +934,7 @@ export function ElementPropertiesPanel({ element, onUpdate, onDecompose }: Props
                   ↔ H
                 </button>
                 <button
-                  onClick={() => onElementChange({ flipY: !element.flipY })}
+                  onClick={() => onUpdate({ flipY: !element.flipY })}
                   className={cn(
                     'p-1 rounded border text-[10px] transition-colors flex items-center gap-0.5',
                     element.flipY

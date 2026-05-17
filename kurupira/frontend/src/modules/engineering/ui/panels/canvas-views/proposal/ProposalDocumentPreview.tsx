@@ -113,8 +113,12 @@ export const ProposalDocumentPreview: React.FC = () => {
   // ── MOTOR DE IMPRESSÃO NATIVO (Browser Print) ────────────────────
   React.useEffect(() => {
     if (!isExportingPdf) return;
+    // Cancelled flag prevents the async body from running if the component unmounts
+    // during the 1.5 s delay (e.g. user navigates away before print dialog opens).
+    let cancelled = false;
     const handlePrint = async () => {
       await new Promise(resolve => setTimeout(resolve, 1500));
+      if (cancelled) return;
 
       // Inject @page orientation rule based on the first page's orientation
       const layout = useSolarStore.getState().proposalData.activeLayout;
@@ -134,6 +138,7 @@ export const ProposalDocumentPreview: React.FC = () => {
     window.addEventListener('afterprint', handleAfterPrint);
     handlePrint();
     return () => {
+      cancelled = true;
       window.removeEventListener('afterprint', handleAfterPrint);
     };
   }, [isExportingPdf, setExportingPdf]);
@@ -147,6 +152,15 @@ export const ProposalDocumentPreview: React.FC = () => {
 
   // Unified page count — drives navigation controls
   const pageCount = activeLayout ? activeLayout.pages.length : classicPages.length;
+
+  // Clamp activePage when the layout switches to one with fewer pages (e.g. user applies
+  // a 2-page template while previewing page 5 of a 6-page custom layout). Without this
+  // the counter shows "Página 5 / 2" and activeLayout.pages[activePage] returns undefined.
+  React.useEffect(() => {
+    if (pageCount > 0 && activePage >= pageCount) {
+      setActivePage(Math.max(0, pageCount - 1));
+    }
+  }, [activePage, pageCount, setActivePage]);
 
   return (
     <div ref={containerRef} className="flex flex-col items-center w-full h-full overflow-hidden">

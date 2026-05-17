@@ -1,7 +1,13 @@
 ---
 name: arranjo-motor-tecnico
 description: >
-  Guia do modelo de dados central, tipos TypeScript, stores Zustand e lógica de validação elétrica do módulo de arranjo Kurupira. Use esta skill quando trabalhar em: interfaces do ArrangementGraph (ArrangementNode, StringEdge, StringGroup, MPPTConfig, DropPoint), função validateArrangementGraph() e suas 4 regras (UNCONNECTED_MODULE, VOC_OVERCURRENT, MPPT_ORIENTATION_MISMATCH, POLARITY_CONFLICT), cálculos de tensão térmica (calculateVocCold, calculateVmpHot), stores useSolarStore / useUIStore, ou qualquer camada de dados do engine de arranjo. Ative também para tarefas envolvendo: haversineDistanceM, tempCoeffVoc, maxVocInput, validação de string fotovoltaica, ou regras elétricas de MPPT.
+  ⚠️ DEPRECIADA — Use a skill `diagram-engine` que consolida este domínio com o contrato BlockDiagramFootprint. Esta skill é mantida como arquivo histórico.
+---
+
+> [!WARNING]
+> **SKILL DEPRECIADA.** Substituída por `diagram-engine` (`.agent/skills/diagram-engine/SKILL.md`).
+> A nova skill inclui todo o conteúdo desta, mais o contrato `BlockDiagramFootprint` e a documentação da diferença entre Diagrama de Blocos e Unifilar.
+
 ---
 
 # Arranjo Motor Técnico — Modelo de Dados e Validação Elétrica

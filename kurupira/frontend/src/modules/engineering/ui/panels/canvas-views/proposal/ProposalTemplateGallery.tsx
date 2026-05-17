@@ -93,12 +93,12 @@ function TemplateCard({
           {isActive ? 'Em uso' : 'Usar template'}
         </button>
         {onRename && (
-          <button onClick={onRename} className="p-1.5 text-slate-500 hover:text-slate-200 hover:bg-slate-800 rounded-sm">
+          <button onClick={onRename} aria-label="Renomear template" title="Renomear template" className="p-1.5 text-slate-500 hover:text-slate-200 hover:bg-slate-800 rounded-sm">
             <Pencil size={13} />
           </button>
         )}
         {onDelete && (
-          <button onClick={onDelete} className="p-1.5 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-sm">
+          <button onClick={onDelete} aria-label="Excluir template" title="Excluir template" className="p-1.5 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-sm">
             <Trash2 size={13} />
           </button>
         )}
@@ -109,7 +109,9 @@ function TemplateCard({
 
 export function ProposalTemplateGallery({ onUseTemplate }: Props) {
   const activeTemplateId  = useSolarStore((s) => s.proposalData.activeTemplateId);
-  const activeLayout      = useSolarStore((s) => s.proposalData.activeLayout);
+  // activeLayout intentionally NOT subscribed — it changes on every drag-frame element
+  // update, which would re-render the gallery on every canvas edit even when it's hidden.
+  // Read from getState() at call time inside handleUse instead.
   const customTemplates   = useSolarStore((s) => s.proposalData.customTemplates);
   const applyTemplate     = useSolarStore((s) => s.applyTemplate);
   const deleteCustomTemplate = useSolarStore((s) => s.deleteCustomTemplate);
@@ -120,9 +122,13 @@ export function ProposalTemplateGallery({ onUseTemplate }: Props) {
 
   const allTemplates: ProposalTemplate[] = [...BUILT_IN_TEMPLATES, ...customTemplates];
 
-  // GAP-20: confirm before overwriting an existing layout with a new template
+  // GAP-20: confirm before overwriting an existing layout with a new template.
+  // Read activeLayout from getState() at call time — avoids subscribing to a value
+  // that changes on every drag-frame canvas edit (which would cause unnecessary re-renders
+  // of the gallery even when it is not visible in the current viewMode).
   const handleUse = (template: ProposalTemplate) => {
-    if (activeLayout) {
+    const currentLayout = useSolarStore.getState().proposalData.activeLayout;
+    if (currentLayout) {
       const ok = window.confirm('Aplicar este template irá substituir o layout atual. Continuar?');
       if (!ok) return;
     }

@@ -16,17 +16,25 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { TrendingUp, BarChart2, Layers, Clock, Table2, ChevronDown, Sliders, Zap } from 'lucide-react';
+import { TrendingUp, BarChart2, Layers, Clock, Table2, ChevronDown, Sliders, Zap, Sun, Compass, CloudSun } from 'lucide-react';
+import { SunPathDiagram } from './projection/SunPathDiagram';
+import { AzimuthCompass } from './projection/AzimuthCompass';
+import { ClimateContextWidget } from './projection/ClimateContextWidget';
+import { HeroKpiSection } from './projection/HeroKpiSection';
 
 import { useSolarStore, selectModules } from '@/core/state/solarStore';
 import { useTechStore } from '../../../store/useTechStore';
 import { useUIStore } from '@/core/state/uiStore';
 import { getDailyProfile, HOUR_LABELS } from '../../../utils/dailyProfile';
+import {
+  calculateSolarDay,
+  inferTimezone,
+  monthToDayOfYear,
+} from '../../../utils/solarPosition';
 import { cn } from '@/lib/utils';
 
 // Importações dos novos componentes e utilitários
 import { ProjectionLossSidebar } from './projection/ProjectionLossSidebar';
-import { ProjectionMetrics } from './projection/ProjectionMetrics';
 import { GenerationConsumptionChart } from './projection/GenerationConsumptionChart';
 import { CumulativeROIChart } from './projection/CumulativeROIChart';
 import { FinancialBalanceChart } from './projection/FinancialBalanceChart';
@@ -97,6 +105,11 @@ export const ProjectionCanvasView: React.FC = () => {
     s.clientData.invoices[0]?.monthlyHistory || Array(12).fill(s.clientData.averageConsumption || 0)
   );
   const hsp            = useSolarStore((s) => s.clientData.monthlyIrradiation || Array(12).fill(0));
+  const lat            = useSolarStore((s) => s.clientData.lat ?? 0);
+  const lng            = useSolarStore((s) => s.clientData.lng ?? 0);
+  const city           = useSolarStore((s) => s.clientData.city ?? '');
+  const state          = useSolarStore((s) => s.clientData.state ?? '');
+  const panelAzimuth   = useSolarStore((s) => s.clientData.azimuth ?? 0);
   const connectionType = useSolarStore((s) => s.clientData.connectionType);
   const tariffRate     = useSolarStore((s) => s.clientData.tariffRate || 0);
   const modules        = useSolarStore(selectModules);
@@ -190,17 +203,27 @@ export const ProjectionCanvasView: React.FC = () => {
   const [dailyMonth, setDailyMonth] = useState(-1);
   const [withNoise, setWithNoise] = useState(false);
 
-  const avgHsp = useMemo(() => hsp.reduce((a: number, b: number) => a + b, 0) / 12, [hsp]);
+  const avgHsp     = useMemo(() => hsp.reduce((a: number, b: number) => a + b, 0) / 12, [hsp]);
   const currentHsp = dailyMonth === -1 ? avgHsp : hsp[dailyMonth];
 
-  // Recalcular perfil de geração para o gráfico (96 pts)
+  // ── Motor Astronômico de Posição Solar ───────────────────────────────────────
+  // Usa lat/lng do projeto para calcular sunrise/sunset/elevação reais.
+  // Fallback: quando lat===lng===0, o motor ainda retorna dados válidos (lat 0 = Equador).
+  const solarDayInfo = useMemo(() => {
+    const monthIndex  = dailyMonth === -1 ? 5 : dailyMonth; // Jun como proxy da média anual
+    const dayOfYear   = monthToDayOfYear(monthIndex + 1);
+    const timezone    = inferTimezone(lng);
+    return calculateSolarDay(lat, lng, dayOfYear, timezone);
+  }, [lat, lng, dailyMonth]);
+
+  // Recalcular perfil de geração para o gráfico (96 pts) — MODO ASTRONÔMICO
   const dailyData = useMemo(() => {
-    const genProfile = getDailyProfile(totalPowerKw, currentHsp || 0, prDecimal, withNoise);
+    const genProfile = getDailyProfile(totalPowerKw, currentHsp || 0, prDecimal, withNoise, solarDayInfo);
     return HOUR_LABELS.map((label, i) => ({
       hora: label,
       'Geração (kWh)': +genProfile[i].toFixed(3),
     }));
-  }, [totalPowerKw, currentHsp, prDecimal, withNoise]);
+  }, [totalPowerKw, currentHsp, prDecimal, withNoise, solarDayInfo]);
 
   // ── Derived para Header ───────────────────────────────────────────────────────
   const prPct = (prDecimal * 100).toFixed(1);
@@ -350,17 +373,16 @@ export const ProjectionCanvasView: React.FC = () => {
       ) : (
         <div className="flex flex-col gap-4 p-5">
           {/* ══════════════════════════════════════════════════════════════════
-              PAINEL 2 — KPIs de Engenharia
+              HERO KPI SECTION (Impacto Financeiro Imediato)
           ══════════════════════════════════════════════════════════════════ */}
-          <ProjectionMetrics
-            totalGen={stats!.totalGen}
-            totalCons={stats!.totalCons}
-            addedLoadKwh={additionalLoadsMonthly.reduce((a, b) => a + b, 0)}
-            coverage={stats!.coverage}
+          <HeroKpiSection
+            economiaMes={stats!.economiaAno / 12}
             economiaAno={stats!.economiaAno}
-            totalPowerKw={totalPowerKw}
-            tariffRate={tariffRate}
-            moduleCount={modules.length}
+            cobertura={stats!.coverage}
+            paybackAnos={stats!.economiaAno > 0 ? (totalPowerKw * 3500) / stats!.economiaAno : 0} // Estimativa: R$ 3,5k / kWp
+            beneficio25anos={stats!.roiData[stats!.roiData.length - 1]?.cumulative ?? 0}
+            faturaOriginal={stats!.faturaOriginalMedia}
+            inflacaoTarifaria={0.05} // 5% a.a. default
           />
 
           {/* ══════════════════════════════════════════════════════════════════
@@ -395,7 +417,7 @@ export const ProjectionCanvasView: React.FC = () => {
               icon={<Clock size={10} />}
               className="lg:col-span-2 2xl:col-span-2"
               controls={
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                   <select
                     className="bg-slate-900 border border-slate-800 px-2 py-0.5 text-[8px] font-black uppercase text-amber-400 outline-none cursor-pointer rounded-sm"
                     value={dailyMonth}
@@ -407,6 +429,20 @@ export const ProjectionCanvasView: React.FC = () => {
                   <span className="text-[8px] text-slate-500 font-bold tabular-nums">
                     HSP: <span className="text-amber-500">{currentHsp?.toFixed(2)}</span>
                   </span>
+                  {/* Efemérides solares calculadas astronomicamente */}
+                  {solarDayInfo && (
+                    <span className="hidden sm:flex items-center gap-2 text-[8px] text-slate-600 font-mono tabular-nums">
+                      <span title="Nascer do sol">
+                        ☀ {String(Math.floor(solarDayInfo.sunrise)).padStart(2,'0')}:{String(Math.round((solarDayInfo.sunrise % 1) * 60)).padStart(2,'0')}
+                      </span>
+                      <span title="Meio-dia solar verdadeiro" className="text-amber-700">
+                        ↑ {String(Math.floor(solarDayInfo.solarNoon)).padStart(2,'0')}:{String(Math.round((solarDayInfo.solarNoon % 1) * 60)).padStart(2,'0')}
+                      </span>
+                      <span title="Pôr do sol">
+                        ☽ {String(Math.floor(solarDayInfo.sunset)).padStart(2,'0')}:{String(Math.round((solarDayInfo.sunset % 1) * 60)).padStart(2,'0')}
+                      </span>
+                    </span>
+                  )}
                 </div>
               }
             >
@@ -462,6 +498,25 @@ export const ProjectionCanvasView: React.FC = () => {
                   tariffRate={tariffRate}
                 />
               </div>
+            </DashboardCell>
+
+          </div>
+
+          {/* ══ ANÁLISE CLIMÁTICA & MOVIMENTO SOLAR ══════════════════════════ */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
+
+            <DashboardCell title="Trajetória Solar Anual" icon={<Sun size={10} />} className="lg:col-span-1">
+              <SunPathDiagram lat={lat} lng={lng} panelAzimuth={panelAzimuth} currentMonth={dailyMonth} />
+            </DashboardCell>
+
+            <DashboardCell title="Orientação do Painel" icon={<Compass size={10} />} className="lg:col-span-1">
+              <div className="flex items-center justify-center py-2">
+                <AzimuthCompass panelAzimuth={panelAzimuth} lat={lat} />
+              </div>
+            </DashboardCell>
+
+            <DashboardCell title="Perfil de Irradiância Local" icon={<CloudSun size={10} />} className="lg:col-span-2 2xl:col-span-1">
+              <ClimateContextWidget monthlyHsp={hsp as number[]} city={city} state={state} lat={lat} lng={lng} />
             </DashboardCell>
 
           </div>

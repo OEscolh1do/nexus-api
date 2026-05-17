@@ -121,7 +121,7 @@ router.post('/inverters', idempotencyCheck, async (req, res) => {
 
 router.patch('/inverters/:id', async (req, res) => {
   try {
-    const { symbolConfig, ...rest } = req.body;
+    const { symbolConfig, blockDiagramFootprint, ...rest } = req.body;
 
     // Validação estrita do symbolConfig quando presente
     let validatedSymbolConfig = undefined;
@@ -159,9 +159,45 @@ router.patch('/inverters/:id', async (req, res) => {
       }
     }
 
+    // Validação estrita do blockDiagramFootprint quando presente
+    let validatedBlockDiagramFootprint = undefined;
+    if (blockDiagramFootprint !== undefined) {
+      const { z } = require('zod');
+
+      const MPPTChannelSchema = z.object({
+        mpptIndex: z.number().int().min(1),
+        inputCount: z.number().int().min(1).max(8),
+        inputLabels: z.array(z.string().max(20).transform(s => s.replace(/[<>"'&]/g, ''))).optional(),
+      });
+
+      const BlockDiagramFootprintSchema = z.object({
+        inverterId: z.string().optional(),
+        mpptChannels: z.array(MPPTChannelSchema).min(1).max(20),
+        acOutput: z.object({
+          label: z.string().max(30).transform(s => s.replace(/[<>"'&]/g, '')),
+          phase: z.enum(['mono', 'tri']),
+        }),
+      });
+
+      if (blockDiagramFootprint === null) {
+        validatedBlockDiagramFootprint = null;
+      } else {
+        const parsed = BlockDiagramFootprintSchema.safeParse(blockDiagramFootprint);
+        if (!parsed.success) {
+          return res.status(400).json({
+            success: false,
+            error: 'blockDiagramFootprint inválido',
+            details: parsed.error.issues,
+          });
+        }
+        validatedBlockDiagramFootprint = parsed.data;
+      }
+    }
+
     const dataToUpdate = {
       ...rest,
       ...(validatedSymbolConfig !== undefined ? { symbolConfig: validatedSymbolConfig } : {}),
+      ...(validatedBlockDiagramFootprint !== undefined ? { blockDiagramFootprint: validatedBlockDiagramFootprint } : {}),
     };
 
     const inverter = await prisma.inverterCatalog.update({

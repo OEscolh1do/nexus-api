@@ -1,7 +1,13 @@
 ---
 name: arranjo-layer-dev
 description: >
-  Guia de implementação das camadas visuais (Layer 0–3) do PhysicalCanvasView do módulo de arranjo Kurupira. Use esta skill quando trabalhar em: integração Leaflet com mapa satélite/blueprint (Layer 0), ferramentas interativas do canvas como STRING_WIRE, PLACE_MODULE, DRAW_POLYGON e DROP_POINT (Layer 1), painel de diagrama de blocos com detecção de mismatch de orientação (Layer 2), ou esquema elétrico completo com símbolos IEC 60617 / NBR 5444 (Layer 3). Ative também para qualquer tarefa envolvendo: Layer0ContextValue, useLayer0(), useBlockDiagramData(), layout Sugiyama, state machine do STRING_WIRE, Quadtree hit-test, tokens de cor do HUD (indigo/sky/emerald/amber), ou classes CSS .layer-0--blueprint / .layer-0--recon.
+  ⚠️ DEPRECIADA — Use a skill `canvas-layers` que consolida este domínio com as regras de performance WebGL. Esta skill é mantida como arquivo histórico.
+---
+
+> [!WARNING]
+> **SKILL DEPRECIADA.** Substituída por `canvas-layers` (`.agent/skills/canvas-layers/SKILL.md`).
+> A nova skill inclui todo o conteúdo desta, mais a renderização correta do bloco de inversor na Layer 2 usando `BlockDiagramFootprint`, e as regras de performance (ResizeObserver, render loop, undo/redo, Workers).
+
 ---
 
 # Arranjo Layer Dev — Guia de Implementação do PhysicalCanvasView

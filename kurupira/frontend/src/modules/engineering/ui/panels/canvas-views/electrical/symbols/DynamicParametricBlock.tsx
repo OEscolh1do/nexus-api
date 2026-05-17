@@ -95,17 +95,30 @@ export function DynamicParametricBlock({
       />
 
       {/* Rótulo interno */}
-      <text
-        x={PADDING + W / 2}
-        y={PADDING + H / 2}
-        textAnchor="middle"
-        dominantBaseline="middle"
-        fill="#64748b"
-        fontSize={10}
-        fontFamily="monospace"
-      >
-        INV
-      </text>
+      {/* Simbologia Normativa IEC 60617: Divisor Diagonal CC/CA */}
+      <line 
+        x1={PADDING} y1={PADDING + H} 
+        x2={PADDING + W} y2={PADDING} 
+        stroke="#334155" 
+        strokeWidth={1} 
+        opacity={0.6}
+      />
+
+      {/* Símbolo CC (=) no triângulo superior-esquerdo */}
+      <g transform={`translate(${PADDING + W * 0.28}, ${PADDING + H * 0.28})`}>
+        <line x1={-4} y1={-1.5} x2={4} y2={-1.5} stroke="#64748b" strokeWidth={1.2} />
+        <line x1={-4} y1={1.5} x2={4} y2={1.5} stroke="#64748b" strokeWidth={1.2} />
+      </g>
+
+      {/* Símbolo CA (~) no triângulo inferior-direito */}
+      <g transform={`translate(${PADDING + W * 0.72}, ${PADDING + H * 0.72})`}>
+        <path 
+          d="M-4,0 C-4,-4 -1,-4 0,0 C1,4 4,4 4,0" 
+          fill="none" 
+          stroke="#64748b" 
+          strokeWidth={1.2} 
+        />
+      </g>
 
       {/* Portas */}
       {portEntries.map(([key, port]) => {

@@ -62,6 +62,8 @@ model InverterCatalog {
   rsd                  Boolean @default(false)
   portaria515Compliant Boolean @default(false)
   electricalData       Json?
+  symbolConfig         Json?
+  blockDiagramFootprint Json?
 
   @@index([manufacturer])
   @@map("inverter_catalog")

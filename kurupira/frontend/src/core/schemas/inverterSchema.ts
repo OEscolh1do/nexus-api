@@ -33,6 +33,26 @@ export const ParametricSymbolConfigSchema = z.discriminatedUnion('type', [
 export type ParametricPort = z.infer<typeof ParametricPortSchema>;
 export type ParametricSymbolConfig = z.infer<typeof ParametricSymbolConfigSchema>;
 
+// ── Block Diagram Footprint (Fase Hardware/Layer 2) ───────────────────────────
+
+export const MPPTChannelSchema = z.object({
+  mpptIndex: z.number().int().min(1),     // base 1 para exibição
+  inputCount: z.number().int().min(1),    // pares de bornes +/− físicos (MC4)
+  inputLabels: z.array(z.string()).optional(), // ex: ["PV1", "PV2"]
+});
+
+export const BlockDiagramFootprintSchema = z.object({
+  inverterId: z.string(),
+  mpptChannels: z.array(MPPTChannelSchema),
+  acOutput: z.object({
+    label: z.string(),       // ex: "CA 220V", "CA 380V"
+    phase: z.enum(['mono', 'tri']),
+  }),
+});
+
+export type MPPTChannel = z.infer<typeof MPPTChannelSchema>;
+export type BlockDiagramFootprint = z.infer<typeof BlockDiagramFootprintSchema>;
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const InverterCatalogItemSchema = z.object({
@@ -41,7 +61,8 @@ export const InverterCatalogItemSchema = z.object({
   model: z.string().min(1),
   imageUrl: z.string().optional(),
   unifilarSymbolRef: z.string().optional(),
-  symbolConfig: ParametricSymbolConfigSchema.nullable().optional(), // PSB
+  symbolConfig: ParametricSymbolConfigSchema.nullable().optional(), // PSB (Layer 3)
+  blockDiagramFootprint: BlockDiagramFootprintSchema.nullable().optional(), // Hardware (Layer 2)
   nominalPowerW: z.number().positive(), // W — potência nominal CA
   maxDCPowerW: z.number().positive(),   // W — potência máxima CC
   mppts: z.array(MPPTSpecSchema).min(1),

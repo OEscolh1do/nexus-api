@@ -7,7 +7,7 @@ import { useThermalPremises } from '../../../hooks/useThermalPremises';
 import { useInverterUIStore } from '../../../store/useInverterUIStore';
 import { useCatalogStore } from '../../../store/useCatalogStore';
 import { toArray } from '@/core/types/normalized.types';
-import { Zap, Cpu, Sun, Terminal, ChevronUp, ChevronDown } from 'lucide-react';
+import { Zap, Cpu, Sun, Terminal, ChevronUp, ChevronDown, GitBranch } from 'lucide-react';
 import { useUIStore } from '@/core/state/uiStore';
 import { calculateStringMetrics } from '../../../utils/electricalMath';
 import type { InverterCatalogItem } from '@/core/schemas/inverterSchema';
@@ -26,6 +26,8 @@ import { TemperatureTab } from './electrical/TemperatureTab';
 import { parsePanOnd } from '@/utils/pvsystParser';
 import { mapOndToInverter } from '../../../utils/ondAdapter';
 import { ENGINEERING_CONSTANTS } from '../../../constants/engineeringConstants';
+
+import { UnifilarSchematicCanvas, type MpptValidationError } from './electrical/UnifilarSchematicCanvas';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Importar componentes do canvas elétrico
@@ -214,6 +216,26 @@ export const ElectricalCanvasView: React.FC = () => {
   const activeMpptCount = useMemo(() => {
     return Object.values(mpptMetrics).filter(m => m.powerKwp > 0).length;
   }, [mpptMetrics]);
+
+  // Catalog item do inversor ativo (para UnifilarSchematicCanvas)
+  const activeCatalogItem = useMemo(
+    () => catalogInverters.find((c: InverterCatalogItem) => c.id === activeInverter?.catalogId),
+    [catalogInverters, activeInverter],
+  );
+
+  // ── Erros de validação por MPPT → marcadores no canvas unifilar ───────────
+  const validationErrors = useMemo<Record<number, MpptValidationError>>(() => {
+    const result: Record<number, MpptValidationError> = {};
+    electrical?.entries?.forEach(entry => {
+      if (entry.status !== 'ok' && entry.messages.length > 0) {
+        result[entry.mpptId] = {
+          severity: entry.status === 'error' ? 'error' : 'warn',
+          messages: entry.messages,
+        };
+      }
+    });
+    return result;
+  }, [electrical]);
 
   // ── Chips de validação para o Hub ─────────────────────────────────────────
    // Pills de status global (apenas se houver algo fora do normal ou informativo)
@@ -437,13 +459,16 @@ export const ElectricalCanvasView: React.FC = () => {
         {/* Canvas Principal — flex-1, ocupa toda a largura menos o inspector */}
         <div className="flex-1 flex flex-col min-h-0">
 
-          {/* Tab Bar — audit é a tab padrão (memorial NBR 16690 em primeiro plano) */}
+          {/* Tab Bar — unifilar é a tab padrão (esquema IEC em primeiro plano) */}
           <div className="flex items-center border-b border-slate-800 shrink-0 bg-slate-950/80 px-4">
-            {([
-              { id: 'audit',       label: 'Auditoria de Cálculo' },
-              { id: 'temperatura', label: 'Temperatura' },
-              { id: 'oversizing',  label: 'FDI / Oversizing' },
-            ] as const).map(tab => (
+            {(
+              [
+                { id: 'unifilar'    as const, label: 'Esquema Unifilar',      hasIcon: true  },
+                { id: 'audit'       as const, label: 'Auditoria de Cálculo',  hasIcon: false },
+                { id: 'temperatura' as const, label: 'Temperatura',            hasIcon: false },
+                { id: 'oversizing'  as const, label: 'FDI / Oversizing',       hasIcon: false },
+              ]
+            ).map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveCanvasTab(tab.id)}
@@ -454,13 +479,22 @@ export const ElectricalCanvasView: React.FC = () => {
                     : 'text-slate-500 border-transparent hover:text-slate-300 hover:border-slate-700'
                 )}
               >
+                {tab.hasIcon && <GitBranch size={10} />}
                 {tab.label}
               </button>
             ))}
           </div>
 
           {/* Tab Content */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+          <div className={cn('flex-1 min-h-0', activeCanvasTab === 'unifilar' ? 'overflow-hidden' : 'overflow-y-auto custom-scrollbar p-6')}>
+            {activeCanvasTab === 'unifilar' && activeInverter && (
+              <UnifilarSchematicCanvas
+                inverter={activeInverter}
+                catalogItem={activeCatalogItem}
+                mpptMetrics={mpptMetrics}
+                validationErrors={validationErrors}
+              />
+            )}
             {activeCanvasTab === 'audit' && (
               <div className="max-w-5xl mx-auto">
                 <CalculationAuditPanel

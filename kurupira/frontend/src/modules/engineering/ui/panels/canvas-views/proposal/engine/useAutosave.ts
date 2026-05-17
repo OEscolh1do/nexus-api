@@ -39,6 +39,13 @@ export function useAutosave(
   onRestoreVersion: (layout: ProposalTemplate) => void,
 ) {
   const lastSavedLayoutRef = useRef<string>('');
+  // Shadow activeLayout in a ref so the autosave interval callback always reads the
+  // current layout without needing activeLayout in the dep array. Without this,
+  // activeLayout (a Zustand value) gets a new object reference on every drag-frame
+  // store update, causing the 30-second interval to clear and restart continuously
+  // during drag strokes — effectively suppressing autosave while the user is dragging.
+  const activeLayoutRef = useRef(activeLayout);
+  activeLayoutRef.current = activeLayout;
 
   const saveVersion = useCallback((layout: ProposalTemplate, isManual = false) => {
     const serialized = JSON.stringify(layout);
@@ -72,12 +79,19 @@ export function useAutosave(
     saveVersions(next);
   }, []);
 
-  // Autosave every 30s when dirty
+  // Autosave every 30s when dirty.
+  // activeLayout is intentionally omitted from the dep array — it is read at fire time
+  // via activeLayoutRef.current. Including it would reset the interval on every
+  // drag-frame Zustand update, preventing the 30-second timer from ever expiring.
   useEffect(() => {
-    if (!activeLayout || !isDirty) return;
-    const timer = setInterval(() => saveVersion(activeLayout, false), AUTOSAVE_INTERVAL_MS);
+    if (!isDirty) return;
+    const timer = setInterval(() => {
+      const layout = activeLayoutRef.current;
+      if (!layout) return;
+      saveVersion(layout, false);
+    }, AUTOSAVE_INTERVAL_MS);
     return () => clearInterval(timer);
-  }, [activeLayout, isDirty, saveVersion]);
+  }, [isDirty, saveVersion]);
 
   return { saveVersion, loadVersions, onRestoreVersion };
 }

@@ -136,6 +136,33 @@ function applySmartGuides(
   return { x: snappedX, y: snappedY, guides: { x: guidesX, y: guidesY } };
 }
 
+// ─── Context menu item ────────────────────────────────────────────────────────
+
+function ContextMenuItem({ onClick, danger, autoFocus, children }: {
+  onClick: () => void;
+  danger?: boolean;
+  autoFocus?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      role="menuitem"
+      tabIndex={-1}
+      autoFocus={autoFocus}
+      style={{
+        width: '100%', textAlign: 'left', padding: '7px 12px', fontSize: 12,
+        color: danger ? '#f87171' : '#cbd5e1',
+        background: 'none', border: 'none', cursor: 'pointer', display: 'block',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = danger ? '#3f1212' : '#334155'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 interface Props {
@@ -180,10 +207,47 @@ export function CanvasElementWrapper({
   const dragAbortRef   = useRef<AbortController | null>(null);
   const rotationAbortRef = useRef<AbortController | null>(null);
 
-  // Clean up any dangling window listeners when the element is removed mid-drag
+  // Shadow volatile props in refs so drag mousemove callbacks always read current values
+  // without being listed in dep arrays (which would cause recreation on every drag frame).
+  const elementRef          = useRef(element);
+  elementRef.current        = element;
+  const canvasScaleRef      = useRef(canvasScale);
+  canvasScaleRef.current    = canvasScale;
+  const gridSizeRef         = useRef(gridSize);
+  gridSizeRef.current       = gridSize;
+  const snapEnabledRef      = useRef(snapEnabled);
+  snapEnabledRef.current    = snapEnabled;
+  const guidesEnabledRef    = useRef(guidesEnabled);
+  guidesEnabledRef.current  = guidesEnabled;
+  const otherElementsRef    = useRef(otherElements);
+  otherElementsRef.current  = otherElements;
+  // Timer IDs for tooltip dismissal — cleared on unmount to prevent setState after unmount.
+  const resizeTooltipTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rotationTooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Shadow callback props so all three drag handlers can have minimal dep arrays.
+  // Callbacks are read at event time (mousedown/mousemove), not at registration time,
+  // so freshness is always guaranteed without listing them as deps.
+  const onSelectRef          = useRef(onSelect);
+  onSelectRef.current        = onSelect;
+  const onUpdateRef          = useRef(onUpdate);
+  onUpdateRef.current        = onUpdate;
+  const onGuideChangeRef     = useRef(onGuideChange);
+  onGuideChangeRef.current   = onGuideChange;
+  const onGroupDragStartRef  = useRef(onGroupDragStart);
+  onGroupDragStartRef.current = onGroupDragStart;
+  const onGroupDragDeltaRef  = useRef(onGroupDragDelta);
+  onGroupDragDeltaRef.current = onGroupDragDelta;
+  const onGroupDragEndRef    = useRef(onGroupDragEnd);
+  onGroupDragEndRef.current  = onGroupDragEnd;
+  const onMutationStartRef   = useRef(onMutationStart);
+  onMutationStartRef.current = onMutationStart;
+
+  // Clean up any dangling window listeners and pending timers when element is removed mid-drag
   useEffect(() => () => {
     dragAbortRef.current?.abort();
     rotationAbortRef.current?.abort();
+    if (resizeTooltipTimerRef.current !== null)   clearTimeout(resizeTooltipTimerRef.current);
+    if (rotationTooltipTimerRef.current !== null) clearTimeout(rotationTooltipTimerRef.current);
   }, []);
 
   // Close context menu on outside click or Escape
@@ -205,31 +269,28 @@ export function CanvasElementWrapper({
   const isLocked    = element.locked;
   const isPageBlock = element.type.startsWith('page-');
 
-  const scaledThreshold = GUIDE_THRESHOLD / canvasScale;
-
   // ── Move drag ──────────────────────────────────────────────────────────────
 
   const handleMouseDownMove = useCallback((e: React.MouseEvent) => {
-    onMutationStart?.();
-    // Group drag: when element is part of a multi-selection group
+    onMutationStartRef.current?.();
     dragAbortRef.current?.abort();
     dragAbortRef.current = new AbortController();
     const { signal } = dragAbortRef.current;
 
-    if (isGrouped && onGroupDragStart && onGroupDragDelta && onGroupDragEnd) {
+    if (isGrouped && onGroupDragStartRef.current && onGroupDragDeltaRef.current && onGroupDragEndRef.current) {
       dragStartRef.current = null;
       e.preventDefault();
       e.stopPropagation();
-      onGroupDragStart();
+      onGroupDragStartRef.current();
       const startX = e.clientX;
       const startY = e.clientY;
 
       window.addEventListener('mousemove', (ev: MouseEvent) => {
-        onGroupDragDelta((ev.clientX - startX) / canvasScale, (ev.clientY - startY) / canvasScale);
+        onGroupDragDeltaRef.current!((ev.clientX - startX) / canvasScaleRef.current, (ev.clientY - startY) / canvasScaleRef.current);
       }, { signal });
       window.addEventListener('mouseup', () => {
-        onGroupDragEnd();
-        onGuideChange({ x: [], y: [] });
+        onGroupDragEndRef.current!();
+        onGuideChangeRef.current({ x: [], y: [] });
       }, { signal });
       return;
     }
@@ -237,53 +298,57 @@ export function CanvasElementWrapper({
     if (isLocked || isPageBlock || isTextEditing) return;
     e.preventDefault();
     e.stopPropagation();
-    onSelect();
+    onSelectRef.current();
 
     dragStartRef.current = {
       mouseX: e.clientX,
       mouseY: e.clientY,
-      elemX: element.x,
-      elemY: element.y,
+      elemX: elementRef.current.x,
+      elemY: elementRef.current.y,
     };
 
     window.addEventListener('mousemove', (ev: MouseEvent) => {
       if (!dragStartRef.current) return;
       setIsDragging(true);
-      const dx = (ev.clientX - dragStartRef.current.mouseX) / canvasScale;
-      const dy = (ev.clientY - dragStartRef.current.mouseY) / canvasScale;
+      const el    = elementRef.current;
+      const scale = canvasScaleRef.current;
+      const dx = (ev.clientX - dragStartRef.current.mouseX) / scale;
+      const dy = (ev.clientY - dragStartRef.current.mouseY) / scale;
 
-      let rawX = Math.max(0, Math.min(A4_WIDTH - element.width, dragStartRef.current.elemX + dx));
-      let rawY = Math.max(0, Math.min(A4_HEIGHT - element.height, dragStartRef.current.elemY + dy));
+      let rawX = Math.max(0, Math.min(A4_WIDTH  - el.width,  dragStartRef.current.elemX + dx));
+      let rawY = Math.max(0, Math.min(A4_HEIGHT - el.height, dragStartRef.current.elemY + dy));
 
-      rawX = snapToGrid(rawX, gridSize, snapEnabled);
-      rawY = snapToGrid(rawY, gridSize, snapEnabled);
+      rawX = snapToGrid(rawX, gridSizeRef.current, snapEnabledRef.current);
+      rawY = snapToGrid(rawY, gridSizeRef.current, snapEnabledRef.current);
 
       const { x, y, guides } = applySmartGuides(
-        rawX, rawY, element.width, element.height,
-        otherElements, scaledThreshold, guidesEnabled, element.id,
+        rawX, rawY, el.width, el.height,
+        otherElementsRef.current, GUIDE_THRESHOLD / scale, guidesEnabledRef.current, el.id,
       );
 
-      onGuideChange(guides);
-      onUpdate({ x: Math.round(x), y: Math.round(y) });
+      onGuideChangeRef.current(guides);
+      onUpdateRef.current({ x: Math.round(x), y: Math.round(y) });
     }, { signal });
 
     window.addEventListener('mouseup', () => {
       setIsDragging(false);
       dragStartRef.current = null;
-      onGuideChange({ x: [], y: [] });
+      onGuideChangeRef.current({ x: [], y: [] });
     }, { signal });
-  }, [isGrouped, isLocked, isPageBlock, isTextEditing, element, canvasScale, gridSize, snapEnabled, guidesEnabled, otherElements, scaledThreshold, onSelect, onUpdate, onGuideChange, onGroupDragStart, onGroupDragDelta, onGroupDragEnd, onMutationStart]);
+  }, [isGrouped, isLocked, isPageBlock, isTextEditing]);
 
   // ── Resize drag ────────────────────────────────────────────────────────────
 
   const handleResizeMouseDown = useCallback((e: React.MouseEvent, handle: ResizeHandle) => {
     if (isLocked) return;
-    onMutationStart?.();
+    onMutationStartRef.current?.();
     e.preventDefault();
     e.stopPropagation();
 
     const lockAspect = e.shiftKey;
-    const aspectRatio = element.width / element.height;
+    // Capture element state at the moment resize begins via ref (always current).
+    const el = elementRef.current;
+    const aspectRatio = el.width / el.height;
 
     // Clear any in-progress move drag before starting resize
     dragStartRef.current = null;
@@ -291,10 +356,10 @@ export function CanvasElementWrapper({
     resizeStartRef.current = {
       mouseX: e.clientX,
       mouseY: e.clientY,
-      elemX: element.x,
-      elemY: element.y,
-      elemW: element.width,
-      elemH: element.height,
+      elemX: el.x,
+      elemY: el.y,
+      elemW: el.width,
+      elemH: el.height,
       handle,
     };
 
@@ -304,23 +369,26 @@ export function CanvasElementWrapper({
 
     const MIN_SIZE = 20;
 
+    // canvasScale, gridSize, snapEnabled are read from refs on each mousemove
+    // so the closure never goes stale if settings change during a resize.
     window.addEventListener('mousemove', (ev: MouseEvent) => {
       if (!resizeStartRef.current) return;
       const { mouseX, mouseY, elemX, elemY, elemW, elemH, handle: h } = resizeStartRef.current;
-      const dx = (ev.clientX - mouseX) / canvasScale;
-      const dy = (ev.clientY - mouseY) / canvasScale;
+      const scale = canvasScaleRef.current;
+      const dx = (ev.clientX - mouseX) / scale;
+      const dy = (ev.clientY - mouseY) / scale;
 
       let newX = elemX, newY = elemY, newW = elemW, newH = elemH;
 
-      if (h.includes('e')) newW = Math.max(MIN_SIZE, snapToGrid(elemW + dx, gridSize, snapEnabled));
-      if (h.includes('s')) newH = Math.max(MIN_SIZE, snapToGrid(elemH + dy, gridSize, snapEnabled));
+      if (h.includes('e')) newW = Math.max(MIN_SIZE, snapToGrid(elemW + dx, gridSizeRef.current, snapEnabledRef.current));
+      if (h.includes('s')) newH = Math.max(MIN_SIZE, snapToGrid(elemH + dy, gridSizeRef.current, snapEnabledRef.current));
       if (h.includes('w')) {
-        const snapped = snapToGrid(elemX + dx, gridSize, snapEnabled);
+        const snapped = snapToGrid(elemX + dx, gridSizeRef.current, snapEnabledRef.current);
         newW = Math.max(MIN_SIZE, elemX + elemW - snapped);
         newX = elemX + elemW - newW;
       }
       if (h.includes('n')) {
-        const snapped = snapToGrid(elemY + dy, gridSize, snapEnabled);
+        const snapped = snapToGrid(elemY + dy, gridSizeRef.current, snapEnabledRef.current);
         newH = Math.max(MIN_SIZE, elemY + elemH - snapped);
         newY = elemY + elemH - newH;
       }
@@ -330,8 +398,10 @@ export function CanvasElementWrapper({
         const movesW = ['nw', 'ne', 'sw', 'se', 'w', 'e'].includes(handle);
         const movesH = ['nw', 'ne', 'sw', 'se', 'n', 's'].includes(handle);
         if (isCorner) {
-          const deltaW = Math.abs(newW - element.width);
-          const deltaH = Math.abs(newH - element.height);
+          // Compare against initial dims (elemW/H) not the current element prop —
+          // the prop updates every frame via onUpdate, making delta comparisons unreliable.
+          const deltaW = Math.abs(newW - elemW);
+          const deltaH = Math.abs(newH - elemH);
           if (deltaW > deltaH) {
             newH = Math.round(newW / aspectRatio);
           } else {
@@ -345,20 +415,21 @@ export function CanvasElementWrapper({
       }
 
       setResizeTooltip({ x: ev.clientX + 12, y: ev.clientY + 12, w: Math.round(newW), h: Math.round(newH) });
-      onUpdate({ x: Math.round(newX), y: Math.round(newY), width: Math.round(newW), height: Math.round(newH) });
+      onUpdateRef.current({ x: Math.round(newX), y: Math.round(newY), width: Math.round(newW), height: Math.round(newH) });
     }, { signal });
 
     window.addEventListener('mouseup', () => {
       resizeStartRef.current = null;
-      setTimeout(() => setResizeTooltip(null), 800);
+      if (resizeTooltipTimerRef.current !== null) clearTimeout(resizeTooltipTimerRef.current);
+      resizeTooltipTimerRef.current = setTimeout(() => setResizeTooltip(null), 800);
     }, { signal });
-  }, [isLocked, element, canvasScale, gridSize, snapEnabled, onUpdate, onMutationStart]);
+  }, [isLocked]);
 
   // ── Rotation handle drag ───────────────────────────────────────────────────
 
   const handleRotationMouseDown = useCallback((e: React.MouseEvent) => {
     if (isLocked) return;
-    onMutationStart?.();
+    onMutationStartRef.current?.();
     e.preventDefault();
     e.stopPropagation();
 
@@ -388,14 +459,15 @@ export function CanvasElementWrapper({
       const normalised = ((rawAngle % 360) + 360) % 360;
       const snapped = ev.shiftKey ? Math.round(normalised / 15) * 15 : Math.round(normalised);
       setRotationTooltip({ x: ev.clientX + 12, y: ev.clientY + 12, angle: snapped });
-      onUpdate({ rotation: snapped });
+      onUpdateRef.current({ rotation: snapped });
     }, { signal });
 
     window.addEventListener('mouseup', () => {
       rotationAbortRef.current?.abort();
-      setTimeout(() => setRotationTooltip(null), 800);
+      if (rotationTooltipTimerRef.current !== null) clearTimeout(rotationTooltipTimerRef.current);
+      rotationTooltipTimerRef.current = setTimeout(() => setRotationTooltip(null), 800);
     }, { signal });
-  }, [isLocked, onUpdate, onMutationStart]);
+  }, [isLocked]);
 
   // ── Double click para editar texto ─────────────────────────────────────────
 
@@ -414,9 +486,9 @@ export function CanvasElementWrapper({
   }, [element.groupId, element.type, isInGroupEdit, groupEditMode, onEnterGroupEdit]);
 
   const handlePropsChange = useCallback((props: Record<string, unknown>) => {
-    onUpdate({ props });
+    onUpdateRef.current({ props });
     setIsTextEditing(false);
-  }, [onUpdate]);
+  }, []);
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -433,7 +505,7 @@ export function CanvasElementWrapper({
         top: element.y,
         width: element.width,
         height: element.height,
-        zIndex: element.zIndex,
+        zIndex: isDragging ? 9999 : element.zIndex,
         opacity,
         pointerEvents: isOutsideGroup ? 'none' : 'auto',
         outline: isGrouped
@@ -634,62 +706,28 @@ export function CanvasElementWrapper({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Bring to front */}
-        <button
-          role="menuitem"
-          tabIndex={-1}
-          autoFocus
-          style={{ width: '100%', textAlign: 'left', padding: '7px 12px', fontSize: 12, color: '#cbd5e1', background: 'none', border: 'none', cursor: 'pointer', display: 'block' }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = '#334155')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
-          onClick={() => {
-            const maxZ = otherElements.length > 0 ? Math.max(...otherElements.map(e => e.zIndex)) : element.zIndex;
-            onUpdate({ zIndex: maxZ + 1 });
-            setContextMenu(null);
-          }}
-        >
+        <ContextMenuItem autoFocus onClick={() => {
+          const maxZ = otherElements.length > 0 ? Math.max(...otherElements.map(e => e.zIndex)) : element.zIndex;
+          onUpdateRef.current({ zIndex: maxZ + 1 });
+          setContextMenu(null);
+        }}>
           Trazer para frente
-        </button>
-        {/* Send to back */}
-        <button
-          role="menuitem"
-          tabIndex={-1}
-          style={{ width: '100%', textAlign: 'left', padding: '7px 12px', fontSize: 12, color: '#cbd5e1', background: 'none', border: 'none', cursor: 'pointer', display: 'block' }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = '#334155')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
-          onClick={() => {
-            const minZ = otherElements.length > 0 ? Math.min(...otherElements.map(e => e.zIndex)) : element.zIndex;
-            onUpdate({ zIndex: minZ - 1 });
-            setContextMenu(null);
-          }}
-        >
+        </ContextMenuItem>
+        <ContextMenuItem onClick={() => {
+          const minZ = otherElements.length > 0 ? Math.min(...otherElements.map(e => e.zIndex)) : element.zIndex;
+          onUpdateRef.current({ zIndex: minZ - 1 });
+          setContextMenu(null);
+        }}>
           Enviar para trás
-        </button>
-        {/* Divider */}
+        </ContextMenuItem>
         <div style={{ height: 1, background: '#334155', margin: '2px 0' }} />
-        {/* Duplicate */}
-        <button
-          role="menuitem"
-          tabIndex={-1}
-          style={{ width: '100%', textAlign: 'left', padding: '7px 12px', fontSize: 12, color: '#cbd5e1', background: 'none', border: 'none', cursor: 'pointer', display: 'block' }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = '#334155')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
-          onClick={() => { onDuplicate?.(); setContextMenu(null); }}
-        >
+        <ContextMenuItem onClick={() => { onDuplicate?.(); setContextMenu(null); }}>
           Duplicar
-        </button>
-        {/* Delete */}
+        </ContextMenuItem>
         {!isLocked && (
-          <button
-            role="menuitem"
-            tabIndex={-1}
-            style={{ width: '100%', textAlign: 'left', padding: '7px 12px', fontSize: 12, color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', display: 'block' }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = '#3f1212')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
-            onClick={() => { onRemove?.(); setContextMenu(null); }}
-          >
+          <ContextMenuItem danger onClick={() => { onRemove?.(); setContextMenu(null); }}>
             Excluir
-          </button>
+          </ContextMenuItem>
         )}
       </div>,
       document.body,
