@@ -50,12 +50,17 @@ export const calculateStringMetrics = (
     minAmbientTemp: number = 0, // Coldest day (affects Voc Max)
     maxCellTemp: number = 70    // Hot operating cell (affects Vmp Min)
 ) => {
-    if (modulesPerString <= 0) {
+    // R4-04: Guard against invalid specs that would corrupt thermal calculations
+    // R5-06: Added NaN/Infinity validation to prevent corruption downstream
+    if (!specs || modulesPerString <= 0 ||
+        specs.voc <= 0 || specs.isc <= 0 ||
+        !Number.isFinite(specs.voc) || !Number.isFinite(specs.isc)) {
         return {
             vocMax: 0,
             vmpMin: 0,
             vmpMax: 0,
-            vmpNominal: 0
+            vmpNominal: 0,
+            powerKwp: 0
         };
     }
 
@@ -156,10 +161,11 @@ export const calculateVoltageDrop = (
 
 /**
  * Calculates string fuse rating (gPV)
- * Formula: Math.ceil(1.5 * Isc) then rounded to next commercial size
+ * R7-02: NBR 16690:2019 §712.433.2 define que a corrente nominal do fusível deve ser ≥ 1,25 × Isc
+ * Formula: Math.ceil(1.25 * Isc) then rounded to next commercial size
  */
 export const calculateFuseRating = (isc: number): number => {
-    const rawRating = isc * 1.5;
+    const rawRating = isc * 1.25; // NBR 16690:2019 §712.433.2
     const commercialSizes = [10, 12, 15, 20, 25, 30, 32, 40, 50, 63];
     return commercialSizes.find(size => size >= rawRating) || Math.ceil(rawRating);
 };
@@ -215,7 +221,8 @@ export const validateSystemStrings = (
         }
 
         // The longest string dictates the maximum Voc and minimum Vmp
-        const maxModulesInParallel = Math.max(...activeStrings.map(s => s.modulesCount));
+        // Safe: guard de array vazio acima garante activeStrings.length > 0
+        const maxModulesInParallel = Math.max(...activeStrings.map(s => s.modulesCount), 0);
 
         const metrics = calculateStringMetrics(
             moduleSpecs,
@@ -265,31 +272,38 @@ export const validateSystemStrings = (
         }
 
         // 5. [NEW] NBR 16690: Fusíveis de String
-        if (activeStrings.length >= 3) {
+        // R7-03: NBR 16690:2019 §712.433.1 — fusível obrigatório quando (N-1)×Isc > Imod_max_reverse
+        // Fallback conservador: Imod_max_reverse ≈ 1.35×Isc (padrão IEC 61215 para módulos cristalinos)
+        // quando imodMaxReverse não disponível no catálogo
+        const imodMaxReverse = (moduleSpecs as any).imodMaxReverse ?? moduleSpecs.isc * 1.35;
+        const needsFuse = (activeStrings.length - 1) * moduleSpecs.isc > imodMaxReverse;
+
+        if (needsFuse) {
             const fuseRating = calculateFuseRating(moduleSpecs.isc);
             if (status !== 'error') status = 'warning';
             messages.push(
-                `Exigência NBR 16690: Fusível gPV de ${fuseRating}A obrigatório (${activeStrings.length} strings em paralelo). Nota: Usando N≥3 como proxy conservador ao invés de (Sa-1)×Isc > Imod_max_ocpr.`
+                `Exigência NBR 16690 §712.433.1: Fusível gPV de ${fuseRating}A obrigatório — (N-1)×Isc = ${((activeStrings.length - 1) * moduleSpecs.isc).toFixed(1)}A > Imod_max_reverse = ${imodMaxReverse.toFixed(1)}A.`
             );
         }
 
         // 6. [NEW] Queda de Tensão CC (Avaliada por String)
+        // R7-01: NBR 16690:2019 §522.8.3 exige avaliação em Vmp quente (temperatura máxima da célula)
         activeStrings.forEach(str => {
             if (str.cableLength && str.cableSection && str.modulesCount > 0) {
-                // Calculate individual nominal voltage for this string
+                // Calculate individual voltage metrics for this string
                 const strMetrics = calculateStringMetrics(moduleSpecs, str.modulesCount, minAmbientTemp, maxCellTemp);
                 const drop = calculateVoltageDrop(
                     str.cableLength,
                     moduleSpecs.imp, // Usa a corrente operacional REAL (fim do Mock Sweeper)
                     str.cableSection,
-                    strMetrics.vmpNominal
+                    strMetrics.vmpMin // R7-01: Usa Vmp quente (ponto de trabalho efetivo) conforme NBR 16690
                 );
                 if (drop.percent > 2.0) {
                     status = 'error';
-                    messages.push(`Queda de tensão excessiva na anilha ${str.name}: ${drop.percent.toFixed(2)}% (Limite 2%).`);
+                    messages.push(`Queda de tensão CC excessiva (anilha ${str.name}): ${drop.percent.toFixed(2)}% sobre Vmp quente — Limite NBR 16690: 2%.`);
                 } else if (drop.percent > 1.0) {
                     if (status !== 'error') status = 'warning';
-                    messages.push(`Queda de tensão CC elevada na anilha ${str.name}: ${drop.percent.toFixed(2)}% (Recomendado < 1%).`);
+                    messages.push(`Queda de tensão CC elevada (anilha ${str.name}): ${drop.percent.toFixed(2)}% sobre Vmp quente — Recomendado: < 1%.`);
                 }
             }
         });

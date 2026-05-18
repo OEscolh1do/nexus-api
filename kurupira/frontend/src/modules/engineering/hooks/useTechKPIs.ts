@@ -1,26 +1,24 @@
 import { useMemo } from 'react';
 import { useSolarStore, selectModules } from '@/core/state/solarStore';
-import { useTechStore } from '../store/useTechStore';
+import { useTechStore, selectTechInvertersArray } from '../store/useTechStore';
 import { useProjectContext } from '@/hooks/useProjectContext';
-import { toArray } from '@/core/types/normalized.types';
 
 export const useTechKPIs = () => {
     // 1. Consume data from stores
     const modules = useSolarStore(selectModules);
     const clientData = useSolarStore(state => state.clientData);
+    const placedModules = useSolarStore(state => state.project.placedModules);
+    const moduleSpecsEntities = useSolarStore(state => state.modules.entities);
 
     const {
         lossProfile,
         getPerformanceRatio,
         getAdditivePerformanceRatio,
-        prCalculationMode,
-        inverters: techInvertersNormalized,
-        strings: techStringsNormalized
+        prCalculationMode
     } = useTechStore();
 
-    // PRÉ-1: converter NormalizedCollection para array para cálculos
-    const techInverters = useMemo(() => toArray(techInvertersNormalized), [techInvertersNormalized]);
-    const techStrings = useMemo(() => toArray(techStringsNormalized), [techStringsNormalized]);
+    // R4-09: Usar selectors estáveis ao invés de toArray instável
+    const techInverters = useTechStore(selectTechInvertersArray);
 
     const { energyGoal } = useProjectContext();
 
@@ -28,6 +26,13 @@ export const useTechKPIs = () => {
     const kpi = useMemo(() => {
         // Total DC Power (kWp) - Baseado em todo o inventário selecionado (Ato 2)
         const totalDC = modules.reduce((acc, m) => acc + (m.power), 0) / 1000;
+
+        // DC power from actually PLACED modules (engineering accuracy)
+        // Uses moduleSpecId to look up Pmax from specs
+        const placedDC = placedModules.reduce((acc, m) => {
+            const spec = m.moduleSpecId ? moduleSpecsEntities[m.moduleSpecId] : null;
+            return acc + (spec?.power ?? 0);
+        }, 0) / 1000;
 
         // Total AC Power (kW) - Using Snapshot (Source of Truth já está em kW)
         const totalAC = techInverters.reduce((acc, inv) => {
@@ -40,7 +45,8 @@ export const useTechKPIs = () => {
         const areaUsagePercent = availableArea > 0 ? (usedArea / availableArea) * 100 : 0;
 
         // Inverter Sizing Factor (FDI / DC/AC Ratio)
-        const dcAcRatio = totalAC > 0 ? totalDC / totalAC : 0;
+        // FDI uses placed modules (not inventory) for engineering accuracy
+        const dcAcRatio = totalAC > 0 && placedDC > 0 ? placedDC / totalAC : 0;
 
         const efficiencyFactor = getAdditivePerformanceRatio(); 
         const hspAvgManual = (clientData.monthlyIrradiation && clientData.monthlyIrradiation.length > 0)
@@ -58,6 +64,7 @@ export const useTechKPIs = () => {
 
         return {
             totalDC,
+            placedDC,
             totalAC,
             usedArea,
             availableArea,
@@ -67,7 +74,7 @@ export const useTechKPIs = () => {
             targetConsumption,
             generationCoverage
         };
-    }, [modules, techInverters, techStrings, energyGoal.monthlyTarget, getAdditivePerformanceRatio, clientData.availableArea]);
+    }, [modules, placedModules.length, moduleSpecsEntities, techInverters, energyGoal.monthlyTarget, getAdditivePerformanceRatio, clientData.availableArea]);
 
     // 3. PR Calculation Priority Logic
     const prDecimalIEC = getPerformanceRatio();
@@ -89,7 +96,7 @@ export const useTechKPIs = () => {
         : 4.5;
 
     const formulas = {
-        dcPower: `${kpi.totalDC.toFixed(2)} kWp = (Σ Módulos x Pmax) / 1000`,
+        dcPower: `${kpi.placedDC.toFixed(2)} kWp instalados / ${kpi.totalDC.toFixed(2)} kWp inventário`,
         estimatedGeneration: `${Math.round(kpi.estimatedGeneration)} kWh/mês = ${kpi.totalDC.toFixed(2)} kWp x ${hspAvg} HSP x 30 dias x ${displayedPr}% PR`
     };
 

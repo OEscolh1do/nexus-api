@@ -124,7 +124,9 @@ export const ModuleMeshes: React.FC = () => {
       if (selectedMultiIds.includes(pm.id)) {
         tempColor.set(0x4fc3f7);
       } else if (pm.stringData?.mpptId) {
-        const mpptIndex = (pm.stringData.mpptId - 1) % STRING_COLORS.length;
+        const mpptIndex = Number.isFinite(pm.stringData.mpptId)
+          ? ((pm.stringData.mpptId - 1) % STRING_COLORS.length)
+          : 0;
         tempColor.set(STRING_COLORS[mpptIndex]);
       } else {
         tempColor.set(0x1e3a5f);

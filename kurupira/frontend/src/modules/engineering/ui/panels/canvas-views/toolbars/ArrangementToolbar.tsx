@@ -1,11 +1,11 @@
 import React from 'react';
-import { 
-  Square, 
-  Minus, 
-  MoveVertical, 
+import {
+  Square,
+  Minus,
+  MoveVertical,
   MoveHorizontal,
   Settings,
-  Lock,
+  LayoutGrid,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/core/state/uiStore';
@@ -91,13 +91,13 @@ export const ArrangementToolbar: React.FC = () => {
           onClick={() => setActiveTool('POLYGON')}
           shortcut="P"
         />
-        <ToolbarButton 
-          icon={Minus} 
-          label="Corredor Técnico (Subtract)" 
-          active={activeTool === 'SUBTRACT'} 
-          onClick={() => setActiveTool('SUBTRACT')} 
+        <ToolbarButton
+          icon={Minus}
+          label="Corredor Técnico (Subtract)"
+          active={activeTool === 'SUBTRACT'}
+          onClick={() => setActiveTool('SUBTRACT')}
           disabled={isLayout0}
-          shortcut="S"
+          shortcut="B"
         />
       </RibbonSection>
 
@@ -124,9 +124,9 @@ export const ArrangementToolbar: React.FC = () => {
 
       {/* D1: Auto-Layout — migrado do ribbon local */}
       <RibbonSection>
-        <ToolbarButton 
-          icon={Lock} 
-          label="Auto-Layout (preencher área)" 
+        <ToolbarButton
+          icon={LayoutGrid}
+          label="Auto-Layout (preencher área selecionada)"
           active={false}
           disabled={!selectedEntityId}
           onClick={() => selectedEntityId && autoLayoutArea(selectedEntityId)}
@@ -136,11 +136,12 @@ export const ArrangementToolbar: React.FC = () => {
       {/* Ajuste fino de afastamentos */}
       {!isLayout0 && (
         <RibbonSection>
-          <ToolbarButton 
-            icon={Settings} 
-            label="Ajustar Afastamentos" 
-            active={false} 
-            onClick={() => alert("Configuração de Afastamentos em desenvolvimento")} 
+          <ToolbarButton
+            icon={Settings}
+            label="Afastamentos (em breve)"
+            active={false}
+            disabled={true}
+            onClick={() => {}}
           />
         </RibbonSection>
       )}

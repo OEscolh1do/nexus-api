@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Trash2, Settings2, Plus, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { StringDef } from '../../../../../store/useTechStore';
@@ -46,24 +46,32 @@ export const StringRow: React.FC<StringRowProps> = ({
   onRemove,
   onOpenProperties,
 }) => {
-  const isEmpty = str.modulesCount === 0;
+  // C01: Estado local para modulesCount — sincroniza com store apenas no blur/stepper
+  const [localModulesCount, setLocalModulesCount] = useState(str.modulesCount);
 
-  // Tensão desta string (V)
-  const stringVoc = (unitVoc || 0) * str.modulesCount;
+  // C01: Sincronizar se valor externo mudar (e.g., autoDistribute ou outras fontes)
+  useEffect(() => {
+    setLocalModulesCount(str.modulesCount);
+  }, [str.modulesCount]);
 
-  // Queda de tensão no cabo (Spec-04)
-  const stringVmp = unitVmp * str.modulesCount;
+  const isEmpty = localModulesCount === 0;
+
+  // Tensão desta string (V) — usar localModulesCount para feedback imediato
+  const stringVoc = (unitVoc || 0) * localModulesCount;
+
+  // Queda de tensão no cabo (Spec-04) — usar localModulesCount
+  const stringVmp = unitVmp * localModulesCount;
   const dropV = (str.cableLength > 0 && str.cableSection > 0 && unitImp > 0)
     ? (2 * str.cableLength * unitImp) / (ENGINEERING_CONSTANTS.COPPER_CONDUCTIVITY * str.cableSection)
     : 0;
   const dropPercent = stringVmp > 0 ? (dropV / stringVmp) * 100 : 0;
 
   // Limite visual elástico — garante folga além do máximo
-  const elasticMax = Math.max(maxModules > 0 ? maxModules + 2 : 10, str.modulesCount + 3);
+  const elasticMax = Math.max(maxModules > 0 ? maxModules + 2 : 10, localModulesCount + 3);
 
-  // Estado de violação
-  const isUnderMinimum = str.modulesCount < minModules && str.modulesCount > 0;
-  const isOverMax      = str.modulesCount > maxModules && maxModules > 0;
+  // Estado de violação — usar localModulesCount para feedback imediato
+  const isUnderMinimum = localModulesCount < minModules && localModulesCount > 0;
+  const isOverMax      = localModulesCount > maxModules && maxModules > 0;
 
   // Cor do contador
   const countColor = isOverMax
@@ -126,8 +134,33 @@ export const StringRow: React.FC<StringRowProps> = ({
             type="range"
             min={0}
             max={elasticMax}
-            value={str.modulesCount}
-            onChange={(e) => onUpdate({ modulesCount: parseInt(e.target.value) })}
+            value={localModulesCount}
+            onChange={(e) => {
+              const val = parseInt(e.target.value, 10);
+              setLocalModulesCount(val);
+            }}
+            onMouseUp={(e) => {
+              const val = parseInt((e.target as HTMLInputElement).value, 10);
+              if (val !== str.modulesCount) {
+                try {
+                  onUpdate({ modulesCount: val });
+                } catch {
+                  // [R5-05] LOW: Revert to store value on error
+                  setLocalModulesCount(str.modulesCount);
+                }
+              }
+            }}
+            onTouchEnd={(e) => {
+              const val = parseInt((e.target as HTMLInputElement).value, 10);
+              if (val !== str.modulesCount) {
+                try {
+                  onUpdate({ modulesCount: val });
+                } catch {
+                  // [R5-05] LOW: Revert to store value on error
+                  setLocalModulesCount(str.modulesCount);
+                }
+              }
+            }}
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
           />
 
@@ -168,7 +201,11 @@ export const StringRow: React.FC<StringRowProps> = ({
           isEmpty ? "bg-slate-950/50 border-slate-800/30 opacity-70 hover:opacity-100" : "bg-slate-900 border-slate-800/60"
         )}>
           <button
-            onClick={() => onUpdate({ modulesCount: Math.max(0, str.modulesCount - 1) })}
+            onClick={() => {
+              const newVal = Math.max(0, localModulesCount - 1);
+              setLocalModulesCount(newVal);
+              onUpdate({ modulesCount: newVal });
+            }}
             className={cn(
               "w-6 h-full flex items-center justify-center transition-colors",
               isEmpty ? "text-slate-700 cursor-not-allowed" : "text-slate-500 hover:text-white hover:bg-slate-800 active:bg-slate-700"
@@ -183,12 +220,24 @@ export const StringRow: React.FC<StringRowProps> = ({
               'text-[11px] font-black font-mono tabular-nums leading-none tracking-tighter',
               countColor
             )}>
-              {str.modulesCount}
+              {localModulesCount}
             </span>
           </div>
           <button
-            onClick={() => onUpdate({ modulesCount: str.modulesCount + 1 })}
-            className="w-6 h-full flex items-center justify-center text-slate-500 hover:text-white hover:bg-slate-800 transition-colors active:bg-slate-700"
+            onClick={() => {
+              // [R4-08] LOW: Guard against exceeding elasticMax or maxModules
+              const candidate = localModulesCount + 1;
+              const capped = maxModules > 0 ? Math.min(maxModules, candidate) : Math.min(elasticMax, candidate);
+              setLocalModulesCount(capped);
+              onUpdate({ modulesCount: capped });
+            }}
+            disabled={localModulesCount >= (maxModules > 0 ? maxModules : elasticMax)}
+            className={cn(
+              "w-6 h-full flex items-center justify-center transition-colors active:bg-slate-700",
+              localModulesCount >= (maxModules > 0 ? maxModules : elasticMax)
+                ? "text-slate-700 cursor-not-allowed"
+                : "text-slate-500 hover:text-white hover:bg-slate-800"
+            )}
             title="Adicionar 1 Módulo"
           >
             <Plus size={9} strokeWidth={3} />

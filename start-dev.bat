@@ -1,0 +1,103 @@
+@echo off
+rem ======================================================================
+rem NEONORTE - ECOSSISTEMA YWARA - LAUNCHER LOCAL DEV
+rem ======================================================================
+
+cd /d "%~dp0"
+
+echo ======================================================================
+echo             NEONORTE - ECOSSISTEMA YWARA - LAUNCHER LOCAL
+echo ======================================================================
+echo.
+echo Este script ira inicializar concorrentemente as seguintes aplicacoes:
+echo   - Kurupira - Engenharia Solar - Frontend e Backend
+echo   - Sumauma - Backoffice e Gestao - Frontend e Backend
+echo.
+
+rem 1. Verificacao do Node.js
+echo [1/2] Verificando dependencias do sistema...
+where node >nul 2>&1
+if %ERRORLEVEL% neq 0 (
+    echo.
+    echo [ERRO] O comando node nao foi encontrado no sistema.
+    echo Por favor, instale o Node.js antes de continuar.
+    echo.
+    pause
+    exit /b 1
+)
+echo Node.js detectado!
+echo.
+
+rem 2. Verificacao de node_modules
+echo [2/2] Verificando pastas de dependencias node_modules...
+set MISSING_DEPS=0
+
+if not exist "kurupira\backend\node_modules\" (
+    echo [AVISO] Kurupira Backend: node_modules ausente.
+    set MISSING_DEPS=1
+)
+if not exist "kurupira\frontend\node_modules\" (
+    echo [AVISO] Kurupira Frontend: node_modules ausente.
+    set MISSING_DEPS=1
+)
+if not exist "sumauma\backend\node_modules\" (
+    echo [AVISO] Sumauma Backend: node_modules ausente.
+    set MISSING_DEPS=1
+)
+if not exist "sumauma\frontend\node_modules\" (
+    echo [AVISO] Sumauma Frontend: node_modules ausente.
+    set MISSING_DEPS=1
+)
+
+if "%MISSING_DEPS%"=="0" goto :start_services
+
+echo.
+echo ----------------------------------------------------------------------
+echo ATENCAO: Algumas pastas de dependencias node_modules nao foram
+echo encontradas. Se as aplicacoes falharem ao rodar, lembre-se de executar
+echo npm install em cada um dos respectivos diretorios.
+echo ----------------------------------------------------------------------
+echo.
+set /p choice="Deseja prosseguir com a inicializacao mesmo assim? [S/N]: "
+if /I "%choice%" neq "S" (
+    echo Cancelado pelo usuario.
+    exit /b 0
+)
+
+:start_services
+echo Pronto para iniciar!
+echo.
+
+rem 3. Inicializacao concorrente dos servicos
+echo Inicializando os servicos em novas janelas do prompt...
+
+echo   - Iniciando Kurupira Backend...
+start "Kurupira [Backend]" /D "%~dp0kurupira\backend" cmd /k "echo Kurupira Backend - Porta 3002 && echo. && npm run dev"
+
+echo   - Iniciando Kurupira Frontend...
+start "Kurupira [Frontend]" /D "%~dp0kurupira\frontend" cmd /k "echo Kurupira Frontend - Porta 5173 && echo. && npm run dev"
+
+echo   - Iniciando Sumauma Backend BFF...
+start "Sumauma [Backend]" /D "%~dp0sumauma\backend" cmd /k "echo Sumauma BFF Backend - Porta 3003 && echo. && npm run dev"
+
+echo   - Iniciando Sumauma Frontend...
+start "Sumauma [Frontend]" /D "%~dp0sumauma\frontend" cmd /k "echo Sumauma Frontend - Porta 5175 && echo. && npm run dev"
+
+echo.
+echo ======================================================================
+echo            TODOS OS SERVICOS FORAM ENVIADOS PARA INICIALIZAÇÃO!
+echo ======================================================================
+echo.
+echo   Links uteis no navegador:
+echo     - Kurupira Workspace: http://localhost:5173
+echo     - Sumauma Backoffice: http://localhost:5175
+echo.
+echo   APIs e Endpoints:
+echo     - API Kurupira:      http://localhost:3002
+echo     - API Sumauma BFF:   http://localhost:3003
+echo.
+echo ======================================================================
+echo Para finalizar os servidores, feche as respectivas janelas de terminal.
+echo ======================================================================
+echo.
+pause

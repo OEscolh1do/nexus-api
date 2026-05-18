@@ -43,6 +43,8 @@ interface MPPTConfigStripProps {
   /** Quando true, força grid de 1 coluna — usado pelo MPPTInspectorPanel (280px) para
    *  evitar distorção causada pelos breakpoints de viewport (md:grid-cols-2) */
   forceSingleColumn?: boolean;
+  /** C02: Limite máximo de strings por MPPT (do catálogo). Fallback: 4 strings. */
+  maxStringsPerMppt?: number;
 }
 
 // ─── Sub-componente: Barra de Telemetria ─────────────────────────────────────
@@ -119,6 +121,7 @@ export const MPPTConfigStrip: React.FC<MPPTConfigStripProps> = ({
   tmin,
   module,
   forceSingleColumn = false,
+  maxStringsPerMppt = 4,
 }) => {
   const [orientationModalMppt, setOrientationModalMppt] = React.useState<number | null>(null);
   const [configString, setConfigString] = React.useState<{ mpptId: number, str: StringDef } | null>(null);
@@ -142,6 +145,7 @@ export const MPPTConfigStrip: React.FC<MPPTConfigStripProps> = ({
   // ── Lista de Módulos Únicos para Seleção ──
   const availableModules = useSolarStore(selectModules);
 
+  // [R5-08] LOW: Add availableModules.length to detect content changes
   const uniqueModuleModels = React.useMemo(() => {
     const seen = new Set<string>();
     const unique: any[] = [];
@@ -152,7 +156,7 @@ export const MPPTConfigStrip: React.FC<MPPTConfigStripProps> = ({
       }
     });
     return unique;
-  }, [availableModules]);
+  }, [availableModules, availableModules.length]);
 
   if (mpptConfigs.length === 0) return null;
 
@@ -170,7 +174,11 @@ export const MPPTConfigStrip: React.FC<MPPTConfigStripProps> = ({
       )}>
         {mpptConfigs.map((mppt) => {
           const metrics   = mpptMetrics[mppt.mpptId];
-          const hasVoc    = metrics && metrics.vocFrio > 0;
+          // [R4-12] LOW: Separate "has metrics" from "has active modules"
+          const hasMetrics = !!metrics;
+          // Note: hasActiveModules would be: hasMetrics && (metrics.powerKwp ?? 0) > 0
+          // Currently not used for UI decisions, but kWp display uses hasMetrics
+          const hasVoc    = hasMetrics && metrics.vocFrio > 0;
           const vocErr    = hasVoc && metrics.vocFrio > limitVMax;
           const vmpErr    = hasVoc && metrics.vmpCalor > 0 && metrics.vmpCalor < limitVMpptMin;
           const iscErr    = hasVoc && metrics.iscTotal > limitIscMaxMppt;
@@ -289,9 +297,9 @@ export const MPPTConfigStrip: React.FC<MPPTConfigStripProps> = ({
                   </div>
                 </div>
 
-                {/* B1: kWp como Hero Metric — maior dado, primeira leitura */}
+                {/* [R4-12] B1: kWp como Hero Metric — show "0.00" when hasMetrics but no active modules */}
                 <div className="flex items-baseline gap-1 shrink-0 ml-2">
-                  {hasVoc ? (
+                  {hasMetrics ? (
                     <span
                       key={metrics.powerKwp}
                       className={cn(
@@ -357,15 +365,26 @@ export const MPPTConfigStrip: React.FC<MPPTConfigStripProps> = ({
                       <span className="ml-1.5 text-slate-600">({strings.length})</span>
                     )}
                   </span>
-                  {addStringToMPPT && (
-                    <button
-                      onClick={() => addStringToMPPT(inverterId, mppt.mpptId)}
-                      className="flex items-center gap-1 text-[9px] font-black text-sky-500 hover:text-sky-300 transition-colors active:scale-95"
-                    >
-                      <Plus size={10} strokeWidth={3} />
-                      Nova String
-                    </button>
-                  )}
+                  {addStringToMPPT && (() => {
+                    const currentStrings = strings.length;
+                    const canAddString = currentStrings < maxStringsPerMppt;
+                    return (
+                      <button
+                        onClick={() => canAddString && addStringToMPPT(inverterId, mppt.mpptId)}
+                        disabled={!canAddString}
+                        className={cn(
+                          "flex items-center gap-1 text-[9px] font-black transition-colors active:scale-95",
+                          canAddString
+                            ? "text-sky-500 hover:text-sky-300"
+                            : "text-slate-700 cursor-not-allowed"
+                        )}
+                        title={canAddString ? 'Adicionar nova string' : `Limite de ${maxStringsPerMppt} string(s) por MPPT atingido`}
+                      >
+                        <Plus size={10} strokeWidth={3} />
+                        Nova String
+                      </button>
+                    );
+                  })()}
                 </div>
 
                 {/* Banner de conversão de dados legados */}
@@ -406,22 +425,35 @@ export const MPPTConfigStrip: React.FC<MPPTConfigStripProps> = ({
                         ? (availableModules as any[]).find(m => m.model === mppt.moduleModel)
                         : module;
                       const repSpecs = getModuleSpecs(selObj);
-                      
+
+                      // A02: Guard null repSpecs to prevent crash when module not found
+                      if (!repSpecs) {
+                        return (
+                          <div key={str.id} className="text-[9px] text-amber-400 px-2 py-1.5 border border-amber-500/20 rounded bg-amber-500/5">
+                            ⚠ Módulo &quot;{mppt.moduleModel ?? 'desconhecido'}&quot; não encontrado. Selecione outro módulo para este MPPT.
+                          </div>
+                        );
+                      }
+
                       let mpptMaxModules = 40;
                       let mpptMinModules = 0;
                       let unitVoc = 0;
                       let unitVmp = metrics?.unitVmp || 0;
                       let unitImp = metrics?.unitImp || 0;
-                      
+
                       if (repSpecs) {
                         // Limites baseados no Módulo real deste MPPT
                         const metrics1 = calculateStringMetrics(repSpecs, 1, tmin);
                         unitVoc = metrics1.vocMax;
                         const vmpCalor1 = metrics1.vmpMin;
-                        
+
                         mpptMaxModules = unitVoc > 0 ? Math.floor(limitVMax / unitVoc) : 40;
                         const effectiveMinVoltage = Math.max(limitVMpptMin, startupVoltage);
-                        mpptMinModules = vmpCalor1 > 0 ? Math.ceil(effectiveMinVoltage / (vmpCalor1 * ENGINEERING_CONSTANTS.CC_VOLTAGE_DROP_FACTOR)) : 0;
+                        // R8-06: Fallback conservador para CC_VOLTAGE_DROP_FACTOR se for 0 ou undefined
+                        const dropFactor = (ENGINEERING_CONSTANTS.CC_VOLTAGE_DROP_FACTOR > 0)
+                          ? ENGINEERING_CONSTANTS.CC_VOLTAGE_DROP_FACTOR
+                          : 0.98; // Fallback conservador NBR 16690
+                        mpptMinModules = vmpCalor1 > 0 ? Math.ceil(effectiveMinVoltage / (vmpCalor1 * dropFactor)) : 0;
                         unitVmp = repSpecs.vmp;
                         unitImp = repSpecs.imp;
                       }

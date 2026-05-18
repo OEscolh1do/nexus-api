@@ -11,7 +11,7 @@ import {
 } from '@dnd-kit/core';
 import { useUIStore } from '@/core/state/uiStore';
 import { useSolarStore } from '@/core/state/solarStore';
-import { FileText, LayoutTemplate, Save, Layers, Grid3x3, Magnet, Target, PanelLeft, LayoutList, RotateCcw, ZoomIn, ZoomOut, Maximize2, Undo2, Redo2, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, FileDown, History, FileImage, Palette, X } from 'lucide-react';
+import { FileText, LayoutTemplate, Save, Layers, Grid3x3, Magnet, Target, PanelLeft, LayoutList, Files, RotateCcw, ZoomIn, ZoomOut, Maximize2, Undo2, Redo2, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, FileDown, History, FileImage, Palette, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ImportMediaDialog } from './proposal/engine/ImportMediaDialog';
 
@@ -21,6 +21,7 @@ import { ProposalTemplateGallery } from './proposal/ProposalTemplateGallery';
 import { ElementPalette } from './proposal/engine/ElementPalette';
 import { ElementPropertiesPanel } from './proposal/engine/ElementPropertiesPanel';
 import { LayersPanel } from './proposal/engine/LayersPanel';
+import { PagesThumbnailPanel } from './proposal/engine/PagesThumbnailPanel';
 import { CanvasPage } from './proposal/engine/CanvasPage';
 import { useAutosave } from './proposal/engine/useAutosave';
 import { VersionHistoryPanel } from './proposal/engine/VersionHistoryPanel';
@@ -181,7 +182,8 @@ export const ProposalCanvasView: FC = () => {
   const projectStatus   = useSolarStore((s) => s.project.projectStatus);
   const setFocusedBlock = useUIStore((s) => s.setFocusedBlock);
 
-  const activeLayout = useSolarStore((s) => s.proposalData.activeLayout);
+  const activeLayout    = useSolarStore((s) => s.proposalData.activeLayout);
+  const excludedPages   = useSolarStore((s) => s.proposalData.excludedPages);
 
   // Action functions are created once at slice init — stable references, no subscription needed.
   const {
@@ -201,7 +203,7 @@ export const ProposalCanvasView: FC = () => {
   const [showBgPanel, setShowBgPanel] = useState(false);
   const [activeDragType, setActiveDragType] = useState<string | null>(null);
   const [gridConfig, setGridConfig]         = useState<GridConfig>(DEFAULT_GRID_CONFIG);
-  const [sidebarTab, setSidebarTab]         = useState<'elements' | 'layers'>('elements');
+  const [sidebarTab, setSidebarTab]         = useState<'elements' | 'layers' | 'pages'>('elements');
   const [renamingPageId, setRenamingPageId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1277,43 +1279,68 @@ export const ProposalCanvasView: FC = () => {
                   type="button"
                   onClick={() => setSidebarTab('elements')}
                   className={cn(
-                    'flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] font-medium transition-colors',
+                    'flex-1 flex items-center justify-center gap-1 py-2 text-[10px] font-medium transition-colors',
                     sidebarTab === 'elements'
                       ? 'text-indigo-400 border-b-2 border-indigo-500 bg-indigo-500/5'
                       : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/40',
                   )}
                 >
-                  <PanelLeft size={12} />
+                  <PanelLeft size={11} />
                   Elementos
                 </button>
                 <button
                   type="button"
                   onClick={() => setSidebarTab('layers')}
                   className={cn(
-                    'flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] font-medium transition-colors',
+                    'flex-1 flex items-center justify-center gap-1 py-2 text-[10px] font-medium transition-colors',
                     sidebarTab === 'layers'
                       ? 'text-indigo-400 border-b-2 border-indigo-500 bg-indigo-500/5'
                       : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/40',
                   )}
                 >
-                  <LayoutList size={12} />
+                  <LayoutList size={11} />
                   Camadas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSidebarTab('pages')}
+                  className={cn(
+                    'flex-1 flex items-center justify-center gap-1 py-2 text-[10px] font-medium transition-colors',
+                    sidebarTab === 'pages'
+                      ? 'text-indigo-400 border-b-2 border-indigo-500 bg-indigo-500/5'
+                      : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/40',
+                  )}
+                >
+                  <Files size={11} />
+                  Páginas
                 </button>
               </div>
 
-              {/* Content — always show palette or layers */}
-              {sidebarTab === 'elements'
-                ? <ElementPalette hasCustomLayout={!!activeLayout} />
-                : <LayersPanel
-                    elements={currentPage?.elements ?? []}
-                    selectedIds={selectedIds}
-                    onSelect={setSelectedIds}
-                    onUpdate={handleUpdateElement}
-                    onRemove={handleRemoveElement}
-                    onReorderElements={handleReorderElements}
-                  />
-              }
-
+              {/* Content */}
+              {sidebarTab === 'elements' && (
+                <ElementPalette hasCustomLayout={!!activeLayout} />
+              )}
+              {sidebarTab === 'layers' && (
+                <LayersPanel
+                  elements={currentPage?.elements ?? []}
+                  selectedIds={selectedIds}
+                  onSelect={setSelectedIds}
+                  onUpdate={handleUpdateElement}
+                  onRemove={handleRemoveElement}
+                  onReorderElements={handleReorderElements}
+                />
+              )}
+              {sidebarTab === 'pages' && (
+                <PagesThumbnailPanel
+                  pages={pages}
+                  activeIdx={safePageIdx}
+                  excludedPages={excludedPages}
+                  onNavigate={handleNavigatePage}
+                  onAddPage={handleAddPage}
+                  onDuplicate={handleDuplicatePage}
+                  onRemove={handleRemovePage}
+                />
+              )}
             </div>
 
             {/* Canvas area */}

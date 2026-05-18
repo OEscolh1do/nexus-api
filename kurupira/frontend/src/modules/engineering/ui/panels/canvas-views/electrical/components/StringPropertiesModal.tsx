@@ -3,6 +3,10 @@ import { X, Ruler, CircleDot, Navigation, Info } from 'lucide-react';
 import { PrecisionStepper } from './PrecisionStepper';
 import { ENGINEERING_CONSTANTS } from '../../../../../constants/engineeringConstants';
 
+// C03: Limites mínimos de segurança para cabos
+const MIN_CABLE_LENGTH = 0.1;  // 10cm mínimo
+const MIN_CABLE_SECTION = 1.5; // 1.5mm² mínimo (NBR 5410)
+
 interface StringPropertiesModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -97,12 +101,12 @@ export const StringPropertiesModal: React.FC<StringPropertiesModalProps> = ({
               <div className="flex flex-col gap-1.5">
                 <label className="text-[9px] font-bold text-slate-500 uppercase">Comprimento (m)</label>
                 <div className="h-9 bg-slate-950 rounded-lg border border-slate-800 overflow-hidden">
-                  <PrecisionStepper 
-                    value={data.cableLength} 
-                    min={0} 
-                    max={500} 
+                  <PrecisionStepper
+                    value={data.cableLength}
+                    min={MIN_CABLE_LENGTH}
+                    max={500}
                     suffix="m"
-                    onCommit={(val) => onSave({ cableLength: val })}
+                    onCommit={(val) => onSave({ cableLength: Math.max(MIN_CABLE_LENGTH, val) })}
                     className="h-full bg-transparent"
                   />
                 </div>
@@ -113,13 +117,14 @@ export const StringPropertiesModal: React.FC<StringPropertiesModalProps> = ({
                 <label className="text-[9px] font-bold text-slate-500 uppercase">Bitola (mm²)</label>
                 <div className="h-9 bg-slate-950 rounded-lg border border-slate-800 overflow-hidden flex items-center px-1">
                   <div className="flex-1 h-full flex items-center justify-center gap-2">
-                    <button 
+                    <button
                       className="w-full h-full flex items-center justify-center gap-2 hover:bg-white/5 transition-colors text-[11px] font-mono font-black text-white"
                       onClick={() => {
                         const standards = ENGINEERING_CONSTANTS.COMMERCIAL_CABLE_SECTIONS;
                         const currentIdx = standards.indexOf(data.cableSection);
                         const nextIdx = (currentIdx + 1) % standards.length;
-                        onSave({ cableSection: standards[nextIdx] });
+                        const nextSection = standards[nextIdx];
+                        onSave({ cableSection: Math.max(MIN_CABLE_SECTION, nextSection) });
                       }}
                     >
                       <CircleDot size={12} className="text-slate-600" />

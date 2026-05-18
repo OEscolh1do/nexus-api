@@ -5,6 +5,16 @@ import { useCatalogStore } from '@/modules/engineering/store/useCatalogStore';
 import { validateSystemStrings, type MPPTInput, type SystemValidationReport } from '@/modules/engineering/utils/electricalMath';
 import { useThermalPremises } from './useThermalPremises';
 
+/** Lightweight djb2 string hash — for change detection only, not cryptographic */
+function djb2Hash(str: string): number {
+  let hash = 5381;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash) + str.charCodeAt(i);
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return hash;
+}
+
 export interface InventorySyncStatus {
     isSynced: boolean;
     placedCount: number;
@@ -20,6 +30,18 @@ export interface UnifiedValidationResult {
     electrical: SystemValidationReport | null;
     inventory: InventorySyncStatus;
     globalHealth: 'ok' | 'warning' | 'error';
+    /** Number of placed modules without stringData assignment */
+    unassignedModulesCount: number;
+    /** True if all placed modules are assigned AND electrical validation passes */
+    isReadyForApproval: boolean;
+    /** Placed modules whose moduleSpecId has no matching spec in the store — silent power loss risk */
+    orphanedSpecCount: number;
+    /** Placed modules whose stringData.inverterId has no matching InverterState in TechStore */
+    orphanedInverterCount: number;
+    /** Number of MPPTs that have StringDefs configured but zero modules assigned */
+    emptyConfiguredMPPTCount: number;
+    /** Avisos sobre qualidade dos dados usados na validação (ex: fallbacks conservadores usados) */
+    dataQualityWarnings: string[];
 }
 
 export const useElectricalValidation = (): UnifiedValidationResult => {
@@ -28,6 +50,7 @@ export const useElectricalValidation = (): UnifiedValidationResult => {
     const placedModules = useSolarStore(state => state.project.placedModules);
     const catalogInverters = useCatalogStore(state => state.inverters);
     const engineeringData  = useSolarStore(state => state.engineeringData);
+    const moduleSpecsEntities = useSolarStore(state => state.modules.entities);
     
     // TechStore data
     const invertersNorm = useTechStore(state => state.inverters);
@@ -40,15 +63,56 @@ export const useElectricalValidation = (): UnifiedValidationResult => {
     // Primitivos para evitar re-renders por referência de objeto
     const placedCount = placedModules.length;
     const inventoryCount = modules.length;
-    const representativeModule = modules[0];
 
-    const invertersSig = Object.values(invertersNorm.entities)
-        .map(inv => `${inv.id}-${inv.mpptConfigs.map(m => `${m.stringIds.join(',')}|${m.modulesPerString}|${m.stringsCount}|${m.cableLength}`).join('|')}`)
-        .join('::');
+    // R4-06: Envolver em useMemo para evitar recalcular o filter em todo render
+    const placedAssignedSig = useMemo(
+      () => placedModules.filter(m => m.stringData).length,
+      [placedModules]
+    );
 
-    const stringsSig = Object.values(stringsNorm.entities)
-        .map(str => `${str.id}-${str.mpptId}-${str.moduleIds.length}`)
-        .join('::');
+    // E02: Select most frequently used module spec from placedModules, fallback to modules[0]
+    const representativeModule = useMemo(() => {
+        if (modules.length === 0) return undefined;
+        if (placedModules.length === 0) return modules[0];
+
+        // Count frequency of each moduleSpecId in placed modules
+        const freq: Record<string, number> = {};
+        placedModules.forEach(pm => {
+            if (pm.moduleSpecId) {
+                freq[pm.moduleSpecId] = (freq[pm.moduleSpecId] ?? 0) + 1;
+            }
+        });
+
+        // Find spec with highest count that still exists in modules
+        const topSpecId = Object.entries(freq).sort((a, b) => b[1] - a[1])[0]?.[0];
+        const topSpec = topSpecId ? modules.find(m => m.id === topSpecId) : undefined;
+        return topSpec ?? modules[0];
+    }, [modules, placedModules, placedCount]);
+
+    const invertersSig = djb2Hash(
+        Object.values(invertersNorm.entities)
+            .map(inv => `${inv.id}-${inv.mpptConfigs.map(m => `${m.stringIds?.join(',')}|${m.modulesPerString}|${m.stringsCount}|${m.cableLength}`).join('|')}`)
+            .join('::')
+    );
+
+    const stringsSig = djb2Hash(
+        Object.values(stringsNorm.entities)
+            .map(str => `${str.id}-${str.mpptId}-${str.moduleIds?.length}`)
+            .join('::')
+    );
+
+    // F01: Hash catalog inverter specs to detect changes to voltage/current limits
+    // R5-07: Sort by id before hashing to avoid order-sensitive hash changes
+    const catalogSig = useMemo(() =>
+        djb2Hash(
+            catalogInverters
+                .slice()
+                .sort((a: any, b: any) => (a.id || '').localeCompare(b.id || ''))
+                .map((c: any) => `${c.id}-${c.maxInputVoltage ?? 0}-${c.minMpptVoltage ?? 0}-${c.maxMpptVoltage ?? 0}`)
+                .join('|')
+        ),
+        [catalogInverters]
+    );
 
     return useMemo(() => {
         const techInverters = Object.values(invertersNorm.entities);
@@ -61,22 +125,28 @@ export const useElectricalValidation = (): UnifiedValidationResult => {
         // Cálculo granular por MPPT para evitar inconsistências entre desenho (Tier 3) e config manual (Tier 2)
         const logicalCount = techInverters.reduce((totalAcc, inv) => {
             const inverterMpptsSum = inv.mpptConfigs.reduce((mpptAcc, mppt) => {
-                // 1. Módulos na configuração V5 (Anilhas/StringDef)
+                // 1. Módulos na configuração V5 (Anilhas/StringDef) — fonte de verdade preferencial
                 const v5Count = (mppt.strings || []).reduce((acc, s) => acc + s.modulesCount, 0);
 
-                // 2. Módulos na configuração rápida (campos legados Mods/Str)
+                // R4-02: Apenas usar V5 se há módulos efetivamente alocados nele
+                const hasActiveV5 = v5Count > 0;
+
+                if (hasActiveV5) {
+                    return mpptAcc + v5Count;
+                }
+
+                // 2. Fallback: configuração rápida (campos legados Mods/Str)
                 const legacyCount = (mppt.modulesPerString || 0) * (mppt.stringsCount || 0);
-                
-                // 3. Módulos em strings reais desenhadas (Tier 3)
+
+                // 3. Fallback: strings reais desenhadas (Tier 3)
                 const mpptRef = `${inv.id}:${mppt.mpptId}`;
                 const drawnCount = techStrings
                     .filter(str => str.mpptId === mpptRef)
                     .reduce((strAcc, str) => strAcc + str.moduleIds.length, 0);
 
-                // Pegamos o maior entre os métodos para garantir conservadorismo
-                return mpptAcc + Math.max(v5Count, legacyCount, drawnCount);
+                return mpptAcc + Math.max(legacyCount, drawnCount);
             }, 0);
-            
+
             return totalAcc + inverterMpptsSum;
         }, 0);
         
@@ -112,25 +182,82 @@ export const useElectricalValidation = (): UnifiedValidationResult => {
             message: invMessage
         };
 
+        const unassignedModulesCount = placedModules.filter(m => !m.stringData).length;
+        const orphanedSpecCount = placedModules.filter(m => m.moduleSpecId && !moduleSpecsEntities[m.moduleSpecId]).length;
+        const orphanedInverterCount = placedModules.filter(m =>
+            m.stringData && !invertersNorm.entities[m.stringData.inverterId]
+        ).length;
+
+        // I08: Detect MPPTs with StringDefs configured but zero modules
+        const emptyConfiguredMPPTCount = techInverters.reduce((count, inv) => {
+            return count + inv.mpptConfigs.filter(cfg => {
+                const v5Strings = cfg.strings || [];
+                const v5Count = v5Strings.reduce((acc, s) => acc + s.modulesCount, 0);
+                return v5Strings.length > 0 && v5Count === 0;
+            }).length;
+        }, 0);
+
         // --- B. ELECTRICAL THERMAL VALIDATION ---
+        const dataQualityWarnings: string[] = [];
         let electricalReport: SystemValidationReport | null = null;
-        
+
         if (representativeModule && techInverters.length > 0) {
             const moduleSpecs = {
-                voc: representativeModule.voc,
-                vmp: representativeModule.vmp ?? representativeModule.voc * 0.82,
+                voc: representativeModule.voc ?? 0,
+                vmp: representativeModule.vmp ?? (representativeModule.voc ?? 0) * 0.82,
                 isc: representativeModule.isc ?? 0,
-                imp: (representativeModule as any).imp ?? (representativeModule.isc ?? 0) * 0.95,
-                tempCoeffVoc: (representativeModule as any).electrical?.tempCoeffVoc ?? representativeModule.tempCoeff ?? -0.29,
+                imp: (representativeModule as any).imp ?? ((representativeModule.isc ?? 0) * 0.95),
+                tempCoeffVoc: (representativeModule as any).electrical?.tempCoeffVoc
+                    ?? representativeModule.tempCoeff
+                    ?? -0.29,
             };
+
+            // E01: Guard against invalid module specs that would corrupt thermal calculations
+            // D03: Return explicit error instead of silent skip
+            if (moduleSpecs.voc <= 0 || moduleSpecs.isc <= 0) {
+                dataQualityWarnings.push('Módulo representativo sem parâmetros elétricos (Voc=0 ou Isc=0) — validação ignorada.');
+                electricalReport = {
+                    isValid: false,
+                    globalStatus: 'error' as const,
+                    entries: [{
+                        inverterId: techInverters[0]?.id ?? 'unknown',
+                        mpptId: 0,
+                        status: 'error' as const,
+                        vocMax: 0,
+                        vmpMin: 0,
+                        iscTotal: 0,
+                        messages: ['Parâmetros elétricos do módulo inválidos (Voc=0 ou Isc=0). Verifique a seleção de módulo.'],
+                    }],
+                    summary: { totalMPPTs: 0, errors: 1, warnings: 0 },
+                };
+            } else {
 
             const mpptInputs: MPPTInput[] = techInverters.flatMap(inv => {
                 const catalogSpec = catalogInverters.find((c: any) => c.id === inv.catalogId);
                 if (!catalogSpec) {
                     console.warn(`[ElectricalValidation] Inversor ${inv.id} (catalogId: ${inv.catalogId}) sem spec no catálogo — usando fallbacks conservadores.`);
+                    dataQualityWarnings.push(`Inversor "${inv.snapshot?.model ?? inv.id}" sem spec no catálogo — usando limites conservadores.`);
                 }
 
                 return inv.mpptConfigs.map(cfg => {
+                    // Derive module spec for this specific MPPT from placed modules
+                    // Falls back to representativeModule if no placed modules found for this MPPT
+                    const mpptPlacedFirst = placedModules.find(m =>
+                        m.stringData?.inverterId === inv.id &&
+                        m.stringData?.mpptId === cfg.mpptId
+                    );
+                    const mpptSpecId = mpptPlacedFirst?.moduleSpecId ?? cfg.moduleModel;
+                    const mpptRawSpec = mpptSpecId
+                        ? modules.find(mod => mod.id === mpptSpecId)
+                        : representativeModule;
+                    const mpptModuleSpecs = mpptRawSpec ? {
+                        voc: mpptRawSpec.voc,
+                        vmp: mpptRawSpec.vmp ?? mpptRawSpec.voc * 0.82,
+                        isc: mpptRawSpec.isc ?? 0,
+                        imp: (mpptRawSpec as any).imp ?? (mpptRawSpec.isc ?? 0) * 0.95,
+                        tempCoeffVoc: (mpptRawSpec as any).electrical?.tempCoeffVoc ?? mpptRawSpec.tempCoeff ?? -0.29,
+                    } : moduleSpecs;
+
                     // Determinamos as strings ativas: Prioridade V5 (Anilhas) > Tier 3 (Drawn) > Legacy
                     const v5Strings = cfg.strings || [];
                     const assignedStrings = cfg.stringIds
@@ -173,17 +300,19 @@ export const useElectricalValidation = (): UnifiedValidationResult => {
                         cableSection: cfg.cableSection,
                         azimuth: cfg.azimuth ?? (engineeringData?.azimute ?? 0),
                         inclination: cfg.inclination ?? (engineeringData?.roofTilt ?? 15),
-                    } as MPPTInput;
+                        moduleSpecs: mpptModuleSpecs,  // per-MPPT validation if supported
+                    } as any;
                 }).filter(input => input.stringsCount > 0 && input.modulesPerString > 0);
             });
 
-            if (mpptInputs.length > 0) {
-                electricalReport = validateSystemStrings(
-                    mpptInputs, 
-                    moduleSpecs, 
-                    settingsSig,
-                    tcellMax
-                );
+                if (mpptInputs.length > 0) {
+                    electricalReport = validateSystemStrings(
+                        mpptInputs,
+                        moduleSpecs,
+                        settingsSig,
+                        tcellMax
+                    );
+                }
             }
         }
 
@@ -191,27 +320,41 @@ export const useElectricalValidation = (): UnifiedValidationResult => {
         let globalHealth: 'ok' | 'warning' | 'error' = 'ok';
         if (electricalReport?.globalStatus === 'error' || inventorySync.status === 'error') {
             globalHealth = 'error';
-        } else if (electricalReport?.globalStatus === 'warning' || inventorySync.status === 'warning') {
+        } else if (electricalReport?.globalStatus === 'warning' || inventorySync.status === 'warning' || emptyConfiguredMPPTCount > 0) {
             globalHealth = 'warning';
         }
+
+        const isReadyForApproval =
+            unassignedModulesCount === 0 &&
+            placedModules.length > 0 &&
+            (electricalReport === null || electricalReport.globalStatus !== 'error') &&
+            inventorySync.status !== 'error';
 
         return {
             electrical: electricalReport,
             inventory: inventorySync,
-            globalHealth
+            globalHealth,
+            unassignedModulesCount,
+            isReadyForApproval,
+            orphanedSpecCount,
+            orphanedInverterCount,
+            emptyConfiguredMPPTCount,
+            dataQualityWarnings,
         };
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
-        placedCount, 
-        inventoryCount, 
-        representativeModule?.id, 
-        invertersSig, 
-        stringsSig, 
+        placedCount,
+        inventoryCount,
+        representativeModule?.id,
+        invertersSig,
+        stringsSig,
         settingsSig,
         thermalSig,
-        catalogInverters.length,
+        catalogSig, // F01: Use hash instead of length to detect spec changes
         invertersNorm.ids.length, // Força recálculo se deletar inversor
-        stringsNorm.ids.length    // Força recálculo se deletar string
+        stringsNorm.ids.length,   // Força recálculo se deletar string
+        placedAssignedSig,        // Força recálculo quando placedModules são assignados
+        Object.keys(moduleSpecsEntities).length // Força recálculo quando specs são removidas
     ]);
 };

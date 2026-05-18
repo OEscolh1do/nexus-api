@@ -132,9 +132,9 @@ export const StringProperties: React.FC<{ entity: SelectedEntity }> = ({ entity 
         <section>
           <SectionHeader icon={<Cpu size={10} />} label="Inversor" />
           <div className="mt-2 space-y-1.5">
-            <PropRow label="Modelo" value={parsed.techInv.snapshot.model} />
-            <PropRow label="Potência" value={`${parsed.techInv.snapshot.nominalPower}kW`} />
-            <PropRow label="MPPTs" value={`${parsed.techInv.snapshot.mppts}`} />
+            <PropRow label="Modelo" value={parsed.techInv.snapshot?.model ?? '—'} />
+            <PropRow label="Potência" value={`${parsed.techInv.snapshot?.nominalPower ?? 0}kW`} />
+            <PropRow label="MPPTs" value={`${parsed.techInv.snapshot?.mppts ?? 1}`} />
           </div>
         </section>
       )}

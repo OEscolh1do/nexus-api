@@ -2,6 +2,17 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { NormalizedCollection, createEmptyCollection } from '@/core/types/normalized.types';
 import type { ParametricSymbolConfig } from '@/core/schemas/inverterSchema';
+import { useSolarStore } from '@/core/state/solarStore';
+
+/** Generates a short unique ID using crypto.randomUUID() truncated to 9 chars */
+const genId = (): string => {
+  try {
+    return crypto.randomUUID().replace(/-/g, '').substring(0, 9);
+  } catch {
+    // Fallback for environments without crypto.randomUUID
+    return Math.random().toString(36).substring(2, 9);
+  }
+};
 
 export interface LossProfile {
   orientation: number;
@@ -105,12 +116,19 @@ interface TechState {
   updateInverterQuantity: (id: string, qty: number) => void;
 
   updateMPPTConfig: (inverterId: string, mpptId: number, config: Partial<MPPTConfig>) => void;
-  
+
   // V5: Exec MPPT Strings Actions
   addStringToMPPT: (inverterId: string, mpptId: number) => void;
   removeStringFromMPPT: (inverterId: string, mpptId: number, stringId: string) => void;
   updateStringInMPPT: (inverterId: string, mpptId: number, stringId: string, data: Partial<StringDef>) => void;
+  /** Reseta configuração de um MPPT para estado inicial (1 string vazia) */
+  resetMPPT: (inverterId: string, mpptId: number) => void;
   autoDistributeModules: (inverterId: string, targetModules: number, maxPerString: number) => { success: boolean; message: string };
+
+  /** Called by SolarStore after assigning modules to update StringDef.modulesCount automatically */
+  syncStringModulesCount: (inverterId: string, mpptId: number, stringId: string | undefined, count: number) => void;
+  /** Reset all StringDef.modulesCount to 0 for an inverter (called by clearStringAssignments) */
+  resetStringCounts: (inverterId?: string) => void;
   
   // V4 String Actions
   createString: (moduleIds: string[]) => void;
@@ -154,7 +172,7 @@ const createDefaultMPPTConfig = (mppts: number): MPPTConfig[] => {
         stringsCount: 1,
         modulesPerString: 0,
         strings: [{
-            id: Math.random().toString(36).substr(2, 9),
+            id: genId(),
             name: `S1`,
             modulesCount: 0,
             cableLength: 10,
@@ -193,7 +211,7 @@ export const useTechStore = create<TechState>()(
           const newIds = [...state.inverters.ids];
 
           for (let i = 0; i < qty; i++) {
-              const instanceId = i === 0 && providedId ? providedId : Math.random().toString(36).substr(2, 9);
+              const instanceId = i === 0 && providedId ? providedId : genId();
               const newInverter: InverterState = {
                   id: instanceId,
                   catalogId: equipment.id || '',
@@ -242,7 +260,7 @@ export const useTechStore = create<TechState>()(
           const source = state.inverters.entities[id];
           if (!source) return state;
 
-          const newId = Math.random().toString(36).substr(2, 9);
+          const newId = genId();
           const cloned: InverterState = {
             ...source,
             id: newId,
@@ -251,7 +269,7 @@ export const useTechStore = create<TechState>()(
               stringIds: [],
               stringsCount: 1,
               strings: [{
-                id: Math.random().toString(36).substr(2, 9),
+                id: genId(),
                 name: `S1`,
                 modulesCount: 0,
                 cableLength: 10,
@@ -286,18 +304,18 @@ export const useTechStore = create<TechState>()(
           if (targetQty > currentQty) {
               const diff = targetQty - currentQty;
               for (let i = 0; i < diff; i++) {
-                  const newId = Math.random().toString(36).substr(2, 9);
+                  const newId = genId();
                   newIds.push(newId);
                   newEntities[newId] = { 
                       ...baseInstance, 
                       id: newId,
                       // Deep Clone e Isolamento de Strings (V5)
-                      mpptConfigs: baseInstance.mpptConfigs.map(m => ({ 
-                          ...m, 
+                      mpptConfigs: baseInstance.mpptConfigs.map(m => ({
+                          ...m,
                           stringIds: [],
                           strings: (m.strings || []).map(s => ({
                               ...s,
-                              id: Math.random().toString(36).substring(2, 9),
+                              id: genId(),
                               modulesCount: 0 // Instâncias adicionais começam limpas
                           }))
                       }))
@@ -355,9 +373,9 @@ export const useTechStore = create<TechState>()(
             const nextIndex = existingIndices.length > 0 ? Math.max(...existingIndices) + 1 : 1;
 
             const newString: StringDef = {
-              id: Math.random().toString(36).substring(2, 9),
+              id: genId(),
               name: `INV-${formattedInvId}.M${mpptId}.S${nextIndex}`,
-              modulesCount: mppt.modulesPerString || 0,
+              modulesCount: 0,
               cableLength: 10,
               cableSection: 4
             };
@@ -408,13 +426,44 @@ export const useTechStore = create<TechState>()(
         };
       }),
 
+      resetMPPT: (inverterId, mpptId) => set(state => {
+        const inv = state.inverters.entities[inverterId];
+        if (!inv) return state;
+
+        const newMpptConfigs = inv.mpptConfigs.map(mppt => {
+          if (mppt.mpptId !== mpptId) return mppt;
+          return {
+            ...mppt,
+            strings: [{
+              id: genId(),
+              name: `INV-${inverterId.slice(-3)}.M${mpptId}.S1`,
+              modulesCount: 0,
+              cableLength: mppt.strings?.[0]?.cableLength ?? 10,
+              cableSection: mppt.strings?.[0]?.cableSection ?? 4,
+            }],
+            stringsCount: 0,
+            modulesPerString: 0,
+          };
+        });
+
+        return {
+          inverters: {
+            ...state.inverters,
+            entities: {
+              ...state.inverters.entities,
+              [inverterId]: { ...inv, mpptConfigs: newMpptConfigs },
+            },
+          },
+        };
+      }),
+
       updateStringInMPPT: (inverterId, mpptId, stringId, data) => set(state => {
         const inv = state.inverters.entities[inverterId];
         if (!inv) return state;
 
         const newMpptConfigs = inv.mpptConfigs.map(mppt => {
           if (mppt.mpptId === mpptId) {
-            const newStrings = (mppt.strings || []).map(s => 
+            const newStrings = (mppt.strings || []).map(s =>
               s.id === stringId ? { ...s, ...data } : s
             );
             return { ...mppt, strings: newStrings };
@@ -433,6 +482,120 @@ export const useTechStore = create<TechState>()(
         };
       }),
 
+      syncStringModulesCount: (inverterId, mpptId, stringId, count) => set(state => {
+        const inv = state.inverters.entities[inverterId];
+        if (!inv) return state;
+
+        const newMpptConfigs = inv.mpptConfigs.map(mppt => {
+          if (mppt.mpptId !== mpptId) return mppt;
+
+          let strings = [...(mppt.strings || [])];
+
+          if (stringId) {
+            // Find by id or name
+            const idx = strings.findIndex(s => s.id === stringId || s.name === stringId);
+            if (idx >= 0) {
+              // Found: update count
+              strings = strings.map((s, i) => i === idx ? { ...s, modulesCount: count } : s);
+            } else {
+              // R4-07: Guard against race condition — check if another concurrent call already created it
+              const existingByName = strings.find(s => s.name === stringId);
+              if (existingByName) {
+                // Race condition detected: use existing StringDef
+                strings = strings.map(s =>
+                  s.name === stringId ? { ...s, modulesCount: count } : s
+                );
+              } else {
+                // Safe to create new — no race condition
+                const freshId = genId();
+                const zeroIdx = strings.findIndex(s => s.modulesCount === 0);
+
+                // R5-01: Double-check após findIndex (window de concorrência Zustand)
+                const secondCheck = strings.find(s => s.name === stringId);
+                if (secondCheck) {
+                  strings = strings.map(s => s.name === stringId ? { ...s, modulesCount: count } : s);
+                } else if (zeroIdx >= 0) {
+                  strings = strings.map((s, i) =>
+                    i === zeroIdx ? { ...s, id: freshId, name: stringId, modulesCount: count } : s
+                  );
+                } else {
+                  strings = [...strings, {
+                    id: freshId,
+                    name: stringId,
+                    modulesCount: count,
+                    cableLength: strings[0]?.cableLength ?? 10,
+                    cableSection: strings[0]?.cableSection ?? 4,
+                  }];
+                }
+              }
+            }
+          } else {
+            // No stringId: update first StringDef's count
+            if (strings.length > 0) {
+              strings = [{ ...strings[0], modulesCount: count }, ...strings.slice(1)];
+            }
+          }
+
+          // Also keep legacy fields in sync for backward compatibility
+          const totalModules = strings.reduce((acc, s) => acc + s.modulesCount, 0);
+          return {
+            ...mppt,
+            strings,
+            modulesPerString: strings.length > 0 ? Math.ceil(totalModules / Math.max(strings.length, 1)) : mppt.modulesPerString,
+            stringsCount: strings.filter(s => s.modulesCount > 0).length || mppt.stringsCount,
+          };
+        });
+
+        return {
+          inverters: {
+            ...state.inverters,
+            entities: {
+              ...state.inverters.entities,
+              [inverterId]: { ...inv, mpptConfigs: newMpptConfigs },
+            },
+          },
+        };
+      }),
+
+      resetStringCounts: (inverterId?) => set(state => {
+        const ids = inverterId ? [inverterId] : state.inverters.ids;
+        const newEntities = { ...state.inverters.entities };
+
+        ids.forEach(id => {
+          const inv = state.inverters.entities[id];
+          if (!inv) return;
+          newEntities[id] = {
+            ...inv,
+            mpptConfigs: inv.mpptConfigs.map(mppt => {
+              const strings = mppt.strings || [];
+              // Zero all counts first
+              const zeroed = strings.map(s => ({ ...s, modulesCount: 0 }));
+              // Remove auto-generated ones (name starts with "String ") — they'll be recreated on next stringing
+              const filtered = zeroed.filter(s => !s.name.startsWith('String '));
+              // Always keep at least one StringDef per MPPT
+              if (filtered.length > 0) {
+                return { ...mppt, strings: filtered, modulesPerString: 0, stringsCount: 0 };
+              }
+              // All were auto-generated — keep one default
+              return {
+                ...mppt,
+                strings: [{
+                  id: genId(),
+                  name: 'S1',
+                  modulesCount: 0,
+                  cableLength: 10,
+                  cableSection: 4,
+                }],
+                modulesPerString: 0,
+                stringsCount: 0,
+              };
+            }),
+          };
+        });
+
+        return { inverters: { ...state.inverters, entities: newEntities } };
+      }),
+
       autoDistributeModules: (inverterId, targetModules, maxPerString) => {
           let success = false;
           let message = 'Erro ao distribuir módulos.';
@@ -449,7 +612,7 @@ export const useTechStore = create<TechState>()(
                       ...mppt,
                       stringsCount: 1,
                       strings: [{
-                          id: Math.random().toString(36).substring(2, 9),
+                          id: genId(),
                           name: `INV.M${mppt.mpptId}.S1`,
                           modulesCount: 0,
                           cableLength: 10,
@@ -530,7 +693,7 @@ export const useTechStore = create<TechState>()(
               const newMpptConfigs = inv.mpptConfigs.map((mppt, idx) => {
                   const dist = bestDistribution![idx];
                   const newStrings = Array.from({ length: dist.stringsCount }).map((_, sIdx) => ({
-                      id: Math.random().toString(36).substring(2, 9),
+                      id: genId(),
                       name: `INV-${formattedInvId}.M${mppt.mpptId}.S${sIdx + 1}`,
                       modulesCount: dist.size,
                       cableLength: 10,
@@ -546,7 +709,7 @@ export const useTechStore = create<TechState>()(
 
               success = true;
               message = 'Distribuição concluída com sucesso.';
-              
+
               return {
                   inverters: {
                       ...state.inverters,
@@ -557,7 +720,12 @@ export const useTechStore = create<TechState>()(
                   }
               };
           });
-          
+
+          // B2: Clear stale stringData references after redistribution
+          if (success) {
+              useSolarStore.getState().clearOrphanStringData(inverterId);
+          }
+
           return { success, message };
       },
 
@@ -643,7 +811,7 @@ export const useTechStore = create<TechState>()(
 
       // ─── V4: String Actions ────────────────────────────────────────────────
       createString: (moduleIds) => set((state) => {
-          const id = 'str-' + Math.random().toString(36).substring(2, 9);
+          const id = 'str-' + genId();
           const newStringCount = state.strings.ids.length + 1;
           const newString: LogicalString = {
               id,
@@ -828,7 +996,7 @@ export const useTechStore = create<TechState>()(
           const inv = state.inverters.entities[inverterId];
           if (!inv) return state;
 
-          const newStringId = 'str-' + Math.random().toString(36).substring(2, 9);
+          const newStringId = 'str-' + genId();
           const mpptRef = `${inverterId}:${mpptId}`;
 
           const newString: LogicalString = {
@@ -930,6 +1098,41 @@ export const useTechStore = create<TechState>()(
           };
       }),
     }),
-    { name: 'kurupira-tech-storage' }
+    {
+      name: 'kurupira-tech-storage',
+      partialize: (state) => ({
+        inverters: state.inverters,
+        lossProfile: state.lossProfile,
+        prCalculationMode: state.prCalculationMode,
+        cosip: state.cosip,
+        strings: state.strings, // keep for backward compat
+      }),
+    }
   )
 );
+
+// =============================================================================
+// STABLE SELECTORS — Avoid repeated Object.values() calls across hooks (P02)
+// =============================================================================
+
+/** Stable selector for inverters array — avoids repeated toArray() calls across hooks */
+let _invCacheRef: any = null;
+let _invCacheArr: InverterState[] = [];
+export const selectTechInvertersArray = (state: TechState) => {
+  if (state.inverters !== _invCacheRef) {
+    _invCacheRef = state.inverters;
+    _invCacheArr = Object.values(state.inverters.entities).filter(Boolean) as InverterState[];
+  }
+  return _invCacheArr;
+};
+
+/** Stable selector for strings array — avoids repeated toArray() calls across hooks */
+let _strCacheRef: any = null;
+let _strCacheArr: LogicalString[] = [];
+export const selectTechStringsArray = (state: TechState) => {
+  if (state.strings !== _strCacheRef) {
+    _strCacheRef = state.strings;
+    _strCacheArr = Object.values(state.strings.entities).filter(Boolean) as LogicalString[];
+  }
+  return _strCacheArr;
+};

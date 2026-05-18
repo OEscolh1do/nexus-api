@@ -424,6 +424,7 @@ export const CalculationAuditPanel: React.FC<CalculationAuditPanelProps> = ({
           const activeStringsCables = activeStrings.filter(s => s.cableLength && s.cableSection && s.modulesCount > 0);
 
           const cablesOkCount = activeStringsCables.filter(str => {
+            if (str.modulesCount === 0) return false;
             const dropPct = ((2 * str.cableLength * (moduleSpecs.imp || moduleSpecs.isc * 0.95)) / (56 * str.cableSection)) / (str.modulesCount * moduleSpecs.vmp) * 100;
             return dropPct <= 1;
           }).length;
@@ -431,7 +432,10 @@ export const CalculationAuditPanel: React.FC<CalculationAuditPanelProps> = ({
           // Status Global do Inset
           const totalChecks = 5 + activeStringsCables.length;
           const passedChecks = tensaoOk + correnteOk + cablesOkCount;
-          const hasError = !vocSafety || !iscFatorSafety || activeStringsCables.some(str => (((2 * str.cableLength * (moduleSpecs.imp || moduleSpecs.isc * 0.95)) / (56 * str.cableSection)) / (str.modulesCount * moduleSpecs.vmp) * 100) > 2);
+          const hasError = !vocSafety || !iscFatorSafety || activeStringsCables.some(str => {
+            if (str.modulesCount === 0) return false;
+            return (((2 * str.cableLength * (moduleSpecs.imp || moduleSpecs.isc * 0.95)) / (56 * str.cableSection)) / (str.modulesCount * moduleSpecs.vmp) * 100) > 2;
+          });
           
           const headerStatusCls = hasError ? 'bg-rose-950/40 text-rose-400 border-rose-500/30' : (passedChecks < totalChecks) ? 'bg-amber-950/40 text-amber-400 border-amber-500/30' : 'bg-emerald-950/40 text-emerald-400 border-emerald-500/30';
           const headerStatusText = hasError ? 'COM ERRO' : (passedChecks < totalChecks) ? 'ATENÇÃO' : 'STATUS OK';

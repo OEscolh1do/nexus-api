@@ -15,12 +15,16 @@
  */
 
 import React, { useMemo, useState, useCallback } from 'react';
+import { MapContainer } from 'react-leaflet';
+import ReactLeafletGoogleLayer from 'react-leaflet-google-layer';
 import {
   calculateSolarDay,
   monthToDayOfYear,
   inferTimezone,
   type SolarDayInfo,
 } from '../../../../utils/solarPosition';
+
+const GOOGLE_MAPS_TOKEN = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
 
 // ─── CONSTANTES DE LAYOUT ─────────────────────────────────────────────────────
 const CX = 140;
@@ -62,6 +66,22 @@ function decimalToHM(h: number): string {
   return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
 }
 
+function getSunColor(elevation: number) {
+  if (elevation < 0) return 'rgba(100,116,139,0.2)';
+  if (elevation < 10) return '#ea580c'; // Laranja profundo (amanhecer/entardecer)
+  if (elevation < 25) return '#f59e0b'; // Âmbar
+  if (elevation < 45) return '#fbbf24'; // Amarelo
+  return '#fef08a'; // Branco amarelado intenso (zênite)
+}
+
+function getSunGlow(elevation: number) {
+  if (elevation < 0) return 'transparent';
+  if (elevation < 10) return 'rgba(234,88,12,0.3)';
+  if (elevation < 25) return 'rgba(245,158,11,0.3)';
+  if (elevation < 45) return 'rgba(251,191,36,0.3)';
+  return 'rgba(254,240,138,0.4)';
+}
+
 // ─── COMPONENT ────────────────────────────────────────────────────────────────
 
 interface SunPathDiagramProps {
@@ -91,12 +111,13 @@ export const SunPathDiagram: React.FC<SunPathDiagramProps> = ({
     [lat, lng, selectedMonthIdx, timezone]
   );
 
-  // Posição do sol no scrubber
-  const sunPos = useMemo(() => {
+  // Posição e dados do sol no scrubber
+  const sunData = useMemo(() => {
     const idx = Math.min(95, Math.round(scrubHour * 4));
     const pt  = selectedDay.points[idx];
     if (!pt || pt.elevation < 0) return null;
-    return toSVG(pt.elevation, pt.azimuth);
+    const pos = toSVG(pt.elevation, pt.azimuth);
+    return { ...pos, elevation: pt.elevation, azimuth: pt.azimuth };
   }, [scrubHour, selectedDay]);
 
   // Linha do azimute do painel (do centro até a borda)
@@ -120,30 +141,66 @@ export const SunPathDiagram: React.FC<SunPathDiagramProps> = ({
 
   return (
     <div className="flex flex-col gap-2 select-none">
-      {/* ── SVG Principal ────────────────────────────────────────────────────── */}
-      <svg viewBox="0 0 280 280" className="w-full max-w-[280px] mx-auto" role="img" aria-label="Trajetória solar anual">
-        {/* Fundo */}
-        <circle cx={CX} cy={CY} r={R} fill="rgba(15,23,42,0.6)" stroke="rgba(100,116,139,0.2)" strokeWidth="1" />
+      {/* ── Visualização Combinada (Mapa Satélite + SVG Overlay) ──────────────── */}
+      <div 
+        className="relative w-full max-w-[280px] aspect-square mx-auto flex items-center justify-center"
+        style={{
+          maskImage: 'radial-gradient(circle, black 75%, transparent 95%)',
+          WebkitMaskImage: 'radial-gradient(circle, black 75%, transparent 95%)'
+        }}
+      >
+        
+        {/* Mapa de Fundo */}
+        {lat !== 0 && lng !== 0 && (
+          <div 
+            className="absolute inset-0 pointer-events-none rounded-full overflow-hidden opacity-60 mix-blend-screen"
+            style={{ 
+              clipPath: 'circle(42.14% at 50% 50%)', // 118px / 280px
+              filter: 'grayscale(0.6) contrast(1.2)'
+            }}
+          >
+            <MapContainer
+              center={[lat, lng]}
+              zoom={20}
+              zoomControl={false}
+              dragging={false}
+              scrollWheelZoom={false}
+              doubleClickZoom={false}
+              touchZoom={false}
+              boxZoom={false}
+              keyboard={false}
+              attributionControl={false}
+              style={{ width: '100%', height: '100%', background: 'transparent' }}
+            >
+              <ReactLeafletGoogleLayer apiKey={GOOGLE_MAPS_TOKEN || ''} type="hybrid" />
+            </MapContainer>
+          </div>
+        )}
 
-        {/* Anéis de elevação (30° e 60°) */}
+        {/* SVG Principal */}
+        <svg viewBox="0 0 280 280" className="absolute inset-0 w-full h-full" role="img" aria-label="Trajetória solar anual">
+          {/* Fundo (mais transparente para mostrar o mapa) */}
+          <circle cx={CX} cy={CY} r={R} fill="rgba(15,23,42,0.65)" stroke="rgba(100,116,139,0.3)" strokeWidth="1" />
+
+        {/* Anéis de elevação (30° e 60°) - Disclosure Sutil */}
         {[30, 60].map(elev => (
           <circle key={elev}
             cx={CX} cy={CY}
             r={R * (1 - elev / 90)}
             fill="none"
-            stroke="rgba(100,116,139,0.12)"
+            stroke="rgba(100,116,139,0.05)"
             strokeWidth="1"
-            strokeDasharray="3 4"
+            strokeDasharray="2 6"
           />
         ))}
 
         {/* Labels dos anéis */}
-        <text x={CX + 4} y={CY - R * (1 - 30/90) + 3} fontSize="7" fill="rgba(100,116,139,0.5)">30°</text>
-        <text x={CX + 4} y={CY - R * (1 - 60/90) + 3} fontSize="7" fill="rgba(100,116,139,0.5)">60°</text>
+        <text x={CX + 4} y={CY - R * (1 - 30/90) + 3} fontSize="6" fill="rgba(100,116,139,0.3)">30°</text>
+        <text x={CX + 4} y={CY - R * (1 - 60/90) + 3} fontSize="6" fill="rgba(100,116,139,0.3)">60°</text>
 
         {/* Linhas cardinais */}
-        <line x1={CX} y1={CY - R} x2={CX} y2={CY + R} stroke="rgba(100,116,139,0.15)" strokeWidth="1" />
-        <line x1={CX - R} y1={CY} x2={CX + R} y2={CY} stroke="rgba(100,116,139,0.15)" strokeWidth="1" />
+        <line x1={CX} y1={CY - R} x2={CX} y2={CY + R} stroke="rgba(100,116,139,0.05)" strokeWidth="1" />
+        <line x1={CX - R} y1={CY} x2={CX + R} y2={CY} stroke="rgba(100,116,139,0.05)" strokeWidth="1" />
 
         {/* Labels cardinais */}
         {CARDINALS.map(c => (
@@ -198,22 +255,35 @@ export const SunPathDiagram: React.FC<SunPathDiagramProps> = ({
           x={CX + (panelLineEnd.x - CX) * 0.65}
           y={CY + (panelLineEnd.y - CY) * 0.65 - 5}
           fontSize="7" fill="rgba(56,189,248,0.8)" textAnchor="middle" fontFamily="system-ui"
+          fontWeight="700"
         >
-          Painel
+          Sua Placa
         </text>
 
-        {/* Sol (posição no horário do scrubber) */}
-        {sunPos && (
-          <>
-            <circle cx={sunPos.x} cy={sunPos.y} r="9" fill="rgba(251,191,36,0.12)" />
-            <circle cx={sunPos.x} cy={sunPos.y} r="5" fill="rgba(251,191,36,0.25)" />
-            <circle cx={sunPos.x} cy={sunPos.y} r="3" fill="#FBBF24" />
-          </>
+        {/* Feixe de Luz (Light Beam) */}
+        {sunData && (
+          <polygon
+            points={`${sunData.x},${sunData.y} ${CX - 8},${CY + 8} ${CX + 8},${CY - 8}`}
+            fill={getSunGlow(sunData.elevation)}
+            style={{ mixBlendMode: 'screen', opacity: 0.6 }}
+          />
         )}
 
-        {/* Ponto central (zênite) */}
-        <circle cx={CX} cy={CY} r="2" fill="rgba(100,116,139,0.3)" />
-      </svg>
+        {/* Sol (posição no horário do scrubber com Gradiente Térmico) */}
+        {sunData && (
+          <g>
+            {/* Glow halo */}
+            <circle cx={sunData.x} cy={sunData.y} r="12" fill={getSunColor(sunData.elevation)} opacity="0.1" />
+            <circle cx={sunData.x} cy={sunData.y} r="7" fill={getSunColor(sunData.elevation)} opacity="0.25" style={{ filter: 'blur(1px)' }} />
+            {/* Core */}
+            <circle cx={sunData.x} cy={sunData.y} r="3" fill={getSunColor(sunData.elevation)} />
+          </g>
+        )}
+
+          {/* Ponto central (zênite) */}
+          <circle cx={CX} cy={CY} r="2" fill="rgba(100,116,139,0.5)" />
+        </svg>
+      </div>
 
       {/* ── Legenda ───────────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 px-2">
@@ -223,40 +293,50 @@ export const SunPathDiagram: React.FC<SunPathDiagramProps> = ({
         <LegendItem color="rgba(56,189,248,0.8)"  label="Azimute Painel" dashed />
       </div>
 
-      {/* ── Scrubber de Hora ──────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-1 px-2 mt-1">
+      {/* ── Scrubber de Hora Cinemático ────────────────────────────────────────── */}
+      <div className="flex flex-col gap-1 px-4 mt-2">
         <div className="flex items-center justify-between text-[8px] font-mono text-slate-500">
-          <span>00:00</span>
-          <span className="text-amber-400 font-black">{decimalToHM(scrubHour)}</span>
-          <span>24:00</span>
+          <span>Nascer do Sol</span>
+          <span className="text-[12px] text-amber-400 font-black" style={{ textShadow: '0 0 10px rgba(245,158,11,0.3)' }}>
+            {decimalToHM(scrubHour)}
+          </span>
+          <span>Pôr do Sol</span>
         </div>
-        <input
-          type="range" min="0" max="24" step="0.25"
-          value={scrubHour}
-          onChange={onScrub}
-          className="w-full h-1 appearance-none bg-slate-800 rounded-full
-            [&::-webkit-slider-thumb]:appearance-none
-            [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3
-            [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-amber-400
-            [&::-webkit-slider-thumb]:cursor-pointer"
-        />
+        <div className="relative flex items-center py-2 group cursor-pointer">
+          <input
+            type="range" min={Math.max(0, selectedDay.sunrise - 1)} max={Math.min(24, selectedDay.sunset + 1)} step="0.25"
+            value={scrubHour}
+            onChange={onScrub}
+            className="w-full h-1 appearance-none bg-slate-800 rounded-full z-10
+              [&::-webkit-slider-thumb]:appearance-none
+              [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
+              [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-amber-400
+              [&::-webkit-slider-thumb]:shadow-[0_0_10px_rgba(245,158,11,0.8)]
+              [&::-webkit-slider-thumb]:cursor-grab active:[&::-webkit-slider-thumb]:cursor-grabbing
+              [&::-webkit-slider-thumb]:transition-transform hover:[&::-webkit-slider-thumb]:scale-110"
+          />
+          {/* Trilha ativa simulada */}
+          <div 
+            className="absolute h-1 bg-gradient-to-r from-orange-500/50 to-amber-400/80 rounded-full pointer-events-none"
+            style={{ 
+              width: `${((scrubHour - Math.max(0, selectedDay.sunrise - 1)) / (Math.min(24, selectedDay.sunset + 1) - Math.max(0, selectedDay.sunrise - 1))) * 100}%`,
+              left: 0
+            }} 
+          />
+        </div>
         {/* Info do ponto atual */}
-        <div className="flex justify-center gap-4 text-[8px] font-mono text-slate-500 tabular-nums">
-          {sunPos ? (
+        <div className="flex justify-center gap-4 text-[9px] font-mono text-slate-500 tabular-nums h-3">
+          {sunData ? (
             <>
-              <span>Elevação:
-                <span className="text-amber-400 ml-1">
-                  {selectedDay.points[Math.min(95, Math.round(scrubHour * 4))]?.elevation.toFixed(1)}°
-                </span>
+              <span className="flex items-center gap-1">
+                Elevação: <span style={{ color: getSunColor(sunData.elevation) }}>{sunData.elevation.toFixed(1)}°</span>
               </span>
-              <span>Azimute:
-                <span className="text-amber-400 ml-1">
-                  {selectedDay.points[Math.min(95, Math.round(scrubHour * 4))]?.azimuth.toFixed(1)}°
-                </span>
+              <span className="flex items-center gap-1">
+                Azimute: <span style={{ color: getSunColor(sunData.elevation) }}>{sunData.azimuth.toFixed(1)}°</span>
               </span>
             </>
           ) : (
-            <span className="text-slate-700">Sol abaixo do horizonte</span>
+            <span className="text-slate-700 italic">Sol abaixo do horizonte</span>
           )}
         </div>
       </div>

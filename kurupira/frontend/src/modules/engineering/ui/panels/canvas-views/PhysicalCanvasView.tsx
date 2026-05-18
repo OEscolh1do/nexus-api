@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { 
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
   Hash,
   X,
   Camera,
   MapPin,
+  Zap,
   type LucideIcon
 } from 'lucide-react';
 import { 
@@ -17,7 +18,17 @@ import L from 'leaflet';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/core/state/uiStore';
-import { useSolarStore } from '@/core/state/solarStore';
+import { useSolarStore, selectModules } from '@/core/state/solarStore';
+import { useTechStore } from '../../../store/useTechStore';
+import { useCatalogStore } from '../../../store/useCatalogStore';
+import { useInverterUIStore } from '../../../store/useInverterUIStore';
+import { useElectricalValidation } from '../../../hooks/useElectricalValidation';
+import { useThermalPremises } from '../../../hooks/useThermalPremises';
+import { useTechKPIs } from '../../../hooks/useTechKPIs';
+import { toArray } from '@/core/types/normalized.types';
+import { calculateStringMetrics } from '../../../utils/electricalMath';
+import { getModuleSpecs } from '../../../utils/specAdapter';
+import type { InverterCatalogItem } from '@/core/schemas/inverterSchema';
 import { MapCore } from '../../../components/MapCore';
 import { WebGLOverlay } from '../../../components/WebGLOverlay';
 import { ViewLayerSelector } from '../../components/ViewLayerSelector';
@@ -28,7 +39,7 @@ import { DraftingIsland } from './toolbars/DraftingIsland';
 import { SearchIsland } from './toolbars/SearchIsland';
 import { NeonorteLoader } from '@/components/ui/NeonorteLoader';
 import { DiagramCanvasView } from './DiagramCanvasView';
-import { ElectricalCanvasView } from './ElectricalCanvasView';
+import { UnifilarSchematicCanvas, type MpptValidationError } from './electrical/UnifilarSchematicCanvas';
 
 // =============================================================================
 // TYPES & CONSTANTS
@@ -54,6 +65,9 @@ interface ToolbarButtonProps {
   className?: string;
   subTools?: SubTool[];
 }
+
+// Fix 3: Move MPPT_HUD_COLORS to module level
+const MPPT_HUD_COLORS = ['#0ea5e9','#8b5cf6','#f59e0b','#10b981','#f43f5e','#06b6d4','#fb923c','#a855f7'];
 
 // =============================================================================
 // SUB-COMPONENTS: RIBBONS
@@ -104,6 +118,7 @@ export const ToolbarButton: React.FC<ToolbarButtonProps> = ({
           if (!disabled) onClick();
         }}
         title={`${label}${shortcut ? ` (${shortcut})` : ''}`}
+        aria-label={`${label}${shortcut ? `, atalho ${shortcut}` : ''}`}
         className={cn(
           "relative flex items-center justify-center w-8 h-8 rounded-[4px] transition-all duration-150 outline-none",
           active 
@@ -230,6 +245,8 @@ const DrawingEngine: React.FC<DrawingEngineProps> = ({ activeTool, points, setPo
 
   const map = useMapEvents({
     click: (e) => {
+      // Fix 2: Allow points to be drawn for POLYGON/SUBTRACT/MEASURE
+      // (the finalization guard in the footer already handles selectedAreaId check)
       if (activeTool === 'POLYGON' || activeTool === 'SUBTRACT' || activeTool === 'MEASURE') {
         let pos = e.latlng;
         if (points.length > 0) {
@@ -354,31 +371,131 @@ const ObstacleLayer: React.FC<{ areas: any[] }> = ({ areas }) => {
 // =============================================================================
 
 
-const StringPathOverlay: React.FC<{ moduleIds: string[]; placedModules: any[] }> = ({ moduleIds, placedModules }) => {
-  if (moduleIds.length < 2) return null;
-  const positions = moduleIds.map(id => {
-    const mod = placedModules.find(m => m.id === id);
-    return mod?.center || [0, 0];
-  }).filter(p => p[0] !== 0);
+const StringPathOverlay: React.FC<{
+  moduleIds: string[];
+  placedModules: any[];
+  mpptColorMap: Record<string, string>;
+  onMissingCenterCount?: (count: number) => void;
+}> = ({ moduleIds, placedModules, mpptColorMap, onMissingCenterCount }) => {
+  // Build paths for all assigned strings
+  const assignedPaths = useMemo(() => {
+    const groups: Record<string, { color: string; positions: [number, number][] }> = {};
+    placedModules.forEach(m => {
+      if (!m.stringData || !m.center) return;
+      const key = `${m.stringData.inverterId}:${m.stringData.mpptId}`;
+      if (!groups[key]) {
+        groups[key] = { color: mpptColorMap[key] ?? '#6366f1', positions: [] };
+      }
+      groups[key].positions.push(m.center as [number, number]);
+    });
+    return Object.entries(groups);
+  }, [placedModules, mpptColorMap]);
 
-  return <Polyline positions={positions as any} color="#22d3ee" weight={2} dashArray="5, 5" opacity={0.8} />;
-};
+  // [R4-03] MEDIUM: Compute count of geometrically orphaned modules
+  // Detect both !m.center AND center = [0,0] (invalid default coordinates)
+  const missingCenterCount = useMemo(() => {
+    return placedModules.filter(m => {
+      if (!m.stringData) return false;
+      if (!m.center) return true;
+      // [0,0] is invalid coordinate (Equator/Prime Meridian)
+      return m.center[0] === 0 && m.center[1] === 0;
+    }).length;
+  }, [placedModules]);
 
-const ModuleInteractionLayer: React.FC<{ activeTool: string; placedModules: any[]; selectedIds: string[]; onToggle: (id: string) => void }> = ({ activeTool, placedModules, selectedIds, onToggle }) => {
-  if (activeTool !== 'STRINGING') return null;
+  // Report count to parent
+  React.useEffect(() => {
+    if (onMissingCenterCount) {
+      onMissingCenterCount(missingCenterCount);
+    }
+  }, [missingCenterCount, onMissingCenterCount]);
+
+  // Current selection path
+  const selectionPositions = useMemo(() => {
+    if (moduleIds.length < 2) return [];
+    return moduleIds
+      .map(id => placedModules.find(m => m.id === id)?.center)
+      .filter(Boolean) as [number, number][];
+  }, [moduleIds, placedModules]);
+
   return (
     <>
-      {placedModules.map(mod => (
-        <LeafletPolygon 
-          key={mod.id}
-          positions={mod.polygon}
-          fillColor={selectedIds.includes(mod.id) ? "#22d3ee" : "#4f46e5"}
-          fillOpacity={selectedIds.includes(mod.id) ? 0.6 : 0.2}
-          color={selectedIds.includes(mod.id) ? "#22d3ee" : "#6366f1"}
-          weight={selectedIds.includes(mod.id) ? 2 : 1}
-          eventHandlers={{ click: () => onToggle(mod.id) }}
-        />
+      {assignedPaths.map(([key, { color, positions }]) => (
+        positions.length >= 2 && (
+          <Polyline
+            key={key}
+            positions={positions as any}
+            color={color}
+            weight={1.5}
+            dashArray="3, 6"
+            opacity={0.5}
+          />
+        )
       ))}
+      {selectionPositions.length >= 2 && (
+        <Polyline
+          positions={selectionPositions as any}
+          color="#22d3ee"
+          weight={2.5}
+          dashArray="5, 5"
+          opacity={0.9}
+        />
+      )}
+    </>
+  );
+};
+
+const ModuleInteractionLayer: React.FC<{
+  activeTool: string;
+  placedModules: any[];
+  selectedIds: string[];
+  mpptColorMap: Record<string, string>;
+  onToggle: (id: string) => void
+}> = ({ activeTool, placedModules, selectedIds, mpptColorMap, onToggle }) => {
+  if (activeTool !== 'STRINGING') return null;
+
+  const getModuleColor = (mod: any): string => {
+    if (selectedIds.includes(mod.id)) return "#22d3ee"; // selecionado agora
+    if (mod.stringData) {
+      const key = `${mod.stringData.inverterId}:${mod.stringData.mpptId}`;
+      return mpptColorMap[key] ?? "#6366f1";
+    }
+    return "#4f46e5"; // livre
+  };
+
+  const getModuleFillOpacity = (mod: any): number => {
+    if (selectedIds.includes(mod.id)) return 0.6;
+    if (mod.stringData) return 0.45;
+    return 0.15;
+  };
+
+  return (
+    <>
+      {placedModules.map(mod => {
+        const fillColor = getModuleColor(mod);
+        const fillOpacity = getModuleFillOpacity(mod);
+        return (
+          <LeafletPolygon
+            key={mod.id}
+            positions={mod.polygon}
+            fillColor={fillColor}
+            fillOpacity={fillOpacity}
+            color={fillColor}
+            weight={selectedIds.includes(mod.id) ? 2 : 1}
+            eventHandlers={{ click: () => onToggle(mod.id) }}
+          >
+            {mod.stringData && (
+              <Tooltip sticky>
+                <span style={{ fontSize: '10px', fontFamily: 'monospace' }}>
+                  {`MPPT ${mod.stringData.mpptId}`}
+                  {mod.stringData.stringId
+                    ? ` · ${mod.stringData.stringId.startsWith('String ') ? mod.stringData.stringId : `str-${mod.stringData.stringId.slice(0, 4)}`}`
+                    : ''}
+                </span>
+              </Tooltip>
+            )}
+          </LeafletPolygon>
+        );
+      })}
     </>
   );
 };
@@ -513,6 +630,123 @@ const AnatomyView: React.FC<{ isOpen: boolean; onClose: () => void; surfaceType:
 };
 
 // =============================================================================
+// UNIFILAR LAYER — Self-contained wrapper for Layer 3 inside the arrangement
+// Gathers all electrical data needed by UnifilarSchematicCanvas without
+// coupling PhysicalCanvasView to ElectricalCanvasView internals.
+// =============================================================================
+
+const UnifilarLayer: React.FC = () => {
+  const modules        = useSolarStore(selectModules);
+  const invertersNorm  = useTechStore(state => state.inverters);
+  const techInverters  = useMemo(() => toArray(invertersNorm), [invertersNorm]);
+
+  const activeInverterId = useInverterUIStore(s => s.activeInverterId);
+  const activeInverter   = useMemo(() => {
+    if (activeInverterId) return techInverters.find(i => i.id === activeInverterId) ?? techInverters[0] ?? null;
+    return techInverters[0] ?? null;
+  }, [techInverters, activeInverterId]);
+
+  const catalogInverters = useCatalogStore(s => s.inverters);
+  const activeCatalogItem = useMemo(
+    () => catalogInverters.find((c: InverterCatalogItem) => c.id === activeInverter?.catalogId),
+    [catalogInverters, activeInverter],
+  );
+
+  const { tmin, tcellMax } = useThermalPremises();
+  const { electrical }     = useElectricalValidation();
+
+  const calcVmpCalor = useCallback((specs: any, modulesPerString: number): number => {
+    if (!specs || modulesPerString <= 0) return 0;
+    const tCoeffVmp = specs.tempCoeffVmp ?? specs.tempCoeffPmax ?? specs.tempCoeffVoc;
+    return specs.vmp * (1 + (tCoeffVmp / 100) * (tcellMax - 25)) * modulesPerString;
+  }, [tcellMax]);
+
+  const mpptMetrics = useMemo((): Record<number, any> => {
+    if (!activeInverter || modules.length === 0) return {};
+    const result: Record<number, any> = {};
+    activeInverter.mpptConfigs.forEach(mppt => {
+      const specificModule = mppt.moduleModel ? modules.find(m => m.model === mppt.moduleModel) : modules[0];
+      const specs = getModuleSpecs(specificModule);
+
+      // Se não há specs, registrar entrada zerada para que a topologia apareça
+      if (!specs) {
+        result[mppt.mpptId] = {
+          vocFrio: 0, vmpCalor: 0, iscTotal: 0, iscProtection: 0,
+          impTotal: 0, powerKwp: 0, hasMismatch: false,
+          unitVmp: 0, unitImp: 0, unitIsc: 0,
+        };
+        return;
+      }
+
+      const activeStrings = mppt.strings?.length ? mppt.strings :
+        Array.from({ length: mppt.stringsCount || 0 }).map(() => ({ modulesCount: mppt.modulesPerString || 0 }));
+      const strCount  = activeStrings.length;
+      const maxMods   = strCount > 0 ? Math.max(...activeStrings.map(s => s.modulesCount)) : 0;
+      const totalMods = activeStrings.reduce((acc, s) => acc + s.modulesCount, 0);
+
+      const metrics  = maxMods > 0 ? calculateStringMetrics(specs, maxMods, tmin) : null;
+      const vmpCalor = maxMods > 0 ? calcVmpCalor(specs, maxMods) : 0;
+
+      const bifacialFactor = specs.isBifacial ? (1 + 0.70 * specs.albedo) : 1;
+      const mpptEntry      = electrical?.entries?.find(e => e.mpptId === mppt.mpptId);
+      const hasMismatch    = mpptEntry?.messages.some(m => m.includes('Sistema Multi-orientado')) || false;
+
+      result[mppt.mpptId] = {
+        vocFrio:       metrics?.vocMax ?? 0,
+        vmpCalor,
+        iscTotal:      (specs.isc || 0) * strCount * bifacialFactor,
+        iscProtection: (specs.isc || 0) * strCount * bifacialFactor * 1.25,
+        impTotal:      (specs.imp || 0) * strCount * bifacialFactor,
+        powerKwp:      totalMods > 0 ? (specs.pmax * totalMods) / 1000 : 0,
+        hasMismatch,
+        unitVmp: specs.vmp,
+        unitImp: specs.imp,
+        unitIsc: (specs.isc || 0) * bifacialFactor,
+        unitPmax: specs.pmax ?? (specs.vmp * (specs.imp ?? specs.isc * 0.95)),
+        moduleModel: specificModule?.model ?? specificModule?.manufacturer ?? '',
+      };
+    });
+    return result;
+  }, [activeInverter, modules, tmin, calcVmpCalor, electrical]);
+
+  const validationErrors = useMemo<Record<number, MpptValidationError>>(() => {
+    const result: Record<number, MpptValidationError> = {};
+    electrical?.entries?.forEach(entry => {
+      if (entry.status !== 'ok' && entry.messages.length > 0) {
+        result[entry.mpptId] = {
+          severity: entry.status === 'error' ? 'error' : 'warn',
+          messages: entry.messages,
+        };
+      }
+    });
+    return result;
+  }, [electrical]);
+
+  if (!activeInverter) {
+    return (
+      <div className="absolute inset-0 z-[500] flex items-center justify-center bg-slate-950/95">
+        <div className="flex flex-col gap-3 items-center text-center px-8">
+          <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center">
+            <Zap size={20} className="text-slate-500" />
+          </div>
+          <p className="text-sm font-semibold text-slate-400">Nenhum inversor configurado</p>
+          <p className="text-xs text-slate-600">Acesse a aba <span className="font-bold text-slate-500">Inversores</span> para configurar o sistema elétrico.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <UnifilarSchematicCanvas
+      inverter={activeInverter}
+      catalogItem={activeCatalogItem}
+      mpptMetrics={mpptMetrics}
+      validationErrors={validationErrors}
+    />
+  );
+};
+
+// =============================================================================
 // MAIN COMPONENT
 // =============================================================================
 
@@ -529,6 +763,19 @@ export const PhysicalCanvasView: React.FC = () => {
 
   const [drawingPoints, setDrawingPoints] = React.useState<[number, number][]>([]);
   const [selectedModuleIds, setSelectedModuleIds] = React.useState<string[]>([]);
+  const [stringingPickerOpen, setStringingPickerOpen] = useState(false);
+  const [missingCenterCount, setMissingCenterCount] = React.useState(0);
+
+  // MELHORIA 1: Acesso aos inversores e catálogo para o picker de MPPT
+  const techInvertersNorm = useTechStore(state => state.inverters);
+  const techInverters = useMemo(() => toArray(techInvertersNorm), [techInvertersNorm]);
+  const catalogInvertersList = useCatalogStore(s => s.inverters);
+
+  // C3: FDI correto usando useTechKPIs
+  const { kpi } = useTechKPIs();
+
+  // B2: Validation health for statusbar badge
+  const { globalHealth, unassignedModulesCount, orphanedSpecCount, orphanedInverterCount, emptyConfiguredMPPTCount } = useElectricalValidation();
 
   // Loader do canvas: controlado pelo MapReadyObserver via uiStore (sem timer local)
   const isMapLoading = useUIStore(
@@ -546,20 +793,49 @@ export const PhysicalCanvasView: React.FC = () => {
   const selectedAreaId = useUIStore(s => s.selectedEntity.type === 'area' ? s.selectedEntity.id : null);
   const updateClientData = useSolarStore(s => s.updateClientData);
 
-  // Electrical Calculation for String
+  // Fix 4: Remove duplicate techInvertersForMeta, use techInverters directly
+  // [R5-03] LOW: Add hash signature of module counts as dependency to detect internal changes
+  const mpptConfigSignature = useMemo(() =>
+    techInverters.map(inv =>
+      inv.mpptConfigs.map((m: any) =>
+        (m.strings || []).map((s: any) => s.modulesCount || 0).join(',')
+      ).join('|')
+    ).join(';;'),
+    [techInverters]
+  );
+
+  const modulosMeta = useMemo(() => {
+    let total = 0;
+    techInverters.forEach(inv => {
+      inv.mpptConfigs.forEach((mppt: any) => {
+        (mppt.strings || []).forEach((str: any) => { total += str.modulesCount || 0; });
+      });
+    });
+    return total > 0 ? total : 0;
+  }, [techInverters, mpptConfigSignature]);
+
+  // Fix 7 & Fix 8: Electrical Calculation for String + maxInputVoltage
+  const maxInputVoltage = useMemo(() => {
+    if (techInverters.length === 0) return 800;
+    // Use the first inverter's catalog entry as reference
+    const firstInv = techInverters[0];
+    const cat = catalogInvertersList.find(c => c.id === firstInv.catalogId);
+    return (cat as any)?.maxInputVoltage ?? 800;
+  }, [techInverters, catalogInvertersList]);
+
   const stringElectrical = useMemo(() => {
     if (!selectedModuleIds || selectedModuleIds.length === 0) return { voc: 0, isc: 0 };
-    
+
     const firstMod = placedModules.find(m => m.id === selectedModuleIds[0]);
-    if (!firstMod) return { voc: 0, isc: 0 };
-    
+    if (!firstMod || !firstMod.moduleSpecId) return { voc: 0, isc: 0 };
+
     const spec = moduleSpecs.entities[firstMod.moduleSpecId];
     if (!spec) return { voc: 0, isc: 0 };
 
-    // Basic Series String Logic (Sum Voc, Keep Isc)
-    const vocBase = spec.voc || 49.5;
-    const iscBase = spec.isc || 13.5;
-    
+    // Fix 7: Clean zero-based (no magic fallbacks)
+    const vocBase = spec.voc ?? 0;
+    const iscBase = spec.isc ?? 0;
+
     return {
       voc: vocBase * selectedModuleIds.length,
       isc: iscBase
@@ -623,20 +899,22 @@ export const PhysicalCanvasView: React.FC = () => {
       areaTot: totalArea,
       areaUtil: Math.max(0, totalArea - obstacleArea),
       modulos: placedModules.length,
-      modulosMeta: (clientData as any).estimatedModules || 20,
-      fdi: totalArea > 0 ? (placedModules.length * 0.55) / 10 : 0, // Cálculo FDI (Fator de Dimensionamento do Inversor)
       currentDraw: {
         area: drawingArea,
         length: drawingLen
       }
     };
-  }, [drawingPoints, installationAreas, placedModules, clientData]);
+  }, [drawingPoints, installationAreas, placedModules]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Guard: ignore when focus is in an input field
+      const tag = (document.activeElement?.tagName ?? '').toUpperCase();
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+
       const k = e.key.toLowerCase();
       if (e.key === 'Escape') { setDrawingPoints([]); setActiveTool('SELECT'); }
-      
+
       // Viewport Modes
       if (e.key === '1') setCanvasViewMode('CONTEXT');
       if (e.key === '2') setCanvasViewMode('BLUEPRINT');
@@ -647,44 +925,201 @@ export const PhysicalCanvasView: React.FC = () => {
       if (k === 's') setActiveTool('SELECT');
       if (k === 'g') setActiveTool('MOVE');
       if (k === 'h') setActiveTool('PAN');
-      
+
       // Layer Tools
       if (k === 'p') setActiveTool('POLYGON');
-      if (k === 's') setActiveTool('SUBTRACT');
+      if (k === 'b') setActiveTool('SUBTRACT');
       if (k === 'd') setActiveTool('DROP_POINT');
       if (k === 'm') setActiveTool('MEASURE');
+      if (k === 'q') setActiveTool('STRINGING');
 
-      if (e.key === 'Enter' && drawingPoints.length >= 3) { 
+      if (e.key === 'Enter' && drawingPoints.length >= 3) {
         if (activeTool === 'POLYGON') {
           spawnFreeformArea(drawingPoints);
-        } else if (activeTool === 'SUBTRACT' && selectedAreaId) {
+          setDrawingPoints([]);
+          setActiveTool('SELECT');
+        } else if (activeTool === 'SUBTRACT') {
+          // D01: Guard — can't subtract without a selected area
+          if (!selectedAreaId) {
+            // Points remain so user can select correct area
+            return;
+          }
           spawnObstacle(selectedAreaId, drawingPoints);
+          setDrawingPoints([]);
+          setActiveTool('SELECT');
         }
-        setDrawingPoints([]); 
-        setActiveTool('SELECT');
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [drawingPoints, setActiveTool]);
+  }, [drawingPoints, setActiveTool, setCanvasViewMode, activeTool, selectedAreaId, spawnFreeformArea, spawnObstacle]);
+
+  // B3: Limpar seleção de módulos ao sair de STRINGING
+  useEffect(() => {
+    if (activeTool !== 'STRINGING') {
+      setSelectedModuleIds([]);
+    }
+  }, [activeTool]);
 
   const isDrawingActive = activeTool === 'POLYGON' || activeTool === 'SUBTRACT';
   const isDropPointActive = activeTool === 'DROP_POINT';
   const isMeasureActive = activeTool === 'MEASURE';
   const isStringingActive = selectedModuleIds.length > 0;
 
+  // C03: More granular mpptColorMap dependency — only recompute when stringData assignments change
+  const mpptColorSig = useMemo(() =>
+    placedModules
+      .filter(m => m.stringData)
+      .map(m => `${m.id}:${m.stringData!.inverterId}:${m.stringData!.mpptId}`)
+      .sort()
+      .join('|'),
+    [placedModules]
+  );
+
+  const mpptColorMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    let colorIdx = 0;
+    placedModules.forEach(m => {
+      if (!m.stringData) return;
+      const key = `${m.stringData.inverterId}:${m.stringData.mpptId}`;
+      if (!(key in map)) { map[key] = MPPT_HUD_COLORS[colorIdx++ % MPPT_HUD_COLORS.length]; }
+    });
+    return map;
+  }, [mpptColorSig]);
+
+  // MPPT Picker — exibido ao confirmar stringing
+  const StringingMpptPicker = stringingPickerOpen && selectedModuleIds.length > 0 ? (
+    <div className="absolute inset-0 z-[2000] flex items-end justify-center pb-16 pointer-events-none">
+      <div
+        className="pointer-events-auto bg-slate-950 border border-slate-700 rounded-xl shadow-2xl p-4 w-[360px] animate-in slide-in-from-bottom-4 duration-300"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-[11px] font-black text-cyan-400 uppercase tracking-widest">
+            Atribuir {selectedModuleIds.length} módulo{selectedModuleIds.length !== 1 ? 's' : ''} ao MPPT
+          </span>
+          <button onClick={() => setStringingPickerOpen(false)} className="text-slate-500 hover:text-white transition-colors">
+            ✕
+          </button>
+        </div>
+        {/* D03: Aviso de reassociação com origem das strings */}
+        {(() => {
+          const assignedModules = selectedModuleIds
+            .map(id => placedModules.find(m => m.id === id))
+            .filter(m => m?.stringData);
+
+          if (assignedModules.length === 0) return null;
+
+          const sourceStrings = [...new Set(
+            assignedModules.map(m => {
+              const sd = m!.stringData!;
+              const inv = techInverters.find(i => i.id === sd.inverterId);
+              const invLabel = inv
+                ? (catalogInvertersList.find((c: any) => c.id === inv.catalogId)?.model ?? `Inv ${sd.inverterId.slice(0, 6)}`)
+                : `Inv ${sd.inverterId.slice(0, 6)}`;
+              return `${invLabel} › MPPT ${sd.mpptId}`;
+            })
+          )];
+
+          return (
+            <div className="mb-2 px-2 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-md text-[9px] text-amber-400 font-bold uppercase tracking-wider">
+              ⚠ {assignedModules.length} módulo(s) de {sourceStrings.join(', ')} serão reassociados
+            </div>
+          );
+        })()}
+        {techInverters.length === 0 ? (
+          <p className="text-[10px] text-slate-500 text-center py-4">
+            Nenhum inversor configurado. Vá para a aba Inversores.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-2 max-h-60 overflow-y-auto custom-scrollbar">
+            {techInverters.map(inv => {
+              const cat = catalogInvertersList.find(c => c.id === inv.catalogId);
+              return (
+                <div key={inv.id} className="border border-slate-800 rounded-lg overflow-hidden">
+                  <div className="px-3 py-1.5 bg-slate-900 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                    {cat?.model ?? inv.snapshot?.model ?? inv.id}
+                  </div>
+                  <div className="flex flex-wrap gap-1 p-2">
+                    {inv.mpptConfigs.map(mppt => {
+                      const assignedCount = placedModules.filter(
+                        m => m.stringData?.inverterId === inv.id && m.stringData?.mpptId === mppt.mpptId
+                      ).length;
+                      const stringCount = mppt.strings?.length ?? 0;
+                      const configuredCapacity = (mppt.strings || []).reduce((acc, s) => acc + (s.modulesCount || mppt.modulesPerString || 0), 0);
+                      const remaining = Math.max(0, configuredCapacity - assignedCount);
+                      return (
+                        <button
+                          key={mppt.mpptId}
+                          onClick={() => {
+                            // Compute next available stringId within this MPPT
+                            const existingStringIds = new Set(
+                              placedModules
+                                .filter(m => m.stringData?.inverterId === inv.id && m.stringData?.mpptId === mppt.mpptId && m.stringData?.stringId)
+                                .map(m => m.stringData!.stringId as string)
+                            );
+                            const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                            let nextStringId = 'String A';
+                            for (let i = 0; i < letters.length; i++) {
+                              const candidate = `String ${letters[i]}`;
+                              if (!existingStringIds.has(candidate)) { nextStringId = candidate; break; }
+                            }
+                            assignModulesToString(selectedModuleIds, inv.id, mppt.mpptId, nextStringId);
+                            setSelectedModuleIds([]);
+                            setActiveTool('SELECT');
+                            setStringingPickerOpen(false);
+                          }}
+                          className="px-2 py-1 text-[9px] font-black uppercase rounded border border-slate-700 bg-slate-900 hover:bg-indigo-600 hover:border-indigo-500 hover:text-white text-slate-400 transition-all"
+                        >
+                          <span>MPPT {mppt.mpptId}</span>
+                          {stringCount > 0 && <span className="opacity-60"> · {stringCount} str</span>}
+                          <span className="ml-1 flex items-center gap-0.5">
+                            {assignedCount > 0 && (
+                              <span className="px-1 rounded bg-indigo-500/20 text-indigo-300 text-[8px] font-mono">
+                                {assignedCount}↑
+                              </span>
+                            )}
+                            {configuredCapacity > 0 && remaining > 0 && (
+                              <span className="px-1 rounded bg-slate-600/40 text-slate-400 text-[8px] font-mono">
+                                {remaining}↓
+                              </span>
+                            )}
+                            {configuredCapacity > 0 && remaining === 0 && assignedCount > 0 && (
+                              <span className="px-1 rounded bg-emerald-500/20 text-emerald-400 text-[8px] font-mono">✓</span>
+                            )}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <button
+          onClick={() => setStringingPickerOpen(false)}
+          className="mt-3 w-full py-1.5 text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-300 transition-colors border border-slate-800 rounded-md"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+  ) : null;
+
   return (
     <div className="relative w-full h-full flex flex-col bg-slate-950 overflow-hidden select-none">
       {/* ── D1: TopRibbon local ELIMINADO — canvas começa direto ── */}
 
       <div className="flex-1 flex min-h-0 relative bg-slate-950/20">
-        <SearchIsland />
-        
+        {/* C1: SearchIsland — só em CONTEXT/BLUEPRINT */}
+        {(canvasViewMode === 'CONTEXT' || canvasViewMode === 'BLUEPRINT') && <SearchIsland />}
+
         {/* ── STACK DE ILHAS (Lado Esquerdo) ── */}
         <div className="absolute left-6 top-24 flex flex-col gap-3 items-center z-[1100]">
-          <ManipulationIsland />
-          <NavigationIsland />
-          <VisionIsland />
+          {(canvasViewMode === 'CONTEXT' || canvasViewMode === 'BLUEPRINT') && <ManipulationIsland />}
+          {(canvasViewMode === 'CONTEXT' || canvasViewMode === 'BLUEPRINT') && <NavigationIsland />}
+          {(canvasViewMode === 'CONTEXT' || canvasViewMode === 'BLUEPRINT') && <VisionIsland />}
           <DraftingIsland />
         </div>
 
@@ -709,15 +1144,21 @@ export const PhysicalCanvasView: React.FC = () => {
               <SafeEdgeOverlay points={drawingPoints} />
               <ObstacleLayer areas={installationAreas} />
               <DropPointLayer />
-              <ModuleInteractionLayer 
-                activeTool={activeTool} 
-                placedModules={placedModules} 
-                selectedIds={selectedModuleIds} 
+              <ModuleInteractionLayer
+                activeTool={activeTool}
+                placedModules={placedModules}
+                selectedIds={selectedModuleIds}
+                mpptColorMap={mpptColorMap}
                 onToggle={(id) => {
                   setSelectedModuleIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-                }} 
+                }}
               />
-              <StringPathOverlay moduleIds={selectedModuleIds} placedModules={placedModules} />
+              <StringPathOverlay
+                moduleIds={selectedModuleIds}
+                placedModules={placedModules}
+                mpptColorMap={mpptColorMap}
+                onMissingCenterCount={setMissingCenterCount}
+              />
             </MapCore>
           </div>
 
@@ -728,10 +1169,10 @@ export const PhysicalCanvasView: React.FC = () => {
             </div>
           )}
 
-          {/* Layer 3: Diagrama Unifilar (IEC 60617) */}
+          {/* Layer 3: Diagrama Unifilar (IEC 60617 / NBR 16690) */}
           {canvasViewMode === 'UNIFILAR' && (
             <div className="absolute inset-0 z-[10] animate-in fade-in zoom-in-95 duration-500">
-               <ElectricalCanvasView />
+               <UnifilarLayer />
             </div>
           )}
 
@@ -746,24 +1187,62 @@ export const PhysicalCanvasView: React.FC = () => {
           {/* D5: HUDs de CAD e Stringing REMOVIDOS do canvas — agora no footer */}
 
           {/* D4: AnatomyView como sheet lateral direito — não colide com ViewSwitcher */}
-          <AnatomyView 
-            isOpen={isAnatomyPanelOpen} 
-            onClose={closeAnatomyPanel} 
-            surfaceType={clientData.roofType || 'ceramica'} 
+          <AnatomyView
+            isOpen={isAnatomyPanelOpen}
+            onClose={closeAnatomyPanel}
+            surfaceType={clientData.roofType || 'ceramica'}
             onSurfaceChange={(type) => updateClientData({ roofType: type as any })}
           />
 
-          <div className="absolute bottom-4 right-4 z-[1100]">
-            <button 
-              title="Bancada de Fotos"
-              className="flex items-center justify-center p-2 bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-lg hover:border-indigo-500/50 transition-all group relative"
-            >
-              <Camera size={18} className="text-slate-500 group-hover:text-indigo-400 transition-colors" />
-              <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-indigo-600 flex items-center justify-center text-[7px] font-black text-white shadow-lg">0</div>
-            </button>
-          </div>
+          {/* Fix 1: HUD: Status de Stringing por MPPT - wrapped in conditional */}
+          {(canvasViewMode === 'CONTEXT' || canvasViewMode === 'BLUEPRINT') && (() => {
+            const assignedModules = placedModules.filter(m => m.stringData);
+            if (assignedModules.length === 0) return null;
+            const byMppt: Record<string, { inverterId: string; mpptId: number; count: number }> = {};
+            assignedModules.forEach(m => {
+              if (!m.stringData) return;
+              const key = `${m.stringData.inverterId}:${m.stringData.mpptId}`;
+              if (!byMppt[key]) byMppt[key] = { ...m.stringData, count: 0 };
+              byMppt[key].count++;
+            });
+            const entries = Object.values(byMppt);
+            return (
+              <div className="absolute bottom-4 left-[76px] z-[1100] flex flex-col gap-1 pointer-events-none">
+                {entries.map((e, i) => (
+                  <div
+                    key={`${e.inverterId}:${e.mpptId}`}
+                    className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-950/90 backdrop-blur-sm border border-slate-800 rounded-full"
+                  >
+                    <div
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: MPPT_HUD_COLORS[i % MPPT_HUD_COLORS.length] }}
+                    />
+                    <span className="text-[8px] font-black font-mono text-slate-400 uppercase">
+                      MPPT {e.mpptId} — {e.count} mod
+                    </span>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
+          {/* Fix 1: Camera button - wrapped in conditional */}
+          {(canvasViewMode === 'CONTEXT' || canvasViewMode === 'BLUEPRINT') && (
+            <div className="absolute bottom-4 right-4 z-[1100]">
+              <button
+                disabled
+                title="Bancada de Fotos (em breve)"
+                className="flex items-center justify-center p-2 bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-lg transition-all group relative cursor-not-allowed opacity-40"
+              >
+                <Camera size={18} className="text-slate-500 transition-colors" />
+                <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-indigo-600 flex items-center justify-center text-[7px] font-black text-white shadow-lg">0</div>
+              </button>
+            </div>
+          )}
         </div>
       </div>
+
+      {StringingMpptPicker}
 
       <div className="h-10 shrink-0 bg-slate-900 border-t border-slate-800 flex items-center px-4 z-[1100]">
         {isDrawingActive ? (
@@ -786,11 +1265,11 @@ export const PhysicalCanvasView: React.FC = () => {
               <button
                 disabled={drawingPoints.length < 3 || (activeTool === 'SUBTRACT' && !selectedAreaId)}
                 onClick={() => {
-                  if (drawingPoints.length >= 3) { 
+                  if (drawingPoints.length >= 3) {
                     if (activeTool === 'POLYGON') spawnFreeformArea(drawingPoints);
                     else if (activeTool === 'SUBTRACT' && selectedAreaId) spawnObstacle(selectedAreaId, drawingPoints);
-                    setDrawingPoints([]); 
-                    setActiveTool('SELECT'); 
+                    setDrawingPoints([]);
+                    setActiveTool('SELECT');
                   }
                 }}
                 className="px-2 py-0.5 text-[9px] font-black uppercase tracking-widest bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-400/50 rounded-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed"
@@ -798,6 +1277,23 @@ export const PhysicalCanvasView: React.FC = () => {
                 {activeTool === 'SUBTRACT' && !selectedAreaId ? 'Selecione uma Área' : 'Finalizar (Enter)'}
               </button>
             </div>
+          </div>
+        ) : activeTool === 'STRINGING' && selectedModuleIds.length === 0 ? (
+          /* Fix 6: STRINGING hint when 0 modules selected */
+          <div className="flex-1 flex items-center gap-4 font-mono text-[11px] h-full animate-in fade-in duration-150">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+              <span className="text-[10px] font-black text-cyan-300 uppercase tracking-widest font-mono">
+                STRINGING ATIVO — Clique nos módulos para selecionar
+              </span>
+            </div>
+            <div className="h-4 w-px bg-slate-800" />
+            <button
+              onClick={() => setActiveTool('SELECT')}
+              className="px-2 py-0.5 text-[9px] font-black uppercase tracking-widest bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-700 hover:border-rose-500/50 rounded-sm transition-all"
+            >
+              Sair (Esc)
+            </button>
           </div>
         ) : isStringingActive ? (
           /* Stringing HUD */
@@ -813,20 +1309,26 @@ export const PhysicalCanvasView: React.FC = () => {
             <div className="flex items-center gap-6 tabular-nums">
               <div className="flex flex-col">
                 <span className="text-[8px] text-slate-500 uppercase font-black tracking-tighter">Voc Total</span>
-                <span className={cn("font-bold text-xs", stringElectrical.voc > 800 ? "text-rose-400" : "text-slate-200")}>{stringElectrical.voc.toFixed(2)}V</span>
+                {/* Fix 7 & Fix 8: Voc with '--' fallback and dynamic threshold */}
+                <span className={cn("font-bold text-xs", stringElectrical.voc > 0 && stringElectrical.voc > maxInputVoltage ? "text-rose-400" : "text-slate-200")}>
+                  {stringElectrical.voc > 0 ? `${stringElectrical.voc.toFixed(2)}V` : '--'}
+                </span>
               </div>
               <div className="flex flex-col">
                 <span className="text-[8px] text-slate-500 uppercase font-black tracking-tighter">Isc</span>
-                <span className="text-slate-200 font-bold text-xs">{stringElectrical.isc.toFixed(2)}A</span>
+                {/* Fix 7: Isc with '--' fallback */}
+                <span className="text-slate-200 font-bold text-xs">
+                  {stringElectrical.isc > 0 ? `${stringElectrical.isc.toFixed(2)}A` : '--'}
+                </span>
               </div>
             </div>
             <div className="h-4 w-px bg-slate-800" />
             <div className="flex items-center gap-2">
               <button onClick={() => setSelectedModuleIds([])} className="px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-400 transition-colors">Limpar</button>
               <button
-                onClick={() => { assignModulesToString(selectedModuleIds, 'GENERIC_INV', 1); setSelectedModuleIds([]); setActiveTool('SELECT'); }}
+                onClick={() => setStringingPickerOpen(true)}
                 className="px-3 py-0.5 text-[9px] font-black uppercase tracking-widest bg-cyan-600 hover:bg-cyan-500 text-white border border-cyan-400/50 rounded-sm transition-all"
-              >Finalizar</button>
+              >Atribuir a MPPT…</button>
             </div>
           </div>
         ) : isDropPointActive ? (
@@ -890,8 +1392,21 @@ export const PhysicalCanvasView: React.FC = () => {
             <div className="flex items-center gap-2">
               <Hash size={12} className="text-slate-600" />
               <div className="flex gap-3">
-                <div className="flex gap-1.5"><span className="text-slate-600 font-black">LAT</span><span className="text-indigo-400 font-bold">{clientData.lat?.toFixed(6) ?? '-3.1316'}</span></div>
-                <div className="flex gap-1.5"><span className="text-slate-600 font-black">LNG</span><span className="text-indigo-400 font-bold">{clientData.lng?.toFixed(6) ?? '-60.0233'}</span></div>
+                {/* [R4-10] LOW: LAT/LNG show dynamic centroid of installation areas */}
+                <div className="flex gap-1.5"><span className="text-slate-600 font-black">LAT</span><span className="text-indigo-400 font-bold">{(() => {
+                  if (!installationAreas || installationAreas.length === 0) {
+                    return clientData.lat?.toFixed(6) ?? '--';
+                  }
+                  const latSum = installationAreas.reduce((sum, a) => sum + (a.center?.[0] ?? 0), 0);
+                  return (latSum / installationAreas.length).toFixed(6);
+                })()}</span></div>
+                <div className="flex gap-1.5"><span className="text-slate-600 font-black">LNG</span><span className="text-indigo-400 font-bold">{(() => {
+                  if (!installationAreas || installationAreas.length === 0) {
+                    return clientData.lng?.toFixed(6) ?? '--';
+                  }
+                  const lngSum = installationAreas.reduce((sum, a) => sum + (a.center?.[1] ?? 0), 0);
+                  return (lngSum / installationAreas.length).toFixed(6);
+                })()}</span></div>
               </div>
             </div>
             <div className="h-4 w-px bg-slate-800" />
@@ -900,10 +1415,55 @@ export const PhysicalCanvasView: React.FC = () => {
               <div className="flex gap-1.5 items-center"><span className="text-slate-600 font-black uppercase text-[9px]">Útil</span><span className="text-emerald-400 font-bold">{stats.areaUtil.toFixed(1)}m²</span></div>
               <div className="flex gap-1.5 items-center">
                 <span className="text-slate-600 font-black uppercase text-[9px]">Mods</span>
-                <span className={cn("font-bold", stats.modulos < stats.modulosMeta ? "text-amber-400" : "text-indigo-400")}>{stats.modulos}/{stats.modulosMeta}</span>
+                <span className={cn("font-bold", stats.modulos < modulosMeta ? "text-amber-400" : "text-indigo-400")}>{stats.modulos}/{modulosMeta}</span>
               </div>
-              <div className="flex gap-1.5 items-center"><span className="text-slate-600 font-black uppercase text-[9px]">FDI</span><span className="text-emerald-500 font-bold">{stats.fdi.toFixed(2)}</span></div>
-              <div className="flex gap-1.5 items-center"><span className="text-slate-600 font-black uppercase text-[9px]">Trilhos</span><span className="text-indigo-300 font-bold">~{stats.areaTot > 0 ? (stats.areaTot * 0.8).toFixed(1) : '0'}m</span></div>
+              {/* Fix 5: FDI health semaphore */}
+              <div className="flex gap-1.5 items-center">
+                <span className="text-slate-600 font-black uppercase text-[9px]">FDI</span>
+                <span className={cn(
+                  "font-bold",
+                  kpi.dcAcRatio === 0 ? "text-slate-500" :
+                  kpi.dcAcRatio > 1.35 ? "text-rose-400" :
+                  kpi.dcAcRatio < 0.75 ? "text-amber-400" :
+                  "text-emerald-400"
+                )}>
+                  {kpi.dcAcRatio > 0 ? kpi.dcAcRatio.toFixed(2) : '--'}
+                </span>
+              </div>
+              {/* C02: Warning for modules with stringData but no center */}
+              {missingCenterCount > 0 && (
+                <div className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase bg-slate-700/50 text-slate-400 border border-slate-700">
+                  <span>⚠</span>
+                  <span>{missingCenterCount} sem coord.</span>
+                </div>
+              )}
+              {/* Validation health indicator */}
+              {(() => {
+                const issueLabels: string[] = [];
+                if (orphanedSpecCount > 0) issueLabels.push(`${orphanedSpecCount} spec↑`);
+                if (orphanedInverterCount > 0) issueLabels.push(`${orphanedInverterCount} inv↑`);
+                if (unassignedModulesCount > 0) issueLabels.push(`${unassignedModulesCount} s/str`);
+                if (emptyConfiguredMPPTCount > 0) issueLabels.push(`${emptyConfiguredMPPTCount} MPPT∅`);
+
+                // U03: Limit to 2 issues + "+N mais" suffix
+                const displayLabels = issueLabels.slice(0, 2);
+                const extraCount = issueLabels.length - displayLabels.length;
+                const badgeText = displayLabels.join(' · ') + (extraCount > 0 ? ` +${extraCount}` : '');
+                const hasIssues = globalHealth !== 'ok' || issueLabels.length > 0;
+
+                return hasIssues ? (
+                  <div className={cn(
+                    "flex gap-1.5 items-center px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter",
+                    globalHealth === 'error' || orphanedSpecCount > 0 || orphanedInverterCount > 0
+                      ? "bg-rose-500/15 text-rose-400 border border-rose-500/30"
+                      : "bg-amber-500/15 text-amber-400 border border-amber-500/30"
+                  )}>
+                    <span>{globalHealth === 'error' || orphanedSpecCount > 0 || orphanedInverterCount > 0 ? '✕' : '⚠'}</span>
+                    <span>{badgeText || 'Verificar elétrico'}</span>
+                  </div>
+                ) : null;
+              })()}
+              <div className="flex gap-1.5 items-center"><span className="text-slate-600 font-black uppercase text-[9px]">Trilhos</span><span className="text-indigo-300 font-bold">--</span></div>
             </div>
           </div>
         )}

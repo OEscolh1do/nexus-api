@@ -168,8 +168,18 @@ export const useSolarStore = create<SolarState>()(
           const legacyAreas = persistedState.project?.roofAreas;
           const newAreas = persistedState.project?.installationAreas;
 
+          // S01: Safe migration — prefer newAreas if populated, then legacyAreas, then currentState
+          let sourceAreas: any[];
+          if (Array.isArray(newAreas) && newAreas.length > 0) {
+            sourceAreas = newAreas;
+          } else if (Array.isArray(legacyAreas) && legacyAreas.length > 0) {
+            sourceAreas = legacyAreas;
+          } else {
+            sourceAreas = currentState.project.installationAreas ?? [];
+          }
+
           // Migrar áreas legadas: adiciona localVertices se ausente
-          let migratedAreas = (newAreas || legacyAreas || currentState.project.installationAreas || []).map((area: any) => {
+          let migratedAreas = sourceAreas.map((area: any) => {
             if (!area.localVertices || area.localVertices.length === 0) {
               // Gera vértices retangulares a partir de widthM/heightM legados
               const hw = (area.widthM || 10) / 2;
@@ -200,10 +210,17 @@ export const useSolarStore = create<SolarState>()(
           return {
             ...currentState,
             ...persistedState,
-            proposalData: {
-              ...currentState.proposalData,
-              ...(persistedState.proposalData || {}),
-            },
+            // R8-02: Proteção para arrays aninhados de proposalData (lineItems, paymentStages, customTemplates)
+            proposalData: (persistedState.proposalData && Object.keys(persistedState.proposalData).length > 0)
+              ? {
+                  ...currentState.proposalData,
+                  ...persistedState.proposalData,
+                  // Arrays críticos: só sobrescreve se persistido não for vazio
+                  ...(persistedState.proposalData.lineItems?.length > 0 && { lineItems: persistedState.proposalData.lineItems }),
+                  ...(persistedState.proposalData.paymentStages?.length > 0 && { paymentStages: persistedState.proposalData.paymentStages }),
+                  ...(persistedState.proposalData.customTemplates?.length > 0 && { customTemplates: persistedState.proposalData.customTemplates }),
+                }
+              : currentState.proposalData,
             project: {
               ...currentState.project,
               ...(persistedState.project || {}),

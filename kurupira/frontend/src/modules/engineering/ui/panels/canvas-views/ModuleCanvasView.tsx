@@ -182,8 +182,17 @@ export const ModuleCanvasView: React.FC = () => {
 
   // ── Remove array ──
   const handleRemoveArray = useCallback((modelId: string) => {
+    // Find all spec IDs for this model before removing
+    const removedSpecIds = projectModules
+      .filter(m => m.model === modelId)
+      .map(m => m.id);
+
     const remaining = projectModules.filter(m => m.model !== modelId);
     setModules(remaining);
+
+    // Clear placed modules that referenced removed specs
+    const { replacePlacedModulesSpec } = useSolarStore.getState();
+    removedSpecIds.forEach(specId => replacePlacedModulesSpec(specId, null));
   }, [projectModules, setModules]);
 
   // ── (Compare feature uses comparingIds, but toggling is handled elsewhere or disabled for now) ──

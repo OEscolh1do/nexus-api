@@ -1,8 +1,8 @@
 import React, { useRef } from 'react';
 import { useUIStore, type FocusedBlock } from '@/core/state/uiStore';
 import { cn } from '@/lib/utils';
-import { 
-  MapPin, Zap, Sun, Cpu, TrendingUp, FileSignature, Lock 
+import {
+  MapPin, Zap, Sun, Cpu, Layout, TrendingUp, FileSignature, Lock
 } from 'lucide-react';
 import { useSolarStore, selectModules, selectInverters } from '@/core/state/solarStore';
 import { useTechKPIs } from '../../hooks/useTechKPIs';
@@ -21,7 +21,7 @@ const TABS: TabItem[] = [
   { id: 'consumption', label: 'Consumo', icon: Zap, unit: 'kwh' },
   { id: 'module', label: 'Módulos', icon: Sun, unit: 'kwh' },
   { id: 'inverter', label: 'Inversores', icon: Cpu, unit: 'fdi' },
-  // { id: 'arrangement', label: 'Arranjo', icon: Layout, unit: '' },
+  { id: 'arrangement', label: 'Arranjo', icon: Layout, unit: '' },
   { id: 'projection', label: 'Projeção', icon: TrendingUp, unit: 'mwh' },
   { id: 'proposal', label: 'Proposta', icon: FileSignature, unit: 'anos' },
 ];
@@ -29,6 +29,7 @@ const TABS: TabItem[] = [
 export const EngineeringTabs: React.FC = () => {
   const activeTab = useUIStore(s => s.activeFocusedBlock);
   const setTab = useUIStore(s => s.setFocusedBlock);
+  const setCanvasViewMode = useUIStore(s => s.setCanvasViewMode);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   // Telemetry Hooks
@@ -86,6 +87,7 @@ export const EngineeringTabs: React.FC = () => {
     const nextTab = TABS[newIndex];
     if (!isTabLocked(nextTab.id)) {
       setTab(nextTab.id);
+      if (nextTab.id === 'arrangement') setCanvasViewMode('CONTEXT');
       tabRefs.current[newIndex]?.focus();
     }
   };
@@ -111,7 +113,11 @@ export const EngineeringTabs: React.FC = () => {
             id={`tab-${tab.id}`}
             tabIndex={isActive ? 0 : -1}
             disabled={locked}
-            onClick={() => !locked && setTab(tab.id)}
+            onClick={() => {
+              if (locked) return;
+              setTab(tab.id);
+              if (tab.id === 'arrangement') setCanvasViewMode('CONTEXT');
+            }}
             onKeyDown={(e) => handleKeyDown(e, i)}
             className={cn(
               "relative flex flex-col items-start justify-center min-w-[90px] flex-shrink-1 px-4 h-full transition-all duration-300 outline-none group border-r border-slate-800/20 pt-1 overflow-hidden",

@@ -14,6 +14,7 @@
 
 import { StateCreator } from 'zustand';
 import { calcModulePolygon, type LatLngTuple } from '@/core/utils/geoUtils';
+import { useTechStore } from '../../../modules/engineering/store/useTechStore';
 
 // =============================================================================
 // TYPES
@@ -54,9 +55,9 @@ export interface InstallationArea {
 
 export interface PlacedModule {
   id: string;
-  moduleSpecId: string;
+  moduleSpecId: string | null;
   areaId: string;        // Back-reference à InstallationArea pai
-  offsetX_M: number;     // Posição local Relativa (X) do centro do painel 
+  offsetX_M: number;     // Posição local Relativa (X) do centro do painel
   offsetY_M: number;     // Posição local Relativa (Y) do centro do painel
 
   // CACHE ABSOLUTO GEOGRÁFICO (Derivado quando a área move/gira)
@@ -69,6 +70,8 @@ export interface PlacedModule {
   stringData?: {
     inverterId: string;
     mpptId: number;
+    /** ID da string específica dentro do MPPT (referencia StringDef.id em useTechStore) */
+    stringId?: string;
   };
 }
 
@@ -116,7 +119,15 @@ export interface ProjectSlice {
   clearPlacedModules: () => void;
 
   // Elétrica & Status
-  assignModulesToString: (moduleIds: string[], inverterId: string, mpptId: number) => void;
+  assignModulesToString: (moduleIds: string[], inverterId: string, mpptId: number, stringId?: string) => void;
+  clearStringAssignments: () => void;
+  /** Removes stringData from all placed modules matching the given inverter/MPPT/string criteria */
+  clearOrphanStringData: (inverterId: string, mpptId?: number, stringId?: string) => void;
+  /** Replaces moduleSpecId for all placed modules that reference oldModelId */
+  replacePlacedModulesSpec: (oldModelId: string, newSpecId: string | null) => void;
+  /** Removes placedModules whose moduleSpecId has no matching spec in the store */
+  cleanOrphanModules: () => void;
+  getApprovalBlockers: () => string[];
   approveProject: () => void;
   setProjectStatus: (status: 'draft' | 'approved') => void;
 
@@ -428,24 +439,60 @@ export const createProjectSlice: StateCreator<
     };
   }),
 
-  deleteArea: (id) => set((s) => {
-    if (s.project.projectStatus === 'approved') return s;
-    const area = s.project.installationAreas.find(a => a.id === id);
-    if (!area) return s;
+  deleteArea: (id) => {
+    if (get().project.projectStatus === 'approved') return;
 
-    return { 
-      project: { 
-        ...s.project, 
+    // Collect affected modules BEFORE state change
+    const removedModules = get().project.placedModules.filter(m => m.areaId === id);
+
+    // Perform the state change
+    set((s) => ({
+      project: {
+        ...s.project,
         installationAreas: s.project.installationAreas.filter(a => a.id !== id),
-        placedModules: s.project.placedModules.filter(m => m.areaId !== id)
-      } 
-    };
-  }),
+        placedModules: s.project.placedModules.filter(m => m.areaId !== id),
+      },
+    }));
 
-  clearAreas: () => set((s) => {
-    if (s.project.projectStatus === 'approved') return s;
-    return { project: { ...s.project, installationAreas: [], placedModules: [] } };
-  }),
+    // Sync TechStore counts for all affected inverter+mppt+string combinations
+    if (removedModules.some(m => m.stringData)) {
+      const techStore = useTechStore.getState();
+      const updatedModules = get().project.placedModules;
+
+      // Unique keys of affected strings
+      const affectedKeys = new Set<string>();
+      removedModules.forEach(m => {
+        if (m.stringData) {
+          affectedKeys.add(`${m.stringData.inverterId}|${m.stringData.mpptId}|${m.stringData.stringId ?? ''}`);
+        }
+      });
+
+      affectedKeys.forEach(key => {
+        const [invId, mpptStr, strId] = key.split('|');
+        const mpptId = parseInt(mpptStr);
+        const stringId = strId || undefined;
+        const newCount = updatedModules.filter(m =>
+          m.stringData?.inverterId === invId &&
+          m.stringData?.mpptId === mpptId &&
+          m.stringData?.stringId === stringId
+        ).length;
+        techStore.syncStringModulesCount(invId, mpptId, stringId, newCount);
+
+        // R4-05: Remover StringDefs que ficaram zerados após a deleção
+        if (newCount === 0 && strId) {
+          techStore.removeStringFromMPPT(invId, mpptId, strId);
+        }
+      });
+    }
+  },
+
+  clearAreas: () => {
+    if (get().project.projectStatus === 'approved') return;
+    set((s) => ({
+      project: { ...s.project, installationAreas: [], placedModules: [] },
+    }));
+    useTechStore.getState().resetStringCounts();
+  },
 
   duplicateArea: (id) => set((s) => {
     if (s.project.projectStatus === 'approved') return s;
@@ -484,6 +531,12 @@ export const createProjectSlice: StateCreator<
         ...origMod,
         id: newModId,
         areaId: newAreaId,
+        // R5-10: Módulos duplicados começam sem atribuição elétrica.
+        // Não é necessário chamar syncStringModulesCount pois:
+        // 1. Os módulos originais mantêm seus stringData corretos
+        // 2. Os clonados com stringData=undefined não contribuem para counts
+        // 3. Não há risco de double counting
+        stringData: undefined,
       };
       cloned = deriveAbsoluteModuleData(cloned, clonedArea);
       clonedModules.push(cloned);
@@ -704,8 +757,14 @@ export const createProjectSlice: StateCreator<
 
     const { w: modW, h: modH } = parseDims(activeSpec.area, activeSpec.dimensions);
     
-    // Módulos já existentes nesta área (para o Smart Fill)
-    const existingModules = s.project.placedModules.filter(m => m.areaId === id);
+    // R4-01: Módulos já existentes nesta área (para o Smart Fill) — excluir fantasmas sem spec válida
+    const existingModules = s.project.placedModules.filter(m => {
+      if (m.areaId !== id) return false;
+      // Excluir módulos fantasmas sem spec válida
+      if (m.moduleSpecId == null) return false;
+      const spec = (s as any).modules?.entities?.[m.moduleSpecId];
+      return !!spec;
+    });
     const existingOthers = s.project.placedModules.filter(m => m.areaId !== id);
     const maxNewModules = totalLogicalQty - existingOthers.length - existingModules.length;
 
@@ -894,23 +953,240 @@ export const createProjectSlice: StateCreator<
 
   // ─── STRINGING & STATUS ────────────────────────────────────────────────────
 
-  assignModulesToString: (moduleIds, inverterId, mpptId) => set((s) => {
+  assignModulesToString: (moduleIds, inverterId, mpptId, stringId) => {
+    if (get().project.projectStatus === 'approved') return;
+
+    // B3: Guard — ensure inverter still exists in TechStore before assigning
+    if (!useTechStore.getState().inverters.entities[inverterId]) {
+      console.warn(`[Kurupira] assignModulesToString: inversor ${inverterId} não encontrado no TechStore — atribuição cancelada.`);
+      return;
+    }
+
+    // S02: Snapshot for rollback
+    const rollbackModules = get().project.placedModules;
+
+    try {
+      // Collect old string keys BEFORE update (to sync any strings that lose modules)
+      const oldModules = get().project.placedModules;
+      const oldStringKeys = new Set<string>();
+      moduleIds.forEach(id => {
+        const mod = oldModules.find(m => m.id === id);
+        if (mod?.stringData) {
+          oldStringKeys.add(
+            `${mod.stringData.inverterId}|${mod.stringData.mpptId}|${mod.stringData.stringId ?? ''}`
+          );
+        }
+      });
+
+      // Step 1: Write initial stringData (stringId may still be "String A" label)
+      set(s => ({
+        project: {
+          ...s.project,
+          placedModules: s.project.placedModules.map(m =>
+            moduleIds.includes(m.id)
+              ? { ...m, stringData: { inverterId, mpptId, ...(stringId ? { stringId } : {}) } }
+              : m
+          ),
+        },
+      }));
+
+      // Step 2: Sync TechStore — this finds/creates the StringDef and returns canonical id
+      const newModules = get().project.placedModules;
+      const techStore = useTechStore.getState();
+
+      const newCount = newModules.filter(m =>
+        m.stringData?.inverterId === inverterId &&
+        m.stringData?.mpptId === mpptId &&
+        m.stringData?.stringId === stringId
+      ).length;
+      techStore.syncStringModulesCount(inverterId, mpptId, stringId, newCount);
+
+      // Step 3: Resolve canonical StringDef.id and write it back
+      // This ensures PlacedModule.stringData.stringId always holds the real hash id
+      if (stringId) {
+        const inv = useTechStore.getState().inverters.entities[inverterId];
+        const mpptConfig = inv?.mpptConfigs.find(m => m.mpptId === mpptId);
+        const canonicalDef = mpptConfig?.strings.find(s => s.id === stringId || s.name === stringId);
+        const canonicalId = canonicalDef?.id;
+
+        if (canonicalId && canonicalId !== stringId) {
+          set(s => ({
+            project: {
+              ...s.project,
+              placedModules: s.project.placedModules.map(m =>
+                moduleIds.includes(m.id) && m.stringData
+                  ? { ...m, stringData: { ...m.stringData, stringId: canonicalId } }
+                  : m
+              ),
+            },
+          }));
+        }
+      }
+
+      // Step 4: Sync old strings that lost modules due to reassignment
+      // Compute canonical destination stringId ONCE before loop (uses post-Step3 state)
+      const canonicalTargetStringId = stringId
+        ? (useTechStore.getState().inverters.entities[inverterId]
+            ?.mpptConfigs.find(m => m.mpptId === mpptId)
+            ?.strings.find(s => s.id === stringId || s.name === stringId)?.id ?? stringId)
+        : undefined;
+
+      oldStringKeys.forEach(key => {
+        const [oInvId, oMpptStr, oStringId] = key.split('|');
+        const oMpptId = parseInt(oMpptStr);
+        // A03: Normalize empty string to undefined for consistent comparison
+        const oStringIdResolved = oStringId || undefined;
+        // Skip if this key IS the destination we just wrote to
+        if (oInvId === inverterId && oMpptId === mpptId && oStringIdResolved === canonicalTargetStringId) return;
+        const oldCount = get().project.placedModules.filter(m =>
+          m.stringData?.inverterId === oInvId &&
+          m.stringData?.mpptId === oMpptId &&
+          m.stringData?.stringId === oStringIdResolved
+        ).length;
+        techStore.syncStringModulesCount(oInvId, oMpptId, oStringIdResolved, oldCount);
+      });
+    } catch (err) {
+      console.error('[Kurupira] assignModulesToString: erro nos steps, revertendo placedModules', err);
+      set(s => ({ project: { ...s.project, placedModules: rollbackModules } }));
+    }
+  },
+
+  clearStringAssignments: () => {
+    if (get().project.projectStatus === 'approved') return;
+    set(s => ({
+      project: {
+        ...s.project,
+        placedModules: s.project.placedModules.map(m => {
+          const { stringData: _, ...rest } = m;
+          return rest;
+        }),
+      },
+    }));
+    // Reset all StringDef.modulesCount in TechStore
+    useTechStore.getState().resetStringCounts();
+  },
+
+  clearOrphanStringData: (inverterId, mpptId, stringId) => {
+    if (get().project.projectStatus === 'approved') return;
+
+    // Compute which combinations will be zeroed BEFORE clearing
+    const toZero = new Set<string>();
+    get().project.placedModules.forEach(m => {
+      if (!m.stringData) return;
+      const invMatch = m.stringData.inverterId === inverterId;
+      const mpptMatch = mpptId === undefined || m.stringData.mpptId === mpptId;
+      const strMatch  = stringId === undefined || m.stringData.stringId === stringId;
+      if (invMatch && mpptMatch && strMatch) {
+        toZero.add(`${m.stringData.inverterId}|${m.stringData.mpptId}|${m.stringData.stringId ?? ''}`);
+      }
+    });
+
+    set((s) => ({
+      project: {
+        ...s.project,
+        placedModules: s.project.placedModules.map(m => {
+          if (!m.stringData) return m;
+          const invMatch = m.stringData.inverterId === inverterId;
+          const mpptMatch = mpptId === undefined || m.stringData.mpptId === mpptId;
+          const strMatch  = stringId === undefined || m.stringData.stringId === stringId;
+          if (!(invMatch && mpptMatch && strMatch)) return m;
+          const { stringData: _, ...rest } = m;
+          return rest;
+        }),
+      },
+    }));
+
+    // Sync TechStore: these combinations now have 0 assigned modules
+    if (toZero.size > 0) {
+      const techStore = useTechStore.getState();
+      toZero.forEach(key => {
+        const [invId, mpptStr, strId] = key.split('|');
+        techStore.syncStringModulesCount(invId, parseInt(mpptStr), strId || undefined, 0);
+      });
+    }
+  },
+
+  replacePlacedModulesSpec: (oldModelId, newSpecId) => set((s) => {
     if (s.project.projectStatus === 'approved') return s;
     return {
       project: {
         ...s.project,
-        placedModules: s.project.placedModules.map(m =>
-          moduleIds.includes(m.id)
-            ? { ...m, stringData: { inverterId, mpptId } }
-            : m
-        ),
-      }
+        placedModules: s.project.placedModules.map(m => {
+          if (m.moduleSpecId !== oldModelId) return m;
+          // Set to null when spec is removed, maintaining semantic clarity
+          return { ...m, moduleSpecId: newSpecId };
+        }),
+      },
     };
   }),
 
-  approveProject: () => set((s) => ({
-    project: { ...s.project, projectStatus: 'approved' }
-  })),
+  getApprovalBlockers: () => {
+    const state = get();
+    const blockers: string[] = [];
+
+    if (state.project.placedModules.length === 0) {
+      blockers.push('Nenhum módulo posicionado no telhado');
+    }
+
+    const unassigned = state.project.placedModules.filter(m => !m.stringData).length;
+    if (unassigned > 0) {
+      blockers.push(`${unassigned} módulo(s) sem atribuição elétrica`);
+    }
+
+    // Cross-store: check for modules referencing deleted inverters
+    const techInverters = useTechStore.getState().inverters.entities;
+    const orphanedInverter = state.project.placedModules.filter(
+      m => m.stringData && !techInverters[m.stringData.inverterId]
+    ).length;
+    if (orphanedInverter > 0) {
+      blockers.push(`${orphanedInverter} módulo(s) com referência a inversor inexistente`);
+    }
+
+    return blockers;
+  },
+
+  cleanOrphanModules: () => {
+    const state = get();
+    if (state.project.projectStatus === 'approved') return;
+
+    const validSpecIds = new Set<string>((get() as any).modules?.ids ?? []);
+    const techInverters = useTechStore.getState().inverters.entities;
+
+    const cleaned = state.project.placedModules.filter(m => {
+      if (m.moduleSpecId && !validSpecIds.has(m.moduleSpecId)) return false;
+      if (m.stringData && !techInverters[m.stringData.inverterId]) return false;
+      return true;
+    });
+
+    if (cleaned.length === state.project.placedModules.length) return;
+
+    set((s) => ({
+      project: {
+        ...s.project,
+        placedModules: cleaned,
+        installationAreas: s.project.installationAreas.map(area => ({
+          ...area,
+          placedModuleIds: area.placedModuleIds.filter(id => cleaned.some(m => m.id === id)),
+        })),
+      },
+    }));
+  },
+
+  approveProject: () => {
+    const state = get();
+    if (state.project.projectStatus === 'approved') return;
+
+    // Guard: block approval if any placed module lacks electrical assignment
+    const unassigned = state.project.placedModules.filter(m => !m.stringData).length;
+    if (unassigned > 0) {
+      console.warn(
+        `[Kurupira] approveProject bloqueado: ${unassigned} módulo(s) sem atribuição elétrica.`
+      );
+      return; // Caller should check useElectricalValidation for user-facing message
+    }
+
+    set(s => ({ project: { ...s.project, projectStatus: 'approved' } }));
+  },
 
   setProjectStatus: (status) => set((s) => ({
     project: { ...s.project, projectStatus: status }

@@ -73,19 +73,23 @@ export const MPPTInspectorPanel: React.FC<MPPTInspectorPanelProps> = ({
   }, 0);
 
   const [targetModulesStr, setTargetModulesStr] = useState(currentTotalModules > 0 ? currentTotalModules.toString() : '');
+  const [autoDistError, setAutoDistError] = useState<string | null>(null);
   const autoDistributeModules = useTechStore(s => s.autoDistributeModules);
 
   const handleAutoDistribute = () => {
     const allModulesInProject = Object.keys(useSolarStore.getState().modules.entities).length;
-    
-    // Se o input estiver vazio ou zerado, ele pega magicamente a quantidade de módulos 3D já mapeada
+
+    // R5-09: Validação robusta contra NaN e valores inválidos
     let total = parseInt(targetModulesStr || "0", 10);
+    if (isNaN(total) || total < 0) total = 0;
+
+    // Se o input estiver vazio ou zerado, ele pega magicamente a quantidade de módulos 3D já mapeada
     if (total <= 0 && allModulesInProject > 0) {
       total = allModulesInProject;
     }
-    
-    if (isNaN(total) || total <= 0) {
-      alert('Por favor, informe uma quantidade total válida de módulos para distribuir ou adicione módulos na view 3D.');
+
+    if (total <= 0) {
+      setAutoDistError('Por favor, informe uma quantidade total válida de módulos para distribuir ou adicione módulos na view 3D.');
       return;
     }
 
@@ -103,14 +107,16 @@ export const MPPTInspectorPanel: React.FC<MPPTInspectorPanelProps> = ({
         }
       }
     } else {
-      alert("Selecione um módulo fotovoltaico primeiro para calcular os limites térmicos.");
+      setAutoDistError("Selecione um módulo fotovoltaico primeiro para calcular os limites térmicos.");
       return;
     }
 
     const { success, message } = autoDistributeModules(inverterId, total, maxPerString);
-    
+
     if (!success) {
-      alert(message);
+      setAutoDistError(message);
+    } else {
+      setAutoDistError(null);
     }
   };
 
@@ -188,7 +194,7 @@ export const MPPTInspectorPanel: React.FC<MPPTInspectorPanelProps> = ({
                 min="0"
                 placeholder="0"
                 value={targetModulesStr}
-                onChange={(e) => setTargetModulesStr(e.target.value)}
+                onChange={(e) => { setTargetModulesStr(e.target.value); setAutoDistError(null); }}
                 className="w-12 bg-transparent text-[11px] font-mono font-bold text-slate-300 px-1 outline-none text-center"
                 title="Total de Módulos"
               />
@@ -205,6 +211,14 @@ export const MPPTInspectorPanel: React.FC<MPPTInspectorPanelProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Erro inline da Auto-Distribuição */}
+          {autoDistError && (
+            <div className="mx-3 mt-2 px-2 py-1.5 bg-rose-500/10 border border-rose-500/30 rounded text-[9px] text-rose-400 flex items-center justify-between gap-1">
+              <span>⚠ {autoDistError}</span>
+              <button onClick={() => setAutoDistError(null)} className="text-rose-500 hover:text-rose-300 shrink-0">✕</button>
+            </div>
+          )}
 
           {/* Conteúdo scrollável — MPPTConfigStrip sem padding externo */}
           <div className="flex-1 overflow-y-auto custom-scrollbar">

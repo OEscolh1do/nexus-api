@@ -1,11 +1,13 @@
 import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react';
-import { useTechStore, type InverterState, type MPPTConfig, type StringDef } from '../../../store/useTechStore';
+import { useTechStore, type InverterState, type StringDef } from '../../../store/useTechStore';
 import { useCatalogStore } from '../../../store/useCatalogStore';
 import { useUIStore } from '@/core/state/uiStore';
+import { useDiagramStore } from '../../../store/useDiagramStore';
+import { useInverterUIStore } from '../../../store/useInverterUIStore';
 import { toArray } from '@/core/types/normalized.types';
 import type { InverterCatalogItem, BlockDiagramFootprint } from '@/core/schemas/inverterSchema';
 import { cn } from '@/lib/utils';
-import { Cpu, Layers, Zap, X, ChevronRight, GitBranch, ZoomIn, ZoomOut, Maximize2, RotateCcw, Eraser, Download } from 'lucide-react';
+import { Cpu, Layers, Zap, X, ChevronRight, ZoomIn, ZoomOut, Maximize2, RotateCcw, Eraser, Download } from 'lucide-react';
 
 // =============================================================================
 // DIAGRAM CANVAS VIEW (LAYER 2) — Interactive CAD MVP
@@ -288,7 +290,7 @@ function buildInitialLayout(
     h: invH,
     ports: inverterPorts,
     label: 'INVERSOR',
-    subLabel: catalogItem?.model || inverter.snapshot.model,
+    subLabel: catalogItem?.model || inverter.snapshot?.model || 'Inversor',
     meta: { inverter, catalogItem, footprint },
   };
   blocks.push(inverterBlock);
@@ -997,6 +999,7 @@ interface StringDetailPanelProps {
 
 const StringDetailPanel: React.FC<StringDetailPanelProps> = ({ stringData, mpptId, onClose }) => {
   const setCanvasViewMode = useUIStore(s => s.setCanvasViewMode);
+  const setActiveTool = useUIStore(s => s.setActiveTool);
 
   return (
     <div
@@ -1071,6 +1074,7 @@ const StringDetailPanel: React.FC<StringDetailPanelProps> = ({ stringData, mpptI
       <div className="p-4 border-t border-slate-800">
         <button
           onClick={() => {
+            setActiveTool('STRINGING');
             setCanvasViewMode('CONTEXT');
             onClose();
           }}
@@ -1233,13 +1237,19 @@ function useDiagramData() {
 
 export const DiagramCanvasView: React.FC = () => {
   const { techInverters, catalog } = useDiagramData();
-  const [activeInverterIdx, setActiveInverterIdx] = useState(0);
+
+  const { activeInverterId, setActiveInverterId } = useInverterUIStore();
+  const activeInverterIdx = useMemo(() => {
+    if (!activeInverterId) return 0;
+    const idx = techInverters.findIndex(i => i.id === activeInverterId);
+    return idx >= 0 ? idx : 0;
+  }, [techInverters, activeInverterId]);
 
   // 1. Refs (stable, não causam re-render)
   const svgRef = useRef<SVGSVGElement>(null);
   const zoomRef = useRef(1);
   const panRef = useRef<Point>({ x: -40, y: -40 });
-  const contentBoundsRef = useRef({ w: 800, h: 600 });
+  const contentBoundsRef = useRef({ w: VIEW_W, h: VIEW_H });
 
   // 2. Zoom e pan states
   const [zoom, setZoom] = useState(1);
@@ -1248,8 +1258,8 @@ export const DiagramCanvasView: React.FC = () => {
   // 3. Todos os estados de dados (declarados ANTES de serem usados)
   const [blockPositions, setBlockPositions] = useState<BlockPositions>({});
   const [wires, setWires] = useState<DiagramWire[]>([]);
-  const [wireHistory, setWireHistory] = useState<DiagramWire[][]>([]);
-  const [wireRedoStack, setWireRedoStack] = useState<DiagramWire[][]>([]);
+  const [, setWireHistory] = useState<DiagramWire[][]>([]);
+  const [, setWireRedoStack] = useState<DiagramWire[][]>([]);
   const [wireDropFeedback, setWireDropFeedback] = useState<{ x: number; y: number } | null>(null);
 
   // 4. Estados de drag e pan
@@ -1304,7 +1314,7 @@ export const DiagramCanvasView: React.FC = () => {
 
   // 12. contentBounds useMemo (depende de blocks e blockPositions)
   const contentBounds = useMemo(() => {
-    if (Object.keys(blockPositions).length === 0) return { w: 800, h: 600 };
+    if (Object.keys(blockPositions).length === 0) return { w: VIEW_W, h: VIEW_H };
     let maxX = 0, maxY = 0;
     blocks.forEach(block => {
       const pos = blockPositions[block.id];
@@ -1313,7 +1323,7 @@ export const DiagramCanvasView: React.FC = () => {
         maxY = Math.max(maxY, pos.y + block.h);
       }
     });
-    return { w: Math.max(800, maxX + 120), h: Math.max(600, maxY + 120) };
+    return { w: Math.max(VIEW_W, maxX + 120), h: Math.max(VIEW_H, maxY + 120) };
   }, [blocks, blockPositions]);
 
   // BUG-21: Sincroniza contentBoundsRef após useMemo (não dentro dele)
@@ -1385,13 +1395,13 @@ export const DiagramCanvasView: React.FC = () => {
           (w.fromBlockId === toBlockId && w.fromPortId === toPortId && w.toBlockId === fromBlockId && w.toPortId === fromPortId)
       );
 
-      // L2-I1: Check if port is already used
-      const portAlreadyUsed = wires.some(
-        w =>
-          (w.fromBlockId === fromBlockId && w.fromPortId === fromPortId) ||
-          (w.toBlockId === toBlockId && w.toPortId === toPortId) ||
-          (w.fromBlockId === toBlockId && w.fromPortId === toPortId) ||
-          (w.toBlockId === fromBlockId && w.toPortId === fromPortId)
+      // L2-I1 (BUG-07 fix): Only block string-out ports from having multiple wires.
+      // mppt-in ports (bus bar style) can accept multiple inputs.
+      const fromBlock = blocks.find(b => b.id === fromBlockId);
+      const fromPort = fromBlock?.ports.find(p => p.id === fromPortId);
+      const isStringOut = fromPort?.type === 'string-out';
+      const portAlreadyUsed = isStringOut && wires.some(
+        w => w.fromBlockId === fromBlockId && w.fromPortId === fromPortId
       );
 
       if (!isDuplicate && !portAlreadyUsed) {
@@ -1439,7 +1449,7 @@ export const DiagramCanvasView: React.FC = () => {
   }, [toSvgPt, blockPositions]);
 
   // Handle port pointer down
-  const handlePortPointerDown = useCallback((e: React.PointerEvent, blockId: string, portId: string) => {
+  const handlePortPointerDown = useCallback((_e: React.PointerEvent, blockId: string, portId: string) => {
     const block = blocks.find(b => b.id === blockId);
     if (!block) return;
     const port = block.ports.find(p => p.id === portId);
@@ -1524,21 +1534,50 @@ export const DiagramCanvasView: React.FC = () => {
   // Reset positions and wires on inverter change
   useEffect(() => {
     if (!activeInverter) return;
-    const layout = buildInitialLayout(activeInverter, catalogItem, footprint);
-    setBlockPositions(layout.positions);
-    setWires(layout.wires);
+
+    // Tenta restaurar estado persistido para este inversor
+    const savedWires     = useDiagramStore.getState().wiresMap[activeInverter.id];
+    const savedPositions = useDiagramStore.getState().blockPositionsMap[activeInverter.id];
+    const hasSavedState  = savedWires && savedPositions && Object.keys(savedPositions).length > 0;
+
+    if (hasSavedState) {
+      setWires(savedWires as any);
+      setBlockPositions(savedPositions);
+    } else {
+      const layout = buildInitialLayout(activeInverter, catalogItem, footprint);
+      setBlockPositions(layout.positions);
+      setWires(layout.wires);
+    }
+
     setWireHistory([]);
     setWireRedoStack([]);
     setSelectedBlockId(null);
     setDraggingWire(null);
     draggingBlock.current = null;
     setIsDraggingBlock(false);
-    // L2-C5: Auto-fit after layout change
-    // BUG-04: handleFit agora incluído nas deps
     const timer = setTimeout(() => handleFit(), 120);
     return () => clearTimeout(timer);
-  // catalogItem?.id cobre mudanças de footprint que alteram port IDs
-  }, [activeInverter?.id, catalogItem?.id, handleFit, catalogItem, footprint]);
+  }, [activeInverter?.id, catalogItem?.id, handleFit]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Sync wires → persistent store (debounced 400ms) ──────────────────────
+  useEffect(() => {
+    if (!activeInverter) return;
+    const id = activeInverter.id;
+    const timer = setTimeout(() => {
+      useDiagramStore.getState().setWires(id, wires);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [wires, activeInverter?.id]);
+
+  // ── Sync blockPositions → persistent store (debounced 400ms) ─────────────
+  useEffect(() => {
+    if (!activeInverter || Object.keys(blockPositions).length === 0) return;
+    const id = activeInverter.id;
+    const timer = setTimeout(() => {
+      useDiagramStore.getState().setBlockPositions(id, blockPositions);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [blockPositions, activeInverter?.id]);
 
   // 16. useEffect de wheel (não-passivo)
   useEffect(() => {
@@ -1586,31 +1625,38 @@ export const DiagramCanvasView: React.FC = () => {
   // 18. Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Guard: ignore when focus is in an input/textarea
+      const tag = (document.activeElement?.tagName ?? '').toUpperCase();
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
       // Escape: deselect block and cancel wire drag
       if (e.key === 'Escape') {
         setSelectedBlockId(null);
         setDraggingWire(null);
       }
 
-      // L2-C2: Ctrl+Z / Cmd+Z: undo
+      // L2-C2 (BUG-09 fix): Ctrl+Z / Cmd+Z: undo
+      // Capture wires BEFORE entering any setter to avoid timing issues
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
+        const snapshot = wiresRef.current; // capture current state before setters
         setWireHistory(prev => {
           if (prev.length === 0) return prev;
           const lastState = prev[prev.length - 1];
-          setWireRedoStack(r => [...r.slice(-15), wiresRef.current]); // current → redo
+          setWireRedoStack(r => [...r.slice(-15), snapshot]); // snapshot → redo
           setWires(lastState);
           return prev.slice(0, -1);
         });
       }
 
-      // L2-C2: Ctrl+Y or Ctrl+Shift+Z: redo
+      // L2-C2 (BUG-09 fix): Ctrl+Y or Ctrl+Shift+Z: redo
       if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
         e.preventDefault();
+        const snapshot = wiresRef.current; // capture before setters
         setWireRedoStack(prev => {
           if (prev.length === 0) return prev;
           const nextState = prev[prev.length - 1];
-          setWireHistory(h => [...h.slice(-15), wiresRef.current]); // current → history
+          setWireHistory(h => [...h.slice(-15), snapshot]); // snapshot → history
           setWires(nextState);
           return prev.slice(0, -1);
         });
@@ -1701,22 +1747,29 @@ export const DiagramCanvasView: React.FC = () => {
     setDraggingWire(null);
     draggingBlock.current = null;
     setIsDraggingBlock(false);
+    // Limpa estado persistido para forçar rebuild no próximo load
+    if (activeInverter) useDiagramStore.getState().clearDiagram(activeInverter.id);
   }, [activeInverter, catalogItem, footprint]);
 
   // Clear Manual Wires handler
+  // BUG-26 fix: use wiresRef.current instead of wires to avoid recreating
+  // callback on every wire change (wires removed from deps array)
   const handleClearManualWires = useCallback(() => {
     if (!activeInverter) return;
     const layout = buildInitialLayout(activeInverter, catalogItem, footprint);
-    setWireHistory(prev => [...prev.slice(-15), wires]);
-    setWireRedoStack([]); // L2-I3: clear redo stack
+    setWireHistory(prev => [...prev.slice(-15), wiresRef.current]);
+    setWireRedoStack([]);
     setWires(layout.wires);
-  }, [activeInverter, catalogItem, footprint, wires]);
+    if (activeInverter) useDiagramStore.getState().clearDiagram(activeInverter.id);
+  }, [activeInverter, catalogItem, footprint]); // wiresRef is a ref — always current, no dep needed
 
   // SVG export handler
+  // BUG-27 fix: validate bounds before export
   const handleExport = useCallback(() => {
     const svg = svgRef.current;
     if (!svg) return;
     const { w, h } = contentBoundsRef.current;
+    if (w <= 0 || h <= 0) return;
     // Clone SVG and set full-content viewBox for export
     const clone = svg.cloneNode(true) as SVGSVGElement;
     clone.setAttribute('viewBox', `0 0 ${w} ${h}`);
@@ -1826,7 +1879,7 @@ export const DiagramCanvasView: React.FC = () => {
                 <button
                   key={inv.id}
                   onClick={() => {
-                    setActiveInverterIdx(idx);
+                    setActiveInverterId(inv.id);
                     setSelectedBlockId(null);
                   }}
                   className={cn(
@@ -1836,7 +1889,7 @@ export const DiagramCanvasView: React.FC = () => {
                       : 'bg-slate-900/40 border-slate-800 text-slate-500 hover:border-slate-700'
                   )}
                 >
-                  INV {idx + 1} - {invCatalog?.model || inv.snapshot.model}
+                  INV {idx + 1} - {invCatalog?.model || inv.snapshot?.model || 'Inv.'}
                 </button>
               );
             })}

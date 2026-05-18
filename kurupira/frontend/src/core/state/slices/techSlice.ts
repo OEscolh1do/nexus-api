@@ -18,6 +18,18 @@ import { ModuleSpecs, InverterSpecs, EngineeringSettings } from '@/core/types';
 import { NormalizedCollection, createEmptyCollection, fromArray } from '@/core/types/normalized.types';
 
 /**
+ * R8-01: Helper centralizado para geração de ID consistente.
+ * Não pode importar genId de useTechStore (circular), então definimos localmente.
+ */
+const safeGenId = (): string => {
+  try {
+    return crypto.randomUUID().replace(/-/g, '').substring(0, 9);
+  } catch {
+    return `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+  }
+};
+
+/**
  * Interface do slice técnico
  * Expõe dados e actions para manipulação de equipamentos e settings
  * 
@@ -147,7 +159,7 @@ export const createTechSlice: StateCreator<
   [],
   [],
   TechSlice
-> = (set) => ({
+> = (set, get) => ({
   modules: createEmptyCollection<ModuleSpecs>(),
   inverters: createEmptyCollection<InverterSpecs>(),
   settings: initialSettings,
@@ -159,13 +171,11 @@ export const createTechSlice: StateCreator<
     const qty = module.quantity || 1;
     const newItems: Record<string, ModuleSpecs> = {};
     const newIds: string[] = [];
-    
+
     for (let i = 0; i < qty; i++) {
         // Preserve the provided ID for single-unit additions (used by InverterBlock handlers)
         // Only generate new IDs for bulk additions (qty > 1) or when no ID is provided
-        const instanceId = (qty === 1 && module.id) 
-            ? module.id 
-            : Math.random().toString(36).substring(2, 9);
+        const instanceId = (qty === 1 && module.id) ? module.id : safeGenId();
         newIds.push(instanceId);
         newItems[instanceId] = { ...module, id: instanceId, quantity: undefined };
     }
@@ -188,45 +198,57 @@ export const createTechSlice: StateCreator<
     };
   }),
 
-  updateModuleQty: (id, targetQty) => set((state) => {
-      // Como o ID recebido agora pertence a UMA instância, precisamos achar o modelo base
-      const baseInstance = state.modules.entities[id];
-      if (!baseInstance) return state;
+  updateModuleQty: (id, targetQty) => {
+      let idsToRemove: string[] = [];
 
-      const modelName = baseInstance.model;
-      const allInstancesOfModel = state.modules.ids.filter(
-          i => state.modules.entities[i]?.model === modelName
-      );
-      const currentQty = allInstancesOfModel.length;
+      set((state) => {
+          // Como o ID recebido agora pertence a UMA instância, precisamos achar o modelo base
+          const baseInstance = state.modules.entities[id];
+          if (!baseInstance) return state;
 
-      if (targetQty === currentQty) return state;
+          const modelName = baseInstance.model;
+          const allInstancesOfModel = state.modules.ids.filter(
+              i => state.modules.entities[i]?.model === modelName
+          );
+          const currentQty = allInstancesOfModel.length;
 
-      const newEntities = { ...state.modules.entities };
-      let newIds = [...state.modules.ids];
+          if (targetQty === currentQty) return state;
 
-      if (targetQty > currentQty) {
-          // Add clones
-          const diff = targetQty - currentQty;
-          for (let i = 0; i < diff; i++) {
-              const newId = Math.random().toString(36).substring(2, 9);
-              newIds.push(newId);
-              newEntities[newId] = { ...baseInstance, id: newId };
+          const newEntities = { ...state.modules.entities };
+          let newIds = [...state.modules.ids];
+
+          if (targetQty > currentQty) {
+              // Add clones
+              const diff = targetQty - currentQty;
+              for (let i = 0; i < diff; i++) {
+                  const newId = safeGenId();
+                  newIds.push(newId);
+                  newEntities[newId] = { ...baseInstance, id: newId };
+              }
+          } else {
+              // Remove (LIFO) - but only those NOT assigned to a string yet?
+              // For now, simple LIFO on the instances array. The String state might be orphaned,
+              // which should be handled via an event or the tree simply drops invalid ones.
+              const diff = currentQty - targetQty;
+              idsToRemove = allInstancesOfModel.slice(-diff);
+
+              newIds = newIds.filter(i => !idsToRemove.includes(i));
+              idsToRemove.forEach(i => delete newEntities[i]);
           }
-      } else {
-          // Remove (LIFO) - but only those NOT assigned to a string yet?
-          // For now, simple LIFO on the instances array. The String state might be orphaned,
-          // which should be handled via an event or the tree simply drops invalid ones.
-          const diff = currentQty - targetQty;
-          const idsToRemove = allInstancesOfModel.slice(-diff);
-          
-          newIds = newIds.filter(i => !idsToRemove.includes(i));
-          idsToRemove.forEach(i => delete newEntities[i]);
-      }
 
-      return {
-          modules: { ids: newIds, entities: newEntities }
-      };
-  }),
+          return {
+              modules: { ids: newIds, entities: newEntities }
+          };
+      });
+
+      // I03: Sync placed modules after state change — clear orphaned moduleSpecId references
+      if (idsToRemove.length > 0) {
+          const currentState = get() as any; // Cast to access projectSlice methods
+          if (currentState.replacePlacedModulesSpec) {
+              idsToRemove.forEach(specId => currentState.replacePlacedModulesSpec(specId, null));
+          }
+      }
+  },
 
   updateModulePrice: (id, price) => set((state) => ({
     modules: {

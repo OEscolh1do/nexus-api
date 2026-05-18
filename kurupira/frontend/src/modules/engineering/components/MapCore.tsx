@@ -240,17 +240,17 @@ const MapPropSync: React.FC<{ center?: [number, number]; zoom?: number }> = ({ c
   const map = useMap();
   useEffect(() => {
     if (!center) return;
-    
+
     const lat = Number(center[0]);
     const lng = Number(center[1]);
-    
+
     // Blindagem rigorosa contra coordenadas inválidas
     if (isNaN(lat) || isNaN(lng) || (lat === 0 && lng === 0)) return;
 
     try {
       const currentCenter = map.getCenter();
       const target = L.latLng(lat, lng);
-      
+
       const currentZoom = map.getZoom();
       const targetZoom = (zoom !== undefined && zoom !== null && !isNaN(zoom)) ? Number(zoom) : currentZoom;
 
@@ -262,6 +262,53 @@ const MapPropSync: React.FC<{ center?: [number, number]; zoom?: number }> = ({ c
       console.warn('MapPropSync: Abortando flyTo por segurança', { lat, lng, zoom }, err);
     }
   }, [center, zoom, map]);
+  return null;
+};
+
+/**
+ * GeocodingBridge — Escuta mudanças em project.coordinates (geocoding via SearchIsland)
+ * e executa flyTo quando o usuário seleciona um resultado de busca.
+ *
+ * IMPORTANTE: Só voa se as coordenadas mudarem significativamente (>100m),
+ * evitando conflito com MapViewSync que salva moveend.
+ */
+const GeocodingBridge: React.FC = () => {
+  const map = useMap();
+  const coordinates = useSolarStore(selectCoordinates);
+
+  useEffect(() => {
+    if (!coordinates) return;
+
+    const lat = Number(coordinates.lat);
+    const lng = Number(coordinates.lng);
+
+    // Blindagem rigorosa contra coordenadas inválidas
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) return;
+
+    try {
+      const currentCenter = map.getCenter();
+      const target = L.latLng(lat, lng);
+
+      // Só voa se houver deslocamento > 100m (evita loop com MapViewSync)
+      const distance = currentCenter.distanceTo(target);
+      if (distance > 100) {
+        const mapSize = map.getSize();
+        if (mapSize.x > 0 && mapSize.y > 0) {
+          map.flyTo(target, 18, { duration: 1.2 });
+        } else {
+          map.setView(target, 18);
+        }
+      }
+    } catch (err) {
+      console.warn('GeocodingBridge: Erro no flyTo', { lat, lng }, err);
+      try {
+        map.setView(L.latLng(lat, lng), 18);
+      } catch (e) {
+        // Ignora erro do fallback
+      }
+    }
+  }, [coordinates?.lat, coordinates?.lng, map]);
+
   return null;
 };
 
@@ -398,6 +445,7 @@ const MapCoreInner: React.FC<MapCoreProps> = ({
         <MapInteractionOrchestrator activeTool={activeTool} isNavigating={isNavigating} variant={variant} />
         {!readOnly && <MapViewSync />}
         {!readOnly && <MapFlyToSync />}
+        {!readOnly && <GeocodingBridge />}
         
         {/* Componentes Específicos do Perfil TÉCNICO */}
         {variant === 'TECHNICAL' && (

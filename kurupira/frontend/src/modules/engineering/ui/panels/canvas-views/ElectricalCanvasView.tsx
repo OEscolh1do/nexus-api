@@ -295,10 +295,18 @@ export const ElectricalCanvasView: React.FC = () => {
   }, [handleAddInverter]);
 
   const handleRemoveInverter = useCallback((id: string) => {
+    // Q7: clear all placed module string assignments for this inverter
+    useSolarStore.getState().clearOrphanStringData(id);
     useSolarStore.getState().removeInverter(id);
     removeInverterTech(id);
     if (activeInverterId === id) setActiveInverterId(null);
   }, [removeInverterTech, activeInverterId]);
+
+  const handleRemoveStringFromMPPT = useCallback((inverterId: string, mpptId: number, stringId: string) => {
+    // Q7: clear orphan PlacedModules before removing the StringDef
+    useSolarStore.getState().clearOrphanStringData(inverterId, mpptId, stringId);
+    removeStringFromMPPT(inverterId, mpptId, stringId);
+  }, [removeStringFromMPPT]);
 
   // ── Scroll-to MPPT ao clicar em alerta ───────────────────────────────────
   const setHighlightMpptId = useInverterUIStore(s => s.setHighlightMpptId);
@@ -324,10 +332,10 @@ export const ElectricalCanvasView: React.FC = () => {
       const catalogItem = catalogInverters.find((c: InverterCatalogItem) => c.id === inv.catalogId);
       return {
         id:           inv.id,
-        manufacturer: catalogItem?.manufacturer ?? inv.snapshot.model.split(' ')[0] ?? 'Inversor',
-        model:        inv.snapshot.model,
-        powerKw:      inv.snapshot.nominalPower,
-        mpptCount:    inv.snapshot.mppts,
+        manufacturer: catalogItem?.manufacturer ?? inv.snapshot?.model?.split(' ')[0] ?? 'Inversor',
+        model:        inv.snapshot?.model ?? 'Modelo desconhecido',
+        powerKw:      inv.snapshot?.nominalPower ?? 0,
+        mpptCount:    inv.snapshot?.mppts ?? 1,
       };
     }),
     [techInverters, catalogInverters]
@@ -343,6 +351,38 @@ export const ElectricalCanvasView: React.FC = () => {
       setTerminalOpen(true);
     }
   }, [errorCount]);
+
+  // I12: One-time rehydration validation
+  useEffect(() => {
+    const solarState = useSolarStore.getState();
+    const placedModules = solarState.project.placedModules;
+    const clearOrphanStringData = solarState.clearOrphanStringData;
+    const techInverters = useTechStore.getState().inverters.entities;
+
+    placedModules.forEach((m: any) => {
+      if (!m.stringData) return;
+
+      const inv = techInverters[m.stringData.inverterId];
+      if (!inv) {
+        // Inverter was deleted — clear the assignment
+        clearOrphanStringData(m.stringData.inverterId, m.stringData.mpptId, m.stringData.stringId);
+        return;
+      }
+
+      if (m.stringData.stringId) {
+        const mpptConfig = inv.mpptConfigs.find(c => c.mpptId === m.stringData!.mpptId);
+        const stringExists = (mpptConfig?.strings || []).some(
+          s => s.id === m.stringData!.stringId || s.name === m.stringData!.stringId
+        );
+        if (!stringExists) {
+          // String was deleted — clear the assignment but keep inverter+mppt association
+          clearOrphanStringData(m.stringData.inverterId, m.stringData.mpptId, m.stringData.stringId);
+        }
+      }
+    });
+  // Run once on mount — intentionally empty deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Empty State — 3 casos ─────────────────────────────────────────────────
   if (modules.length === 0 && techInverters.length === 0) {
@@ -444,7 +484,7 @@ export const ElectricalCanvasView: React.FC = () => {
           mpptMetrics={mpptMetrics}
           updateMPPT={updateMPPTConfig}
           addStringToMPPT={addStringToMPPT}
-          removeStringFromMPPT={removeStringFromMPPT}
+          removeStringFromMPPT={handleRemoveStringFromMPPT}
           updateStringInMPPT={updateStringInMPPT}
           limitVMax={dashboardData.limitInverterVMax}
           limitVMpptMin={dashboardData.limitMpptVMin}

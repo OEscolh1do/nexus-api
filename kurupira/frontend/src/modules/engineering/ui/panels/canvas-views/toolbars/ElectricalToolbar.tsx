@@ -1,10 +1,9 @@
 import React from 'react';
-import { 
-  Link2, 
+import {
+  Link2,
   Trash2,
   Box,
-  Activity,
-  Hash
+  Activity
 } from 'lucide-react';
 import { useUIStore } from '@/core/state/uiStore';
 import { useSolarStore } from '@/core/state/solarStore';
@@ -16,8 +15,10 @@ export const ElectricalToolbar: React.FC = () => {
   const canvasViewMode = useUIStore(s => s.canvasViewMode);
   const setCanvasViewMode = useUIStore(s => s.setCanvasViewMode);
   const placedModules = useSolarStore(s => s.project.placedModules) || [];
-  
+  const clearStringAssignments = useSolarStore(s => s.clearStringAssignments);
+
   const hasModules = placedModules.length > 0;
+  const stringCount = placedModules.filter(m => m.stringData).length;
 
   return (
     <>
@@ -37,27 +38,24 @@ export const ElectricalToolbar: React.FC = () => {
       </RibbonSection>
 
       <RibbonSection disabled={!hasModules}>
-        <ToolbarButton 
-          icon={Link2} 
-          label="Stringing" 
-          active={activeTool === 'STRINGING'} 
-          onClick={() => setActiveTool('STRINGING')} 
+        <ToolbarButton
+          icon={Link2}
+          label="Stringing"
+          active={activeTool === 'STRINGING'}
+          onClick={() => setActiveTool('STRINGING')}
           disabled={!hasModules}
         />
-        <ToolbarButton 
-          icon={Hash} 
-          label="Tags" 
-          active={false} 
-          onClick={() => {}} 
-          disabled={!hasModules}
-        />
-        <ToolbarButton 
-          icon={Trash2} 
-          label="Limpar" 
-          active={false} 
-          onClick={() => {}} 
+        <ToolbarButton
+          icon={Trash2}
+          label={`Limpar Stringing (${stringCount} módulos)`}
+          active={false}
+          onClick={() => {
+            if (stringCount > 0 && window.confirm(`Limpar stringing de ${stringCount} módulos?`)) {
+              clearStringAssignments();
+            }
+          }}
           className="hover:text-rose-500"
-          disabled={!hasModules}
+          disabled={stringCount === 0}
         />
       </RibbonSection>
     </>

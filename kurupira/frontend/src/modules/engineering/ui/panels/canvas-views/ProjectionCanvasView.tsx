@@ -140,7 +140,7 @@ export const ProjectionCanvasView: React.FC = () => {
     Object.values(techStrings).forEach((str) => {
       str.moduleIds.forEach((mid) => {
         const pm = placedModules.find((p) => p.id === mid);
-        if (pm) {
+        if (pm && pm.moduleSpecId) {
           const spec = modulesById[pm.moduleSpecId];
           if (spec) { totalW += spec.power; handled.add(pm.id); }
         } else if (modulesById[mid]) {
@@ -150,7 +150,7 @@ export const ProjectionCanvasView: React.FC = () => {
     });
 
     placedModules.forEach((pm) => {
-      if (pm.stringData && !handled.has(pm.id)) {
+      if (pm.stringData && !handled.has(pm.id) && pm.moduleSpecId) {
         const spec = modulesById[pm.moduleSpecId];
         if (spec) { totalW += spec.power; handled.add(pm.id); }
       }
@@ -158,8 +158,10 @@ export const ProjectionCanvasView: React.FC = () => {
 
     if (totalW === 0 && placedModules.length > 0) {
       placedModules.forEach((pm) => {
-        const spec = modulesById[pm.moduleSpecId];
-        if (spec) totalW += spec.power;
+        if (pm.moduleSpecId) {
+          const spec = modulesById[pm.moduleSpecId];
+          if (spec) totalW += spec.power;
+        }
       });
     }
 

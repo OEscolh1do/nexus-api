@@ -80,10 +80,18 @@ export const useThermalPremises = (): ThermalPremises => {
   const modules    = useSolarStore(selectModules);
 
   // Extraímos primitivos para evitar re-renders por referência de objeto
-  const manualTmin = (settings as any)?.manualTmin as number | undefined;
-  const manualTmax = (settings as any)?.manualTmax as number | undefined;
-  const uf         = (clientData as any)?.state as string ?? '';
-  const noct       = (modules[0] as any)?.noct as number | undefined;
+  const manualTmin = typeof (settings as any)?.manualTmin === 'number'
+    ? (settings as any).manualTmin as number
+    : undefined;
+  const manualTmax = typeof (settings as any)?.manualTmax === 'number'
+    ? (settings as any).manualTmax as number
+    : undefined;
+  const uf = typeof (clientData as any)?.state === 'string'
+    ? (clientData as any).state as string
+    : '';
+  const noct = typeof (modules[0] as any)?.noct === 'number'
+    ? (modules[0] as any).noct as number
+    : undefined;
 
   return useMemo((): ThermalPremises => {
     const isTropical = ESTADOS_TROPICAIS.has(uf);

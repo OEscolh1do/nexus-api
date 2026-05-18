@@ -85,8 +85,16 @@ export const SolarLayer: React.FC<SolarLayerProps> = ({ activeTool }) => {
       if (e.key === 'Delete' || e.key === 'Backspace') {
         const sel = useUIStore.getState().selectedEntity;
         if (!sel?.id) return;
-        
+
         if (sel.type === 'area') {
+          // U02: Confirmation before deleting area with placed modules
+          const count = placedModules.filter(m => m.areaId === sel.id).length;
+          if (count > 0) {
+            const ok = window.confirm(
+              `Esta área contém ${count} módulo(s) posicionado(s). Confirmar exclusão?`
+            );
+            if (!ok) return;
+          }
           deleteArea(sel.id);
           clearSelection();
         } else if (sel.type === 'module') {
