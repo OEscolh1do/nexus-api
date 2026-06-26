@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Database, Package, Zap } from 'lucide-react';
 import ModulesDataGrid from '@/components/catalog/ModulesDataGrid';
 import InvertersDataGrid from '@/components/catalog/InvertersDataGrid';
@@ -10,9 +10,9 @@ export default function CatalogPage() {
   const [activeTab, setActiveTab] = useState<Tab>('modules');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  const handleUploadSuccess = () => {
+  const handleUploadSuccess = useCallback(() => {
     setRefreshTrigger((prev) => prev + 1);
-  };
+  }, []);
 
   return (
     <div className="flex h-full flex-col gap-4">

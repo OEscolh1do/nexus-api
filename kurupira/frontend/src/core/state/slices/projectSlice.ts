@@ -38,6 +38,7 @@ export interface DropPoint {
 
 export interface InstallationArea {
   id: string;
+  name?: string;           // Nome customizado da área (opcional)
   center: LatLngTuple;     // Ponto pivô global no mapa
   azimuth: number;         // Rotação mecânica (0 a 360)
   pitch: number;           // Inclinação Z (default: 15)
@@ -103,6 +104,8 @@ export interface ProjectSlice {
   duplicateArea: (id: string) => void;
   autoLayoutArea: (id: string) => void;
   resizeArea: (id: string, newWidthM: number, newHeightM: number) => void;
+  rotateArea: (id: string, newAzimuth: number) => void;
+  renameArea: (id: string, name: string) => void;
 
   // Vértices Freeform
   updateAreaVertex: (areaId: string, vertexIndex: number, x: number, y: number) => void;
@@ -115,8 +118,10 @@ export interface ProjectSlice {
 
   // Módulos
   placeModule: (areaId: string, offsetX: number, offsetY: number, moduleSpecId: string, widthM: number, heightM: number) => void;
+  batchPlaceModules: (areaId: string, placements: Array<{ offsetX: number; offsetY: number; moduleSpecId: string; widthM: number; heightM: number }>) => void;
   removePlacedModule: (id: string) => void;
   clearPlacedModules: () => void;
+  updateAreaPolygon: (areaId: string, newPolygon: LatLngTuple[]) => void;
 
   // Elétrica & Status
   assignModulesToString: (moduleIds: string[], inverterId: string, mpptId: number, stringId?: string) => void;
@@ -655,6 +660,49 @@ export const createProjectSlice: StateCreator<
     return { project: { ...s.project, installationAreas: newAreas, placedModules: kept } };
   }),
 
+  // TASK 7: Rotate area by setting new azimuth and recalculating absolute coordinates
+  rotateArea: (id, newAzimuth) => set((s) => {
+    if (s.project.projectStatus === 'approved') return s;
+    const areaIndex = s.project.installationAreas.findIndex(a => a.id === id);
+    if (areaIndex === -1) return s;
+
+    const area = s.project.installationAreas[areaIndex];
+    // Normalize azimuth to 0-360
+    const normalizedAzimuth = ((newAzimuth % 360) + 360) % 360;
+
+    const newAreas = [...s.project.installationAreas];
+    const updatedArea = { ...area, azimuth: normalizedAzimuth };
+    const { polygon, obstacles } = deriveAbsoluteAreaPolygon(updatedArea);
+    updatedArea.polygon = polygon;
+    updatedArea.obstacles = obstacles;
+    newAreas[areaIndex] = updatedArea;
+
+    // Recalculate all child modules
+    const newPlacedModules = s.project.placedModules.map(mod => {
+      if (mod.areaId === id) {
+        return deriveAbsoluteModuleData(mod, updatedArea);
+      }
+      return mod;
+    });
+
+    return {
+      project: {
+        ...s.project,
+        installationAreas: newAreas,
+        placedModules: newPlacedModules
+      }
+    };
+  }),
+
+  renameArea: (id, name) => set(s => ({
+    project: {
+      ...s.project,
+      installationAreas: s.project.installationAreas.map(a =>
+        a.id === id ? { ...a, name: name.trim() || undefined } : a
+      )
+    }
+  })),
+
   // ─── OBSTRUÇÕES ────────────────────────────────────────────────────────────
 
   spawnObstacle: (areaId, points) => set((s) => {
@@ -941,14 +989,118 @@ export const createProjectSlice: StateCreator<
     };
   }),
 
+  batchPlaceModules: (areaId, placements) => set((s) => {
+    if (s.project.projectStatus === 'approved') return s;
+
+    const stateAny = s as any;
+    const entities = stateAny.modules?.entities || {};
+    const modulesArr = Object.values(entities).filter(Boolean) as any[];
+
+    let totalLogicalQty = 0;
+    for (const mod of modulesArr) {
+      totalLogicalQty += (mod.quantity || 0);
+    }
+    const globalPlacedCount = s.project.placedModules.length;
+    const remainingCap = totalLogicalQty > 0 ? totalLogicalQty - globalPlacedCount : placements.length;
+
+    if (remainingCap <= 0) {
+      console.warn('batchPlaceModules abortado: cap lógico atingido.');
+      return s;
+    }
+
+    const areaIndex = s.project.installationAreas.findIndex(a => a.id === areaId);
+    if (areaIndex === -1) return s;
+    const area = s.project.installationAreas[areaIndex];
+
+    const newModules: PlacedModule[] = [];
+    const newModuleIds: string[] = [];
+
+    const limitedPlacements = placements.slice(0, remainingCap);
+
+    for (const p of limitedPlacements) {
+      const halfW = p.widthM / 2;
+      const halfH = p.heightM / 2;
+      if (!isRectInsidePolygon(p.offsetX, p.offsetY, halfW, halfH, area.localVertices, area.obstacles)) {
+        continue;
+      }
+
+      const moduleId = generateId('pm_batch');
+      let placed: PlacedModule = {
+        id: moduleId,
+        moduleSpecId: p.moduleSpecId,
+        areaId,
+        offsetX_M: p.offsetX,
+        offsetY_M: p.offsetY,
+        widthM: p.widthM,
+        heightM: p.heightM,
+        center: [0,0], polygon: [], axisAngle: 0
+      };
+
+      placed = deriveAbsoluteModuleData(placed, area);
+      newModules.push(placed);
+      newModuleIds.push(moduleId);
+    }
+
+    if (newModules.length === 0) return s;
+
+    const newAreas = [...s.project.installationAreas];
+    newAreas[areaIndex] = { ...area, placedModuleIds: [...area.placedModuleIds, ...newModuleIds] };
+
+    return {
+      project: {
+        ...s.project,
+        installationAreas: newAreas,
+        placedModules: [...s.project.placedModules, ...newModules],
+      },
+    };
+  }),
+
   clearPlacedModules: () => set((s) => {
     if (s.project.projectStatus === 'approved') return s;
-    
+
     const newAreas = s.project.installationAreas.map(a => ({ ...a, placedModuleIds: [] }));
-    
+
     return {
       project: { ...s.project, installationAreas: newAreas, placedModules: [] },
     };
+  }),
+
+  updateAreaPolygon: (areaId, newPolygon) => set((s) => {
+    if (s.project.projectStatus === 'approved') return s;
+    const areaIndex = s.project.installationAreas.findIndex(a => a.id === areaId);
+    if (areaIndex === -1) return s;
+
+    const area = s.project.installationAreas[areaIndex];
+    const earthRadius = 6378137;
+    const latRads = area.center[0] * (Math.PI / 180);
+
+    const angleRad = area.azimuth * (Math.PI / 180);
+    const cosA = Math.cos(angleRad);
+    const sinA = Math.sin(angleRad);
+
+    const newLocalVertices: LocalVertex[] = newPolygon.map(p => {
+      const dLat = p[0] - area.center[0];
+      const dLng = p[1] - area.center[1];
+      const y = dLat * (Math.PI / 180) * earthRadius;
+      const x = dLng * (Math.PI / 180) * earthRadius * Math.cos(latRads);
+
+      const unrotatedX = x * cosA + y * sinA;
+      const unrotatedY = -x * sinA + y * cosA;
+
+      return { x: unrotatedX, y: unrotatedY };
+    });
+
+    const { kept, removedIds } = cleanOrphanModules(s.project.placedModules, areaId, newLocalVertices, area.obstacles);
+    const newPlacedModuleIds = area.placedModuleIds.filter(id => !removedIds.includes(id));
+
+    const newAreas = [...s.project.installationAreas];
+    const updatedArea = { ...area, localVertices: newLocalVertices, placedModuleIds: newPlacedModuleIds };
+    const { polygon, obstacles } = deriveAbsoluteAreaPolygon(updatedArea);
+    updatedArea.polygon = polygon;
+    updatedArea.obstacles = obstacles;
+    newAreas[areaIndex] = updatedArea;
+
+    return { project: { ...s.project, installationAreas: newAreas, placedModules: kept } };
   }),
 
   // ─── STRINGING & STATUS ────────────────────────────────────────────────────

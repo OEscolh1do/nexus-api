@@ -1,8 +1,8 @@
 # CONTEXT.md — Kurupira (Motor de Engenharia Solar)
 
-> **Última Atualização:** 2026-05-14
+> **Última Atualização:** 2026-06-25
 > **Arquiteto:** Antigravity AI
-> **Versão do Sistema:** 0.9.0-beta.4 (Math Integrity & Deep Cleanup)
+> **Versão do Sistema:** 0.9.4 (Arranjo Canvas — Sprint 6: L2/L3 Hardening)
 
 ---
 
@@ -155,6 +155,58 @@ O Pin de localização é o elemento central de ancoragem visual e interatividad
 ---
 
 ## 🔄 CHANGELOG
+
+### v0.9.4-audit (2026-06-25) — Auditoria de Rigor Matemático e Engenharia
+- 🛡️ **Rigor Elétrico**: Condução de auditoria estrita em `electricalMath.ts` e `useElectricalValidation.ts`. Mapeados gaps de segurança físico-química de strings (NBR 16690).
+- ⚠️ **Mapeamento de Gaps**: Identificados bugs críticos de orçamentação (Projeto/Admin zerados) e riscos de NaN no cálculo de cabos DC.
+- 🧹 **Clean Up**: Descoberta de código morto em `server.js` (middleware duplicado).
+
+### v0.9.4 (2026-06-02) — Arranjo Canvas Sprint 6: L2/L3 Hardening
+
+**14 varreduras de bugs sistemáticas** cobrindo ~200 itens em Layer 2 e Layer 3.
+
+**Correções críticas L2 (DiagramCanvasView):**
+- ✅ Fix wire drag — port ID mismatch (ch.mpptIndex vs chIdx) impedia conexão string→inversor
+- ✅ Persistência completa — wireLabels/blockNotes/lockedBlockIds no Zustand store por inversor
+- ✅ Snapshots com anotações — save/restore preserva wireLabels + blockNotes
+- ✅ Pan zoom scaling — divisão por zoom correta (velocidade invariante)
+- ✅ Blocos travados — wire creation também bloqueada (não só drag)
+- ✅ setPointerCapture — drag não perde eventos ao sair do SVG
+- ✅ structuredClone history — deep copy no pushToHistory
+- ✅ blockPositionsRef sync no mesmo frame — leitura não-stale em handlers
+- ✅ O(n²) → O(n) overlap detection durante drag
+- ✅ PNG export DPR — imagens nítidas em Retina/4K
+- ✅ Rubber-band aditivo (Shift), Delete multi-select, Ctrl+A
+- ✅ Wire label Bézier midpoint correto
+- ✅ Same-side wire routing (todos os 4 casos)
+- ✅ Orphan wire UX (linha vermelha tracejada + label "Fio órfão")
+
+**Correções críticas L3 (UnifilarSchematicCanvas):**
+- ✅ AC vs DC distinção visual (tracejado vs sólido per IEC 60617)
+- ✅ ΔV fórmula corrigida: Imp + Vmp_hot (antes: Isc + Voc_frio → seção 100× errada)
+- ✅ Thresholds % NBR 16690 (≤1% verde, ≤2% âmbar, >2% vermelho)
+- ✅ cableLength=0 exibe "—" (não falso verde)
+- ✅ unitIsc adicionado ao MpptMetric (FuseDetailCard estava sem dado)
+- ✅ ValidationMarker click navega + descolapsa grupo corretamente
+- ✅ Wires de nós colapsados ocultados
+- ✅ Export clean state (try/finally; ruler e seleção limpas antes de clonar SVG)
+- ✅ currentPowerKwp = totalKwp × (G/1000) exibido no painel
+- ✅ PVStringSymbol React.memo
+
+### v0.9.3-beta.1 (2026-05-29) — Arranjo Canvas Sprint 5: Bug Fixes & Area Editing
+
+- ✅ **Fix Crítico — Stringing Popover**: `StringingQuickPopover` estava renderizado fora do container canvas; movido para dentro do `div.flex-1.relative.min-w-0`, alinhando o sistema de coordenadas `latLngToContainerPoint` com o `offsetParent` correto.
+- ✅ **Area Labels Clicáveis**: `iconSize` do `AreaLabelsLayer` corrigido de `[1, 1]` (1px — inútil) para `[120, 42]` com âncora `[60, 42]`. Click no label → seleciona área; Duplo-clique → renomear.
+- ✅ **Footer Contextual de Área**: Quando área selecionada em modo SELECT, footer exibe nome, dicas de uso (Mover / Delete / Renomear) e botão "Excluir Área" com confirmação.
+- ✅ **Polígono de Área Mais Clicável**: `weight` aumentado de 2 para 3px; `centerGripIcon` ampliado de 14×14 para 18×18px, cor violet para distinção visual.
+
+### v0.9.2-beta.2 (2026-05-29) — Arranjo Canvas Sprint 4: Zoom, Stringing Inline, Nomeação de Áreas
+
+- ✅ **Ctrl+Scroll Zoom** (`MapCore.tsx`): Padrão Figma/Miro implementado em `MapInteractionOrchestrator` via native `wheel` event listener com `{ passive: false }`. Zoom proporcional ao delta do scroll; sem Ctrl, scroll passa normalmente.
+- ✅ **Stringing Quick Popover**: `StringingMpptPickerModal` (bottom panel) substituído por `StringingQuickPopover` — popover flutuante posicionado no centróide dos módulos selecionados. Botões MPPT com badges de capacidade e status.
+- ✅ **Nomeação de Áreas**: Campo `name?: string` adicionado a `InstallationArea`. Ação `renameArea(id, name)` no `projectSlice`. `AreaLabelsLayer` exibe nome customizado (fallback "Área N").
+- ✅ **Indicador de Conclusão** (`ViewLayerSelector`): Badge de % no botão "Arranjo" — verde 100%, âmbar >50%, cinza <50%. Calculado de `assignedModules / totalModules`.
+- ✅ **Bulk Module Ops**: `Delete/Backspace` com módulos selecionados em STRINGING → remove todos. `Ctrl+A` em STRINGING → seleciona todos os módulos da área ativa.
 
 ### v0.9.0-beta.4 (2026-05-14) — Math Integrity & Deep Cleanup
 - ✅ **Math Engine Integrity**: Substituição de coeficientes genéricos (`tempCoeff`) por granularidade estrita (`tempCoeffVoc` e `tempCoeffPmax`) em toda a cadeia da verdade (Importação → Catálogo → Dimensionamento).

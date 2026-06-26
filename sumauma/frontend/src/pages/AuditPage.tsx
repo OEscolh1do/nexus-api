@@ -1,48 +1,52 @@
-import { useState } from 'react';
-import { History, Download, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { History, Download, ChevronLeft, ChevronRight, Loader2, RefreshCw } from 'lucide-react';
 import { useAuditLogs, AuditLogsParams } from '@/hooks/useAuditLogs';
 import AuditFilters from '@/components/audit/AuditFilters';
 import AuditLogRow from '@/components/audit/AuditLogRow';
 
 export default function AuditPage() {
-  const [params, setParams] = useState<AuditLogsParams>({
+  const [searchParams] = useSearchParams();
+  const [params, setParams] = useState<AuditLogsParams>(() => ({
     limit: 50,
-  });
+    userId: searchParams.get('userId') ?? undefined,
+  }));
   const [cursorStack, setCursorStack] = useState<(string | null)[]>([null]);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const { logs, pagination, loading, error, exportLogs } = useAuditLogs(params);
+  const { logs, pagination, loading, error, isExporting, exportLogs } = useAuditLogs(params);
 
-  const handleNextPage = () => {
+  const handleNextPage = useCallback(() => {
     if (pagination?.nextCursor) {
-      setCursorStack(prev => [...prev, pagination.nextCursor]);
-      setParams(prev => ({ ...prev, cursor: pagination.nextCursor }));
+      const next = pagination.nextCursor;
+      setCursorStack(prev => [...prev, next]);
+      setParams(prev => ({ ...prev, cursor: next }));
       setCurrentPage(prev => prev + 1);
     }
-  };
+  }, [pagination?.nextCursor]);
 
-  const handlePrevPage = () => {
+  const handlePrevPage = useCallback(() => {
     if (cursorStack.length > 1) {
       const newStack = [...cursorStack];
-      newStack.pop(); // Remove current cursor
+      newStack.pop();
       const prevCursor = newStack[newStack.length - 1];
       setCursorStack(newStack);
       setParams(prev => ({ ...prev, cursor: prevCursor }));
       setCurrentPage(prev => prev - 1);
     }
-  };
+  }, [cursorStack]);
 
-  const handleFiltersChange = (newFilters: any) => {
-    setParams({ ...params, ...newFilters, cursor: null });
+  const handleFiltersChange = useCallback((newFilters: Partial<AuditLogsParams>) => {
+    setParams((prev) => ({ ...prev, ...newFilters, cursor: null }));
     setCursorStack([null]);
     setCurrentPage(1);
-  };
+  }, []);
 
-  const handleClearFilters = () => {
+  const handleClearFilters = useCallback(() => {
     setParams({ limit: 50 });
     setCursorStack([null]);
     setCurrentPage(1);
-  };
+  }, []);
 
   return (
     <div className="flex h-full flex-col gap-4">
@@ -59,10 +63,13 @@ export default function AuditPage() {
 
         <button
           onClick={exportLogs}
-          className="flex items-center gap-2 h-9 px-4 text-xs font-medium bg-slate-800 border border-slate-700 rounded-sm text-slate-200 hover:bg-slate-700 transition-colors"
+          disabled={isExporting}
+          className="flex items-center gap-2 h-9 px-4 text-xs font-medium bg-slate-800 border border-slate-700 rounded-sm text-slate-200 hover:bg-slate-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          <Download className="h-3.5 w-3.5" />
-          Exportar CSV
+          {isExporting
+            ? <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+            : <Download className="h-3.5 w-3.5" />}
+          {isExporting ? 'Exportando…' : 'Exportar CSV'}
         </button>
       </div>
 

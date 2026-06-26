@@ -1,124 +1,179 @@
 import axios from 'axios';
 import { useAuthStore } from '@/stores/authStore';
 
+// Extende os tipos do axios com flag para chamadas não-críticas
+// que não devem acionar lockout em caso de 403.
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    skipAccessDenied?: boolean;
+  }
+  interface InternalAxiosRequestConfig {
+    skipAccessDenied?: boolean;
+  }
+}
+
 const api = axios.create({
   baseURL: '/admin',
   headers: { 'Content-Type': 'application/json' },
-  timeout: 15000,
+  timeout: 30000,
 });
 
-function decodeJwt(token: string): any {
+// ─── Silent refresh queue ──────────────────────────────────────────────────────
+// Serialises concurrent 401s: only one refresh call is in-flight at a time.
+// Subsequent requests queue up and are retried once the token is renewed.
+
+let isRefreshing = false;
+let refreshQueue: Array<(token: string) => void> = [];
+
+function notifyRefreshQueue(newToken: string) {
+  refreshQueue.forEach((cb) => cb(newToken));
+  refreshQueue = [];
+}
+
+function decodeJwt(token: string): { exp?: number; [key: string]: unknown } | null {
   try {
     const base64Url = token.split('.')[1];
     if (!base64Url) return null;
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split('')
-        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
+    // Pad to a multiple of 4 so atob() never throws on non-aligned payloads
+    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+    return JSON.parse(
+      decodeURIComponent(
+        atob(padded)
+          .split('')
+          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      )
     );
-    return JSON.parse(jsonPayload);
-  } catch (err) {
-    console.warn('[API] Falha ao decodificar JWT payload:', err);
+  } catch {
     return null;
   }
 }
 
 function isTokenExpiredOrExpiringSoon(token: string, marginSeconds = 60): boolean {
   const payload = decodeJwt(token);
-  if (!payload || !payload.exp) {
-    // Se não conseguimos ler a expiração, não bloqueamos a requisição proativamente
-    // deixamos o backend decidir (401) para evitar loops se o formato do token mudar
-    return false;
-  }
+  if (!payload?.exp) return false;
   return payload.exp * 1000 < Date.now() + marginSeconds * 1000;
 }
 
-// Interceptor: injeta JWT em toda requisição e verifica expiração proativa
+// ─── Request interceptor ───────────────────────────────────────────────────────
 api.interceptors.request.use((config) => {
-  // ✅ PRIMEIRA checagem: se a requisição já carrega seu próprio Authorization,
-  // confiamos nela e não tocamos no estado do Zustand. Ex: LoginPage passando rawIdToken.
-  if (config.headers.Authorization) {
-    return config;
-  }
+  // Respect an explicitly set Authorization (e.g. LoginPage passing rawIdToken directly)
+  if (config.headers.Authorization) return config;
 
-  const { token, logout } = useAuthStore.getState();
+  const { token, refreshToken, logout } = useAuthStore.getState();
 
   if (token) {
     if (isTokenExpiredOrExpiringSoon(token)) {
-      console.warn('[API] Token expirado detectado no interceptor de request');
-      logout();
-
-      // Só sinaliza "Force Logout" (que limpa o SSO) se NÃO estivermos já na página de login
-      if (!window.location.pathname.includes('/login')) {
-        sessionStorage.setItem('sumauma_force_logout', 'true');
-        window.location.href = '/login';
+      if (!refreshToken) {
+        // No way to refresh — force logout immediately
+        logout();
+        if (!window.location.pathname.includes('/login')) {
+          sessionStorage.setItem('sumauma_force_logout', 'true');
+          window.location.href = '/login';
+        }
+        return Promise.reject(new Error('Sessão expirada'));
       }
-
-      return Promise.reject(new Error('Sessão expirada'));
+      // Has refresh token — let the request through; response interceptor handles the 401
     }
     config.headers.Authorization = `Bearer ${token}`;
   }
+
   return config;
 });
 
-
-// Interceptor: trata erros de auth e rede
+// ─── Response interceptor ─────────────────────────────────────────────────────
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     const originalRequest = error.config;
-    const url = originalRequest?.url || 'URL desconhecida';
 
     if (error.response?.status === 401) {
-      const serverMsg = error.response.data?.error || 'Sessão expirada';
+      const serverMsg = error.response.data?.error ?? '';
       const isM2MError = serverMsg.includes('M2M');
-      
-      console.warn(`[API] 401 em ${url} — ${serverMsg}`);
-      
-      if (!isM2MError) {
+
+      // M2M errors or already-retried requests go straight to logout
+      if (isM2MError || originalRequest._retry) {
         useAuthStore.getState().logout();
-        
-        // Sempre sinaliza force_logout em 401 para garantir que o SSO seja limpo se necessário.
-        // Isso interrompe loops onde o Logto acha que está logado mas o backend rejeita o token.
         sessionStorage.setItem('sumauma_force_logout', 'true');
-        
         if (!window.location.pathname.includes('/login')) {
           window.location.href = '/login';
         }
-      }
-      return Promise.reject(error);
-    }
-
-    if (error.response?.status === 403) {
-      const serverMsg = error.response.data?.error || '';
-      console.warn(`[API] 403 em ${url} — ${serverMsg}`);
-      
-      // Se for erro de acesso restrito (usuário logado no Logto mas sem role de Admin no DB)
-      if (serverMsg.includes('operadores') || serverMsg.includes('provisionado')) {
-        window.location.href = '/access-denied';
         return Promise.reject(error);
       }
 
+      const { refreshToken, updateToken, logout } = useAuthStore.getState();
+
+      if (!refreshToken) {
+        // SSO users or sessions without a refresh token
+        logout();
+        sessionStorage.setItem('sumauma_force_logout', 'true');
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = '/login';
+        }
+        return Promise.reject(error);
+      }
+
+      originalRequest._retry = true;
+
+      // Another refresh is already in flight — queue this request
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          refreshQueue.push((newToken: string) => {
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            api(originalRequest).then(resolve).catch(reject);
+          });
+        });
+      }
+
+      isRefreshing = true;
+
+      try {
+        const { data } = await axios.post('/admin/auth/refresh', { refreshToken });
+        const newToken: string = data.token;
+        const newRefreshToken: string | undefined = data.refreshToken;
+
+        if (newRefreshToken) {
+          useAuthStore.getState().updateTokens(newToken, newRefreshToken);
+        } else {
+          updateToken(newToken);
+        }
+        notifyRefreshQueue(newToken);
+        isRefreshing = false;
+
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return api(originalRequest);
+      } catch (refreshError) {
+        isRefreshing = false;
+        refreshQueue = [];
+        logout();
+        sessionStorage.setItem('sumauma_force_logout', 'true');
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = '/login';
+        }
+        return Promise.reject(refreshError);
+      }
+    }
+
+    if (error.response?.status === 403) {
+      // Chamadas marcadas com skipAccessDenied (ex: audit-login, não-críticas)
+      // nunca devem acionar lockout — o caller trata o erro individualmente.
+      if (originalRequest?.skipAccessDenied) return Promise.reject(error);
+
+      const serverMsg = error.response.data?.error ?? '';
+      if (serverMsg.includes('operadores') || serverMsg.includes('provisionado')) {
+        useAuthStore.getState().setAccessDenied(true);
+        return Promise.reject(error);
+      }
       return Promise.reject(new Error('Você não tem permissão para realizar esta ação.'));
     }
 
     if (error.response?.status >= 500) {
-      console.error(`[API] ${error.response.status} em ${url}`, error.response.data);
       return Promise.reject(new Error('Erro interno no servidor. Tente novamente em instantes.'));
     }
 
-    // Erros de rede ou erros lançados pelo interceptor de request
     if (!error.response) {
-      const isSessionExpired = error.message === 'Sessão expirada';
-      
-      if (isSessionExpired) {
-        console.warn(`[API] Requisição para ${url} cancelada: Sessão expirada`);
-        return Promise.reject(error);
-      }
-
-      console.error(`[API] Erro de rede ou servidor offline em ${url}:`, error.message);
+      if (error.message === 'Sessão expirada') return Promise.reject(error);
       return Promise.reject(new Error('Sem conexão com o servidor. Verifique sua rede ou se o backend está online.'));
     }
 

@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const logger = require('./logger');
 const { runIdentityAudit, saveAuditHistory } = require('./identityAuditService');
+const prismaSumauma = require('./prismaSumauma');
 
 /**
  * Inicializa os jobs agendados da plataforma Sumaúma.
@@ -30,7 +31,18 @@ function initCronJobs() {
     }
   });
 
-  // Outros jobs podem ser adicionados aqui (ex: limpeza de logs, backups)
+  // Job 2: Limpeza de Sessões Expiradas (04:00 AM, diário)
+  cron.schedule('0 4 * * *', async () => {
+    logger.info('Executando limpeza de sessões expiradas...');
+    try {
+      const result = await prismaSumauma.session.deleteMany({
+        where: { expiresAt: { lt: new Date() } },
+      });
+      logger.info(`Limpeza de sessões: ${result.count} registro(s) removido(s).`);
+    } catch (error) {
+      logger.error('Falha na limpeza de sessões expiradas', { err: error.message });
+    }
+  });
 }
 
 module.exports = { initCronJobs };

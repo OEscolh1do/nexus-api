@@ -1,6 +1,7 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { UploadCloud, FileType, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useUploadEquipment } from '@/hooks/useCatalog';
+import { toast } from '@/stores/toastStore';
 
 interface EquipmentUploadZoneProps {
   type: 'module' | 'inverter';
@@ -15,11 +16,20 @@ export default function EquipmentUploadZone({ type, onSuccess }: EquipmentUpload
   const ext = type === 'module' ? '.pan' : '.ond';
   const endpoint = type === 'module' ? '/catalog/modules' : '/catalog/inverters';
 
-  const { mutate: upload, loading, error, setError } = useUploadEquipment(endpoint, () => {
-    setUploadedName(fileState?.name ?? null);
+  // Ref stores the filename synchronously before the state update commits,
+  // preventing the success callback from capturing a stale fileState = null.
+  const pendingFilenameRef = useRef<string | null>(null);
+
+  const handleUploadSuccess = useCallback(() => {
+    const name = pendingFilenameRef.current;
+    pendingFilenameRef.current = null;
+    setUploadedName(name);
     setFileState(null);
+    toast.success(`${name ?? 'Arquivo'} importado com sucesso.`);
     onSuccess();
-  });
+  }, [onSuccess]);
+
+  const { mutate: upload, loading, error, setError } = useUploadEquipment(endpoint, handleUploadSuccess);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -45,6 +55,7 @@ export default function EquipmentUploadZone({ type, onSuccess }: EquipmentUpload
       return;
     }
 
+    pendingFilenameRef.current = file.name;
     setFileState({ name: file.name, size: file.size });
 
     // PVSyst < 6.80 usa ANSI/Latin-1; 6.80+ usa UTF-8 (com ou sem BOM).

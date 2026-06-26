@@ -21,39 +21,39 @@ router.get('/', async (req, res) => {
       dateTo,
       q,
       resourceId,
+      cursor,
     } = req.query;
 
     const where = {};
-    if (tenantId) where.tenantId = tenantId;
-    if (userId) where.userId = userId;
-    if (action) where.action = { contains: action };
-    if (entity) where.entity = entity;
+    if (tenantId)   where.tenantId   = tenantId;
+    if (userId)     where.userId     = userId;
+    if (action)     where.action     = { contains: action, mode: 'insensitive' };
+    if (entity)     where.entity     = entity;
     if (resourceId) where.resourceId = resourceId;
-    if (q) where.details = { contains: q };
+    if (q)          where.details    = { contains: q,      mode: 'insensitive' };
 
     if (dateFrom || dateTo) {
       where.timestamp = {};
       if (dateFrom) where.timestamp.gte = new Date(dateFrom);
-      if (dateTo) where.timestamp.lte = new Date(dateTo);
+      // dateTo comes as "YYYY-MM-DD"; append end-of-day so the full selected day is included
+      if (dateTo)   where.timestamp.lte = new Date(dateTo + 'T23:59:59.999Z');
     }
 
     const limitNum = Number(limit);
-    
+
     const queryOptions = {
       where,
       take: limitNum,
       orderBy: { timestamp: 'desc' },
       include: {
-        user: { select: { id: true, username: true, fullName: true } },
+        user:   { select: { id: true, username: true, fullName: true } },
         tenant: { select: { id: true, name: true } },
       },
     };
 
-    // Paginação por cursor
-    const { cursor } = req.query;
     if (cursor) {
       queryOptions.cursor = { id: cursor };
-      queryOptions.skip = 1; // Pular o próprio cursor
+      queryOptions.skip   = 1;
     }
 
     const [logs, total] = await Promise.all([
@@ -63,30 +63,99 @@ router.get('/', async (req, res) => {
 
     const nextCursor = logs.length === limitNum ? logs[logs.length - 1].id : null;
 
-    res.json({
-      data: logs,
-      pagination: {
-        total,
-        nextCursor,
-        limit: limitNum,
-      },
-    });
+    res.json({ data: logs, pagination: { total, nextCursor, limit: limitNum } });
   } catch (error) {
     logger.error('Erro ao listar audit logs', { err: error.message });
-    res.json({ data: [], pagination: { total: 0, limit: 50 } });
+    res.status(500).json({ error: 'Falha ao listar logs de auditoria' });
+  }
+});
+
+// ============================================
+// GET /admin/audit-logs/stats/summary — Estatísticas
+// NOTA: rota literal registrada ANTES de /:id para evitar shadowing.
+// ============================================
+router.get('/stats/summary', async (req, res) => {
+  try {
+    const now     = new Date();
+    const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const last7d  = new Date(now.getTime() - 7  * 24 * 60 * 60 * 1000);
+
+    const [total, last24hCount, last7dCount] = await Promise.all([
+      prismaSumauma.auditLog.count(),
+      prismaSumauma.auditLog.count({ where: { timestamp: { gte: last24h } } }),
+      prismaSumauma.auditLog.count({ where: { timestamp: { gte: last7d  } } }),
+    ]);
+
+    res.json({ data: { total, last24h: last24hCount, last7d: last7dCount } });
+  } catch (error) {
+    logger.error('Erro ao buscar stats de audit log', { err: error.message });
+    res.json({ data: { total: 0, last24h: 0, last7d: 0 } });
+  }
+});
+
+// ============================================
+// GET /admin/audit-logs/export — Exportar CSV
+// NOTA: rota literal registrada ANTES de /:id para evitar shadowing.
+// ============================================
+router.get('/export', async (req, res) => {
+  try {
+    const { tenantId, userId, action, entity, resourceId, dateFrom, dateTo, q } = req.query;
+
+    const where = {};
+    if (tenantId)   where.tenantId   = tenantId;
+    if (userId)     where.userId     = userId;
+    if (action)     where.action     = { contains: action, mode: 'insensitive' };
+    if (entity)     where.entity     = entity;
+    if (resourceId) where.resourceId = resourceId;
+    if (q)          where.details    = { contains: q,      mode: 'insensitive' };
+
+    if (dateFrom || dateTo) {
+      where.timestamp = {};
+      if (dateFrom) where.timestamp.gte = new Date(dateFrom);
+      if (dateTo)   where.timestamp.lte = new Date(dateTo + 'T23:59:59.999Z');
+    }
+
+    const logs = await prismaSumauma.auditLog.findMany({
+      where,
+      take: 5000,
+      include: {
+        user:   { select: { username: true } },
+        tenant: { select: { name: true } },
+      },
+      orderBy: { timestamp: 'desc' },
+    });
+
+    let csv = 'Timestamp,Usuario,Tenant,Acao,Entidade,IP,Detalhes\n';
+    logs.forEach((log) => {
+      const ts     = new Date(log.timestamp).toISOString();
+      const user   = log.user?.username   || 'N/A';
+      const tenant = log.tenant?.name     || 'N/A';
+      const act    = log.action;
+      const ent    = log.entity           || 'N/A';
+      const ip     = log.ipAddress        || 'N/A';
+      const det    = (log.details || '').replace(/,/g, ';').replace(/\n/g, ' ');
+      csv += `${ts},${user},${tenant},${act},${ent},${ip},${det}\n`;
+    });
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="audit-logs.csv"');
+    res.status(200).send(csv);
+  } catch (error) {
+    logger.error('Erro ao exportar CSV de audit log', { err: error.message });
+    res.status(500).json({ error: 'Falha ao exportar logs' });
   }
 });
 
 // ============================================
 // GET /admin/audit-logs/:id — Detalhar um log
-// Fonte: Prisma Master → db_sumauma
+// DEVE vir após todas as rotas literais acima.
 // ============================================
 router.get('/:id', async (req, res) => {
   try {
     const log = await prismaSumauma.auditLog.findUnique({
       where: { id: req.params.id },
       include: {
-        user: { select: { id: true, username: true, fullName: true, role: true } },
+        user:   { select: { id: true, username: true, fullName: true, role: true } },
         tenant: { select: { id: true, name: true } },
       },
     });
@@ -99,88 +168,6 @@ router.get('/:id', async (req, res) => {
   } catch (error) {
     logger.error('Erro ao detalhar audit log', { err: error.message });
     res.status(500).json({ error: 'Falha ao buscar log de auditoria' });
-  }
-});
-
-// ============================================
-// GET /admin/audit-logs/stats/summary — Estatísticas
-// Fonte: Prisma Master → db_sumauma
-// ============================================
-router.get('/stats/summary', async (req, res) => {
-  try {
-    const now = new Date();
-    const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const last7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-    const [total, last24hCount, last7dCount] = await Promise.all([
-      prismaSumauma.auditLog.count(),
-      prismaSumauma.auditLog.count({ where: { timestamp: { gte: last24h } } }),
-      prismaSumauma.auditLog.count({ where: { timestamp: { gte: last7d } } }),
-    ]);
-
-    res.json({
-      data: {
-        total,
-        last24h: last24hCount,
-        last7d: last7dCount,
-      },
-    });
-  } catch (error) {
-    logger.error('Erro ao buscar stats de audit log', { err: error.message });
-    res.json({ data: { total: 0, last24h: 0, last7d: 0 } });
-  }
-});
-
-// ============================================
-// GET /admin/audit-logs/export — Exportar CSV
-// Fonte: Prisma Master → db_sumauma
-// ============================================
-router.get('/export', async (req, res) => {
-  try {
-    const { tenantId, userId, action, entity, resourceId, dateFrom, dateTo, q } = req.query;
-
-    const where = {};
-    if (tenantId) where.tenantId = tenantId;
-    if (userId) where.userId = userId;
-    if (action) where.action = { contains: action };
-    if (entity) where.entity = entity;
-    if (resourceId) where.resourceId = resourceId;
-    if (q) where.details = { contains: q };
-
-    if (dateFrom || dateTo) {
-      where.timestamp = {};
-      if (dateFrom) where.timestamp.gte = new Date(dateFrom);
-      if (dateTo) where.timestamp.lte = new Date(dateTo);
-    }
-
-    const logs = await prismaSumauma.auditLog.findMany({
-      where,
-      take: 5000,
-      include: {
-        user: { select: { username: true } },
-        tenant: { select: { name: true } },
-      },
-      orderBy: { timestamp: 'desc' },
-    });
-
-    let csv = 'Timestamp,Usuario,Tenant,Acao,Entidade,IP,Detalhes\n';
-    logs.forEach((log) => {
-      const ts = new Date(log.timestamp).toISOString();
-      const user = log.user?.username || 'N/A';
-      const tenant = log.tenant?.name || 'N/A';
-      const act = log.action;
-      const ent = log.entity || 'N/A';
-      const ip = log.ipAddress || 'N/A';
-      const det = (log.details || '').replace(/,/g, ';').replace(/\n/g, ' ');
-      csv += `${ts},${user},${tenant},${act},${ent},${ip},${det}\n`;
-    });
-
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename=audit-logs.csv');
-    res.status(200).send(csv);
-  } catch (error) {
-    logger.error('Erro ao exportar CSV de audit log', { err: error.message });
-    res.status(500).json({ error: 'Falha ao exportar logs' });
   }
 });
 

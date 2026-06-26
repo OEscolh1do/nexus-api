@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ╔══════════════════════════════════════════════════════════════════════╗
+  ║  CATÁLOGO KURUPIRA — sym-ac-breaker  (IEC 60617 Disjuntor CA)       ║
+  ║  ViewBox local: 0 0 18 18                                           ║
+  ║                                                                      ║
+  ║  CSS Custom Properties:                                              ║
+  ║    --s   stroke (círculo + diagonal)   padrão #94a3b8               ║
+  ║    --sw  stroke-width                   padrão 1.5                  ║
+  ║    --f   fill (fundo do círculo)        padrão #0f172a              ║
+  ║                                                                      ║
+  ║  Geometria (cx=9, cy=9, r=7):                                        ║
+  ║    diagonal: (5.5,12.5)→(12.5,5.5)   (slope −1, barras de disparo) ║
+  ║                                                                      ║
+  ║  Normas: IEC 60617-7 (disjuntor),                                    ║
+  ║          NBR 5410:2004 §6.3 (proteção CA na interligação com a rede) ║
+  ╚══════════════════════════════════════════════════════════════════════╝
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="-8 -16 80 56"
+     width="320" height="224"
+     style="background:#0f172a; font-family:monospace;">
+
+  <defs>
+    <symbol id="sym-ac-breaker" viewBox="0 0 18 18">
+      <!-- Corpo circular IEC (disjuntor) -->
+      <circle cx="9" cy="9" r="7"
+        style="fill:var(--f,#0f172a); stroke:var(--s,#94a3b8); stroke-width:var(--sw,1.5);"/>
+      <!-- Linha diagonal — indica disparo/interrupção -->
+      <line x1="5.5" y1="12.5" x2="12.5" y2="5.5"
+        stroke-width="1.8" stroke-linecap="round"
+        style="stroke:var(--s,#94a3b8);"/>
+    </symbol>
+  </defs>
+
+  <text x="0" y="-4" fill="#475569" font-size="7">sym-ac-breaker — IEC 60617 Disjuntor CA (DJ1)</text>
+
+  <!-- padrão -->
+  <text x="9" y="24" text-anchor="middle" fill="#334155" font-size="6">padrão</text>
+  <use href="#sym-ac-breaker" x="0" y="0" width="18" height="18"/>
+
+  <!-- hover (branco quente) -->
+  <text x="37" y="24" text-anchor="middle" fill="#e2e8f0" font-size="6">hover</text>
+  <use href="#sym-ac-breaker" x="28" y="0" width="18" height="18"
+    style="--s:#e2e8f0; --sw:2;"/>
+
+  <!-- selecionado (índigo) -->
+  <text x="65" y="24" text-anchor="middle" fill="#6366f1" font-size="6">selecionado</text>
+  <use href="#sym-ac-breaker" x="56" y="0" width="18" height="18"
+    style="--s:#6366f1; --sw:2;"/>
+</svg>

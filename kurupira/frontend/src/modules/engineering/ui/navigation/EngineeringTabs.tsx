@@ -23,7 +23,7 @@ const TABS: TabItem[] = [
   { id: 'inverter', label: 'Inversores', icon: Cpu, unit: 'fdi' },
   { id: 'arrangement', label: 'Arranjo', icon: Layout, unit: '' },
   { id: 'projection', label: 'Projeção', icon: TrendingUp, unit: 'mwh' },
-  { id: 'proposal', label: 'Proposta', icon: FileSignature, unit: 'anos' },
+  { id: 'proposal', label: 'Documento', icon: FileSignature, unit: 'anos' },
 ];
 
 export const EngineeringTabs: React.FC = () => {

@@ -17,7 +17,7 @@
  */
 
 import React, { useEffect } from 'react';
-import { MapContainer, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L, { type Map as LeafletMap } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import ReactLeafletGoogleLayer from 'react-leaflet-google-layer';
@@ -27,7 +27,6 @@ import { useSolarStore } from '@/core/state/solarStore';
 import { useCenterContent } from '../store/panelStore';
 import { selectCoordinates, selectZoom, selectProjectSiteLocation } from '@/core/state/solarSelectors';
 import { useUIStore, type Tool, type CanvasViewMode } from '@/core/state/uiStore';
-import { cn } from '@/lib/utils';
 import { SolarLayer } from './SolarLayer';
 import { MapMeasureTool } from './MapMeasureTool';
 import { MapFlyToSync } from './MapFlyToSync';
@@ -152,7 +151,7 @@ const MapInteractionOrchestrator: React.FC<{
 
   useEffect(() => {
     let timer: any;
-    
+
     // PERFIL: EXPLORAÇÃO (Livre)
     if (variant === 'EXPLORATION') {
       map.dragging.enable();
@@ -168,22 +167,8 @@ const MapInteractionOrchestrator: React.FC<{
       map.keyboard.disable();
       map.touchZoom.disable();
       map.boxZoom.disable();
-    } 
-    // NÍVEL 2: Modo Prancheta (BLUEPRINT) -> Bloqueio por ferramenta
-    else if (canvasViewMode === 'BLUEPRINT') {
-      map.scrollWheelZoom.disable(); // Forçado: sem zoom via scroll em modo técnico
-      map.keyboard.disable();
-      map.touchZoom.disable();
-      map.boxZoom.disable();
-      if (activeTool === 'PAN') {
-        map.dragging.enable();
-        map.doubleClickZoom.enable();
-      } else {
-        map.dragging.disable();
-        map.doubleClickZoom.disable();
-      }
-    } 
-    // NÍVEL 3: Modo Satélite (CONTEXT) -> Navegação Livre (Menos Scroll)
+    }
+    // NÍVEL 2: Modo Arranjo (CONTEXT) -> Navegação Livre (Menos Scroll)
     else {
       map.dragging.enable();
       map.scrollWheelZoom.disable(); // Forçado: consistência de UX
@@ -202,6 +187,27 @@ const MapInteractionOrchestrator: React.FC<{
       if (timer) clearTimeout(timer);
     };
   }, [map, isMinimap, isAnchorLocked, canvasViewMode, activeTool, variant]);
+
+  // Ctrl+Scroll zoom (Figma/Miro pattern)
+  useEffect(() => {
+    // Only active when in NÍVEL 2 (not minimap, not anchor-locked)
+    if (isMinimap || isAnchorLocked || variant === 'EXPLORATION') return;
+
+    const container = map.getContainer();
+    const handleWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey) return; // Without Ctrl: let page scroll pass through
+      e.preventDefault();
+      e.stopPropagation();
+      // Scale zoom by scroll intensity, capped at ±1 per tick
+      const delta = e.deltaY;
+      const zoomDelta = Math.min(Math.abs(delta) / 120, 1) * (delta < 0 ? 1 : -1);
+      const currentZoom = map.getZoom();
+      map.setZoom(currentZoom + zoomDelta * 0.8, { animate: true });
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
+  }, [map, isMinimap, isAnchorLocked, variant]);
 
   return null;
 };
@@ -312,6 +318,46 @@ const GeocodingBridge: React.FC = () => {
   return null;
 };
 
+/**
+ * L0-B: MapFitBoundsOnAreas — Auto-fit bounds ao adicionar primeira área
+ * Observa installationAreas e executa fitBounds quando a primeira área é criada.
+ */
+const MapFitBoundsOnAreas: React.FC = () => {
+  const map = useMap();
+  const installationAreas = useSolarStore(s => s.project.installationAreas);
+  const prevCountRef = React.useRef(0);
+
+  useEffect(() => {
+    const currentCount = installationAreas.length;
+
+    if (currentCount === 0) {
+      prevCountRef.current = 0;
+      return;
+    }
+
+    // Primeira área adicionada
+    if (prevCountRef.current === 0 && currentCount === 1) {
+      const area = installationAreas[0];
+      if (area.polygon.length >= 3) {
+        const bounds = L.latLngBounds(area.polygon as any);
+        map.fitBounds(bounds, { padding: [60, 60] });
+      }
+    }
+    // Nova área adicionada a projeto já com áreas
+    else if (currentCount > prevCountRef.current) {
+      const newArea = installationAreas[installationAreas.length - 1];
+      if (newArea.polygon.length >= 3) {
+        const bounds = L.latLngBounds(newArea.polygon as any);
+        map.flyToBounds(bounds, { padding: [60, 60], duration: 1.0 });
+      }
+    }
+
+    prevCountRef.current = currentCount;
+  }, [installationAreas, map]);
+
+  return null;
+};
+
 /** 
  * Pilha de instâncias do Leaflet. Garante que se um modal com mapa for fechado,
  * a referência global volte para o mapa do workspace principal.
@@ -371,22 +417,23 @@ interface MapCoreProps {
   children?: React.ReactNode;
 }
 
-const MapCoreInner: React.FC<MapCoreProps> = ({ 
-  activeTool, 
-  isNavigating = false, 
+const MapCoreInner: React.FC<MapCoreProps> = ({
+  activeTool,
+  isNavigating = false,
   center: propsCenter,
   zoom: propsZoom,
   showLayers = true,
   readOnly = false,
   forceViewMode,
   variant = 'TECHNICAL',
-  children 
+  children
 }) => {
   const coordinates = useSolarStore(selectCoordinates);
   const siteLocation = useSolarStore(selectProjectSiteLocation);
   const storeZoom = useSolarStore(selectZoom);
   const storeViewMode = useUIStore(s => s.canvasViewMode);
-  
+  const mapStyle = useUIStore(s => s.mapStyle);
+
   const canvasViewMode = forceViewMode ?? storeViewMode;
 
   const installationAreas = useSolarStore(s => s.project.installationAreas) || [];
@@ -409,10 +456,7 @@ const MapCoreInner: React.FC<MapCoreProps> = ({
   const finalZoom = propsZoom ?? Math.min(storeZoom, UI_MAX_ZOOM);
 
   return (
-    <div className={cn(
-      "w-full h-full transition-colors duration-700",
-      canvasViewMode === 'BLUEPRINT' ? "bg-slate-900" : "bg-slate-950"
-    )}>
+    <div className="w-full h-full bg-slate-950">
       <MapContainer
         center={finalCenter}
         zoom={finalZoom}
@@ -431,12 +475,19 @@ const MapCoreInner: React.FC<MapCoreProps> = ({
         {/* Sincronização de props externas (centro/zoom via props) */}
         <MapPropSync center={propsCenter} zoom={propsZoom} />
 
-        {/* Google Maps Layer — Oculto em modo Prancheta (CAD Mode) */}
-        {canvasViewMode !== 'BLUEPRINT' && (
-          <ReactLeafletGoogleLayer 
-            apiKey={GOOGLE_MAPS_TOKEN || ''} 
-            type="hybrid"
-          />
+        {/* L0-C: Tile Layer with fallback to OSM when no API key */}
+        {(canvasViewMode !== 'DIAGRAM' && canvasViewMode !== 'UNIFILAR') && (
+          GOOGLE_MAPS_TOKEN ? (
+            <ReactLeafletGoogleLayer
+              apiKey={GOOGLE_MAPS_TOKEN}
+              type={mapStyle}
+            />
+          ) : (
+            <TileLayer
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution='&copy; OpenStreetMap contributors'
+            />
+          )
         )}
 
         {/* Sincronização de resize, visibilidade e viewport */}
@@ -446,6 +497,7 @@ const MapCoreInner: React.FC<MapCoreProps> = ({
         {!readOnly && <MapViewSync />}
         {!readOnly && <MapFlyToSync />}
         {!readOnly && <GeocodingBridge />}
+        {!readOnly && <MapFitBoundsOnAreas />}
         
         {/* Componentes Específicos do Perfil TÉCNICO */}
         {variant === 'TECHNICAL' && (

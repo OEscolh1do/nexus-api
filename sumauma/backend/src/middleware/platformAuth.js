@@ -77,15 +77,17 @@ function platformAuth(req, res, next) {
       };
 
       if (!isAuthorized) {
-        // Fallback: verificar a role no banco de dados Master (db_sumauma)
+        // Fallback: verificar a role no banco de dados Master (db_sumauma).
+        // O vínculo correto é via authProviderId = sub do Logto,
+        // configurado pelo script scripts/link-logto-operator.js.
         const prismaSumauma = require('../lib/prismaSumauma');
         const userId = decoded.id || decoded.sub;
-        
+
         prismaSumauma.user.findFirst({
           where: {
             OR: [
               { id: userId },
-              { authProviderId: userId }
+              { authProviderId: userId },
             ]
           },
           select: { id: true, role: true }
@@ -103,7 +105,7 @@ function platformAuth(req, res, next) {
           return res.status(500).json({ error: 'Erro interno na autorização' });
         });
       } else {
-        // Se já está autorizado via Token, ainda assim tentamos pegar o ID interno do banco para consistência
+        // Já autorizado via Token — busca ID interno para consistência
         const prismaSumauma = require('../lib/prismaSumauma');
         const userId = decoded.id || decoded.sub;
 
@@ -111,7 +113,7 @@ function platformAuth(req, res, next) {
           where: {
             OR: [
               { id: userId },
-              { authProviderId: userId }
+              { authProviderId: userId },
             ]
           },
           select: { id: true }

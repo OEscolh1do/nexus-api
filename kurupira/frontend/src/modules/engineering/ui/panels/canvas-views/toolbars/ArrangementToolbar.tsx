@@ -6,6 +6,7 @@ import {
   MoveHorizontal,
   Settings,
   LayoutGrid,
+  Grid3x3,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/core/state/uiStore';
@@ -82,12 +83,15 @@ export const ArrangementToolbar: React.FC = () => {
 
   return (
     <>
-      {/* Ferramentas CAD: Área e Corredor Técnico */}
+      {/* Item 6a: Label de seção ÁREA */}
+      <div className="w-full px-1">
+        <span className="text-[7px] font-black text-slate-700 uppercase tracking-widest block text-center">Área</span>
+      </div>
       <RibbonSection>
-        <ToolbarButton 
-          icon={Square} 
-          label="Área (Polygon)" 
-          active={activeTool === 'POLYGON'} 
+        <ToolbarButton
+          icon={Square}
+          label="Área (Polygon)"
+          active={activeTool === 'POLYGON'}
           onClick={() => setActiveTool('POLYGON')}
           shortcut="P"
         />
@@ -101,50 +105,61 @@ export const ArrangementToolbar: React.FC = () => {
         />
       </RibbonSection>
 
-      {/* Orientação do Módulo */}
+      {/* Item 6a: Label de seção MÓDULO */}
+      <div className="w-full px-1 mt-2">
+        <span className="text-[7px] font-black text-slate-700 uppercase tracking-widest block text-center">Módulo</span>
+      </div>
       <RibbonSection disabled={isLayout0}>
-        <ToolbarButton 
-          icon={MoveVertical} 
-          label="Retrato (Portrait)" 
-          active={engineeringData.moduleOrientation === 'portrait'} 
-          onClick={() => updateEngineeringData({ moduleOrientation: 'portrait' })} 
+        <ToolbarButton
+          icon={MoveVertical}
+          label="Retrato (Portrait)"
+          active={engineeringData.moduleOrientation === 'portrait'}
+          onClick={() => updateEngineeringData({ moduleOrientation: 'portrait' })}
           disabled={isLayout0}
         />
-        <ToolbarButton 
-          icon={MoveHorizontal} 
-          label="Paisagem (Landscape)" 
-          active={engineeringData.moduleOrientation === 'landscape'} 
-          onClick={() => updateEngineeringData({ moduleOrientation: 'landscape' })} 
+        <ToolbarButton
+          icon={MoveHorizontal}
+          label="Paisagem (Landscape)"
+          active={engineeringData.moduleOrientation === 'landscape'}
+          onClick={() => updateEngineeringData({ moduleOrientation: 'landscape' })}
           disabled={isLayout0}
+        />
+        <ToolbarButton
+          icon={Grid3x3}
+          label="Preencher Área (PLACE_MODULE)"
+          active={activeTool === 'PLACE_MODULE'}
+          disabled={isLayout0}
+          onClick={() => setActiveTool('PLACE_MODULE')}
+          shortcut="F"
         />
       </RibbonSection>
 
-      {/* D1: Seletor de Superfície — migrado do ribbon local */}
+      {/* Item 6a: Label de seção TIPO */}
+      <div className="w-full px-1 mt-2">
+        <span className="text-[7px] font-black text-slate-700 uppercase tracking-widest block text-center">Tipo</span>
+      </div>
       <SurfaceSelectorInline />
 
-      {/* D1: Auto-Layout — migrado do ribbon local */}
+      {/* Item 6a: Label de seção AÇÕES */}
+      <div className="w-full px-1 mt-2">
+        <span className="text-[7px] font-black text-slate-700 uppercase tracking-widest block text-center">Ações</span>
+      </div>
       <RibbonSection>
         <ToolbarButton
           icon={LayoutGrid}
-          label="Auto-Layout (preencher área selecionada)"
+          label="Auto-Layout (área selecionada)"
           active={false}
           disabled={!selectedEntityId}
           onClick={() => selectedEntityId && autoLayoutArea(selectedEntityId)}
         />
+        <ToolbarButton
+          icon={Settings}
+          label="Afastamentos (em breve)"
+          active={false}
+          disabled={true}
+          onClick={() => {}}
+        />
       </RibbonSection>
-
-      {/* Ajuste fino de afastamentos */}
-      {!isLayout0 && (
-        <RibbonSection>
-          <ToolbarButton
-            icon={Settings}
-            label="Afastamentos (em breve)"
-            active={false}
-            disabled={true}
-            onClick={() => {}}
-          />
-        </RibbonSection>
-      )}
     </>
   );
 };

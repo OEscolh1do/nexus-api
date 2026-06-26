@@ -3,10 +3,12 @@ import {
   Link2,
   Trash2,
   Box,
-  Activity
+  Activity,
+  Shapes,
 } from 'lucide-react';
 import { useUIStore } from '@/core/state/uiStore';
 import { useSolarStore } from '@/core/state/solarStore';
+import { usePanelStore } from '@/modules/engineering/store/panelStore';
 import { ToolbarButton, RibbonSection } from '../PhysicalCanvasView';
 
 export const ElectricalToolbar: React.FC = () => {
@@ -17,11 +19,22 @@ export const ElectricalToolbar: React.FC = () => {
   const placedModules = useSolarStore(s => s.project.placedModules) || [];
   const clearStringAssignments = useSolarStore(s => s.clearStringAssignments);
 
+  const promoteToCenter = usePanelStore(s => s.promoteToCenter);
+
   const hasModules = placedModules.length > 0;
   const stringCount = placedModules.filter(m => m.stringData).length;
 
   return (
     <>
+      <RibbonSection>
+        <ToolbarButton
+          icon={Shapes}
+          label="Editor de Símbolos"
+          active={false}
+          onClick={() => promoteToCenter('symbol-editor')}
+        />
+      </RibbonSection>
+
       <RibbonSection>
         <ToolbarButton 
           icon={Activity} 

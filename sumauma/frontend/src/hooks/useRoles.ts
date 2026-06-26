@@ -39,11 +39,13 @@ interface UseRolesParams {
 const fetcher = (url: string) => api.get(url).then(res => res.data);
 
 export function useRoles(params?: UseRolesParams) {
-  const query = new URLSearchParams();
-  if (params?.tenantId) query.set('tenantId', params.tenantId);
-  if (params?.level) query.set('level', params.level);
-
-  const qs = query.toString() ? `?${query.toString()}` : '';
+  const qs = useMemo(() => {
+    const query = new URLSearchParams();
+    if (params?.tenantId) query.set('tenantId', params.tenantId);
+    if (params?.level) query.set('level', params.level);
+    const str = query.toString();
+    return str ? `?${str}` : '';
+  }, [params?.tenantId, params?.level]);
 
   const { data, error, isLoading, mutate } = useSWR<RolesResponse>(
     `/roles${qs}`,

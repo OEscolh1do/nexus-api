@@ -9,1692 +9,47 @@
  *   • Labels nos condutores (seção de cabo, Voc, Isc)
  *   • Designadores de referência (F1…Fn, DPS1…n, INV-01, DJ1)
  *   • Marcadores de validação diretamente no canvas (⚠ / ✕ por MPPT)
+ *
+ * Module structure (H1 split):
+ *   unifilarTypes.ts       — Types, layout constants, colour helpers
+ *   unifilarLayout.ts      — computeUnifilarLayout() engine
+ *   unifilarSymbols.tsx    — IEC symbol sub-components + rendering layers
+ *   unifilarDetailCards.tsx — Node inspection panels
  */
 
 import React, {
   useMemo, useState, useCallback, useRef, useEffect,
 } from 'react';
-import type { InverterState, MPPTConfig, StringDef } from '../../../../store/useTechStore';
+import type { InverterState } from '../../../../store/useTechStore';
 import type { InverterCatalogItem } from '@/core/schemas/inverterSchema';
-import { Zap, X, Info, ZoomIn, ZoomOut, Maximize2, Download, Tag, ChevronRight } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize2, Download, Tag, ChevronRight, Table2, FileText } from 'lucide-react';
+
+import {
+  type MpptValidationError,
+  PAD_X, PAD_Y, PV_H, STR_GAP, MPPT_GAP,
+  getMpptColor, ALWAYS_VISIBLE_NODE_IDS,
+} from './unifilarTypes';
+import { computeUnifilarLayout } from './unifilarLayout';
+import {
+  SymbolCatalogDefs,
+  PVStringSymbol, FuseSymbol, BusBarSymbol, DPSSymbol, DCSwitchSymbol,
+  InverterSchematicBlock, ACBreakerSymbol, BidirectionalMeterSymbol, GridSymbol, EarthSymbol,
+  SchematicWireRenderer, LabelLayer, ValidationMarker,
+} from './unifilarSymbols';
+import {
+  StringDetailCard, FuseDetailCard, InverterDetailPanel, BusBarDetailCard,
+  DPSDetailCard, ACBreakerDetailCard, GridDetailCard, ValidationErrorPanel,
+} from './unifilarDetailCards';
+
+// Re-export for consumers that import MpptValidationError from this file
+export type { MpptValidationError };
 
 // =============================================================================
-// 1. TYPES
+// ZOOM CONTROLS
 // =============================================================================
 
-interface SchematicNode {
-  id: string;
-  type: 'pv-string' | 'fuse' | 'bus-bar' | 'dps-tap' | 'dc-switch' | 'inverter' | 'ac-breaker' | 'meter' | 'grid' | 'earth-symbol';
-  x: number; y: number; w: number; h: number;
-  data: any;
-}
-
-interface SchematicWire {
-  id: string;
-  mpptIdx: number;
-  polarity: 'dc' | 'ac' | 'gnd';
-  path: string;
-  nodeIds: string[];
-}
-
-interface SchematicLabel {
-  id: string;
-  text: string;
-  x: number; y: number;
-  rotate?: number;
-  color: string;
-  fontSize: number;
-  anchor: 'start' | 'middle' | 'end';
-  bold?: boolean;
-  category?: 'designator' | 'electrical';
-}
-
-interface SchematicMarker {
-  id: string;
-  x: number; y: number;
-  severity: 'error' | 'warn';
-  messages: string[];
-}
-
-interface JunctionDot {
-  id: string;
-  x: number; y: number;
-  color: string;
-}
-
-interface UnifilarLayout {
-  nodes: SchematicNode[];
-  wires: SchematicWire[];
-  labels: SchematicLabel[];
-  markers: SchematicMarker[];
-  junctions: JunctionDot[];
-  viewBox: { x: number; y: number; w: number; h: number };
-}
-
-export interface MpptValidationError {
-  severity: 'error' | 'warn';
-  messages: string[];
-}
-
-// =============================================================================
-// 2. CONSTANTS
-// =============================================================================
-
-const PAD_X = 68;
-const PAD_Y = 64;
-const PV_W = 62;   // IEC 60617 compact symbol (no info panel inside)
-const PV_H = 46;   // Proportional rectangle — taller for clean diagonal + radiation arrows
-const STR_GAP = 28; // Extra gap to accommodate external below-symbol annotation
-const MPPT_GAP = 48;
-
-const FUSE_X_OFFSET = 24;
-const FUSE_W = 22;
-const FUSE_H = 13;
-
-// BUS_X = PAD_X + PV_W + FUSE_X_OFFSET + FUSE_W + 28 = 68+62+24+22+28 = 204
-const BUS_X = PAD_X + PV_W + FUSE_X_OFFSET + FUSE_W + 28;
-
-const DPS_TAP_X = BUS_X + 56;        // = 260
-const DC_SWITCH_W = 16;
-const DC_SWITCH_H = 16;
-const DC_SWITCH_X = DPS_TAP_X + 36;  // = 296 — chave seccionadora CC (NBR 16690 §5.4)
-const INV_X = DC_SWITCH_X + DC_SWITCH_W + 22;  // = 334
-const INV_W = 96;
-const INV_H_BASE = 80;
-const MPPT_PORT_SPACING = 38;
-
-const AC_OUT_X = INV_X + INV_W;      // = 430
-const BREAKER_X = AC_OUT_X + 36;     // = 466
-const BREAKER_W = 18;
-const BREAKER_H = 18;
-const METER_W = 22;
-const METER_H = 22;
-const METER_X = BREAKER_X + BREAKER_W + 20; // = 504 — medidor bidirecional
-const GRID_X = METER_X + METER_W + 20;       // = 546
-const GRID_W = 40;
-const GRID_H = 46;
-
-const DPS_W = 14;
-const DPS_H = 24;
-
-// =============================================================================
-// 3. COLOUR PALETTE
-// =============================================================================
-
-const MPPT_PALETTE = [
-  '#0ea5e9', '#8b5cf6', '#f59e0b', '#10b981',
-  '#f43f5e', '#06b6d4', '#fb923c', '#a855f7',
-];
-
-// BUG-11 fix: module-level constant — prevents a new Set being allocated every render.
-// Nodes starting with 'earth-' are also always visible (checked with startsWith in render).
-const ALWAYS_VISIBLE_NODE_IDS = new Set(['inverter', 'ac-breaker', 'meter', 'grid']);
-const getMpptColor = (idx: number) => MPPT_PALETTE[idx % MPPT_PALETTE.length];
-
-// =============================================================================
-// 4. LAYOUT ENGINE
-// =============================================================================
-
-function computeUnifilarLayout(
-  inverter: InverterState,
-  catalogItem: InverterCatalogItem | undefined,
-  mpptMetrics: Record<number, any>,
-  validationErrors?: Record<number, MpptValidationError>,
-): UnifilarLayout {
-  const nodes: SchematicNode[] = [];
-  const wires: SchematicWire[] = [];
-  const labels: SchematicLabel[] = [];
-  const markers: SchematicMarker[] = [];
-  const junctions: JunctionDot[] = [];
-
-  const mpptCount = inverter.mpptConfigs.length;
-  const symbolH = catalogItem?.symbolConfig?.dimensions?.height;
-  const invH = symbolH
-    ? Math.max(symbolH, mpptCount * 20 + 24)  // garante que as portas cabem
-    : Math.max(INV_H_BASE, mpptCount * MPPT_PORT_SPACING + 28);
-  const invY = PAD_Y;
-
-  let currentY = PAD_Y;
-  let fuseCounter = 1;
-  let dpsCounter = 1;
-
-  inverter.mpptConfigs.forEach((mppt, mpptIdx) => {
-    const strings: StringDef[] = mppt.strings || [];
-    const mpptColor = getMpptColor(mpptIdx);
-    const fuseLeftX = PAD_X + PV_W + FUSE_X_OFFSET;
-    const metrics = mpptMetrics[mppt.mpptId];
-
-    if (strings.length === 0) {
-      currentY += PV_H + MPPT_GAP;
-      return;
-    }
-
-    const stringCenterYs: number[] = [];
-    const stringCenterMap = new Map<string, number>(); // str.id → centerY
-
-    // ── String nodes + Fuse nodes ────────────────────────────────────────
-    strings.forEach((str) => {
-      // Skip string if it has no modules
-      const unitIsc = metrics?.unitIsc ?? 0;
-      if (str.modulesCount === 0) return;
-
-      const cy = currentY + PV_H / 2;
-      stringCenterYs.push(cy);
-      stringCenterMap.set(str.id, cy);
-      const fuseRef = `F${fuseCounter++}`;
-
-      nodes.push({
-        id: `pv-${mppt.mpptId}-${str.id}`,
-        type: 'pv-string',
-        x: PAD_X, y: currentY, w: PV_W, h: PV_H,
-        data: {
-          string: str,
-          mpptId: mppt.mpptId,
-          mpptIdx,
-          mpptColor,
-          fuseRef,
-          unitPmax: metrics?.unitPmax ?? 0,
-          moduleModel: metrics?.moduleModel ?? '',
-        },
-      });
-
-      nodes.push({
-        id: `fuse-${mppt.mpptId}-${str.id}`,
-        type: 'fuse',
-        x: fuseLeftX, y: cy - FUSE_H / 2, w: FUSE_W, h: FUSE_H,
-        data: { stringId: str.id, mpptId: mppt.mpptId, mpptIdx, mpptColor, refDesig: fuseRef },
-      });
-
-      // Wire: PV → fuse
-      wires.push({
-        id: `w-pv-fuse-${mppt.mpptId}-${str.id}`,
-        mpptIdx, polarity: 'dc',
-        path: `M ${PAD_X + PV_W} ${cy} H ${fuseLeftX}`,
-        nodeIds: [`pv-${mppt.mpptId}-${str.id}`, `fuse-${mppt.mpptId}-${str.id}`],
-      });
-
-      // Wire: fuse → bus bar
-      wires.push({
-        id: `w-fuse-bus-${mppt.mpptId}-${str.id}`,
-        mpptIdx, polarity: 'dc',
-        path: `M ${fuseLeftX + FUSE_W} ${cy} H ${BUS_X}`,
-        nodeIds: [`fuse-${mppt.mpptId}-${str.id}`, `bus-${mppt.mpptId}`],
-      });
-
-      // Junction dot where wire meets bus bar
-      junctions.push({
-        id: `junction-bus-${mppt.mpptId}-${str.id}`,
-        x: BUS_X,
-        y: cy,
-        color: mpptColor,
-      });
-
-      // ── GAP A: Label de polaridade (+) no condutor CC ────────────────
-      // IEC 60617 / NBR 16690: condutores CC devem indicar polaridade
-      labels.push({
-        id: `lbl-pol-${str.id}`,
-        text: '+',
-        x: PAD_X + PV_W + 4,
-        y: cy - 3,
-        color: '#f87171', fontSize: 8, anchor: 'start', bold: true,
-        category: 'electrical',
-      });
-
-      // ── GAP B: Seção + material + classe de tensão do cabo CC ─────────
-      // NBR 16612: cabos PV devem ter isolação para 1,5 kV CC
-      if (str.cableSection > 0) {
-        labels.push({
-          id: `lbl-cable-${str.id}`,
-          text: `${str.cableSection}mm² Cu · PV1,5kV`,
-          x: PAD_X + PV_W + FUSE_X_OFFSET / 2,
-          y: cy - 9,
-          color: '#64748b', fontSize: 6.5, anchor: 'middle',
-          category: 'electrical',
-        });
-      }
-
-      // ── Label: designador do fusível ─────────────────────────────────
-      labels.push({
-        id: `lbl-fuse-ref-${str.id}`,
-        text: fuseRef,
-        x: fuseLeftX + FUSE_W / 2,
-        y: cy - FUSE_H / 2 - 6,
-        color: '#f1f5f9', fontSize: 8, anchor: 'middle', bold: true,
-        category: 'designator',
-      });
-
-      // ── GAP C: Corrente nominal + capacidade de interrupção CC ────────
-      // NBR 16690: corrente ≥ 1,56 × Isc; fusível gPV com Icu CC
-      const fuseA = Math.ceil(1.56 * unitIsc * 10) / 10;
-      labels.push({
-        id: `lbl-fuse-a-${str.id}`,
-        text: unitIsc > 0 ? `${fuseA.toFixed(1)}A gPV / 10kA CC` : 'gPV / 10kA CC',
-        x: fuseLeftX + FUSE_W + 4,
-        y: cy + 1,
-        color: '#0284c7',
-        fontSize: 6.5,
-        anchor: 'start',
-        category: 'electrical',
-      });
-
-      currentY += PV_H + STR_GAP;
-    });
-
-    // Guard: skip MPPT if all strings were invalid
-    if (stringCenterYs.length === 0) {
-      currentY += MPPT_GAP;
-      return;
-    }
-
-    const groupCenterY = stringCenterYs.reduce((a, b) => a + b, 0) / stringCenterYs.length;
-    const busY1 = stringCenterYs[0];
-    const busY2 = stringCenterYs[stringCenterYs.length - 1];
-
-    // ── Bus bar ──────────────────────────────────────────────────────────
-    nodes.push({
-      id: `bus-${mppt.mpptId}`,
-      type: 'bus-bar',
-      x: BUS_X - 2, y: busY1, w: 4, h: Math.max(1, busY2 - busY1),
-      data: { mpptId: mppt.mpptId, mpptIdx, mpptColor },
-    });
-
-    // ── DPS ──────────────────────────────────────────────────────────────
-    const dpsRef = `DPS${dpsCounter++}`;
-    nodes.push({
-      id: `dps-${mppt.mpptId}`,
-      type: 'dps-tap',
-      x: DPS_TAP_X - DPS_W / 2, y: groupCenterY + 6, w: DPS_W, h: DPS_H,
-      data: { mpptId: mppt.mpptId, mpptIdx, mpptColor, refDesig: dpsRef },
-    });
-
-    // ── Labels elétricos no bus ──────────────────────────────────────────
-    if (metrics?.vocFrio > 0) {
-      labels.push({
-        id: `lbl-voc-${mppt.mpptId}`,
-        text: `Voc: ${metrics.vocFrio.toFixed(0)}V`,
-        x: BUS_X + 8, y: groupCenterY - 12,
-        color: '#94a3b8', fontSize: 7.5, anchor: 'start',
-        category: 'electrical',
-      });
-    }
-    if (metrics?.iscTotal > 0) {
-      labels.push({
-        id: `lbl-isc-${mppt.mpptId}`,
-        text: `Isc: ${metrics.iscTotal.toFixed(1)}A`,
-        x: BUS_X + 8, y: groupCenterY + 14,
-        color: '#94a3b8', fontSize: 7.5, anchor: 'start',
-        category: 'electrical',
-      });
-    }
-
-    // ── GAP D: Label DPS com Uc e In ────────────────────────────────────
-    // IEC 61643: especificação mínima = Tipo, Uc, In descarga
-    // Uc deve ser ≥ Voc frio; escolher próximo valor comercial
-    const vocFrioVal = metrics?.vocFrio ?? 0;
-    const ucV = vocFrioVal > 0
-      ? ([600, 800, 1000, 1100, 1200].find(v => v >= Math.ceil(vocFrioVal)) ?? 1200)
-      : 1000;
-    labels.push({
-      id: `lbl-dps-ref-${mppt.mpptId}`,
-      text: `${dpsRef} CC`,
-      x: DPS_TAP_X + 2,
-      y: groupCenterY + 4,
-      color: '#f1f5f9', fontSize: 8.5, anchor: 'middle', bold: true,
-      category: 'designator',
-    });
-    labels.push({
-      id: `lbl-dps-spec-${mppt.mpptId}`,
-      text: `T.II · Uc≥${ucV}V · 5kA`,
-      x: DPS_TAP_X + 11,
-      y: groupCenterY + 15,
-      color: '#78716c', fontSize: 6, anchor: 'start',
-      category: 'electrical',
-    });
-
-    // ── GAP J: Seccionador CC com label "DC Disc." ────────────────────────────
-    // NT.020.EQTL / NBR 16690 §5.4: chave identificada como "DC Disconnect"
-    const switchRef = `S${dpsCounter - 1}`;
-    nodes.push({
-      id: `dc-switch-${mppt.mpptId}`,
-      type: 'dc-switch',
-      x: DC_SWITCH_X - DC_SWITCH_W / 2,
-      y: groupCenterY - DC_SWITCH_H / 2,
-      w: DC_SWITCH_W, h: DC_SWITCH_H,
-      data: { mpptIdx, mpptId: mppt.mpptId, mpptColor, refDesig: switchRef },
-    });
-
-    labels.push({
-      id: `lbl-switch-ref-${mppt.mpptId}`,
-      text: `${switchRef} DC Disc.`,
-      x: DC_SWITCH_X,
-      y: groupCenterY - DC_SWITCH_H / 2 - 6,
-      color: '#94a3b8', fontSize: 6.5, anchor: 'middle', bold: true,
-      category: 'designator',
-    });
-
-    // ── Inverter left port Y & sub-ports (G1, G2) ────────────────────────
-    const posPortKey = `mppt_${mppt.mpptId}_pos`;
-    const symbolPort = catalogItem?.symbolConfig?.ports?.[posPortKey];
-    const portY = symbolPort
-      ? invY + symbolPort.offset * invH
-      : invY + (invH / (mpptCount + 1)) * (mpptIdx + 1);
-    const midX = (DC_SWITCH_X + INV_X) / 2;
-
-    // G2: Compute sub-port Ys for multiple inputs
-    const footprintChannel = (catalogItem as any)?.blockDiagramFootprint?.mpptChannels?.find(
-      (ch: any) => ch.mpptIndex === mppt.mpptId
-    );
-    const inputCount = Math.max(1, footprintChannel?.inputCount ?? 1);
-    const PIN_SPAN = Math.min(12, (inputCount - 1) * 5);
-    const subPortYs = Array.from({ length: inputCount }, (_, j) =>
-      inputCount === 1 ? portY : portY + (j / Math.max(1, inputCount - 1) - 0.5) * 2 * PIN_SPAN
-    );
-
-    wires.push({
-      id: `w-bus-tap-${mppt.mpptId}`,
-      mpptIdx, polarity: 'dc',
-      path: `M ${BUS_X + 2} ${groupCenterY} H ${DPS_TAP_X}`,
-      nodeIds: [`bus-${mppt.mpptId}`, `dps-${mppt.mpptId}`],
-    });
-
-    // Wire: DPS → DC switch
-    wires.push({
-      id: `w-dps-switch-${mppt.mpptId}`,
-      mpptIdx, polarity: 'dc',
-      path: `M ${DPS_TAP_X} ${groupCenterY} H ${DC_SWITCH_X - DC_SWITCH_W / 2}`,
-      nodeIds: [`dps-${mppt.mpptId}`, `dc-switch-${mppt.mpptId}`],
-    });
-
-    // ── Earth symbol for DPS ─────────────────────────────────────────────
-    // BUG-11/17 fix: include mpptIdx in data so MPPT filter logic can find it.
-    // The startsWith('earth-') check in render also guarantees visibility.
-    const dpsEarthY = groupCenterY + 6 + DPS_H + 2;
-    nodes.push({
-      id: `earth-dps-${mppt.mpptId}`,
-      type: 'earth-symbol',
-      x: DPS_TAP_X - 8,
-      y: dpsEarthY,
-      w: 16,
-      h: 14,
-      data: { mpptIdx, mpptId: mppt.mpptId },
-    });
-
-    wires.push({
-      id: `w-dps-gnd-${mppt.mpptId}`,
-      mpptIdx, polarity: 'gnd',
-      path: `M ${DPS_TAP_X} ${groupCenterY} V ${dpsEarthY}`,
-      nodeIds: [`dps-${mppt.mpptId}`],
-    });
-
-    // G2: Wire each string to its own sub-port — com routing individual para evitar sobreposição
-    // Filtrar apenas strings que têm centerY registrado (as que passaram o guard)
-    const renderedStrings = strings.filter(str => stringCenterMap.has(str.id));
-    renderedStrings.forEach((str, strIdx) => {
-      const targetSubPortY = subPortYs[Math.min(strIdx, inputCount - 1)];
-      const stringCY = stringCenterMap.get(str.id)!; // Seguro — só strings renderizadas
-      wires.push({
-        id: `w-tap-inv-${mppt.mpptId}-str-${str.id}`,
-        mpptIdx, polarity: 'dc',
-        path: `M ${DC_SWITCH_X + DC_SWITCH_W / 2} ${groupCenterY} H ${DC_SWITCH_X + DC_SWITCH_W / 2 + 10} V ${stringCY} H ${midX} V ${targetSubPortY} H ${INV_X}`,
-        nodeIds: [`dc-switch-${mppt.mpptId}`, 'inverter'],
-      });
-    });
-
-    // ── Validation marker ────────────────────────────────────────────────
-    const err = validationErrors?.[mppt.mpptId];
-    if (err && err.messages.length > 0) {
-      markers.push({
-        id: `marker-mppt-${mppt.mpptId}`,
-        x: BUS_X - 14,
-        y: groupCenterY,
-        severity: err.severity,
-        messages: err.messages,
-      });
-    }
-
-    currentY += MPPT_GAP;
-  });
-
-  // ── Barramento de PE do arranjo FV (equipotencialização) ─────────────────────
-  // Linha horizontal verde tracejada abaixo dos módulos FV
-  const peY = currentY - MPPT_GAP / 2; // abaixo do último grupo
-  if (peY > PAD_Y) {
-    wires.push({
-      id: 'w-pe-array',
-      mpptIdx: -1, polarity: 'gnd',
-      path: `M ${PAD_X} ${peY} H ${INV_X + INV_W / 2}`,
-      nodeIds: [],
-    });
-    labels.push({
-      id: 'lbl-pe-array',
-      text: 'PE (equipotencialização do arranjo)',
-      x: PAD_X + (INV_X + INV_W / 2 - PAD_X) / 2,
-      y: peY - 4,
-      color: '#166534',
-      fontSize: 6,
-      anchor: 'middle',
-      category: 'electrical',
-    });
-  }
-
-  // ── Inverter block ────────────────────────────────────────────────────────
-  nodes.push({
-    id: 'inverter',
-    type: 'inverter',
-    x: INV_X, y: invY, w: INV_W, h: invH,
-    data: { inverter, catalogItem, mpptCount, refDesig: 'INV-01' },
-  });
-
-  labels.push({
-    id: 'lbl-inv-ref',
-    text: 'INV-01',
-    x: INV_X + INV_W / 2,
-    y: invY - 8,
-    color: '#f1f5f9', fontSize: 9, anchor: 'middle', bold: true,
-    category: 'designator',
-  });
-
-  // ── GAP K: Labels ANSI + monitoramento Riso/ΔI ──────────────────────────────
-  const ansiY = invY + invH + 8;
-  labels.push({
-    id: 'lbl-ansi-protection',
-    text: 'Prot.: 27/59 · 81U/O · Anti-ilha · Riso/ΔI',
-    x: INV_X + INV_W / 2,
-    y: ansiY,
-    color: '#334155',
-    fontSize: 5.5,
-    anchor: 'middle',
-    category: 'electrical',
-  });
-
-  // ── GAP G: Esquema de aterramento ────────────────────────────────────────────
-  // NBR 5410 / NBR 16690: declarar esquema adotado (TN-S é o mais comum em BT BR)
-  labels.push({
-    id: 'lbl-grounding-scheme',
-    text: 'Aterr.: TN-S',
-    x: INV_X + INV_W / 2,
-    y: ansiY + 9,
-    color: '#166534',
-    fontSize: 5.5,
-    anchor: 'middle',
-    category: 'electrical',
-  });
-
-  // ── AC side ──────────────────────────────────────────────────────────────────
-  const acPortOffset = catalogItem?.symbolConfig?.ports?.['ac_out']?.offset;
-  const acCenterY = acPortOffset != null
-    ? invY + acPortOffset * invH
-    : invY + invH / 2;
-
-  // ── GAP E: Tensão CA na saída do inversor ────────────────────────────────────
-  // Inferida da fase do footprint; padrão BR: trifásico 380/220V, mono 220/127V
-  const acPhase = (catalogItem as any)?.blockDiagramFootprint?.acOutput?.phase ?? 'tri';
-  const acVoltageLabel = acPhase === 'tri' ? '380/220V ~' : '220/127V ~';
-  // GAP F: Corrente nominal CA = Pnom / (√3 × 380) trifásico ou Pnom / 220 mono
-  const nomW = catalogItem?.nominalPowerW ?? 0;
-  const inAC = nomW > 0
-    ? acPhase === 'tri'
-      ? Math.ceil(nomW / (Math.sqrt(3) * 380))
-      : Math.ceil(nomW / 220)
-    : 0;
-
-  labels.push({
-    id: 'lbl-ac-voltage',
-    text: acVoltageLabel,
-    x: AC_OUT_X + 4,
-    y: acCenterY - 8,
-    color: '#94a3b8', fontSize: 6.5, anchor: 'start',
-    category: 'electrical',
-  });
-  if (inAC > 0) {
-    labels.push({
-      id: 'lbl-ac-current',
-      text: `In≈${inAC}A`,
-      x: AC_OUT_X + 4,
-      y: acCenterY + 8,
-      color: '#94a3b8', fontSize: 6.5, anchor: 'start',
-      category: 'electrical',
-    });
-  }
-
-  wires.push({
-    id: 'w-inv-breaker', mpptIdx: -1, polarity: 'ac',
-    path: `M ${AC_OUT_X} ${acCenterY} H ${BREAKER_X}`,
-    nodeIds: ['inverter', 'ac-breaker'],
-  });
-
-  nodes.push({
-    id: 'ac-breaker',
-    type: 'ac-breaker',
-    x: BREAKER_X, y: acCenterY - BREAKER_H / 2, w: BREAKER_W, h: BREAKER_H,
-    data: { refDesig: 'DJ1' },
-  });
-
-  // ── GAP F: DJ com corrente nominal ───────────────────────────────────────────
-  labels.push({
-    id: 'lbl-dj-ref',
-    text: 'DJ1',
-    x: BREAKER_X + BREAKER_W / 2,
-    y: acCenterY - BREAKER_H / 2 - 11,
-    color: '#f1f5f9', fontSize: 9, anchor: 'middle', bold: true,
-    category: 'designator',
-  });
-  if (inAC > 0) {
-    labels.push({
-      id: 'lbl-dj-in',
-      text: `In=${inAC}A`,
-      x: BREAKER_X + BREAKER_W / 2,
-      y: acCenterY - BREAKER_H / 2 - 3,
-      color: '#94a3b8', fontSize: 6, anchor: 'middle',
-      category: 'electrical',
-    });
-  }
-
-  // Wire: breaker → meter
-  wires.push({
-    id: 'w-breaker-meter', mpptIdx: -1, polarity: 'ac',
-    path: `M ${BREAKER_X + BREAKER_W} ${acCenterY} H ${METER_X}`,
-    nodeIds: ['ac-breaker', 'meter'],
-  });
-
-  // Medidor bidirecional (kWh)
-  nodes.push({
-    id: 'meter',
-    type: 'meter',
-    x: METER_X, y: acCenterY - METER_H / 2, w: METER_W, h: METER_H,
-    data: { refDesig: 'MED-01' },
-  });
-
-  labels.push({
-    id: 'lbl-meter-ref',
-    text: 'MED-01',
-    x: METER_X + METER_W / 2,
-    y: acCenterY - METER_H / 2 - 11,
-    color: '#f1f5f9', fontSize: 8, anchor: 'middle', bold: true,
-    category: 'designator',
-  });
-
-  // ── GAP H: Placa de advertência junto ao medidor ──────────────────────────────
-  // NT.020.EQTL: placa "Cuidado: Risco de Choque — Geração Própria" obrigatória
-  labels.push({
-    id: 'lbl-warning-meter',
-    text: '⚠ Geração Própria',
-    x: METER_X + METER_W / 2,
-    y: acCenterY + METER_H / 2 + 9,
-    color: '#ca8a04', fontSize: 5.5, anchor: 'middle',
-    category: 'electrical',
-  });
-
-  // Wire: meter → grid
-  wires.push({
-    id: 'w-meter-grid', mpptIdx: -1, polarity: 'ac',
-    path: `M ${METER_X + METER_W} ${acCenterY} H ${GRID_X}`,
-    nodeIds: ['meter', 'grid'],
-  });
-
-  nodes.push({
-    id: 'grid',
-    type: 'grid',
-    x: GRID_X, y: acCenterY - GRID_H / 2, w: GRID_W, h: GRID_H,
-    data: { phase: acPhase },
-  });
-
-  // G4: AC output label (from footprint, if present)
-  const acLabel = (catalogItem as any)?.blockDiagramFootprint?.acOutput?.label;
-  if (acLabel) {
-    labels.push({
-      id: 'lbl-ac-out',
-      text: acLabel,
-      x: AC_OUT_X + 4,
-      y: acCenterY - 6,
-      color: '#94a3b8', fontSize: 6, anchor: 'start',
-      category: 'electrical',
-    });
-  }
-
-  // ── GAP H: Placa de advertência junto ao inversor ────────────────────────────
-  labels.push({
-    id: 'lbl-warning-inv',
-    text: '⚠ Solar CC — Risco Choque',
-    x: INV_X + INV_W / 2,
-    y: invY - 16,
-    color: '#ca8a04', fontSize: 5.5, anchor: 'middle',
-    category: 'electrical',
-  });
-
-  // ── GND stub from inverter bottom ────────────────────────────────────────
-  wires.push({
-    id: 'w-gnd-inv', mpptIdx: -1, polarity: 'gnd',
-    path: `M ${INV_X + INV_W / 2} ${invY + invH} V ${invY + invH + 20}`,
-    nodeIds: ['inverter'],
-  });
-
-  // ── Earth symbol at GND stub termination ─────────────────────────────────
-  nodes.push({
-    id: 'earth-symbol',
-    type: 'earth-symbol',
-    x: INV_X + INV_W / 2 - 8,
-    y: invY + invH + 20,
-    w: 16,
-    h: 14,
-    data: {},
-  });
-
-  // ── ViewBox ───────────────────────────────────────────────────────────────
-  const svgH = Math.max(currentY, invY + invH + 60) + PAD_Y;
-  const svgW = GRID_X + GRID_W + PAD_X + 20;
-
-  return { nodes, wires, labels, markers, junctions, viewBox: { x: 0, y: 0, w: svgW, h: svgH } };
-}
-
-// =============================================================================
-// 5. IEC 60617 SYMBOL SUB-COMPONENTS
-// =============================================================================
-
-// ── PV String — IEC 60617 schematic symbol ────────────────────────────────────
-//
-// Symbol anatomy (IEC 60617 / NBR 16690):
-//   • Rectangle outline — the "block" representing the string
-//   • Diagonal line from bottom-left → top-right — standard source indicator
-//   • Radiation arrows (3× short ticks) near upper-right — indicates photovoltaic source
-//   • Terminal marks: + upper-left, − lower-left (closest to wire exit point)
-//
-// Contextual annotations placed OUTSIDE the rectangle:
-//   • String name    — above the symbol, in MPPT accent colour
-//   • N× · kWp · Model  — below the symbol, in slate (informational)
-//
-const PVStringSymbol: React.FC<{
-  node: SchematicNode;
-  isHovered: boolean; isSelected: boolean;
-  onHover: (id: string | null) => void;
-  onSelect: (id: string) => void;
-}> = ({ node, isHovered, isSelected, onHover, onSelect }) => {
-  const { string, mpptColor, unitPmax, moduleModel } = node.data;
-
-  const stroke  = isSelected ? '#6366f1' : isHovered ? mpptColor : '#475569';
-  const strokeW = isHovered || isSelected ? 1.4 : 0.9;
-  const { x, y, w, h } = node;
-
-  // ── IEC 60617 diagonal (source polarity line) ────────────────────────────
-  const diagPad = 8;
-  const diagX1 = x + diagPad;     const diagY1 = y + h - diagPad;
-  const diagX2 = x + w - diagPad; const diagY2 = y + diagPad;
-
-  // ── Radiation arrows ─────────────────────────────────────────────────────
-  // 3 parallel arrows at 45°, pointing lower-left (sun shining onto panel)
-  // SVG coords: dX = −1/√2 (left), dY = +1/√2 (down on screen)
-  const S2 = Math.SQRT2;
-  const dX = -1 / S2;            // arrow direction x
-  const dY =  1 / S2;            // arrow direction y (down)
-  const pX =  1 / S2;            // perpendicular spread x
-  const pY =  1 / S2;            // perpendicular spread y
-
-  const shaftLen = 11;
-  const headSz   = 3.4;
-  const spacing  = 6.5;
-  // Group anchor — upper-right quadrant, clear of the + terminal
-  const gX = x + w * 0.70;
-  const gY = y + h * 0.35;
-
-  // Arrowhead barb angles: arrow direction is atan2(dY,dX) ≈ 135° in SVG;
-  // barbs point back from tip at ±150° from that direction → 285° and 345°
-  const B1 = (285 * Math.PI) / 180;
-  const B2 = (345 * Math.PI) / 180;
-
-  const radiationArrows = ([-1, 0, 1] as const).map(i => {
-    const cx = gX + i * spacing * pX;
-    const cy = gY + i * spacing * pY;
-    const x1 = cx - dX * shaftLen / 2;   // tail (upper-right)
-    const y1 = cy - dY * shaftLen / 2;
-    const x2 = cx + dX * shaftLen / 2;   // tip (lower-left)
-    const y2 = cy + dY * shaftLen / 2;
-    return {
-      x1, y1, x2, y2,
-      bx1: x2 + headSz * Math.cos(B1), by1: y2 + headSz * Math.sin(B1),
-      bx2: x2 + headSz * Math.cos(B2), by2: y2 + headSz * Math.sin(B2),
-    };
-  });
-
-  // ── External annotations ─────────────────────────────────────────────────
-  const nameLabel  = string.name || 'STR';
-  const unitWp     = unitPmax > 0 ? Math.round(unitPmax) : 0;
-  const totalKwp   = unitPmax > 0 && string.modulesCount > 0
-    ? (string.modulesCount * unitPmax / 1000).toFixed(2) : null;
-  const shortModel = moduleModel
-    ? (moduleModel.length > 11 ? moduleModel.substring(0, 10) + '…' : moduleModel) : null;
-
-  return (
-    <g
-      onMouseEnter={() => onHover(node.id)}
-      onMouseLeave={() => onHover(null)}
-      onClick={() => onSelect(node.id)}
-      onPointerDown={e => e.stopPropagation()}
-      style={{ cursor: 'pointer' }}
-    >
-      {/* ── IEC 60617 rectangle ── */}
-      <rect x={x} y={y} width={w} height={h} rx={2}
-        fill="#0f172a" stroke={stroke} strokeWidth={strokeW} />
-
-      {/* ── Diagonal source line ── */}
-      <line x1={diagX1} y1={diagY1} x2={diagX2} y2={diagY2}
-        stroke={stroke} strokeWidth={1} strokeLinecap="round" />
-
-      {/* ── Radiation arrows — 3× parallel, 45°, sun → panel ── */}
-      {radiationArrows.map((a, i) => (
-        <g key={i} opacity={isHovered ? 1 : 0.75}>
-          <line
-            x1={a.x1} y1={a.y1} x2={a.x2} y2={a.y2}
-            stroke={mpptColor} strokeWidth={1.1} strokeLinecap="round"
-          />
-          <polyline
-            points={`${a.bx1.toFixed(2)},${a.by1.toFixed(2)} ${a.x2.toFixed(2)},${a.y2.toFixed(2)} ${a.bx2.toFixed(2)},${a.by2.toFixed(2)}`}
-            fill="none" stroke={mpptColor} strokeWidth={1.1}
-            strokeLinejoin="round" strokeLinecap="round"
-          />
-        </g>
-      ))}
-
-      {/* ── Terminal marks ── */}
-      <text x={x + 3} y={y + 9}
-        fill="#f87171" fontSize={8} fontFamily="monospace" fontWeight="bold"
-        style={{ userSelect: 'none' }}>+</text>
-      <text x={x + 3} y={y + h - 2}
-        fill="#93c5fd" fontSize={8} fontFamily="monospace" fontWeight="bold"
-        style={{ userSelect: 'none' }}>−</text>
-
-      {/* ── String name ABOVE ── */}
-      <text x={x + w / 2} y={y - 5}
-        textAnchor="middle" fill={mpptColor}
-        fontSize={7.5} fontFamily="monospace" fontWeight="bold"
-        style={{ userSelect: 'none' }}>
-        {nameLabel}
-      </text>
-
-      {/* ── N × Punit Wp (below, line 1) ── */}
-      {string.modulesCount > 0 && (
-        <text x={x + w / 2} y={y + h + 11}
-          textAnchor="middle" fill={unitWp > 0 ? '#e2e8f0' : '#64748b'}
-          fontSize={6.5} fontFamily="monospace"
-          style={{ userSelect: 'none' }}>
-          {string.modulesCount} × {unitWp > 0 ? `${unitWp} Wp` : ''}
-        </text>
-      )}
-
-      {/* ── = X.XX kWp · Modelo (below, line 2) ── */}
-      {totalKwp && (
-        <text x={x + w / 2} y={y + h + 21}
-          textAnchor="middle" fill="#64748b"
-          fontSize={6} fontFamily="monospace"
-          style={{ userSelect: 'none' }}>
-          = <tspan fill="#34d399">{totalKwp} kWp</tspan>{shortModel ? ` · ${shortModel}` : ''}
-        </text>
-      )}
-    </g>
-  );
-};
-
-// ── DC Fuse ───────────────────────────────────────────────────────────────────
-const FuseSymbol: React.FC<{ node: SchematicNode; isActive: boolean; onSelect: (id: string) => void }> = ({ node, isActive, onSelect }) => {
-  const { mpptColor } = node.data;
-  const cy = node.y + node.h / 2;
-  const color = isActive ? mpptColor : '#475569';
-  const fuseElementColor = isActive ? `${mpptColor}99` : '#47556999';
-  return (
-    <g onClick={() => onSelect(node.id)} style={{ cursor: 'pointer' }}>
-      <rect x={node.x} y={node.y} width={node.w} height={node.h} rx={2}
-        fill="none" stroke={color} strokeWidth={isActive ? 1.2 : 0.8} />
-      {/* Internal fuse element line */}
-      <line x1={node.x + 3} y1={cy} x2={node.x + node.w - 3} y2={cy}
-        stroke={fuseElementColor} strokeWidth={0.8} strokeDasharray="2 1" />
-      <circle cx={node.x} cy={cy} r={1.2} fill={color} />
-      <circle cx={node.x + node.w} cy={cy} r={1.2} fill={color} />
-    </g>
-  );
-};
-
-// ── Bus Bar ───────────────────────────────────────────────────────────────────
-const BusBarSymbol: React.FC<{ node: SchematicNode; isActive: boolean; onSelect: (id: string) => void }> = ({ node, isActive, onSelect }) => {
-  const { mpptColor } = node.data;
-  const cx = node.x + node.w / 2;
-  const busColor = isActive ? mpptColor : '#94a3b8';
-  return (
-    <g onClick={() => onSelect(node.id)} style={{ cursor: 'pointer' }}>
-      {/* Bus bar termination marks */}
-      <line x1={cx - 4} y1={node.y} x2={cx + 4} y2={node.y}
-        stroke={busColor} strokeWidth={1} strokeLinecap="square" />
-      <line x1={cx - 4} y1={node.y + node.h} x2={cx + 4} y2={node.y + node.h}
-        stroke={busColor} strokeWidth={1} strokeLinecap="square" />
-      {/* Main bus bar line */}
-      <line x1={cx} y1={node.y} x2={cx} y2={node.y + node.h}
-        stroke={busColor} strokeWidth={2} strokeLinecap="square" />
-      <circle cx={cx} cy={node.y + node.h / 2} r={2.5}
-        fill="#0f172a" stroke={isActive ? mpptColor : '#6366f1'} strokeWidth={1} />
-    </g>
-  );
-};
-
-// ── DPS (IEC 60364-5-54) ──────────────────────────────────────────────────────
-const DPSSymbol: React.FC<{ node: SchematicNode; isActive: boolean; onSelect: (id: string) => void }> = ({ node, isActive, onSelect }) => {
-  const cx = node.x + node.w / 2;
-  const color = isActive ? '#f59e0b' : '#64748b';
-  const topY = node.y; const botY = node.y + node.h;
-  const midY = node.y + node.h * 0.38;
-
-  return (
-    <g onClick={() => onSelect(node.id)} style={{ cursor: 'pointer' }}>
-      {/* Top connection line */}
-      <line x1={cx} y1={topY} x2={cx} y2={midY - 4} stroke={color} strokeWidth={1.5} />
-      {/* Triangle (varistor symbol) */}
-      <polygon
-        points={`${cx - 7},${midY - 4} ${cx + 7},${midY - 4} ${cx},${midY + 9}`}
-        fill={isActive ? 'rgba(245,158,11,0.15)' : 'none'}
-        stroke={color} strokeWidth={1.5} />
-      {/* Base line */}
-      <line x1={cx - 7} y1={midY + 11} x2={cx + 7} y2={midY + 11} stroke={color} strokeWidth={1.5} />
-      {/* Ground connection line */}
-      <line x1={cx} y1={midY + 11} x2={cx} y2={botY - 12} stroke={color} strokeWidth={1.5} />
-      {/* Earth symbol at bottom */}
-      <line x1={cx - 5} y1={botY - 8}  x2={cx + 5} y2={botY - 8}  stroke={color} strokeWidth={1.5} />
-      <line x1={cx - 3} y1={botY - 5}  x2={cx + 3} y2={botY - 5}  stroke={color} strokeWidth={1} />
-      <line x1={cx - 1} y1={botY - 2}  x2={cx + 1} y2={botY - 2}  stroke={color} strokeWidth={0.8} />
-      {/* Indicador bipolar ± → PE */}
-      <text x={cx + 9} y={midY + 5}
-        fill={isActive ? '#f59e0b80' : '#47556960'} fontSize={5.5} fontFamily="monospace"
-        style={{ userSelect: 'none' }}>±PE</text>
-    </g>
-  );
-};
-
-// ── DC Disconnect Switch (IEC 60617 — chave seccionadora) ────────────────────
-// Símbolo IEC: dois terminais com lâmina angulada (interruptor seccionador)
-const DCSwitchSymbol: React.FC<{ node: SchematicNode; isActive: boolean; onSelect: (id: string) => void }> = ({ node, isActive, onSelect }) => {
-  const color = isActive ? '#f59e0b' : '#64748b';
-  const cy = node.y + node.h / 2;
-  const x0 = node.x;
-  const x1 = node.x + node.w;
-  const bladeEndX = x0 + node.w * 0.65;
-  const bladeEndY = cy - node.h * 0.45;
-  return (
-    <g onClick={() => onSelect(node.id)} style={{ cursor: 'pointer' }}>
-      {/* Terminal esquerdo */}
-      <circle cx={x0} cy={cy} r={2} fill={color} />
-      {/* Terminal direito */}
-      <circle cx={x1} cy={cy} r={2} fill={color} />
-      {/* Stub esquerdo até o pivô */}
-      <line x1={x0} y1={cy} x2={x0 + node.w * 0.3} y2={cy}
-        stroke={color} strokeWidth={1.2} strokeLinecap="round" />
-      {/* Lâmina angulada (blade) */}
-      <line x1={x0 + node.w * 0.3} y1={cy} x2={bladeEndX} y2={bladeEndY}
-        stroke={color} strokeWidth={1.2} strokeLinecap="round" />
-      {/* Stub direito */}
-      <line x1={x1} y1={cy} x2={x1 - node.w * 0.2} y2={cy}
-        stroke={color} strokeWidth={1.2} strokeLinecap="round" />
-      {/* Indicador "CC" abaixo — diferencia de chave CA */}
-      <text x={node.x + node.w / 2} y={node.y + node.h + 7}
-        textAnchor="middle" fill="#475569" fontSize={6} fontFamily="monospace"
-        style={{ userSelect: 'none' }}>CC</text>
-    </g>
-  );
-};
-
-// ── Inverter Block (G1, G3, G5) ──────────────────────────────────────────────
-const InverterSchematicBlock: React.FC<{
-  node: SchematicNode; isHovered: boolean; onSelect: (id: string) => void;
-}> = ({ node, isHovered, onSelect }) => {
-  const { inverter, catalogItem, mpptCount } = node.data;
-  // G3: AC port offset
-  const acOffset = (catalogItem as any)?.symbolConfig?.ports?.['ac_out']?.offset;
-  const acPortY = acOffset != null ? node.y + acOffset * node.h : node.y + node.h / 2;
-
-  return (
-    <g onPointerDown={e => e.stopPropagation()}
-       onClick={() => onSelect(node.id)}
-       style={{ cursor: 'pointer' }}>
-      <rect x={node.x} y={node.y} width={node.w} height={node.h} rx={2}
-        fill="#0f172a" stroke={isHovered ? '#60a5fa' : '#334155'} strokeWidth={1.5}
-        filter={isHovered ? 'url(#inverter-glow-svg)' : undefined} />
-      <line x1={node.x} y1={node.y + node.h} x2={node.x + node.w} y2={node.y}
-        stroke="#1e293b" strokeWidth={1} opacity={0.8} />
-      {/* DC input indicator on left */}
-      <g transform={`translate(${node.x + 16}, ${node.y + 14})`}>
-        <line x1={-5} y1={-2} x2={5} y2={-2} stroke="#475569" strokeWidth={1.2} />
-        <line x1={-5} y1={2}  x2={5} y2={2}  stroke="#475569" strokeWidth={1.2} />
-      </g>
-      {/* AC output indicator on right */}
-      <g transform={`translate(${node.x + node.w - 16}, ${node.y + node.h - 14})`}>
-        <path d="M-5,0 C-5,-4 -1.5,-4 0,0 C1.5,4 5,4 5,0"
-          fill="none" stroke="#94a3b8" strokeWidth={1.2} />
-        <text x={-12} y={1} fill="#94a3b8" fontSize={7} fontWeight="bold" textAnchor="end">~</text>
-      </g>
-      <text x={node.x + node.w / 2} y={node.y + node.h / 2 - 4}
-        textAnchor="middle" dominantBaseline="middle"
-        fill="#475569" fontSize={11} fontWeight="bold" fontFamily="monospace">
-        {catalogItem?.model || inverter.snapshot.model}
-      </text>
-      <text x={node.x + node.w / 2} y={node.y + node.h / 2 + 9}
-        textAnchor="middle" dominantBaseline="middle"
-        fill="#94a3b8" fontSize={9} fontFamily="monospace">
-        {catalogItem?.nominalPowerW ? `${(catalogItem.nominalPowerW / 1000).toFixed(1)} kW` : ''}
-      </text>
-      {(() => {
-        const symbolConfig = catalogItem?.symbolConfig;
-        const footprintChannels = (catalogItem as any)?.blockDiagramFootprint?.mpptChannels;
-
-        return inverter.mpptConfigs.map((mppt: MPPTConfig, idx: number) => {
-          const posPortKey = `mppt_${mppt.mpptId}_pos`;
-          const symbolPort = symbolConfig?.ports?.[posPortKey];
-          const portY = symbolPort
-            ? node.y + symbolPort.offset * node.h
-            : node.y + (node.h / (mpptCount + 1)) * (idx + 1);
-          const portLabel = symbolPort?.label ?? `M${mppt.mpptId}`;
-          const color = getMpptColor(idx);
-
-          // G1: Multi-input sub-ports
-          const footprintChannel = footprintChannels?.find((ch: any) => ch.mpptIndex === mppt.mpptId);
-          const inputCount = Math.max(1, footprintChannel?.inputCount ?? 1);
-          const PIN_SPAN = Math.min(12, (inputCount - 1) * 5);
-
-          if (inputCount > 1) {
-            const subPortYs = Array.from({ length: inputCount }, (_, j) =>
-              portY + (j / Math.max(1, inputCount - 1) - 0.5) * 2 * PIN_SPAN
-            );
-            return (
-              <g key={mppt.mpptId}>
-                {/* Bracket connecting sub-ports */}
-                <line x1={node.x - 8} y1={subPortYs[0]} x2={node.x - 8} y2={subPortYs[inputCount - 1]}
-                  stroke={color} strokeWidth={1} />
-                {/* Sub-port dots with triangle indicators */}
-                {subPortYs.map((spY, j) => (
-                  <g key={j}>
-                    <polygon
-                      points={`${node.x - 5},${spY - 3} ${node.x - 5},${spY + 3} ${node.x},${spY}`}
-                      fill={color} stroke="none" />
-                    <circle cx={node.x} cy={spY} r={2.5}
-                      fill="#0f172a" stroke={color} strokeWidth={1.5} />
-                    <text x={node.x + 4} y={spY} dominantBaseline="middle"
-                      fill={color} fontSize={5} fontFamily="monospace" fontWeight="bold">
-                      {footprintChannel?.inputLabels?.[j] ?? `PV${j+1}`}
-                    </text>
-                  </g>
-                ))}
-                {/* MPPT label */}
-                <text x={node.x + 6} y={portY - PIN_SPAN - 4} dominantBaseline="middle"
-                  fill={color} fontSize={6} fontFamily="monospace" fontWeight="bold">
-                  {portLabel}
-                </text>
-              </g>
-            );
-          } else {
-            // Single port (legacy)
-            return (
-              <g key={mppt.mpptId}>
-                <line x1={node.x - 12} y1={portY} x2={node.x} y2={portY}
-                  stroke={color} strokeWidth={1.5} />
-                {/* Triangle indicator for DC input */}
-                <polygon
-                  points={`${node.x - 7},${portY - 4} ${node.x - 7},${portY + 4} ${node.x},${portY}`}
-                  fill={color} stroke="none" />
-                <circle cx={node.x} cy={portY} r={3.5}
-                  fill="#0f172a" stroke={color} strokeWidth={1.5} />
-                <text x={node.x + 6} y={portY} dominantBaseline="middle"
-                  fill={color} fontSize={6} fontFamily="monospace" fontWeight="bold">
-                  {portLabel}
-                </text>
-              </g>
-            );
-          }
-        });
-      })()}
-      {/* AC port (G3) */}
-      <circle cx={node.x + node.w} cy={acPortY} r={4}
-        fill="#0f172a" stroke="#94a3b8" strokeWidth={1.5} />
-      <circle cx={node.x + node.w / 2} cy={node.y + node.h} r={3}
-        fill="#0f172a" stroke="#22c55e" strokeWidth={1.5} />
-    </g>
-  );
-};
-
-// ── AC Breaker ────────────────────────────────────────────────────────────────
-const ACBreakerSymbol: React.FC<{ node: SchematicNode; isActive: boolean; onSelect: (id: string) => void }> = ({ node, isActive, onSelect }) => {
-  const color = isActive ? '#e2e8f0' : '#94a3b8';
-  const cx = node.x + node.w / 2;
-  const cy = node.y + node.h / 2;
-  const r = Math.min(node.w, node.h) / 2 - 2;
-  return (
-    <g onClick={() => onSelect(node.id)} style={{ cursor: 'pointer' }}>
-      {/* IEC 60617 breaker symbol: circle with diagonal line */}
-      <circle cx={cx} cy={cy} r={r}
-        fill="#0f172a" stroke={color} strokeWidth={1.5} />
-      <line x1={cx - r * 0.5} y1={cy + r * 0.5} x2={cx + r * 0.5} y2={cy - r * 0.5}
-        stroke={color} strokeWidth={1.8} strokeLinecap="round" />
-    </g>
-  );
-};
-
-// ── Medidor bidirecional (kWh) — IEC / NT.020.EQTL ─────────────────────────
-// Símbolo: círculo com "kWh" e setas bidirecionais, exigido pelas concessionárias
-const BidirectionalMeterSymbol: React.FC<{ node: SchematicNode; isActive: boolean; onSelect: (id: string) => void }> = ({ node, isActive, onSelect }) => {
-  const cx = node.x + node.w / 2;
-  const cy = node.y + node.h / 2;
-  const r  = Math.min(node.w, node.h) / 2 - 1;
-  const color = isActive ? '#a78bfa' : '#64748b';
-  return (
-    <g onClick={() => onSelect(node.id)} style={{ cursor: 'pointer' }}>
-      <circle cx={cx} cy={cy} r={r} fill="#0f172a" stroke={color} strokeWidth={1.2} />
-      <text x={cx} y={cy - 2} textAnchor="middle" dominantBaseline="middle"
-        fill={color} fontSize={5} fontFamily="monospace" fontWeight="bold"
-        style={{ userSelect: 'none' }}>kWh</text>
-      {/* Seta bidirecional horizontal dentro do círculo */}
-      <line x1={cx - r * 0.55} y1={cy + 3} x2={cx + r * 0.55} y2={cy + 3}
-        stroke={color} strokeWidth={0.8} />
-      {/* Cabeça seta direita */}
-      <polygon points={`${cx + r * 0.55},${cy + 3} ${cx + r * 0.3},${cy + 1.5} ${cx + r * 0.3},${cy + 4.5}`}
-        fill={color} />
-      {/* Cabeça seta esquerda */}
-      <polygon points={`${cx - r * 0.55},${cy + 3} ${cx - r * 0.3},${cy + 1.5} ${cx - r * 0.3},${cy + 4.5}`}
-        fill={color} />
-    </g>
-  );
-};
-
-// ── Grid Symbol ───────────────────────────────────────────────────────────────
-const GridSymbol: React.FC<{ node: SchematicNode; onSelect: (id: string) => void }> = ({ node, onSelect }) => {
-  const phase = node.data.phase as 'mono' | 'tri';
-  const lines = phase === 'tri' ? 3 : 1;
-  const sinW = node.w - 8;
-  const x0 = node.x + 8;
-  const groupH = (lines - 1) * 13 + 12;
-  const groupStartY = node.y + (node.h - groupH) / 2;
-
-  return (
-    <g onClick={() => onSelect(node.id)} style={{ cursor: 'pointer' }}>
-      <circle cx={node.x} cy={node.y + node.h / 2} r={4}
-        fill="#0f172a" stroke="#94a3b8" strokeWidth={1.5} />
-      {Array.from({ length: lines }).map((_, i) => {
-        const midY = groupStartY + i * 13 + 6;
-        const hw = sinW / 2;
-        return (
-          <path key={i}
-            d={`M ${x0} ${midY} C ${x0+hw*0.3} ${midY-6} ${x0+hw*0.7} ${midY-6} ${x0+hw} ${midY} C ${x0+hw*1.3} ${midY+6} ${x0+hw*1.7} ${midY+6} ${x0+sinW} ${midY}`}
-            fill="none" stroke="#94a3b8" strokeWidth={1.2} />
-        );
-      })}
-      <text x={node.x + node.w / 2 + 4} y={node.y + node.h + 9}
-        textAnchor="middle" fill="#64748b" fontSize={6.5}
-        fontFamily="monospace" fontWeight="bold">
-        {phase === 'tri' ? '3φ' : '1φ'} REDE
-      </text>
-    </g>
-  );
-};
-
-// ── Earth Symbol (IEC 60617-2) ────────────────────────────────────────────────
-const EarthSymbol: React.FC<{ node: SchematicNode }> = ({ node }) => {
-  const cx = node.x + node.w / 2;
-  const y0 = node.y;
-  const color = '#22c55e';
-  return (
-    <g style={{ pointerEvents: 'none' }}>
-      <line x1={cx - 8} y1={y0}     x2={cx + 8} y2={y0}     stroke={color} strokeWidth={1.5} strokeLinecap="round" />
-      <line x1={cx - 5.5} y1={y0 + 4} x2={cx + 5.5} y2={y0 + 4} stroke={color} strokeWidth={1.5} strokeLinecap="round" />
-      <line x1={cx - 3} y1={y0 + 8} x2={cx + 3} y2={y0 + 8} stroke={color} strokeWidth={1.5} strokeLinecap="round" />
-    </g>
-  );
-};
-
-// ── Wire Renderer ─────────────────────────────────────────────────────────────
-const SchematicWireRenderer: React.FC<{
-  wire: SchematicWire; isActive: boolean; dimmed?: boolean;
-}> = ({ wire, isActive, dimmed }) => {
-  const color =
-    wire.polarity === 'gnd' ? '#22c55e' :
-    wire.polarity === 'ac'  ? '#94a3b8' :
-    getMpptColor(wire.mpptIdx);
-  const strokeWidth =
-    wire.polarity === 'gnd' ? (isActive ? 1.2 : 0.8) :
-    wire.polarity === 'ac'  ? (isActive ? 1.8 : 1.4) :
-    (isActive ? 1.6 : 1.2);
-  return (
-    <path d={wire.path} stroke={color}
-      strokeWidth={strokeWidth} fill="none"
-      strokeDasharray={wire.polarity === 'gnd' ? '4 3' : undefined}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      opacity={dimmed ? 0.08 : isActive ? 1 : 0.65}
-      style={{ transition: 'stroke-width 0.1s, opacity 0.15s' }}
-    />
-  );
-};
-
-// ── Wire / Node Labels ────────────────────────────────────────────────────────
-const LabelLayer: React.FC<{ labels: SchematicLabel[]; showElectrical: boolean }> = ({ labels, showElectrical }) => (
-  <>
-    {labels.filter(lbl => {
-      if (lbl.category === 'electrical') return showElectrical;
-      return true; // sem categoria ou designator → sempre mostrar
-    }).map(lbl => (
-      <text
-        key={lbl.id}
-        x={lbl.x} y={lbl.y}
-        textAnchor={lbl.anchor}
-        dominantBaseline="auto"
-        fill={lbl.color}
-        fontSize={lbl.fontSize}
-        fontFamily="monospace"
-        fontWeight={lbl.bold ? 'bold' : 'normal'}
-        style={{ userSelect: 'none', pointerEvents: 'none' }}
-        transform={lbl.rotate ? `rotate(${lbl.rotate}, ${lbl.x}, ${lbl.y})` : undefined}
-      >
-        {lbl.text}
-      </text>
-    ))}
-  </>
-);
-
-// ── Validation Markers ────────────────────────────────────────────────────────
-const ValidationMarker: React.FC<{
-  marker: SchematicMarker;
-  onSelect: (id: string) => void;
-}> = ({ marker, onSelect }) => {
-  const isError = marker.severity === 'error';
-  const color = isError ? '#ef4444' : '#f59e0b';
-  const r = 8;
-
-  return (
-    <g style={{ cursor: 'pointer' }} onClick={() => onSelect(marker.id)}>
-      <title>{marker.messages.join('\n')}</title>
-      {isError ? (
-        <>
-          <circle cx={marker.x} cy={marker.y} r={r}
-            fill="#0f172a" stroke={color} strokeWidth={1.5}
-            style={{ filter: `drop-shadow(0 0 4px ${color}60)` }} />
-          <line x1={marker.x - 4} y1={marker.y - 4} x2={marker.x + 4} y2={marker.y + 4}
-            stroke={color} strokeWidth={1.8} />
-          <line x1={marker.x + 4} y1={marker.y - 4} x2={marker.x - 4} y2={marker.y + 4}
-            stroke={color} strokeWidth={1.8} />
-        </>
-      ) : (
-        <>
-          <polygon
-            points={`${marker.x},${marker.y - r} ${marker.x - r},${marker.y + r * 0.6} ${marker.x + r},${marker.y + r * 0.6}`}
-            fill="#0f172a" stroke={color} strokeWidth={1.5}
-            style={{ filter: `drop-shadow(0 0 4px ${color}60)` }} />
-          <text x={marker.x} y={marker.y + r * 0.4}
-            textAnchor="middle" dominantBaseline="middle"
-            fill={color} fontSize={8} fontWeight="bold" fontFamily="monospace">!</text>
-        </>
-      )}
-    </g>
-  );
-};
-
-// =============================================================================
-// 6. DETAIL PANELS (G5)
-// =============================================================================
-
-const StringDetailCard: React.FC<{
-  node: SchematicNode;
-  mpptMetrics: Record<number, any>;
-  onClose: () => void;
-}> = ({ node, mpptMetrics, onClose }) => {
-  const { string, mpptId, mpptColor, fuseRef } = node.data;
-  const metrics = mpptMetrics[mpptId];
-
-  return (
-    <div className="absolute top-0 right-0 h-full w-[264px] bg-slate-950 border-l border-slate-800 shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300">
-      <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between shrink-0"
-           style={{ borderLeftColor: mpptColor, borderLeftWidth: 3 }}>
-        <div className="flex items-center gap-2 pl-1">
-          <Zap className="h-3.5 w-3.5" style={{ color: mpptColor }} />
-          <span className="text-xs font-black uppercase tracking-widest" style={{ color: mpptColor }}>
-            {string.name}
-          </span>
-        </div>
-        <button onClick={onClose} className="p-1 rounded hover:bg-slate-800 transition-colors">
-          <X className="h-4 w-4 text-slate-500" />
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        <div className="grid grid-cols-2 gap-2">
-          <div className="bg-slate-900/50 border border-slate-800 rounded-md p-2.5">
-            <div className="text-[8px] text-slate-600 uppercase font-bold mb-1">MPPT</div>
-            <div className="text-sm font-mono font-bold" style={{ color: mpptColor }}>{mpptId}</div>
-          </div>
-          <div className="bg-slate-900/50 border border-slate-800 rounded-md p-2.5">
-            <div className="text-[8px] text-slate-600 uppercase font-bold mb-1">Módulos</div>
-            <div className="text-sm font-mono text-emerald-400 font-bold">{string.modulesCount}</div>
-          </div>
-          {fuseRef && (
-            <div className="bg-slate-900/50 border border-slate-800 rounded-md p-2.5">
-              <div className="text-[8px] text-slate-600 uppercase font-bold mb-1">Fusível</div>
-              <div className="text-sm font-mono font-bold text-amber-400">{fuseRef}</div>
-            </div>
-          )}
-        </div>
-
-        {metrics && (
-          <div className="bg-slate-900/30 border border-slate-800 rounded-md p-3 space-y-2">
-            <div className="text-[8px] text-slate-500 uppercase font-bold">Perfil Elétrico — MPPT {mpptId}</div>
-            {metrics.vocFrio > 0 && (
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] text-slate-500">Voc (frio extremo)</span>
-                <span className="text-[10px] font-mono text-sky-400 font-bold tabular-nums">{metrics.vocFrio.toFixed(1)} V</span>
-              </div>
-            )}
-            {metrics.vmpCalor > 0 && (
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] text-slate-500">Vmp (calor máx.)</span>
-                <span className="text-[10px] font-mono text-amber-400 font-bold tabular-nums">{metrics.vmpCalor.toFixed(1)} V</span>
-              </div>
-            )}
-            {metrics.iscTotal > 0 && (
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] text-slate-500">Isc total MPPT</span>
-                <span className="text-[10px] font-mono text-red-400 font-bold tabular-nums">{metrics.iscTotal.toFixed(2)} A</span>
-              </div>
-            )}
-            {metrics.powerKwp > 0 && (
-              <div className="flex items-center justify-between border-t border-slate-800 pt-2 mt-1">
-                <span className="text-[9px] text-slate-500">Potência MPPT</span>
-                <span className="text-[11px] font-mono text-emerald-400 font-black tabular-nums">{metrics.powerKwp.toFixed(2)} kWp</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {(string.cableSection || string.cableLength) && (
-          <div className="bg-slate-900/30 border border-slate-800 rounded-md p-3 space-y-1.5">
-            <div className="text-[8px] text-slate-500 uppercase font-bold">Cabeamento</div>
-            {string.cableSection > 0 && (
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] text-slate-500">Seção</span>
-                <span className="text-[10px] font-mono text-slate-300 font-bold">{string.cableSection} mm²</span>
-              </div>
-            )}
-            {string.cableLength > 0 && (
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] text-slate-500">Comprimento</span>
-                <span className="text-[10px] font-mono text-slate-300 font-bold">{string.cableLength} m</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {(string.azimuth !== undefined || string.inclination !== undefined) && (
-          <div className="bg-slate-900/30 border border-slate-800 rounded-md p-3 space-y-1.5">
-            <div className="text-[8px] text-slate-500 uppercase font-bold">Orientação</div>
-            {string.azimuth !== undefined && (
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] text-slate-500">Azimute</span>
-                <span className="text-[10px] font-mono text-slate-300 font-bold">{string.azimuth}°</span>
-              </div>
-            )}
-            {string.inclination !== undefined && (
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] text-slate-500">Inclinação</span>
-                <span className="text-[10px] font-mono text-slate-300 font-bold">{string.inclination}°</span>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="px-4 py-3 border-t border-slate-800 shrink-0">
-        <div className="flex items-center gap-1.5">
-          <Info className="h-3 w-3 text-slate-700" />
-          <span className="text-[7px] text-slate-700 font-mono uppercase tracking-widest">
-            NBR 16690:2019 · IEC 60617-11
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// G5: Inverter Detail Panel
-const InverterDetailPanel: React.FC<{
-  node: SchematicNode;
-  onClose: () => void;
-}> = ({ node, onClose }) => {
-  const { inverter, catalogItem } = node.data;
-  const footprint = (catalogItem as any)?.blockDiagramFootprint;
-  const totalInputs = footprint?.mpptChannels?.reduce((s: number, ch: any) => s + (ch.inputCount ?? 1), 0) ?? inverter.mpptConfigs.length;
-
-  return (
-    <div className="absolute top-0 right-0 h-full w-[264px] bg-slate-950 border-l border-slate-800 shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300">
-      <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between shrink-0"
-           style={{ borderLeftColor: '#6366f1', borderLeftWidth: 3 }}>
-        <div className="flex items-center gap-2 pl-1">
-          <Zap className="h-3.5 w-3.5 text-indigo-400" />
-          <span className="text-xs font-black uppercase tracking-widest text-indigo-400">INV-01</span>
-        </div>
-        <button onClick={onClose} className="p-1 rounded hover:bg-slate-800 transition-colors">
-          <X className="h-4 w-4 text-slate-500" />
-        </button>
-      </div>
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        <div className="grid grid-cols-2 gap-2">
-          <div className="bg-slate-900/50 border border-slate-800 rounded-md p-2.5 col-span-2">
-            <div className="text-[8px] text-slate-600 uppercase font-bold mb-1">Modelo</div>
-            <div className="text-sm font-mono font-bold text-indigo-400">{catalogItem?.model ?? inverter.snapshot?.model ?? '—'}</div>
-          </div>
-          {catalogItem?.nominalPowerW && (
-            <div className="bg-slate-900/50 border border-slate-800 rounded-md p-2.5">
-              <div className="text-[8px] text-slate-600 uppercase font-bold mb-1">Potência</div>
-              <div className="text-sm font-mono font-bold text-emerald-400">{(catalogItem.nominalPowerW / 1000).toFixed(1)} kW</div>
-            </div>
-          )}
-          <div className="bg-slate-900/50 border border-slate-800 rounded-md p-2.5">
-            <div className="text-[8px] text-slate-600 uppercase font-bold mb-1">MPPTs</div>
-            <div className="text-sm font-mono font-bold text-sky-400">{inverter.mpptConfigs.length}</div>
-          </div>
-        </div>
-        {footprint?.mpptChannels && footprint.mpptChannels.length > 0 && (
-          <div className="bg-slate-900/30 border border-slate-800 rounded-md p-3 space-y-2">
-            <div className="text-[8px] text-slate-500 uppercase font-bold">Canais CC (Footprint)</div>
-            {footprint.mpptChannels.map((ch: any) => (
-              <div key={ch.mpptIndex} className="flex items-center justify-between">
-                <span className="text-[9px] font-mono" style={{ color: getMpptColor(ch.mpptIndex - 1) }}>MPPT {ch.mpptIndex}</span>
-                <span className="text-[9px] text-slate-400 font-mono">{ch.inputCount} entrad{ch.inputCount === 1 ? 'a' : 'as'}</span>
-              </div>
-            ))}
-            <div className="flex items-center justify-between border-t border-slate-800 pt-2 mt-1">
-              <span className="text-[9px] text-slate-500">Total entradas CC</span>
-              <span className="text-[10px] font-mono text-white font-bold">{totalInputs}</span>
-            </div>
-          </div>
-        )}
-        {footprint?.acOutput && (
-          <div className="bg-slate-900/30 border border-slate-800 rounded-md p-3 space-y-1.5">
-            <div className="text-[8px] text-slate-500 uppercase font-bold">Saída CA</div>
-            <div className="flex items-center justify-between">
-              <span className="text-[9px] text-slate-500">Rótulo</span>
-              <span className="text-[10px] font-mono text-slate-300 font-bold">{footprint.acOutput.label ?? '—'}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-[9px] text-slate-500">Fase</span>
-              <span className="text-[10px] font-mono text-slate-300 font-bold">{footprint.acOutput.phase === 'tri' ? 'Trifásico' : 'Monofásico'}</span>
-            </div>
-          </div>
-        )}
-      </div>
-      <div className="px-4 py-3 border-t border-slate-800 shrink-0">
-        <div className="flex items-center gap-1.5">
-          <Info className="h-3 w-3 text-slate-700" />
-          <span className="text-[7px] text-slate-700 font-mono uppercase tracking-widest">
-            NBR 16690:2019 · IEC 60617-11
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ── Fuse Detail Card ──────────────────────────────────────────────────────────
-const FuseDetailCard: React.FC<{ node: SchematicNode; mpptMetrics: Record<number, any>; onClose: () => void }> = ({ node, mpptMetrics, onClose }) => {
-  const { refDesig, mpptColor, mpptId } = node.data;
-  const metrics = mpptMetrics[mpptId];
-  return (
-    <div className="absolute top-0 right-0 h-full w-[240px] bg-slate-950 border-l border-slate-800 shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300">
-      <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between shrink-0"
-           style={{ borderLeftColor: mpptColor, borderLeftWidth: 3 }}>
-        <span className="text-xs font-black uppercase tracking-widest pl-1" style={{ color: mpptColor }}>
-          {refDesig}
-        </span>
-        <button onClick={onClose} className="p-1 rounded hover:bg-slate-800 transition-colors">
-          <X className="h-4 w-4 text-slate-500" />
-        </button>
-      </div>
-      <div className="flex-1 p-4 space-y-3">
-        <div className="bg-slate-900/50 border border-slate-800 rounded-md p-3 space-y-1.5">
-          <div className="text-[8px] text-slate-500 uppercase font-bold">Função</div>
-          <p className="text-[10px] text-slate-400 font-mono leading-relaxed">
-            Fusível de proteção CC — protege o condutor contra sobrecorrentes oriundas da string fotovoltaica.
-          </p>
-        </div>
-        <div className="bg-slate-900/50 border border-slate-800 rounded-md p-2.5 flex items-center justify-between">
-          <span className="text-[9px] text-slate-500">Designador</span>
-          <span className="text-[10px] font-mono font-bold" style={{ color: mpptColor }}>{refDesig}</span>
-        </div>
-        {metrics?.unitIsc > 0 && (
-          <>
-            <div className="bg-slate-900/50 border border-slate-800 rounded-md p-2.5 flex items-center justify-between">
-              <span className="text-[9px] text-slate-500">Isc string (unitário)</span>
-              <span className="text-[10px] font-mono font-bold text-sky-400">{metrics.unitIsc.toFixed(2)} A</span>
-            </div>
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-md p-2.5 flex items-center justify-between">
-              <span className="text-[9px] text-amber-400">Mín. NBR 16690 (×1,56)</span>
-              <span className="text-[10px] font-mono font-bold text-amber-400">
-                {(Math.ceil(1.56 * metrics.unitIsc * 10) / 10).toFixed(1)} A
-              </span>
-            </div>
-          </>
-        )}
-        <div className="bg-slate-900/50 border border-slate-800 rounded-md p-2.5 flex items-center justify-between">
-          <span className="text-[9px] text-slate-500">Norma</span>
-          <span className="text-[10px] font-mono text-slate-400">IEC 60269 / NBR 13600</span>
-        </div>
-      </div>
-      <div className="px-4 py-3 border-t border-slate-800 shrink-0">
-        <div className="flex items-center gap-1.5">
-          <Info className="h-3 w-3 text-slate-700" />
-          <span className="text-[7px] text-slate-700 font-mono uppercase tracking-widest">NBR 16690 · Seção 5.3</span>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ── Bus Bar Detail Card ───────────────────────────────────────────────────────
-const BusBarDetailCard: React.FC<{ node: SchematicNode; onClose: () => void }> = ({ node, onClose }) => {
-  const { mpptId, mpptColor } = node.data;
-  return (
-    <div className="absolute top-0 right-0 h-full w-[240px] bg-slate-950 border-l border-slate-800 shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300">
-      <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between shrink-0"
-           style={{ borderLeftColor: mpptColor, borderLeftWidth: 3 }}>
-        <span className="text-xs font-black uppercase tracking-widest pl-1" style={{ color: mpptColor }}>
-          Barramento CC — MPPT {mpptId}
-        </span>
-        <button onClick={onClose} className="p-1 rounded hover:bg-slate-800 transition-colors">
-          <X className="h-4 w-4 text-slate-500" />
-        </button>
-      </div>
-      <div className="flex-1 p-4 space-y-3">
-        <div className="bg-slate-900/50 border border-slate-800 rounded-md p-3 space-y-1.5">
-          <div className="text-[8px] text-slate-500 uppercase font-bold">Função</div>
-          <p className="text-[10px] text-slate-400 font-mono leading-relaxed">
-            Barramento de junção CC — agrega as strings do MPPT {mpptId} após os fusíveis individuais.
-          </p>
-        </div>
-        <div className="bg-slate-900/50 border border-slate-800 rounded-md p-2.5 flex items-center justify-between">
-          <span className="text-[9px] text-slate-500">Canal MPPT</span>
-          <span className="text-[10px] font-mono font-bold" style={{ color: mpptColor }}>{mpptId}</span>
-        </div>
-      </div>
-      <div className="px-4 py-3 border-t border-slate-800 shrink-0">
-        <div className="flex items-center gap-1.5">
-          <Info className="h-3 w-3 text-slate-700" />
-          <span className="text-[7px] text-slate-700 font-mono uppercase tracking-widest">NBR 16690 · Seção 5.2</span>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ── DPS Detail Card ───────────────────────────────────────────────────────────
-const DPSDetailCard: React.FC<{ node: SchematicNode; mpptMetrics: Record<number, any>; onClose: () => void }> = ({ node, mpptMetrics, onClose }) => {
-  const { refDesig, mpptId } = node.data;
-  const metrics = mpptMetrics[mpptId];
-  return (
-    <div className="absolute top-0 right-0 h-full w-[240px] bg-slate-950 border-l border-slate-800 shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300">
-      <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between shrink-0"
-           style={{ borderLeftColor: '#fbbf24', borderLeftWidth: 3 }}>
-        <span className="text-xs font-black uppercase tracking-widest text-amber-400 pl-1">{refDesig}</span>
-        <button onClick={onClose} className="p-1 rounded hover:bg-slate-800 transition-colors">
-          <X className="h-4 w-4 text-slate-500" />
-        </button>
-      </div>
-      <div className="flex-1 p-4 space-y-3">
-        <div className="bg-slate-900/50 border border-slate-800 rounded-md p-3 space-y-1.5">
-          <div className="text-[8px] text-slate-500 uppercase font-bold">Função</div>
-          <p className="text-[10px] text-slate-400 font-mono leading-relaxed">
-            Dispositivo de Proteção contra Surtos (DPS/SPD) — limita sobretensões transitórias de origem atmosférica ou de manobra no barramento CC.
-          </p>
-        </div>
-        <div className="bg-slate-900/50 border border-slate-800 rounded-md p-2.5 flex items-center justify-between">
-          <span className="text-[9px] text-slate-500">Designador</span>
-          <span className="text-[10px] font-mono font-bold text-amber-400">{refDesig}</span>
-        </div>
-        {metrics?.vocFrio > 0 && (
-          <div className="bg-slate-900/50 border border-slate-800 rounded-md p-2.5 flex items-center justify-between">
-            <span className="text-[9px] text-slate-500">Voc MPPT (ref. classe DPS)</span>
-            <span className="text-[10px] font-mono font-bold text-sky-400">{metrics.vocFrio.toFixed(0)} V</span>
-          </div>
-        )}
-        <div className="bg-slate-900/50 border border-slate-800 rounded-md p-2.5 flex items-center justify-between">
-          <span className="text-[9px] text-slate-500">Norma</span>
-          <span className="text-[10px] font-mono text-slate-400">IEC 61643 / NBR 61643</span>
-        </div>
-        <div className="bg-slate-900/50 border border-slate-800 rounded-md p-2.5 flex items-center justify-between">
-          <span className="text-[9px] text-slate-500">Tipo (IEC 61643-31)</span>
-          <span className="text-[10px] font-mono text-slate-300">
-            {metrics?.vocFrio > 600 ? 'Classe I+II (DC)' : 'Classe II (DC)'}
-          </span>
-        </div>
-      </div>
-      <div className="px-4 py-3 border-t border-slate-800 shrink-0">
-        <div className="flex items-center gap-1.5">
-          <Info className="h-3 w-3 text-slate-700" />
-          <span className="text-[7px] text-slate-700 font-mono uppercase tracking-widest">NBR 16690 · Seção 6.1</span>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ── AC Breaker Detail Card ────────────────────────────────────────────────────
-const ACBreakerDetailCard: React.FC<{ node: SchematicNode; onClose: () => void }> = ({ node, onClose }) => {
-  const { refDesig } = node.data;
-  return (
-    <div className="absolute top-0 right-0 h-full w-[240px] bg-slate-950 border-l border-slate-800 shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300">
-      <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between shrink-0"
-           style={{ borderLeftColor: '#94a3b8', borderLeftWidth: 3 }}>
-        <span className="text-xs font-black uppercase tracking-widest text-slate-300 pl-1">{refDesig}</span>
-        <button onClick={onClose} className="p-1 rounded hover:bg-slate-800 transition-colors">
-          <X className="h-4 w-4 text-slate-500" />
-        </button>
-      </div>
-      <div className="flex-1 p-4 space-y-3">
-        <div className="bg-slate-900/50 border border-slate-800 rounded-md p-3 space-y-1.5">
-          <div className="text-[8px] text-slate-500 uppercase font-bold">Função</div>
-          <p className="text-[10px] text-slate-400 font-mono leading-relaxed">
-            Disjuntor de interligação CA — proteção e seccionamento da saída AC do inversor. Permite desconexão segura para manutenção.
-          </p>
-        </div>
-        <div className="bg-slate-900/50 border border-slate-800 rounded-md p-2.5 flex items-center justify-between">
-          <span className="text-[9px] text-slate-500">Designador</span>
-          <span className="text-[10px] font-mono font-bold text-slate-300">{refDesig}</span>
-        </div>
-        <div className="bg-slate-900/50 border border-slate-800 rounded-md p-2.5 flex items-center justify-between">
-          <span className="text-[9px] text-slate-500">Norma</span>
-          <span className="text-[10px] font-mono text-slate-400">IEC 60947-2 / NBR IEC 60947</span>
-        </div>
-      </div>
-      <div className="px-4 py-3 border-t border-slate-800 shrink-0">
-        <div className="flex items-center gap-1.5">
-          <Info className="h-3 w-3 text-slate-700" />
-          <span className="text-[7px] text-slate-700 font-mono uppercase tracking-widest">NBR 16690 · Seção 6.3</span>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ── Grid Detail Card ──────────────────────────────────────────────────────────
-const GridDetailCard: React.FC<{ node: SchematicNode; onClose: () => void }> = ({ node, onClose }) => {
-  const phase = node.data.phase as 'mono' | 'tri';
-  return (
-    <div className="absolute top-0 right-0 h-full w-[240px] bg-slate-950 border-l border-slate-800 shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300">
-      <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between shrink-0"
-           style={{ borderLeftColor: '#94a3b8', borderLeftWidth: 3 }}>
-        <span className="text-xs font-black uppercase tracking-widest text-slate-300 pl-1">Rede Elétrica</span>
-        <button onClick={onClose} className="p-1 rounded hover:bg-slate-800 transition-colors">
-          <X className="h-4 w-4 text-slate-500" />
-        </button>
-      </div>
-      <div className="flex-1 p-4 space-y-3">
-        <div className="bg-slate-900/50 border border-slate-800 rounded-md p-3 space-y-1.5">
-          <div className="text-[8px] text-slate-500 uppercase font-bold">Ponto de Conexão</div>
-          <p className="text-[10px] text-slate-400 font-mono leading-relaxed">
-            Barramento CA de interligação com a concessionária. Ponto de entrega da energia fotovoltaica gerada.
-          </p>
-        </div>
-        <div className="bg-slate-900/50 border border-slate-800 rounded-md p-2.5 flex items-center justify-between">
-          <span className="text-[9px] text-slate-500">Sistema</span>
-          <span className="text-[10px] font-mono font-bold text-slate-300">{phase === 'tri' ? 'Trifásico 3φ' : 'Monofásico 1φ'}</span>
-        </div>
-        <div className="bg-slate-900/50 border border-slate-800 rounded-md p-2.5 flex items-center justify-between">
-          <span className="text-[9px] text-slate-500">Norma</span>
-          <span className="text-[10px] font-mono text-slate-400">ABNT NBR 16690 / ANEEL 482</span>
-        </div>
-      </div>
-      <div className="px-4 py-3 border-t border-slate-800 shrink-0">
-        <div className="flex items-center gap-1.5">
-          <Info className="h-3 w-3 text-slate-700" />
-          <span className="text-[7px] text-slate-700 font-mono uppercase tracking-widest">NBR 16690 · Seção 7</span>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ── ValidationErrorPanel ──────────────────────────────────────────────────────
-const ValidationErrorPanel: React.FC<{
-  marker: SchematicMarker;
-  onClose: () => void;
-}> = ({ marker, onClose }) => {
-  const isError = marker.severity === 'error';
-  const color = isError ? '#ef4444' : '#f59e0b';
-  const label = isError ? 'Erro de Validação' : 'Aviso de Validação';
-
-  return (
-    <div className="absolute top-0 right-0 h-full w-[264px] bg-slate-950 border-l border-slate-800 shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300">
-      <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between shrink-0"
-           style={{ borderLeftColor: color, borderLeftWidth: 3 }}>
-        <span className="text-xs font-black uppercase tracking-widest pl-1" style={{ color }}>
-          {label}
-        </span>
-        <button onClick={onClose} className="p-1 rounded hover:bg-slate-800 transition-colors">
-          <X className="h-4 w-4 text-slate-500" />
-        </button>
-      </div>
-      <div className="flex-1 overflow-y-auto p-4 space-y-2">
-        {marker.messages.map((msg, i) => (
-          <div key={i} className="flex items-start gap-2 bg-slate-900/50 border rounded-md p-3"
-               style={{ borderColor: `${color}30` }}>
-            <div className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ backgroundColor: color }} />
-            <p className="text-[10px] font-mono leading-relaxed" style={{ color }}>{msg}</p>
-          </div>
-        ))}
-      </div>
-      <div className="px-4 py-3 border-t border-slate-800 shrink-0">
-        <div className="flex items-center gap-1.5">
-          <Info className="h-3 w-3 text-slate-700" />
-          <span className="text-[7px] text-slate-700 font-mono uppercase tracking-widest">
-            NBR 16690:2019 — Validação elétrica
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// =============================================================================
-// 7. ZOOM CONTROLS
-// =============================================================================
-
-const ZoomControls: React.FC<{
+// L3-P2: React.memo no ZoomControls
+const ZoomControls = React.memo<{
   zoom: number;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -1703,51 +58,51 @@ const ZoomControls: React.FC<{
   showLabels?: boolean;
   onToggleLabels?: () => void;
   panelOpen?: boolean;
-}> = ({ zoom, onZoomIn, onZoomOut, onFit, onExport, showLabels, onToggleLabels, panelOpen }) => (
+}>(({ zoom, onZoomIn, onZoomOut, onFit, onExport, showLabels, onToggleLabels, panelOpen }) => (
   <div className={`absolute bottom-14 z-20 flex flex-col gap-1 items-center transition-all duration-300 ${panelOpen ? 'right-[272px]' : 'right-4'}`}>
     {onExport && (
       <button onClick={onExport}
-        className="w-7 h-7 bg-slate-900/90 border border-slate-700 rounded flex items-center justify-center text-slate-400 hover:text-white hover:border-indigo-500 transition-all"
+        className="w-7 h-7 bg-slate-900/90 border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white hover:border-indigo-500 transition-all"
         title="Exportar SVG">
         <Download size={11} />
       </button>
     )}
     {onToggleLabels && (
       <button onClick={onToggleLabels}
-        className={`w-7 h-7 bg-slate-900/90 border rounded flex items-center justify-center transition-all ${showLabels ? 'border-slate-700 text-slate-400 hover:text-white' : 'border-indigo-500/50 text-indigo-400'}`}
+        className={`w-7 h-7 bg-slate-900/90 border flex items-center justify-center transition-all ${showLabels ? 'border-slate-700 text-slate-400 hover:text-white' : 'border-indigo-500/50 text-indigo-400'}`}
         title={showLabels ? 'Ocultar labels' : 'Mostrar labels'}>
         <Tag size={10} />
       </button>
     )}
     <button onClick={onZoomIn}
-      className="w-7 h-7 bg-slate-900/90 border border-slate-700 rounded flex items-center justify-center text-slate-400 hover:text-white hover:border-slate-500 transition-all"
+      className="w-7 h-7 bg-slate-900/90 border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white hover:border-slate-500 transition-all"
       title="Zoom in (+)">
       <ZoomIn size={12} />
     </button>
-    <button onClick={onFit}
-      className="w-7 h-7 bg-slate-900/90 border border-slate-700 rounded flex items-center justify-center text-slate-500 hover:text-white transition-all"
-      title="Fit to screen">
-      <Maximize2 size={11} />
-    </button>
     <button onClick={onZoomOut}
-      className="w-7 h-7 bg-slate-900/90 border border-slate-700 rounded flex items-center justify-center text-slate-400 hover:text-white hover:border-slate-500 transition-all"
+      className="w-7 h-7 bg-slate-900/90 border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white hover:border-slate-500 transition-all"
       title="Zoom out (-)">
       <ZoomOut size={12} />
     </button>
-    <span className="text-[7px] text-slate-700 font-mono tabular-nums mt-0.5">
+    <button onClick={onFit}
+      className="w-7 h-7 bg-slate-900/90 border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white hover:border-slate-500 transition-all"
+      title="Fit (F)">
+      <Maximize2 size={11} />
+    </button>
+    <span className="text-[8px] text-slate-700 font-mono tabular-nums mt-0.5">
       {Math.round(zoom * 100)}%
     </span>
   </div>
-);
+));
 
 // =============================================================================
-// 8. MAIN COMPONENT
+// MAIN COMPONENT
 // =============================================================================
 
 interface UnifilarSchematicCanvasProps {
   inverter: InverterState;
   catalogItem: InverterCatalogItem | undefined;
-  mpptMetrics: Record<number, any>;
+  mpptMetrics: Record<number, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
   validationErrors?: Record<number, MpptValidationError>;
 }
 
@@ -1757,37 +112,131 @@ export const UnifilarSchematicCanvas: React.FC<UnifilarSchematicCanvasProps> = (
   // ── Interaction state ──────────────────────────────────────────────────────
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [highlightMpptIdx, setHighlightMpptIdx] = useState<number | null>(null);
+  // L3-H2: filtro MPPT persiste por inversor usando ref de mapa
+  const highlightMpptMapRef = useRef<Record<string, number | null>>({});
+  const [highlightMpptIdx, setHighlightMpptIdx] = useState<number | null>(() =>
+    highlightMpptMapRef.current[inverter.id] ?? null
+  );
 
   // ── Pan / Zoom state ───────────────────────────────────────────────────────
   const [zoom, setZoom] = useState(1.0);
   const [pan, setPan]   = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
 
-  // ── Label visibility & legend collapse ────────────────────────────────────
+  // ── Label visibility, print mode & legend collapse ────────────────────────
   const [showLabels, setShowLabels] = useState(true);
-  const [legendCollapsed, setLegendCollapsed] = useState(false);
+  const [printMode, setPrintMode] = useState(false);
+  // D: Irradiance simulation (W/m² — 0–1000, default STC)
+  const [irradiance, setIrradiance] = useState(1000);
+  // B: Ruler drag-to-measure
+  const [rulerMode, setRulerMode] = useState(false);
+  const [rulerStart, setRulerStart] = useState<{ x: number; y: number } | null>(null);
+  const [rulerEnd, setRulerEnd] = useState<{ x: number; y: number } | null>(null);
+  // B: Free text annotations (Alt+click)
+  const [annotations, setAnnotations] = useState<{ id: string; x: number; y: number; text: string }[]>([]);
+  // BUG #1 fix: SVG text escape helper
+  const escapeSvgText = (text: string) => text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+  // C: Type-ahead node search
+  const [nodeSearch, setNodeSearch] = useState('');
+  // C: Collapsed MPPT groups
+  const [collapsedMpptIds, setCollapsedMpptIds] = useState<Set<number>>(new Set());
+  // D: Validation checklist panel
+  const [showChecklist, setShowChecklist] = useState(false);
+  // A: Full electrical path highlight
+  const [selectedPathHighlight, setSelectedPathHighlight] = useState(true);
+  // B: Inline editing — double-click string label
+  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState('');
+  // BUG #2 fix: Store original value to compare on Escape
+  const editingOriginalValue = useRef<string>('');
+  // BUG #2 fix: Local state to persist custom string labels
+  const [stringLabelOverrides, setStringLabelOverrides] = useState<Record<string, string>>({});
+  // C: Shading simulation (per-string factor 0–100%)
+  const [shadingFactor, setShadingFactor] = useState(100); // %
+  const [showPowerBars, setShowPowerBars] = useState(false);
+  // D: Conductor table panel
+  const [showConductorTable, setShowConductorTable] = useState(false);
+  // A: Node comparison — pin a pv-string to compare with the currently selected one
+  const [compareNodeId, setCompareNodeId] = useState<string | null>(null);
+  // D: Export metadata (project name, author, revision) embedded in IEC stamp
+  const [exportMeta, setExportMeta] = useState({ projectName: '', author: '', revision: 'R0' });
+  const [showExportMetaModal, setShowExportMetaModal] = useState(false);
+  // L3-P3: legendCollapsed persiste em localStorage
+  const [legendCollapsed, setLegendCollapsed] = useState(() =>
+    localStorage.getItem('unifilar-legend-collapsed') === 'true'
+  );
   const svgRef   = useRef<SVGSVGElement>(null);
   const isPanning = useRef(false);
   const lastPt    = useRef({ x: 0, y: 0 });
   const hasAutoFit = useRef(false);
-  // Keep refs in sync for non-reactive wheel handler
+  const handleFitRef = useRef<(() => void) | null>(null);
+  // Keep refs in sync for non-reactive wheel handler and keyboard handler
   const zoomRef = useRef(zoom);
   const panRef  = useRef(pan);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const layoutRef          = useRef<any>(null); // set via sync effect after layout useMemo
+  const selectedNodeIdRef  = useRef<string | null>(null);
   useEffect(() => { zoomRef.current = zoom; }, [zoom]);
   useEffect(() => { panRef.current  = pan;  }, [pan]);
 
+  // L3-H2: sincroniza highlightMpptIdx com o mapa quando muda
+  useEffect(() => {
+    highlightMpptMapRef.current[inverter.id] = highlightMpptIdx;
+  }, [highlightMpptIdx, inverter.id]);
+
+  // L3-H2: restaura filtro ao trocar inversor
+  // BUG #6 fix: validate restored filter index is within bounds
+  useEffect(() => {
+    const restored = highlightMpptMapRef.current[inverter.id] ?? null;
+    if (restored !== null && restored >= inverter.mpptConfigs.length) {
+      setHighlightMpptIdx(null); // clear invalid filter
+    } else {
+      setHighlightMpptIdx(restored);
+    }
+  }, [inverter.id, inverter.mpptConfigs.length]);
+
   // ── Layout ─────────────────────────────────────────────────────────────────
+  // PERF-04 fix: hash estável por campos escalares (evita JSON.stringify)
+  const mpptMetricsKey = useMemo(() => {
+    const entries = Object.entries(mpptMetrics);
+    return entries.map(([k, m]) =>
+      `${k}|${m?.totalPower ?? 0}|${m?.vocFrio ?? 0}|${m?.vmpCalor ?? 0}|${m?.iscTotal ?? 0}`
+    ).join(',');
+  }, [mpptMetrics]);
   const layout = useMemo(
     () => computeUnifilarLayout(inverter, catalogItem, mpptMetrics, validationErrors),
-    [inverter, catalogItem, mpptMetrics, validationErrors],
+    [inverter, catalogItem, mpptMetricsKey, validationErrors],
   );
 
-  // ── Wire highlight via hover ───────────────────────────────────────────────
+  // ── Wire highlight via hover — A1: circuit-path aware ────────────────────
+  // Hovering a DC node illuminates its entire MPPT chain + AC side.
+  // Hovering inverter illuminates every wire. Hovering AC nodes: AC chain only.
   const activeWireIds = useMemo(() => {
     if (!hoveredNodeId) return new Set<string>();
+    const hoveredNode = layout.nodes.find(n => n.id === hoveredNodeId);
+    if (!hoveredNode) return new Set<string>();
+
+    // Inverter: full schematic illumination
+    if (hoveredNode.type === 'inverter') {
+      return new Set(layout.wires.map(w => w.id));
+    }
+    // AC side: only the AC chain (breaker → meter → grid)
+    if (hoveredNode.type === 'ac-breaker' || hoveredNode.type === 'meter' || hoveredNode.type === 'grid') {
+      return new Set(layout.wires.filter(w => w.polarity === 'ac').map(w => w.id));
+    }
+    // DC node with mpptIdx: highlight full MPPT path + AC chain
+    const mpptIdx = (hoveredNode.data as any)?.mpptIdx; // eslint-disable-line @typescript-eslint/no-explicit-any
+    if (mpptIdx !== undefined) {
+      return new Set(layout.wires.filter(w => w.mpptIdx === mpptIdx || w.polarity === 'ac').map(w => w.id));
+    }
+    // Fallback: adjacent wires only
     return new Set(layout.wires.filter(w => w.nodeIds.includes(hoveredNodeId)).map(w => w.id));
-  }, [hoveredNodeId, layout.wires]);
+  }, [hoveredNodeId, layout.nodes, layout.wires]);
 
   // ── MPPT filter: filtered wire/node IDs ──────────────────────────────────
   const filteredWireIds = useMemo(() => {
@@ -1795,24 +244,293 @@ export const UnifilarSchematicCanvas: React.FC<UnifilarSchematicCanvasProps> = (
     return new Set(layout.wires.filter(w => w.mpptIdx === highlightMpptIdx).map(w => w.id));
   }, [highlightMpptIdx, layout.wires]);
 
+  // PERF-06 fix: pré-índice por mpptIdx para evitar O(n²)
+  const nodesByMpptIdx = useMemo(() => {
+    const map = new Map<number, Set<string>>();
+    layout.nodes.forEach(n => {
+      const data = n.data as any;
+      const idx = data?.mpptIdx;
+      if (idx !== undefined) {
+        if (!map.has(idx)) map.set(idx, new Set());
+        map.get(idx)!.add(n.id);
+      }
+    });
+    return map;
+  }, [layout.nodes]);
+
   const filteredNodeIds = useMemo(() => {
     if (highlightMpptIdx === null) return null;
-    // Collect node IDs from matching wires
-    const ids = new Set<string>();
-    layout.wires.forEach(w => {
-      if (w.mpptIdx === highlightMpptIdx) w.nodeIds.forEach(id => ids.add(id));
-    });
-    // Also include string nodes for this mpptIdx
+    const base = nodesByMpptIdx.get(highlightMpptIdx) ?? new Set<string>();
+    const result = new Set(base);
+    // Adiciona sempre-visíveis (inverter, grid, etc.)
     layout.nodes.forEach(n => {
-      if (n.data?.mpptIdx === highlightMpptIdx) ids.add(n.id);
+      if (ALWAYS_VISIBLE_NODE_IDS.has(n.id)) {
+        result.add(n.id);
+      }
+      // BUG-02 fix: earth-dps-* nodes should only be visible if their parent MPPT is active
+      if (n.id.startsWith('earth-')) {
+        const data = n.data as any;
+        const earthMpptIdx = data?.mpptIdx;
+        // Only show earth symbols for the active MPPT (or global earth symbols without mpptIdx)
+        if (earthMpptIdx === undefined || earthMpptIdx === highlightMpptIdx) {
+          result.add(n.id);
+        }
+      }
+    });
+    return result;
+  }, [highlightMpptIdx, nodesByMpptIdx, layout.nodes]);
+
+  // A6 fix: filtered marker IDs based on filteredNodeIds
+  const filteredMarkerIds = useMemo(() => {
+    if (filteredNodeIds === null) return null;
+    // Markers ligados a MPPTs específicos — filtrar pelos nodeIds visíveis
+    return new Set(
+      layout.markers
+        .filter(m => {
+          // Extrair mpptId do id do marker (formato: marker-mppt-{mpptId})
+          const match = m.id.match(/marker-mppt-(\d+)/);
+          if (!match) return true; // marcadores não-MPPT sempre visíveis
+          const mpptId = parseInt(match[1]);
+          // Buscar bus-bar node deste MPPT para verificar se está nos filteredNodeIds
+          const busNodeId = `bus-${mpptId}`;
+          return filteredNodeIds.has(busNodeId);
+        })
+        .map(m => m.id)
+    );
+  }, [filteredNodeIds, layout.markers]);
+
+  // Sync refs used by keyboard handler (avoids stale closures in the stable [] effect)
+  useEffect(() => { layoutRef.current = layout; }, [layout]);
+  useEffect(() => { selectedNodeIdRef.current = selectedNodeId; }, [selectedNodeId]);
+
+  // BUG-07 fix: clear compareNodeId when the pinned node disappears from layout
+  useEffect(() => {
+    if (compareNodeId && !layout.nodes.find(n => n.id === compareNodeId)) {
+      setCompareNodeId(null);
+    }
+  }, [compareNodeId, layout.nodes]);
+
+  // BUG #10 fix: clear selectedNodeId when the selected node disappears from layout
+  useEffect(() => {
+    if (selectedNodeId && !layout.nodes.find(n => n.id === selectedNodeId)) {
+      setSelectedNodeId(null);
+    }
+  }, [selectedNodeId, layout.nodes]);
+
+  // SWEEP5-BUG1 fix: clear stale MPPT IDs from collapsedMpptIds when inverter config changes
+  useEffect(() => {
+    const currentMpptIds = new Set(inverter.mpptConfigs.map(m => m.mpptId));
+    setCollapsedMpptIds(prev => {
+      const cleaned = new Set<number>();
+      prev.forEach(id => {
+        if (currentMpptIds.has(id)) cleaned.add(id);
+      });
+      return cleaned.size !== prev.size ? cleaned : prev;
+    });
+  }, [inverter.mpptConfigs]);
+
+  // B5: System-level summary (total kWp, string count, MPPT count)
+  const systemSummary = useMemo(() => {
+    let totalKwp = 0;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    Object.values(mpptMetrics as Record<string, any>).forEach(m => {
+      // BUG #14 fix: explicit NaN guard for powerKwp
+      const kwp = m?.powerKwp;
+      if (kwp != null && !isNaN(kwp) && kwp > 0) totalKwp += kwp;
+    });
+    const totalStrings = inverter.mpptConfigs.reduce((s, m) => s + (m.strings?.length || 0), 0);
+    // SWEEP11-AREA7 fix: apply irradiance correction to power calculation
+    // Formula: P_current = P_stc × (G / 1000) where G is current irradiance (W/m²)
+    const currentPowerKwp = totalKwp * (irradiance / 1000);
+    return {
+      totalKwp,
+      currentPowerKwp, // power at current irradiance
+      totalStrings,
+      mpptCount: inverter.mpptConfigs.length
+    };
+  }, [mpptMetrics, inverter.mpptConfigs, irradiance]);
+
+  // A: Nodes with validation errors → pulsing halo
+  const errorNodeIds = useMemo(() => {
+    if (!validationErrors) return new Set<string>();
+    const ids = new Set<string>();
+    Object.entries(validationErrors).forEach(([mpptIdStr]) => {
+      const mpptId = Number(mpptIdStr);
+      layout.nodes.forEach(n => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const d = n.data as any;
+        if (d?.mpptId === mpptId || d?.mpptIdx === mpptId) ids.add(n.id);
+      });
     });
     return ids;
-  }, [highlightMpptIdx, layout.wires, layout.nodes]);
+  }, [validationErrors, layout.nodes]);
+
+  // D: Compliance score 0–100%
+  const complianceScore = useMemo(() => {
+    if (!validationErrors) return 100;
+    const errorCount = Object.values(validationErrors).filter(e => (e as any).errors?.length > 0).length;
+    const warnCount  = Object.values(validationErrors).filter(e => (e as any).warnings?.length > 0).length;
+    return Math.max(0, Math.round(100 - errorCount * 20 - warnCount * 5));
+  }, [validationErrors]);
+
+  // C: Search-filtered node IDs
+  const searchFilteredNodeIds = useMemo(() => {
+    const q = nodeSearch.trim().toLowerCase();
+    if (!q) return null;
+    const matches = new Set<string>();
+    layout.nodes.forEach(n => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const d = n.data as any;
+      const label = (d?.string?.name ?? d?.refDesig ?? (d?.catalogItem as any)?.model ?? n.type ?? '').toLowerCase();
+      if (label.includes(q)) matches.add(n.id);
+    });
+    return matches;
+  }, [nodeSearch, layout.nodes]);
+
+  // C: Collapsed MPPT — extends filteredNodeIds logic
+  const collapsedNodeIds = useMemo(() => {
+    if (collapsedMpptIds.size === 0) return new Set<string>();
+    const ids = new Set<string>();
+    layout.nodes.forEach(n => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const d = n.data as any;
+      const mpptId = d?.mpptId ?? d?.mpptIdx;
+      if (mpptId !== undefined && collapsedMpptIds.has(mpptId) && n.type === 'pv-string') {
+        ids.add(n.id);
+      }
+    });
+    return ids;
+  }, [collapsedMpptIds, layout.nodes]);
+
+  // B: SVG coordinate helper (for ruler + annotations)
+  const toSvgPt = useCallback((e: React.PointerEvent | PointerEvent) => {
+    const svg = svgRef.current;
+    if (!svg) return { x: 0, y: 0 };
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX; pt.y = e.clientY;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return { x: 0, y: 0 };
+    const inv = pt.matrixTransform(ctm.inverse());
+    return { x: inv.x, y: inv.y };
+  }, []);
+
+  // A: Electrical path highlight for selected node (extends activeWireIds when pathHighlight is on)
+  const selectedPathWireIds = useMemo(() => {
+    if (!selectedNodeId || !selectedPathHighlight) return new Set<string>();
+    const node = layout.nodes.find(n => n.id === selectedNodeId);
+    if (!node) return new Set<string>();
+    // BUG #4 fix: earth-symbol nodes have no wire highlight
+    if (node.type === 'earth-symbol') return new Set<string>();
+    if (node.type === 'inverter') return new Set(layout.wires.map(w => w.id));
+    if (node.type === 'ac-breaker' || node.type === 'meter' || node.type === 'grid') {
+      return new Set(layout.wires.filter(w => w.polarity === 'ac').map(w => w.id));
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mpptIdx = (node.data as any)?.mpptIdx;
+    if (mpptIdx !== undefined) {
+      return new Set(layout.wires.filter(w => w.mpptIdx === mpptIdx || w.polarity === 'ac').map(w => w.id));
+    }
+    return new Set(layout.wires.filter(w => w.nodeIds.includes(selectedNodeId)).map(w => w.id));
+  }, [selectedNodeId, selectedPathHighlight, layout]);
+
+  // A: Breadcrumb trail for selected node
+  const breadcrumb = useMemo(() => {
+    if (!selectedNodeId) return [];
+    const node = layout.nodes.find(n => n.id === selectedNodeId);
+    if (!node) return [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const d = node.data as any;
+    const chain: string[] = [];
+    if (node.type === 'pv-string') chain.push(`${d.string?.name ?? 'STR'} → Fusível F${d.mpptId} → Bus M${d.mpptId} → Secc. → Inversor → DJ → Rede`);
+    else if (node.type === 'fuse') chain.push(`Fusível ${d.refDesig} → Bus M${d.mpptId} → Secc. → Inversor`);
+    else if (node.type === 'bus-bar') chain.push(`Bus M${d.mpptId} → Secc. → Inversor → DJ → Rede`);
+    else if (node.type === 'dps-tap') chain.push(`DPS ${d.refDesig} ↔ Bus M${d.mpptId} → PE`);
+    else if (node.type === 'dc-switch') chain.push(`Secc. ${d.refDesig} → Inversor`);
+    else if (node.type === 'inverter') chain.push('Inversor → Disjuntor DJ1 → Medidor → Rede');
+    else if (node.type === 'ac-breaker') chain.push(`Disjuntor ${d.refDesig} → Medidor → Rede`);
+    else if (node.type === 'meter') chain.push(`Medidor ${d.refDesig} → Rede`);
+    else if (node.type === 'grid') chain.push('Rede elétrica');
+    return chain;
+  }, [selectedNodeId, layout.nodes]);
+
+  // C: Conductor table data
+  const conductorTable = useMemo(() => {
+    return inverter.mpptConfigs.flatMap((mppt, idx) =>
+      (mppt.strings || []).map((str, si) => {
+        const m = mpptMetrics[mppt.mpptId];
+        // SWEEP11-AREA8 fix: use Imp (operating current) instead of Isc for voltage drop calculation
+        // NBR 16690:2019 §522.8.3 requires evaluation at Vmp quente with Imp operating current
+        const imp = m?.impTotal ?? 0;
+        // BUG #11 fix: safe defaults for cableLength and cableSection
+        const cableLength = str.cableLength ?? 0;
+        const cableSection = str.cableSection ?? 0;
+        // BUG #13 fix: extend standard sections to include larger sizes per guide spec
+        const sectionStd = [1.5, 2.5, 4, 6, 10, 16, 25, 35, 50, 70, 95];
+        const rho = 0.02267;
+        // SWEEP9-AREA5 fix: Use Vmp hot (operating voltage) as system voltage for NBR 16690 compliance
+        const vsys = m?.vmpCalor > 0 ? m.vmpCalor : 400; // Vmp at hot temp (operating point)
+        const maxVDrop = vsys * 0.01; // 1% of system voltage
+        // SWEEP8-AREA2 fix: guard against zero Imp to avoid false "OK" ΔV=0
+        const sMin = imp > 0 && cableLength > 0 && maxVDrop > 0
+          ? rho * 2 * cableLength * imp / maxVDrop
+          : 0;
+        const suggestedSection = sectionStd.find(s => s >= sMin) ?? cableSection;
+        // SWEEP8-AREA2 fix: only calculate vDrop if imp > 0 (otherwise show undefined)
+        const vDrop = cableSection > 0 && cableLength > 0 && imp > 0
+          ? rho * 2 * cableLength * imp / cableSection
+          : undefined;
+        // SWEEP11-AREA8 fix: calculate voltage drop percentage for NBR 16690 compliance
+        const vDropPercent = vDrop !== undefined && vsys > 0 ? (vDrop / vsys) * 100 : undefined;
+        return {
+          id: str.id, name: str.name, mpptId: mppt.mpptId, mpptIdx: idx,
+          section: cableSection, length: cableLength,
+          imp: imp > 0 ? imp.toFixed(2) : '—', // Changed from isc to imp
+          vDrop: vDrop !== undefined ? vDrop.toFixed(2) : undefined,
+          vDropPercent, // percentage for color coding
+          suggestedSection,
+          color: getMpptColor(idx),
+          isUnderSized: suggestedSection > cableSection,
+          modules: str.modulesCount, si,
+        };
+      })
+    );
+  }, [inverter.mpptConfigs, mpptMetrics]);
 
   const handleNodeHover  = useCallback((id: string | null) => setHoveredNodeId(id), []);
   const handleNodeSelect = useCallback((id: string) => {
+    // BUG #9 fix: prevent selecting earth-symbol, collapsed, or filtered nodes
+    const node = layout.nodes.find(n => n.id === id);
+    if (!node || node.type === 'earth-symbol') return;
+    // Prevent selecting collapsed nodes
+    if (collapsedNodeIds.has(id)) return;
+    // Prevent selecting filtered-out nodes (dimmed by MPPT filter or search)
+    if (filteredNodeIds !== null && !filteredNodeIds.has(id) && !ALWAYS_VISIBLE_NODE_IDS.has(id)) return;
+    if (searchFilteredNodeIds !== null && !searchFilteredNodeIds.has(id)) return;
     setSelectedNodeId(prev => prev === id ? null : id);
-  }, []);
+  }, [layout.nodes, collapsedNodeIds, filteredNodeIds, searchFilteredNodeIds]);
+
+  // SWEEP10-AREA7 fix: Specialized handler for marker clicks — un-collapses and selects bus node
+  const handleMarkerSelect = useCallback((markerId: string) => {
+    const match = markerId.match(/marker-mppt-(\d+)/);
+    if (match) {
+      const mpptId = parseInt(match[1]);
+      const busNodeId = `bus-${mpptId}`;
+      // Un-collapse the MPPT group if it's collapsed
+      setCollapsedMpptIds(prev => {
+        if (prev.has(mpptId)) {
+          const next = new Set(prev);
+          next.delete(mpptId);
+          return next;
+        }
+        return prev;
+      });
+      // Select the bus node
+      setSelectedNodeId(busNodeId);
+    } else {
+      // Fallback: use normal select handler
+      handleNodeSelect(markerId);
+    }
+  }, [handleNodeSelect]);
 
   const selectedNode = useMemo(
     () => layout.nodes.find(n => n.id === selectedNodeId) ?? null,
@@ -1836,7 +554,6 @@ export const UnifilarSchematicCanvas: React.FC<UnifilarSchematicCanvasProps> = (
       const rect  = svg.getBoundingClientRect();
       const vbWc  = w / cz;
       const vbHc  = h / cz;
-      // Cursor in SVG coordinate space
       const curX  = cp.x + (e.clientX - rect.left)  / rect.width  * vbWc;
       const curY  = cp.y + (e.clientY - rect.top)   / rect.height * vbHc;
       const vbWn  = w / newZoom;
@@ -1855,13 +572,41 @@ export const UnifilarSchematicCanvas: React.FC<UnifilarSchematicCanvasProps> = (
 
   // ── Drag pan ───────────────────────────────────────────────────────────────
   const handleBgPointerDown = useCallback((e: React.PointerEvent<SVGRectElement>) => {
+    // B: Ruler mode — start measuring
+    if (rulerMode) {
+      const pt = toSvgPt(e);
+      setRulerStart(pt);
+      setRulerEnd(pt);
+      e.preventDefault();
+      e.currentTarget.setPointerCapture(e.pointerId);
+      return;
+    }
+    // B: Alt+click — create text annotation
+    if (e.altKey) {
+      // BUG #12 fix: ensure isPanning is false before blocking prompt
+      isPanning.current = false;
+      const pt = toSvgPt(e);
+      const text = window.prompt('Anotação:');
+      if (text?.trim()) {
+        setAnnotations(prev => [...prev, { id: `ann-${Date.now()}`, x: pt.x, y: pt.y, text: text.trim() }]);
+      }
+      return;
+    }
+    // BUG #8 fix: clear selection when clicking background
+    setSelectedNodeId(null);
     isPanning.current = true;
     setIsDragging(true);
     lastPt.current = { x: e.clientX, y: e.clientY };
     e.currentTarget.setPointerCapture(e.pointerId);
-  }, []);
+  }, [rulerMode, toSvgPt]);
 
   const handleBgPointerMove = useCallback((e: React.PointerEvent<SVGRectElement>) => {
+    // B: Update ruler end (mutually exclusive with pan)
+    if (rulerMode && rulerStart) {
+      setRulerEnd(toSvgPt(e));
+      return;
+    }
+    // BUG #1 guard: ruler and pan are mutually exclusive — ruler returns above
     if (!isPanning.current) return;
     const svg = svgRef.current;
     if (!svg) return;
@@ -1874,84 +619,258 @@ export const UnifilarSchematicCanvas: React.FC<UnifilarSchematicCanvasProps> = (
     const dy = (e.clientY - lastPt.current.y) * scaleY;
     lastPt.current = { x: e.clientX, y: e.clientY };
     setPan(prev => ({ x: prev.x - dx, y: prev.y - dy }));
-  }, [layout.viewBox]);
+  }, [rulerMode, rulerStart, toSvgPt, layout.viewBox]);
 
-  const handleBgPointerUp = useCallback(() => {
+  const handleBgPointerUp = useCallback((e: React.PointerEvent<SVGRectElement>) => {
+    if (rulerMode) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+      return; // keep ruler displayed until mode exits
+    }
     isPanning.current = false;
     setIsDragging(false);
-  }, []);
+    e.currentTarget.releasePointerCapture(e.pointerId);
+  }, [rulerMode]);
 
-  // ── Zoom control helpers (G6: handleFit computes fit zoom) ────────────────
+  // ── Zoom control helpers ───────────────────────────────────────────────────
+  // UX: handlers estáveis para ZoomControls memo
   const handleZoomIn  = useCallback(() => setZoom(z => Math.min(5, z * 1.25)), []);
   const handleZoomOut = useCallback(() => setZoom(z => Math.max(0.15, z / 1.25)), []);
+
+  // BUG-05: Extract stable primitive deps from layout.viewBox before handleFit
+  const layoutViewBoxW = layout.viewBox.w;
+  const layoutViewBoxH = layout.viewBox.h;
+
   const handleFit = useCallback(() => {
     const svg = svgRef.current;
     if (!svg) { setZoom(1); setPan({ x: 0, y: 0 }); return; }
     const rect = svg.getBoundingClientRect();
-    const { w, h } = layout.viewBox;
-    const fitZoom = Math.min(rect.width / w, rect.height / h) * 0.92;
-    // Viewbox dimensions at fitZoom
-    const vbW = w / fitZoom;
-    const vbH = h / fitZoom;
-    // Center: pan by negative half of the "extra" space beyond content
+    // BUG-03 fix: discount panel width (280px) when detail panel is open
+    const panelOpen = selectedNodeId !== null;
+    const availW = rect.width - (panelOpen ? 280 : 0);
+    const w = layoutViewBoxW;
+    const h = layoutViewBoxH;
+    const fitZoom = Math.min(availW / w, rect.height / h) * 0.92;
+    const ZOOM_MIN = 0.15;
+    const ZOOM_MAX = 5.0;
+    const clampedZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, fitZoom));
+    const vbW = w / clampedZoom;
+    const vbH = h / clampedZoom;
     const panX = -((vbW - w) / 2);
     const panY = -((vbH - h) / 2);
-    setZoom(fitZoom);
+    setZoom(clampedZoom);
     setPan({ x: panX, y: panY });
-  }, [layout.viewBox]);
+  }, [layoutViewBoxW, layoutViewBoxH, selectedNodeId]);
+
+  // BUG-03: Keep handleFitRef in sync
+  useEffect(() => {
+    handleFitRef.current = handleFit;
+  }, [handleFit]);
 
   const handleExport = useCallback(() => {
     const svg = svgRef.current;
     if (!svg) return;
-    const { w, h } = layout.viewBox;
-    // Clone the SVG and set a fixed viewBox for export
-    const clone = svg.cloneNode(true) as SVGSVGElement;
-    clone.setAttribute('viewBox', `0 0 ${w} ${h}`);
-    clone.setAttribute('width', String(w));
-    clone.setAttribute('height', String(h));
-    // Add dark background rect as first child
-    const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    bg.setAttribute('x', '0'); bg.setAttribute('y', '0');
-    bg.setAttribute('width', String(w)); bg.setAttribute('height', String(h));
-    bg.setAttribute('fill', '#020617');
-    clone.insertBefore(bg, clone.firstChild);
-    // Serialize and download
-    const svgStr = new XMLSerializer().serializeToString(clone);
-    const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const modelName = (catalogItem?.model || inverter.snapshot?.model || 'inversor')
-      .replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
-    a.download = `unifilar-${modelName}-${Date.now()}.svg`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, [layout.viewBox, catalogItem, inverter.snapshot]);
+    // SWEEP7-AREA6 fix: Clear transient state before cloning to get clean export
+    const prevSelected = selectedNodeId;
+    const prevHovered = hoveredNodeId;
+    const prevEditing = editingNodeId;
+    const prevCompare = compareNodeId;
+    // SWEEP9-AREA3 fix: Clear ruler lines before export (UI tool, not diagram content)
+    const prevRulerStart = rulerStart;
+    const prevRulerEnd = rulerEnd;
+    setSelectedNodeId(null);
+    setHoveredNodeId(null);
+    setEditingNodeId(null);
+    setCompareNodeId(null);
+    setRulerStart(null);
+    setRulerEnd(null);
+
+    // Wait for state to flush to DOM before cloning
+    setTimeout(() => {
+      // SWEEP9-AREA10 fix: Wrap export logic in try/finally to guarantee state restore
+      try {
+        const { w, h } = layout.viewBox;
+        const clone = svg.cloneNode(true) as SVGSVGElement;
+      clone.setAttribute('viewBox', `0 0 ${w} ${h}`);
+      clone.setAttribute('width', String(w));
+      clone.setAttribute('height', String(h));
+      const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      bg.setAttribute('x', '0'); bg.setAttribute('y', '0');
+      bg.setAttribute('width', String(w)); bg.setAttribute('height', String(h));
+      bg.setAttribute('fill', '#020617');
+      clone.insertBefore(bg, clone.firstChild);
+      const svgStr = new XMLSerializer().serializeToString(clone);
+      const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const modelName = (catalogItem?.model || inverter.snapshot?.model || 'inversor')
+        .replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
+      a.download = `unifilar-${modelName}-${Date.now()}.svg`;
+      document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } finally {
+        // Restore state even if export throws
+        setSelectedNodeId(prevSelected);
+        setHoveredNodeId(prevHovered);
+        setEditingNodeId(prevEditing);
+        setCompareNodeId(prevCompare);
+        setRulerStart(prevRulerStart);
+        setRulerEnd(prevRulerEnd);
+      }
+    }, 50);
+  }, [layout.viewBox, catalogItem, inverter.snapshot, selectedNodeId, hoveredNodeId, editingNodeId, compareNodeId, rulerStart, rulerEnd]);
+
+  // ── PNG export (full-res canvas render) ───────────────────────────────────
+  const handleExportPNG = useCallback(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    // SWEEP7-AREA6 fix: Clear transient state before cloning
+    const prevSelected = selectedNodeId;
+    const prevHovered = hoveredNodeId;
+    const prevEditing = editingNodeId;
+    const prevCompare = compareNodeId;
+    // SWEEP9-AREA3 fix: Clear ruler lines before export
+    const prevRulerStart = rulerStart;
+    const prevRulerEnd = rulerEnd;
+    setSelectedNodeId(null);
+    setHoveredNodeId(null);
+    setEditingNodeId(null);
+    setCompareNodeId(null);
+    setRulerStart(null);
+    setRulerEnd(null);
+
+    setTimeout(() => {
+      // SWEEP9-AREA10 fix: Wrap export logic in try/finally to guarantee state restore
+      try {
+        const { w, h } = layout.viewBox;
+        const scale = 2;
+        const clone = svg.cloneNode(true) as SVGSVGElement;
+      clone.setAttribute('viewBox', `0 0 ${w} ${h}`);
+      clone.setAttribute('width', String(w * scale));
+      clone.setAttribute('height', String(h * scale));
+      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      bg.setAttribute('x', '0'); bg.setAttribute('y', '0');
+      bg.setAttribute('width', String(w)); bg.setAttribute('height', String(h));
+      bg.setAttribute('fill', printMode ? '#ffffff' : '#020617');
+      clone.insertBefore(bg, clone.firstChild);
+      const svgStr = new XMLSerializer().serializeToString(clone);
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = w * scale; canvas.height = h * scale;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+          ctx.drawImage(img, 0, 0);
+          canvas.toBlob(blob => {
+            if (!blob) return;
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const modelName = (catalogItem?.model || inverter.snapshot?.model || 'inversor')
+              .replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
+            a.download = `unifilar-${modelName}-${Date.now()}.png`;
+            document.body.appendChild(a); a.click();
+            document.body.removeChild(a); URL.revokeObjectURL(url);
+          }, 'image/png');
+        };
+        img.onerror = () => {
+          console.error('[UnifilarSchematic] PNG export failed — image load error');
+        };
+        img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgStr);
+      } finally {
+        // Restore state even if export throws
+        setSelectedNodeId(prevSelected);
+        setHoveredNodeId(prevHovered);
+        setEditingNodeId(prevEditing);
+        setCompareNodeId(prevCompare);
+        setRulerStart(prevRulerStart);
+        setRulerEnd(prevRulerEnd);
+      }
+    }, 50);
+  }, [layout.viewBox, catalogItem, inverter.snapshot, printMode, selectedNodeId, hoveredNodeId, editingNodeId, compareNodeId, rulerStart, rulerEnd]);
 
   // ── Auto-fit on mount & inverter change ───────────────────────────────────
   useEffect(() => {
     hasAutoFit.current = false;
     const timer = setTimeout(() => {
-      handleFit();
+      handleFitRef.current?.(); // read through ref — avoids stale closure on layoutViewBoxW/H and selectedNodeId
       hasAutoFit.current = true;
     }, 80);
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inverter.id]);
 
   // ── Keyboard shortcuts: Escape, zoom, fit ─────────────────────────────────
+  // SWEEP8-AREA6 fix: add rulerMode to deps so Escape handler sees current value
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSelectedNodeId(null);
+      const tag = (document.activeElement?.tagName ?? '').toUpperCase();
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      // A2: Tab / Shift+Tab — cycle through selectable nodes
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const nodes = (layoutRef.current?.nodes ?? []).filter((n: { type: string }) => n.type !== 'earth-symbol');
+        if (nodes.length === 0) return;
+        const ids = nodes.map((n: { id: string }) => n.id);
+        const cur = selectedNodeIdRef.current;
+        const curIdx = cur ? ids.indexOf(cur) : -1;
+        const delta = e.shiftKey ? -1 : 1;
+        const nextIdx = ((curIdx + delta) + ids.length) % ids.length;
+        setSelectedNodeId(ids[nextIdx]);
+        return;
+      }
+
+      // A3: J / j — jump to next validation error marker (pan + zoom)
+      if (e.key === 'j' || e.key === 'J') {
+        e.preventDefault();
+        const markers = layoutRef.current?.markers ?? [];
+        if (markers.length === 0) return;
+        const cur = selectedNodeIdRef.current;
+        const curIdx = cur ? markers.findIndex((m: { id: string }) => m.id === cur) : -1;
+        const next = markers[(curIdx + 1) % markers.length];
+        setSelectedNodeId(next.id);
+        const { w, h } = layoutRef.current.viewBox;
+        const targetZoom = 2.0;
+        setZoom(targetZoom);
+        setPan({ x: next.x - (w / targetZoom) / 2, y: next.y - (h / targetZoom) / 2 });
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        setSelectedNodeId(null);
+        // BUG #5 fix: only clear ruler state if ruler mode is active
+        if (rulerMode) {
+          setRulerMode(false);
+          setRulerStart(null);
+          setRulerEnd(null);
+        }
+      }
       if (e.key === '+' || e.key === '=') { e.preventDefault(); setZoom(z => Math.min(5, z * 1.25)); }
       if (e.key === '-') { e.preventDefault(); setZoom(z => Math.max(0.15, z / 1.25)); }
-      if (e.key === 'f' || e.key === 'F') { e.preventDefault(); handleFit(); }
+      if (e.key === 'f' || e.key === 'F') { e.preventDefault(); handleFitRef.current?.(); }
+      // B: M — toggle ruler mode
+      if (e.key === 'm' || e.key === 'M') {
+        e.preventDefault();
+        setRulerMode(r => !r);
+        setRulerStart(null); setRulerEnd(null);
+      }
+      // B: N — clear annotations
+      if (e.key === 'n' || e.key === 'N') { setAnnotations([]); }
+      // D: C — toggle compliance checklist
+      if (e.key === 'c' || e.key === 'C') { e.preventDefault(); setShowChecklist(v => !v); }
+      // D: T — toggle conductor table
+      if (e.key === 't' || e.key === 'T') { e.preventDefault(); setShowConductorTable(v => !v); }
+      // C: P — toggle power bars
+      if (e.key === 'p' || e.key === 'P') { e.preventDefault(); setShowPowerBars(v => !v); }
+      // A: H — toggle path highlight
+      if (e.key === 'h' || e.key === 'H') { e.preventDefault(); setSelectedPathHighlight(v => !v); }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleFit]);
+  }, [rulerMode]); // SWEEP8-AREA6 fix: now captures rulerMode changes
 
   // ── Empty state ────────────────────────────────────────────────────────────
   const totalStrings = inverter.mpptConfigs.reduce((s, m) => s + (m.strings?.length || 0), 0);
@@ -1973,24 +892,73 @@ export const UnifilarSchematicCanvas: React.FC<UnifilarSchematicCanvasProps> = (
   const vbH = layout.viewBox.h / zoom;
 
   return (
-    <div className="w-full h-full bg-[#020617] relative overflow-hidden">
+    <div className={`w-full h-full relative overflow-hidden unifilar-print-mode transition-colors duration-300 ${printMode ? 'bg-white' : 'bg-[#020617]'}`}>
       {/* Dot grid */}
       <div className="absolute inset-0 opacity-[0.025] pointer-events-none"
         style={{ backgroundImage: 'radial-gradient(circle, #6366f1 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
 
+      {/* C: Node search input — bottom of filter strip */}
+      <div className={`absolute z-20 flex items-center gap-1.5 transition-all duration-300 ${inverter.mpptConfigs.length > 1 ? 'top-11' : 'top-3'} left-3`}>
+        <input
+          type="text" value={nodeSearch}
+          onChange={e => setNodeSearch(e.target.value)}
+          placeholder="Buscar nó…"
+          className="h-6 w-32 px-2 bg-slate-900/90 border border-slate-800 text-[8px] font-mono text-slate-300 placeholder-slate-700 focus:border-indigo-500 focus:outline-none transition-colors"
+        />
+        {nodeSearch && (
+          <button onClick={() => setNodeSearch('')}
+            className="text-[8px] text-slate-600 hover:text-slate-400 transition-colors">✕</button>
+        )}
+        {/* B: Ruler mode toggle */}
+        <button
+          onClick={() => { setRulerMode(r => !r); setRulerStart(null); setRulerEnd(null); }}
+          title="Régua de medição (M)"
+          className={`h-6 px-2 border text-[7px] font-mono uppercase tracking-wider transition-colors ${
+            rulerMode ? 'border-amber-500/60 text-amber-400 bg-amber-950/30' : 'border-slate-800 text-slate-700 hover:text-slate-400'
+          }`}
+        >
+          ↔
+        </button>
+      </div>
+
+      {/* AREA4 fix: Hint when all strings are collapsed */}
+      {(() => {
+        const totalStrings = inverter.mpptConfigs.reduce((s, m) => s + (m.strings?.length || 0), 0);
+        const totalCollapsed = Array.from(collapsedNodeIds).filter(id =>
+          layout.nodes.find(n => n.id === id && n.type === 'pv-string')
+        ).length;
+        if (totalStrings > 0 && totalCollapsed === totalStrings) {
+          return (
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 px-4 py-3 bg-slate-900/90 border border-indigo-500/40 backdrop-blur-sm flex items-center gap-2">
+              <span className="text-[8px] font-mono text-indigo-400 uppercase tracking-widest">
+                Todos os MPPTs recolhidos — clique ▶ nos botões superiores para expandir
+              </span>
+            </div>
+          );
+        }
+        return null;
+      })()}
+
       {/* MPPT Filter Strip */}
       {inverter.mpptConfigs.length > 1 && (
         <>
-          <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5">
+          <div className="absolute top-3 left-3 z-20 flex flex-wrap items-center gap-1.5 max-w-[80%]">
             <span className="text-[7px] text-slate-700 font-mono uppercase tracking-widest mr-1">Filtro:</span>
           {inverter.mpptConfigs.map((mppt, idx) => {
             const color = getMpptColor(idx);
             const isActive = highlightMpptIdx === idx;
+            // B15 fix: contagem de strings por MPPT
+            const stringCount = (mppt.strings || []).length;
+            const m = mpptMetrics[mppt.mpptId];
+            const vocInfo = m?.vocFrio > 0 ? ` · Voc: ${m.vocFrio.toFixed(0)}V` : '';
+            const iscInfo = m?.iscTotal > 0 ? ` · Isc: ${m.iscTotal.toFixed(1)}A` : '';
+            const powerInfo = m?.powerKwp > 0 ? ` · ${m.powerKwp.toFixed(2)} kWp` : '';
             return (
               <button
                 key={mppt.mpptId}
                 onClick={() => setHighlightMpptIdx(prev => prev === idx ? null : idx)}
-                className="flex items-center gap-1 px-2 py-0.5 rounded-full border text-[8px] font-mono font-bold uppercase tracking-widest transition-all duration-150"
+                title={`MPPT ${idx + 1} — ${stringCount} string${stringCount !== 1 ? 's' : ''}${vocInfo}${iscInfo}${powerInfo}`}
+                className="flex items-center gap-1 px-2 py-0.5 border text-[8px] font-mono font-bold uppercase tracking-widest transition-all duration-150"
                 style={{
                   borderColor: isActive ? color : '#334155',
                   backgroundColor: isActive ? `${color}20` : 'transparent',
@@ -1999,13 +967,43 @@ export const UnifilarSchematicCanvas: React.FC<UnifilarSchematicCanvasProps> = (
               >
                 <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />
                 M{mppt.mpptId}
+                {m?.powerKwp > 0 && (
+                  <span className="opacity-75 tabular-nums"> · {m.powerKwp.toFixed(1)}kWp</span>
+                )}
+                <span className="text-[8px] opacity-50"> ({stringCount})</span>
+              </button>
+            );
+          })}
+          {/* C: Collapse/expand per-MPPT group */}
+          {inverter.mpptConfigs.map((mppt, idx) => {
+            const color = getMpptColor(idx);
+            const isCollapsed = collapsedMpptIds.has(mppt.mpptId);
+            const stringCount = (mppt.strings || []).length;
+            return (
+              <button key={`col-${mppt.mpptId}`}
+                onClick={() => setCollapsedMpptIds(prev => {
+                  const next = new Set(prev);
+                  if (next.has(mppt.mpptId)) next.delete(mppt.mpptId); else next.add(mppt.mpptId);
+                  return next;
+                })}
+                title={`${isCollapsed ? 'Expandir' : 'Colapsar'} strings MPPT ${mppt.mpptId}`}
+                aria-expanded={!isCollapsed}
+                aria-label={`${isCollapsed ? 'Expandir' : 'Colapsar'} ${stringCount} string${stringCount !== 1 ? 's' : ''} do MPPT ${mppt.mpptId}`}
+                className="flex items-center gap-0.5 px-1.5 py-0.5 border text-[6px] font-mono transition-all"
+                style={{
+                  borderColor: isCollapsed ? color : '#1e293b',
+                  color: isCollapsed ? color : '#334155',
+                  backgroundColor: isCollapsed ? `${color}15` : 'transparent',
+                }}>
+                {isCollapsed ? '▶' : '▼'} M{mppt.mpptId}
               </button>
             );
           })}
             {highlightMpptIdx !== null && (
               <button
                 onClick={() => setHighlightMpptIdx(null)}
-                className="px-1.5 py-0.5 rounded border border-slate-800 text-[7px] font-mono text-slate-600 hover:text-slate-400 transition-colors"
+                title="Mostrar todos os MPPTs"
+                className="px-1.5 py-0.5 border border-slate-800 text-[7px] font-mono text-slate-600 hover:text-slate-400 transition-colors"
               >
                 limpar
               </button>
@@ -2014,8 +1012,8 @@ export const UnifilarSchematicCanvas: React.FC<UnifilarSchematicCanvasProps> = (
 
           {/* Filter status badge */}
           {highlightMpptIdx !== null && (
-            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-2 py-1 bg-slate-900/90 border border-slate-700 rounded-full">
-              <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: getMpptColor(highlightMpptIdx) }} />
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-2 py-1 bg-slate-900/90 border border-slate-700">
+              <div className="w-1.5 h-1.5 animate-pulse" style={{ backgroundColor: getMpptColor(highlightMpptIdx) }} />
               <span className="text-[7px] font-mono font-bold uppercase tracking-widest" style={{ color: getMpptColor(highlightMpptIdx) }}>
                 Filtrando MPPT {inverter.mpptConfigs[highlightMpptIdx]?.mpptId}
               </span>
@@ -2023,6 +1021,53 @@ export const UnifilarSchematicCanvas: React.FC<UnifilarSchematicCanvasProps> = (
           )}
         </>
       )}
+
+      {/* A: Electrical path breadcrumb — below MPPT filter strip */}
+      {breadcrumb.length > 0 && (
+        <div className={`absolute z-20 left-3 right-4 flex items-center gap-1 transition-all duration-300 ${inverter.mpptConfigs.length > 1 ? 'top-20' : 'top-11'}`}>
+          <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-900/80 border border-slate-800 backdrop-blur-sm max-w-full overflow-hidden">
+            <span className="text-[6.5px] text-slate-700 font-mono uppercase tracking-widest shrink-0">▶</span>
+            <span className="text-[6.5px] text-slate-500 font-mono truncate">{breadcrumb[0]}</span>
+          </div>
+        </div>
+      )}
+
+      {/* B5: System summary chip — always visible at top-right */}
+      <div className={`absolute top-3 z-20 flex items-center gap-2 px-2.5 py-1 bg-slate-900/80 backdrop-blur-sm border border-slate-800 transition-all duration-300 ${selectedNode ? 'right-[276px]' : 'right-4'}`}>
+        {systemSummary.totalKwp > 0 && (
+          <span className="text-[8px] font-mono font-black text-emerald-400 tabular-nums">
+            {/* SWEEP14-AREA1 fix: show currentPowerKwp when irradiance differs from STC (1000), hide at very low irradiance (< 50) */}
+            {irradiance >= 50 && irradiance !== 1000
+              ? `${systemSummary.currentPowerKwp.toFixed(2)} kWp ☀`
+              : irradiance >= 50
+              ? `${systemSummary.totalKwp.toFixed(2)} kWp`
+              : '0.00 kWp (noturno)'}
+          </span>
+        )}
+        <span className="text-[7px] text-slate-600 font-mono uppercase tracking-wide">
+          {systemSummary.totalStrings} str · {systemSummary.mpptCount} MPPT{systemSummary.mpptCount !== 1 ? 's' : ''}
+        </span>
+        {/* D: Compliance score */}
+        <button
+          onClick={() => setShowChecklist(v => !v)}
+          title="Painel de conformidade ABNT/IEC (C)"
+          className={`text-[7px] font-mono font-bold tabular-nums px-1 py-0.5 border transition-colors ${
+            complianceScore === 100
+              ? 'border-emerald-800/40 text-emerald-500 bg-emerald-950/30'
+              : complianceScore >= 80
+              ? 'border-amber-800/40 text-amber-500 bg-amber-950/20'
+              : 'border-red-800/40 text-red-500 bg-red-950/20'
+          }`}
+        >
+          {complianceScore}%
+        </button>
+        {layout.markers.length > 0 && (
+          <span className="text-[7px] font-mono font-bold"
+            style={{ color: layout.markers.some(m => m.severity === 'error') ? '#ef4444' : '#f59e0b' }}>
+            {layout.markers.some(m => m.severity === 'error') ? '✕' : '⚠'} {layout.markers.length}
+          </span>
+        )}
+      </div>
 
       {/* SVG canvas */}
       <svg
@@ -2032,9 +1077,10 @@ export const UnifilarSchematicCanvas: React.FC<UnifilarSchematicCanvasProps> = (
         style={{ cursor: isDragging ? 'grabbing' : 'grab', display: 'block' }}
       >
         <defs>
-          {/* Arrowhead marker for AC flow direction */}
-          <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-            <polygon points="0,0 0,6 6,3" fill="#94a3b8" />
+          <SymbolCatalogDefs />
+          {/* Arrowhead marker — context-stroke inherits wire color */}
+          <marker id="arrowhead" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto" markerUnits="strokeWidth">
+            <polygon points="0,0 0,7 7,3.5" fill="context-stroke" />
           </marker>
           {/* Glow filter for inverter */}
           <filter id="inverter-glow-svg">
@@ -2044,6 +1090,16 @@ export const UnifilarSchematicCanvas: React.FC<UnifilarSchematicCanvasProps> = (
               <feMergeNode in="SourceGraphic"/>
             </feMerge>
           </filter>
+          {/* Flow animation for active wires */}
+          <style>{`
+            @keyframes schematic-flow { to { stroke-dashoffset: -15; } }
+            @media print {
+              .unifilar-print-mode { background: #fff !important; }
+              .unifilar-print-mode path, .unifilar-print-mode line, .unifilar-print-mode polyline { stroke: #000 !important; }
+              .unifilar-print-mode text { fill: #000 !important; }
+              .unifilar-print-mode rect[fill="#020617"] { fill: #fff !important; }
+            }
+          `}</style>
         </defs>
         {/* Background capture rect for pan */}
         <rect
@@ -2055,30 +1111,75 @@ export const UnifilarSchematicCanvas: React.FC<UnifilarSchematicCanvasProps> = (
           onPointerCancel={handleBgPointerUp}
         />
 
+        {/* C: Voltage gradient defs — one linear gradient per MPPT */}
+        {inverter.mpptConfigs.map((mppt, idx) => {
+          const m = mpptMetrics[mppt.mpptId];
+          if (!m?.vocFrio || m.vocFrio <= 0) return null;
+          const vMax = m.vocFrio;
+          // Green (ok) → amber (mid) → red (near max)
+          const t = Math.min(1, vMax / 1000); // rough 0–1
+          return (
+            <defs key={`grad-${mppt.mpptId}`}>
+              <linearGradient id={`volt-grad-${mppt.mpptId}`} x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor={getMpptColor(idx)} stopOpacity={0.9} />
+                <stop offset={`${Math.round(t * 60)}%`} stopColor="#f59e0b" stopOpacity={0.85} />
+                <stop offset="100%" stopColor={t > 0.85 ? '#ef4444' : getMpptColor(idx)} stopOpacity={0.8} />
+              </linearGradient>
+            </defs>
+          );
+        })}
+
         {/* Layer 1: Wires */}
-        {layout.wires.map(wire => (
-          <SchematicWireRenderer
-            key={wire.id} wire={wire}
-            isActive={activeWireIds.has(wire.id)}
-            dimmed={filteredWireIds !== null && !filteredWireIds.has(wire.id) && wire.mpptIdx !== -1}
-          />
-        ))}
+        {layout.wires.map(wire => {
+          // SWEEP10-AREA5 fix: hide wires connected to collapsed nodes
+          const isConnectedToCollapsedNode = wire.nodeIds.some(nid => collapsedNodeIds.has(nid));
+          if (isConnectedToCollapsedNode) return null;
+          return (
+            <SchematicWireRenderer
+              key={wire.id} wire={wire}
+              isActive={activeWireIds.has(wire.id) || selectedPathWireIds.has(wire.id)}
+              dimmed={filteredWireIds !== null && !filteredWireIds.has(wire.id) && wire.mpptIdx !== -1}
+            />
+          );
+        })}
 
         {/* Layer 2: Nodes */}
         {layout.nodes.map(node => {
           const isHov = hoveredNodeId === node.id;
           const isSel = selectedNodeId === node.id;
-          const isDimmed = filteredNodeIds !== null
+          // C: collapse hides pv-string nodes for collapsed MPPTs
+          if (collapsedNodeIds.has(node.id)) return null;
+          const isDimmedByFilter = filteredNodeIds !== null
             && !filteredNodeIds.has(node.id)
-            && !node.id.startsWith('earth-')
+            && node.id !== 'earth-symbol'
             && !ALWAYS_VISIBLE_NODE_IDS.has(node.id);
+          // C: search dims non-matching nodes
+          const isDimmedBySearch = searchFilteredNodeIds !== null && !searchFilteredNodeIds.has(node.id);
+          const isDimmed = isDimmedByFilter || isDimmedBySearch;
 
           const el = (() => {
-            if (node.type === 'pv-string') return (
-              <PVStringSymbol key={node.id} node={node}
-                isHovered={isHov} isSelected={isSel}
-                onHover={handleNodeHover} onSelect={handleNodeSelect} />
-            );
+            if (node.type === 'pv-string') {
+              // BUG #2 fix: apply stringLabelOverrides to node.data.string.name
+              const d = node.data as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+              const overrideName = stringLabelOverrides[node.id];
+              const displayNode = overrideName
+                ? { ...node, data: { ...node.data, string: { ...d.string, name: overrideName } } }
+                : node;
+              return (
+                <g key={node.id}
+                  onDoubleClick={() => {
+                    // B: Double-click → open inline editor
+                    const origValue = overrideName || d.string?.name || '';
+                    setEditingNodeId(node.id);
+                    setEditingValue(origValue);
+                    editingOriginalValue.current = origValue;
+                  }}>
+                  <PVStringSymbol node={displayNode}
+                    isHovered={isHov} isSelected={isSel}
+                    onHover={handleNodeHover} onSelect={handleNodeSelect} />
+                </g>
+              );
+            }
             if (node.type === 'fuse')       return <FuseSymbol             key={node.id} node={node} isActive={isHov} onSelect={handleNodeSelect} />;
             if (node.type === 'bus-bar')    return <BusBarSymbol           key={node.id} node={node} isActive={isHov} onSelect={handleNodeSelect} />;
             if (node.type === 'dps-tap')    return <DPSSymbol              key={node.id} node={node} isActive={isHov} onSelect={handleNodeSelect} />;
@@ -2092,12 +1193,37 @@ export const UnifilarSchematicCanvas: React.FC<UnifilarSchematicCanvasProps> = (
           })();
 
           if (!el) return null;
+          const hasError = errorNodeIds.has(node.id);
+          // A: Inverter — overlay string count badge
+          const stringBadge = node.type === 'inverter' ? (
+            <g key={`${node.id}-badge`} style={{ pointerEvents: 'none' }}>
+              <rect x={node.x + node.w - 26} y={node.y - 12} width={24} height={11} rx={1}
+                fill="#0f172a" stroke="#4f46e5" strokeWidth={0.7} />
+              <text x={node.x + node.w - 14} y={node.y - 6}
+                textAnchor="middle" dominantBaseline="middle"
+                fill="#818cf8" fontSize={6.5} fontFamily="monospace" fontWeight="bold">
+                {systemSummary.totalStrings} str
+              </text>
+            </g>
+          ) : null;
+          const content = (
+            <g key={node.id}>
+              {/* A: Pulsing error halo */}
+              {hasError && (
+                <rect x={node.x - 4} y={node.y - 4} width={node.w + 8} height={node.h + 8}
+                  fill="none" stroke="#ef4444" strokeWidth={1.5}
+                  opacity={0.6} className="animate-pulse" style={{ pointerEvents: 'none' }} />
+              )}
+              {el}
+              {stringBadge}
+            </g>
+          );
           return isDimmed
-            ? <g key={node.id} opacity={0.08} style={{ transition: 'opacity 0.15s' }}>{el}</g>
-            : el;
+            ? <g key={node.id} opacity={0.08} style={{ transition: 'opacity 0.15s' }}>{content}</g>
+            : content;
         })}
 
-        {/* Layer 2.5: Junction dots (on top of wires, below nodes) */}
+        {/* Layer 2.5: Junction dots */}
         {layout.junctions.map(junction => (
           <circle
             key={junction.id}
@@ -2110,12 +1236,305 @@ export const UnifilarSchematicCanvas: React.FC<UnifilarSchematicCanvasProps> = (
         ))}
 
         {/* Layer 3: Labels */}
-        <LabelLayer labels={layout.labels} showElectrical={showLabels} />
+        <LabelLayer labels={layout.labels} showElectrical={showLabels} zoom={zoom} />
 
         {/* Layer 4: Validation markers */}
-        {layout.markers.map(marker => (
-          <ValidationMarker key={marker.id} marker={marker} onSelect={handleNodeSelect} />
+        {layout.markers.map(marker => {
+          const isDimmed = filteredMarkerIds !== null && !filteredMarkerIds.has(marker.id);
+          return isDimmed ? null : (
+            <ValidationMarker key={marker.id} marker={marker} onSelect={handleMarkerSelect} />
+          );
+        })}
+
+        {/* C: DC cable section labels — shown when showLabels is true and cable data is available */}
+        {showLabels && conductorTable.map(row => {
+          if (!row.section || row.section <= 0) return null;
+          // BUG-03 fix: Match pv-string node by string.id from node data
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const pvNode = layout.nodes.find(n => {
+            if (n.type !== 'pv-string') return false;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const nodeData = n.data as any;
+            return nodeData.string?.id === row.id;
+          });
+          if (!pvNode || collapsedNodeIds.has(pvNode.id)) return null;
+          const isDimmed = (filteredNodeIds !== null && !filteredNodeIds.has(pvNode.id))
+            || (searchFilteredNodeIds !== null && !searchFilteredNodeIds.has(pvNode.id));
+          return (
+            <g key={`cbl-${row.id}`} style={{ pointerEvents: 'none' }} opacity={isDimmed ? 0.08 : 1}>
+              <rect x={pvNode.x + pvNode.w + 2} y={pvNode.y + pvNode.h / 2 - 6} width={row.isUnderSized ? 28 : 22} height={10} rx={1}
+                fill="#0f172a" stroke={row.isUnderSized ? '#f59e0b' : '#1e293b'} strokeWidth={0.5} />
+              <text x={pvNode.x + pvNode.w + 4} y={pvNode.y + pvNode.h / 2}
+                dominantBaseline="middle" fill={row.isUnderSized ? '#fbbf24' : row.color}
+                fontSize={5.5} fontFamily="monospace">
+                {row.section}mm²{row.isUnderSized ? '⚠' : ''}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* B: Ruler overlay */}
+        {rulerMode && rulerStart && rulerEnd && (() => {
+          const dx = rulerEnd.x - rulerStart.x;
+          const dy = rulerEnd.y - rulerStart.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          const midX = (rulerStart.x + rulerEnd.x) / 2;
+          const midY = (rulerStart.y + rulerEnd.y) / 2;
+          return (
+            <g style={{ pointerEvents: 'none' }}>
+              <line x1={rulerStart.x} y1={rulerStart.y} x2={rulerEnd.x} y2={rulerEnd.y}
+                stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="4 3" opacity={0.9} />
+              <circle cx={rulerStart.x} cy={rulerStart.y} r={3} fill="#f59e0b" />
+              <circle cx={rulerEnd.x} cy={rulerEnd.y} r={3} fill="#f59e0b" />
+              <rect x={midX - 22} y={midY - 9} width={44} height={13} fill="#020617" stroke="#f59e0b" strokeWidth={0.7} />
+              <text x={midX} y={midY - 2} textAnchor="middle" dominantBaseline="middle"
+                fill="#fbbf24" fontSize={7} fontFamily="monospace" fontWeight="bold">
+                {dist.toFixed(0)} u
+              </text>
+            </g>
+          );
+        })()}
+
+        {/* B: Ruler mode hint */}
+        {rulerMode && !rulerStart && (
+          <text x={pan.x + layout.viewBox.w / zoom / 2} y={pan.y + 20}
+            textAnchor="middle" fill="#f59e0b" fontSize={9} fontFamily="monospace"
+            style={{ pointerEvents: 'none' }}>
+            Modo régua — clique e arraste para medir · Esc para sair
+          </text>
+        )}
+
+        {/* B: Text annotations */}
+        {annotations.map(ann => (
+          <g key={ann.id} style={{ cursor: 'pointer' }}
+            onClick={() => setAnnotations(prev => prev.filter(a => a.id !== ann.id))}>
+            <rect x={ann.x - 2} y={ann.y - 9} width={ann.text.length * 5 + 8} height={13}
+              fill="#0f172a" stroke="#64748b" strokeWidth={0.6} opacity={0.9} />
+            <text x={ann.x + 2} y={ann.y - 2} dominantBaseline="middle"
+              fill="#cbd5e1" fontSize={7} fontFamily="monospace">{escapeSvgText(ann.text)}</text>
+          </g>
         ))}
+
+        {/* C6: Node hover tooltip — SVG overlay with key contextual info */}
+        {hoveredNodeId && hoveredNodeId !== selectedNodeId && (() => {
+          const node = layout.nodes.find(n => n.id === hoveredNodeId);
+          if (!node || node.type === 'earth-symbol') return null;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const d = node.data as any;
+          const irrFactor = irradiance / 1000; // D: scale factor for simulation
+          const lines: Array<{ text: string; sub: boolean }> = [];
+          if (node.type === 'pv-string') {
+            const m = mpptMetrics[d.mpptId];
+            lines.push({ text: d.string?.name ?? 'STR', sub: false });
+            if (d.string?.modulesCount > 0) lines.push({ text: `${d.string.modulesCount} mód. · ${d.fuseRef}`, sub: true });
+            if (m?.vocFrio > 0) {
+              // SWEEP7-AREA5 fix: only show Voc in tooltip if irradiance >= 200 (sparkline range)
+              if (irradiance >= 200) {
+                const voc = m.vocFrio * (irrFactor < 1 ? (1 + 0.04 * Math.log(irrFactor)) : 1); // simplified Voc(G)
+                lines.push({ text: `Voc: ${voc.toFixed(0)} V ☀`, sub: true });
+              }
+            }
+            if (m?.iscTotal > 0) {
+              const isc = m.iscTotal * irrFactor;
+              lines.push({ text: `Isc: ${isc.toFixed(2)} A${irrFactor < 1 ? ' ☀' : ''}`, sub: true });
+            }
+            if (m?.powerKwp > 0) lines.push({ text: `${(m.powerKwp * irrFactor).toFixed(2)} kWp${irrFactor < 1 ? ' ☀' : ''}`, sub: true });
+          } else if (node.type === 'fuse') {
+            lines.push({ text: d.refDesig ?? 'Fusível', sub: false });
+            lines.push({ text: `gPV · MPPT ${d.mpptId}`, sub: true });
+          } else if (node.type === 'bus-bar') {
+            const m = mpptMetrics[d.mpptId];
+            lines.push({ text: `Barramento CC — M${d.mpptId}`, sub: false });
+            if (m?.vocFrio > 0) lines.push({ text: `Voc: ${m.vocFrio.toFixed(0)}V · Isc: ${m.iscTotal?.toFixed(1)}A`, sub: true });
+          } else if (node.type === 'dps-tap') {
+            lines.push({ text: `${d.refDesig} — DPS Tipo II`, sub: false });
+            lines.push({ text: 'IEC 61643 · Clique para spec.', sub: true });
+          } else if (node.type === 'dc-switch') {
+            lines.push({ text: `${d.refDesig} — Secc. CC`, sub: false });
+            lines.push({ text: 'NBR 16690 §5.4', sub: true });
+          } else if (node.type === 'inverter') {
+            const ci = d.catalogItem as InverterCatalogItem | undefined;
+            lines.push({ text: ci?.model ?? d.inverter?.snapshot?.model ?? 'Inversor', sub: false });
+            if (ci?.nominalPowerW) lines.push({ text: `${(ci.nominalPowerW / 1000).toFixed(1)} kW · ${d.mpptCount} MPPT`, sub: true });
+          } else if (node.type === 'ac-breaker') {
+            lines.push({ text: `${d.refDesig} — Disjuntor CA`, sub: false });
+          } else if (node.type === 'meter') {
+            lines.push({ text: `${d.refDesig} — Medidor kWh`, sub: false });
+            lines.push({ text: 'Bidirecional · NT.020.EQTL', sub: true });
+          } else if (node.type === 'grid') {
+            lines.push({ text: `Rede ${d.phase === 'tri' ? 'Trifásica' : 'Monofásica'}`, sub: false });
+          }
+          if (lines.length === 0) return null;
+          const TW = 136, LINE_H = 11, PAD = 5;
+          const th = lines.length * LINE_H + PAD * 2;
+          const accentColor: string = d.mpptColor ?? '#475569';
+          // Position to the right of the node; y-centered on node
+          const tx = node.x + node.w + 8;
+          const ty = node.y + node.h / 2 - th / 2;
+          return (
+            <g style={{ pointerEvents: 'none' }}>
+              <rect x={tx} y={ty} width={TW} height={th}
+                fill="#020617" stroke="#1e293b" strokeWidth={0.8} opacity={0.97} />
+              {/* Color accent bar */}
+              <line x1={tx} y1={ty} x2={tx} y2={ty + th} stroke={accentColor} strokeWidth={1.5} />
+              {lines.map((line, i) => (
+                <text key={i} x={tx + 7} y={ty + PAD + i * LINE_H + LINE_H / 2 - 1}
+                  dominantBaseline="middle" fontFamily="monospace"
+                  fill={line.sub ? '#64748b' : '#cbd5e1'}
+                  fontSize={line.sub ? 6 : 7.5}
+                  fontWeight={line.sub ? 'normal' : 'bold'}
+                >{line.text}</text>
+              ))}
+            </g>
+          );
+        })()}
+
+        {/* D: IEC technical stamp — bottom-right corner of diagram */}
+        {(() => {
+          const sw = 180, sh = 56;
+          // BUG #7 fix: ensure viewBox is large enough before rendering stamp
+          if (layout.viewBox.w < sw + 20 || layout.viewBox.h < sh + 20) return null;
+          const sx = layout.viewBox.w - sw - 10;
+          const sy = layout.viewBox.h - sh - 10;
+          const modelName = (catalogItem?.model || inverter.snapshot?.model || '—');
+          return (
+            <g style={{ pointerEvents: 'none' }}>
+              <rect x={sx} y={sy} width={sw} height={sh} fill="#020617" stroke="#1e293b" strokeWidth={0.8} />
+              <line x1={sx} y1={sy + 15} x2={sx + sw} y2={sy + 15} stroke="#1e293b" strokeWidth={0.5} />
+              <line x1={sx} y1={sy + 40} x2={sx + sw} y2={sy + 40} stroke="#1e293b" strokeWidth={0.4} />
+              <text x={sx + 4} y={sy + 9} fill="#334155" fontSize={6} fontFamily="monospace">
+                {exportMeta.projectName || 'Diagrama Unifilar FV'} — IEC 60617 / NBR 16690
+              </text>
+              <text x={sx + 4} y={sy + 23} fill="#64748b" fontSize={6.5} fontFamily="monospace" fontWeight="bold">{modelName}</text>
+              <text x={sx + 4} y={sy + 32} fill="#475569" fontSize={5.5} fontFamily="monospace">
+                {systemSummary.totalKwp.toFixed(2)} kWp · {systemSummary.totalStrings} strings · {systemSummary.mpptCount} MPPTs
+              </text>
+              <text x={sx + 4} y={sy + 47} fill="#334155" fontSize={5} fontFamily="monospace">
+                {exportMeta.author ? `Autor: ${exportMeta.author}` : new Date().toLocaleDateString('pt-BR')}
+                {' · '}{exportMeta.revision} — Kurupira v2
+              </text>
+            </g>
+          );
+        })()}
+
+        {/* B: Double-click to inline-edit pv-string label */}
+        {editingNodeId && (() => {
+          const node = layout.nodes.find(n => n.id === editingNodeId);
+          if (!node) return null;
+          return (
+            <foreignObject x={node.x - 2} y={node.y + node.h / 2 - 10} width={node.w + 4} height={20}
+              style={{ overflow: 'visible' }}>
+              <input
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                autoFocus
+                type="text" value={editingValue}
+                onChange={e => setEditingValue(e.target.value)}
+                onKeyDown={e => {
+                  // BUG #2 fix: persist edited value on Enter, cancel on Escape
+                  if (e.key === 'Enter') {
+                    if (editingValue.trim() && editingValue !== editingOriginalValue.current) {
+                      setStringLabelOverrides(prev => ({ ...prev, [editingNodeId]: editingValue.trim() }));
+                    }
+                    setEditingNodeId(null);
+                  }
+                  if (e.key === 'Escape') {
+                    // Cancel without saving — do not persist
+                    setEditingNodeId(null);
+                  }
+                }}
+                onBlur={() => {
+                  // BUG #2 fix: persist edited value on blur only if changed
+                  if (editingValue.trim() && editingValue !== editingOriginalValue.current) {
+                    setStringLabelOverrides(prev => ({ ...prev, [editingNodeId]: editingValue.trim() }));
+                  }
+                  setEditingNodeId(null);
+                }}
+                style={{
+                  width: '100%', height: '20px', background: '#0f172a',
+                  border: '1px solid #6366f1', color: '#e2e8f0',
+                  fontSize: '8px', fontFamily: 'monospace', padding: '1px 3px',
+                  outline: 'none',
+                }}
+              />
+            </foreignObject>
+          );
+        })()}
+
+        {/* A: Comparison pin button — appears above selected pv-string node */}
+        {selectedNodeId && (() => {
+          const node = layout.nodes.find(n => n.id === selectedNodeId);
+          if (!node || node.type !== 'pv-string') return null;
+          const isPinned = compareNodeId === selectedNodeId;
+          return (
+            <g style={{ cursor: 'pointer' }}
+              onClick={() => setCompareNodeId(prev => prev === selectedNodeId ? null : selectedNodeId)}
+            >
+              <title>{isPinned ? 'Desafixar comparação' : 'Comparar com outra string'}</title>
+              <rect x={node.x + node.w + 5} y={node.y} width={17} height={13} rx={1}
+                fill={isPinned ? '#312e81' : '#0f172a'}
+                stroke={isPinned ? '#6366f1' : '#334155'} strokeWidth={0.7} />
+              <text x={node.x + node.w + 13} y={node.y + 7} textAnchor="middle" dominantBaseline="middle"
+                fill={isPinned ? '#818cf8' : '#475569'} fontSize={7} fontFamily="monospace">⟺</text>
+            </g>
+          );
+        })()}
+
+        {/* A: Node comparison overlay — shown when a pinned node and a selected node are both pv-strings */}
+        {compareNodeId && selectedNodeId && compareNodeId !== selectedNodeId && (() => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const nodeA = layout.nodes.find(n => n.id === compareNodeId);
+          const nodeB = layout.nodes.find(n => n.id === selectedNodeId);
+          if (!nodeA || !nodeB || nodeA.type !== 'pv-string' || nodeB.type !== 'pv-string') return null;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const dA = nodeA.data as any; const dB = nodeB.data as any;
+          const mA = mpptMetrics[dA.mpptId]; const mB = mpptMetrics[dB.mpptId];
+          const irrF = irradiance / 1000;
+          const rows: Array<{ label: string; a: string; b: string; highlight?: boolean }> = [
+            { label: 'Nome', a: dA.string?.name ?? '—', b: dB.string?.name ?? '—' },
+            { label: 'Módulos', a: String(dA.string?.modulesCount ?? '—'), b: String(dB.string?.modulesCount ?? '—'), highlight: dA.string?.modulesCount !== dB.string?.modulesCount },
+            { label: 'Voc frio', a: mA?.vocFrio > 0 ? `${mA.vocFrio.toFixed(0)}V` : '—', b: mB?.vocFrio > 0 ? `${mB.vocFrio.toFixed(0)}V` : '—', highlight: mA?.vocFrio !== mB?.vocFrio },
+            { label: 'Isc', a: mA?.iscTotal > 0 ? `${(mA.iscTotal * irrF).toFixed(2)}A` : '—', b: mB?.iscTotal > 0 ? `${(mB.iscTotal * irrF).toFixed(2)}A` : '—' },
+            { label: 'Potência', a: mA?.powerKwp > 0 ? `${(mA.powerKwp * irrF).toFixed(2)} kWp` : '—', b: mB?.powerKwp > 0 ? `${(mB.powerKwp * irrF).toFixed(2)} kWp` : '—' },
+            { label: 'Seção', a: dA.string?.cableSection > 0 ? `${dA.string.cableSection}mm²` : '—', b: dB.string?.cableSection > 0 ? `${dB.string.cableSection}mm²` : '—', highlight: dA.string?.cableSection !== dB.string?.cableSection },
+            { label: 'Compr.', a: dA.string?.cableLength > 0 ? `${dA.string.cableLength}m` : '—', b: dB.string?.cableLength > 0 ? `${dB.string.cableLength}m` : '—' },
+          ];
+          const cw = 210, ch = rows.length * 13 + 28;
+          // SWEEP6-FIX: use pan state (not panRef) for render-time positioning to avoid stale value during pan
+          const cx = layout.viewBox.w / 2 - cw / 2;
+          const cy = pan.y + 12;
+          return (
+            <g style={{ pointerEvents: 'none' }}>
+              <rect x={cx} y={cy} width={cw} height={ch} fill="#020617" stroke="#6366f1" strokeWidth={0.7} opacity={0.97} />
+              <text x={cx + cw / 2} y={cy + 9} textAnchor="middle" dominantBaseline="middle"
+                fill="#818cf8" fontSize={6.5} fontFamily="monospace" fontWeight="bold">Comparação de Strings</text>
+              <line x1={cx} y1={cy + 16} x2={cx + cw} y2={cy + 16} stroke="#1e293b" strokeWidth={0.5} />
+              {/* Column headers */}
+              <text x={cx + 48} y={cy + 23} textAnchor="middle" dominantBaseline="middle"
+                fill={dA.mpptColor ?? '#475569'} fontSize={6} fontFamily="monospace" fontWeight="bold">
+                {dA.string?.name ?? 'A'}
+              </text>
+              <text x={cx + 128} y={cy + 23} textAnchor="middle" dominantBaseline="middle"
+                fill={dB.mpptColor ?? '#475569'} fontSize={6} fontFamily="monospace" fontWeight="bold">
+                {dB.string?.name ?? 'B'}
+              </text>
+              {rows.map((row, i) => {
+                const ry = cy + 30 + i * 13;
+                const diff = row.highlight;
+                return (
+                  <g key={row.label}>
+                    {diff && <rect x={cx + 1} y={ry - 5} width={cw - 2} height={11} fill="#7c3aed10" />}
+                    <text x={cx + 6} y={ry} dominantBaseline="middle" fill="#475569" fontSize={5.5} fontFamily="monospace">{row.label}</text>
+                    <text x={cx + 48} y={ry} textAnchor="middle" dominantBaseline="middle"
+                      fill={diff ? '#f59e0b' : '#94a3b8'} fontSize={6} fontFamily="monospace">{row.a}</text>
+                    <line x1={cx + 80} y1={ry} x2={cx + 98} y2={ry} stroke="#1e293b" strokeWidth={0.5} />
+                    <text x={cx + 128} y={ry} textAnchor="middle" dominantBaseline="middle"
+                      fill={diff ? '#f59e0b' : '#94a3b8'} fontSize={6} fontFamily="monospace">{row.b}</text>
+                  </g>
+                );
+              })}
+            </g>
+          );
+        })()}
 
         {/* Layer 5: MPPT group labels (left margin) */}
         {(() => {
@@ -2147,17 +1566,321 @@ export const UnifilarSchematicCanvas: React.FC<UnifilarSchematicCanvasProps> = (
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
         onFit={handleFit}
-        onExport={handleExport}
+        onExport={() => setShowExportMetaModal(true)}
         showLabels={showLabels}
         onToggleLabels={() => setShowLabels(v => !v)}
-        panelOpen={selectedNode !== null}
+        panelOpen={selectedNode !== null && selectedNode.type !== 'earth-symbol'}
       />
+
+      {/* D: Irradiance simulation slider — bottom-left */}
+      <div className={`absolute bottom-14 left-3 z-20 flex flex-col gap-1 transition-all duration-300`}>
+        <div className="flex items-center gap-2 px-2 py-1 bg-slate-900/85 border border-slate-800 backdrop-blur-sm">
+          <span className="text-[7px] font-mono text-slate-600 uppercase tracking-wider w-16 shrink-0">
+            ☀ {irradiance} W/m²
+          </span>
+          <input
+            type="range" min="0" max="1000" step="50" value={irradiance}
+            onChange={e => setIrradiance(Number(e.target.value))}
+            className="w-24 h-0.5 accent-amber-400"
+            title="Simular irradiância solar"
+          />
+        </div>
+        {irradiance < 1000 && (
+          <div className="flex items-center gap-1 px-2 py-0.5 bg-amber-950/40 border border-amber-800/30">
+            <span className="text-[6.5px] font-mono text-amber-600 uppercase tracking-wider">
+              Sim. {Math.round(irradiance / 10)}% · Isc×{(irradiance / 1000).toFixed(2)}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* C: Print mode toggle + PNG export + new tools — in header area */}
+      <div className={`absolute top-3 z-20 flex items-center gap-1 transition-all duration-300 ${selectedNode ? 'right-[316px]' : 'right-44'}`}>
+        {/* A: Path highlight toggle */}
+        <button onClick={() => setSelectedPathHighlight(v => !v)}
+          title={`${selectedPathHighlight ? 'Desativar' : 'Ativar'} destaque de caminho elétrico (H)`}
+          className={`w-7 h-7 border flex items-center justify-center transition-all text-[8px] font-mono ${
+            selectedPathHighlight ? 'bg-indigo-950/40 border-indigo-500/50 text-indigo-400' : 'bg-slate-900/90 border-slate-700 text-slate-500 hover:text-white'
+          }`}>↗</button>
+        {/* C: Power bars toggle */}
+        <button onClick={() => setShowPowerBars(v => !v)}
+          title="Barras de potência por MPPT (P)"
+          className={`w-7 h-7 border flex items-center justify-center transition-all ${
+            showPowerBars ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-400' : 'bg-slate-900/90 border-slate-700 text-slate-500 hover:text-white'
+          }`}>
+          <FileText size={10} />
+        </button>
+        {/* D: Conductor table toggle */}
+        <button onClick={() => setShowConductorTable(v => !v)}
+          title="Tabela de condutores (T)"
+          className={`w-7 h-7 border flex items-center justify-center transition-all ${
+            showConductorTable ? 'bg-amber-950/40 border-amber-500/50 text-amber-400' : 'bg-slate-900/90 border-slate-700 text-slate-500 hover:text-white'
+          }`}>
+          <Table2 size={10} />
+        </button>
+        <button
+          onClick={handleExportPNG}
+          title="Exportar PNG (alta resolução)"
+          className="w-7 h-7 bg-slate-900/90 border border-slate-700 flex items-center justify-center text-slate-500 hover:text-white hover:border-slate-500 transition-all text-[9px] font-mono"
+        >
+          PNG
+        </button>
+        <button
+          onClick={() => setPrintMode(v => !v)}
+          title={printMode ? 'Sair do modo impressão' : 'Modo impressão (fundo branco)'}
+          className={`w-7 h-7 border flex items-center justify-center transition-all text-[9px] font-mono ${
+            printMode
+              ? 'bg-white border-slate-300 text-slate-800'
+              : 'bg-slate-900/90 border-slate-700 text-slate-500 hover:text-white hover:border-slate-500'
+          }`}
+        >
+          ⎙
+        </button>
+      </div>
+
+      {/* C: Shading simulation slider + per-MPPT power bars */}
+      {showPowerBars && (
+        <div className={`absolute bottom-14 z-20 flex flex-col gap-1 transition-all duration-300 ${selectedNode ? 'left-44' : 'left-3'}`}>
+          <div className="flex items-center gap-2 px-2 py-1 bg-slate-900/90 border border-slate-800 backdrop-blur-sm">
+            <span className="text-[7px] font-mono text-slate-500 uppercase tracking-wider shrink-0">☁ Sombra</span>
+            <input type="range" min="0" max="100" step="5" value={shadingFactor}
+              onChange={e => setShadingFactor(Number(e.target.value))}
+              className="w-20 h-0.5 accent-sky-400" />
+            <span className="text-[7px] font-mono text-sky-400 tabular-nums w-8">{shadingFactor}%</span>
+          </div>
+          {/* B: Irradiance sparkline — system power from 200 to 1000 W/m² */}
+          {(() => {
+            const G_LEVELS = [200, 400, 600, 800, 1000];
+            // BUG #10 fix: account for MPPT filter — only sum active MPPT if filter is set
+            const totalBaseKwp = inverter.mpptConfigs
+              .filter((_, idx) => highlightMpptIdx === null || idx === highlightMpptIdx)
+              .reduce((s, mppt) => s + (mpptMetrics[mppt.mpptId]?.powerKwp ?? 0), 0);
+            if (totalBaseKwp <= 0) return null;
+            const W = 120, H = 28;
+            const powers = G_LEVELS.map(g => totalBaseKwp * (g / 1000));
+            const maxP = Math.max(...powers, 0.01);
+            const pts = powers.map((p, i) => {
+              const x = (i / (powers.length - 1)) * W;
+              const y = H - (p / maxP) * H * 0.85 - 2;
+              return `${x.toFixed(1)},${y.toFixed(1)}`;
+            }).join(' ');
+            // BUG-02 fix: dot should only show if irradiance is >= 200 (within sparkline range)
+            const showDot = irradiance >= 200;
+            const clampG = Math.max(200, Math.min(1000, irradiance));
+            const dotX = ((clampG - 200) / 800) * W;
+            const dotP = totalBaseKwp * (clampG / 1000);
+            const dotY = H - (dotP / maxP) * H * 0.85 - 2;
+            return (
+              <div className="px-2 py-1.5 bg-slate-900/90 border border-slate-800 backdrop-blur-sm">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[6.5px] font-mono text-slate-600 uppercase tracking-wider">P(G) — total sistema</span>
+                  <span className="text-[6.5px] font-mono text-sky-400 tabular-nums">{(totalBaseKwp * (irradiance / 1000)).toFixed(2)} kWp</span>
+                </div>
+                <svg width={W} height={H} style={{ display: 'block' }}>
+                  {/* Grid lines */}
+                  {[0.25, 0.5, 0.75].map(t => (
+                    <line key={t} x1={0} y1={H - t * H * 0.85 - 2} x2={W} y2={H - t * H * 0.85 - 2}
+                      stroke="#1e293b" strokeWidth={0.5} />
+                  ))}
+                  <polyline points={pts} fill="none" stroke="#0ea5e9" strokeWidth={1.5} strokeLinejoin="round" />
+                  {/* BUG-09 fix: Area fill with correct polygon format */}
+                  <polygon points={`0,${H} ${pts} ${W},${H}`} fill="#0ea5e915" stroke="none" />
+                  {/* Dot for current irradiance — only show if >= 200 */}
+                  {showDot && <circle cx={dotX} cy={dotY} r={2.5} fill="#f59e0b" />}
+                  {/* Axis labels */}
+                  <text x={0} y={H - 1} fill="#334155" fontSize={4.5} fontFamily="monospace">0.2</text>
+                  <text x={W - 8} y={H - 1} fill="#334155" fontSize={4.5} fontFamily="monospace">1.0</text>
+                </svg>
+              </div>
+            );
+          })()}
+
+          <div className="px-2 py-1.5 bg-slate-900/90 border border-slate-800 backdrop-blur-sm space-y-1.5">
+            <div className="text-[7px] text-slate-600 font-mono uppercase tracking-widest mb-1">Potência por MPPT</div>
+            {inverter.mpptConfigs.map((mppt, idx) => {
+              const m = mpptMetrics[mppt.mpptId];
+              if (!m?.powerKwp) return null;
+              const color = getMpptColor(idx);
+              const shadedKwp = m.powerKwp * (shadingFactor / 100);
+              const maxKwp = Math.max(...inverter.mpptConfigs.map(mp => mpptMetrics[mp.mpptId]?.powerKwp ?? 0));
+              return (
+                <div key={mppt.mpptId} className="flex items-center gap-2">
+                  <span className="text-[7px] font-mono w-8 shrink-0 tabular-nums" style={{ color }}>M{mppt.mpptId}</span>
+                  <div className="flex-1 h-2 bg-slate-800 rounded-sm overflow-hidden">
+                    <div className="h-full rounded-sm transition-all" style={{
+                      width: `${maxKwp > 0 ? (shadedKwp / maxKwp) * 100 : 0}%`,
+                      backgroundColor: color, opacity: 0.8,
+                    }} />
+                  </div>
+                  <span className="text-[7px] font-mono text-slate-400 tabular-nums w-14 text-right">
+                    {shadedKwp.toFixed(2)} kWp
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* D: Conductor table panel */}
+      {showConductorTable && (
+        <div className={`absolute bottom-12 z-30 bg-slate-950 border border-slate-700 shadow-2xl max-h-56 overflow-y-auto transition-all duration-300 ${selectedNode ? 'left-44' : 'left-3'} right-4`}>
+          <div className="sticky top-0 bg-slate-900 border-b border-slate-700 px-3 py-1.5 flex items-center justify-between">
+            <span className="text-[8px] font-mono text-amber-400 uppercase tracking-widest">Tabela de Condutores CC</span>
+            <button onClick={() => setShowConductorTable(false)} className="text-slate-500 hover:text-white text-[9px] leading-none">✕</button>
+          </div>
+          <table className="w-full text-[7px] font-mono border-collapse">
+            <thead>
+              <tr className="border-b border-slate-800">
+                <th className="text-left px-2 py-1 text-slate-500 font-normal">String</th>
+                <th className="text-right px-2 py-1 text-slate-500 font-normal">Seção (mm²)</th>
+                <th className="text-right px-2 py-1 text-slate-500 font-normal">Compr. (m)</th>
+                <th className="text-right px-2 py-1 text-slate-500 font-normal">Imp (A)</th>
+                <th className="text-right px-2 py-1 text-slate-500 font-normal">ΔV (V)</th>
+                <th className="text-right px-2 py-1 text-slate-500 font-normal">Seção min.</th>
+                <th className="text-left px-2 py-1 text-slate-500 font-normal">Mód.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {conductorTable.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-2 py-3 text-center text-slate-600">Nenhum condutor com dados de cabo configurados.</td>
+                </tr>
+              ) : conductorTable.map(row => (
+                <tr key={row.id}
+                  className={`border-b border-slate-900 hover:bg-slate-900/60 transition-colors ${row.isUnderSized ? 'bg-amber-950/20' : ''}`}>
+                  <td className="px-2 py-0.5 flex items-center gap-1.5">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: row.color }} />
+                    <span className={row.isUnderSized ? 'text-amber-400' : 'text-slate-300'}>{row.name || `M${row.mpptId}-S${row.si + 1}`}</span>
+                  </td>
+                  <td className={`px-2 py-0.5 text-right tabular-nums ${row.isUnderSized ? 'text-amber-400' : 'text-slate-400'}`}>{row.section > 0 ? row.section : '—'}</td>
+                  <td className="px-2 py-0.5 text-right tabular-nums text-slate-400">{row.length > 0 ? row.length : '—'}</td>
+                  <td className="px-2 py-0.5 text-right tabular-nums text-slate-400">{row.imp}</td>
+                  <td className={`px-2 py-0.5 text-right tabular-nums ${
+                    // SWEEP13-AREA2 fix: show "—" when vDrop is undefined (cableLength = 0 or imp = 0), not green
+                    row.vDrop === undefined ? 'text-slate-600' :
+                    row.vDropPercent !== undefined && row.vDropPercent > 2.0 ? 'text-red-400' :
+                    row.vDropPercent !== undefined && row.vDropPercent > 1.0 ? 'text-amber-400' :
+                    'text-emerald-400'
+                  }`}>
+                    {row.vDrop ?? '—'}
+                  </td>
+                  <td className={`px-2 py-0.5 text-right tabular-nums ${row.isUnderSized ? 'text-amber-300 font-semibold' : 'text-slate-600'}`}>
+                    {row.isUnderSized ? `${row.suggestedSection} ⚠` : '✓'}
+                  </td>
+                  <td className="px-2 py-0.5 text-slate-500">{row.modules}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {conductorTable.some(r => r.isUnderSized) && (
+            <div className="px-3 py-1.5 border-t border-amber-900/40 bg-amber-950/20 text-[6.5px] font-mono text-amber-500">
+              ⚠ {conductorTable.filter(r => r.isUnderSized).length} condutor(es) com seção abaixo do mínimo recomendado (NBR 16690 / critério ΔV ≤ 1%)
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* D: Export metadata modal */}
+      {showExportMetaModal && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm"
+          onClick={() => setShowExportMetaModal(false)}>
+          <div className="bg-slate-950 border border-slate-700 p-4 w-72 shadow-2xl"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest">Exportar Diagrama</span>
+              <button onClick={() => setShowExportMetaModal(false)} className="text-slate-600 hover:text-white text-xs">✕</button>
+            </div>
+            {[
+              { label: 'Nome do Projeto', key: 'projectName' as const, placeholder: 'Ex: Usina Solar SP-01' },
+              { label: 'Autor', key: 'author' as const, placeholder: 'Nome do responsável técnico' },
+              { label: 'Revisão', key: 'revision' as const, placeholder: 'R0' },
+            ].map(({ label, key, placeholder }) => (
+              <div key={key} className="mb-2.5">
+                <label className="text-[7px] font-mono text-slate-500 uppercase tracking-wider">{label}</label>
+                <input type="text"
+                  value={exportMeta[key]}
+                  onChange={e => setExportMeta(prev => ({ ...prev, [key]: e.target.value }))}
+                  placeholder={placeholder}
+                  className="w-full mt-0.5 px-2 py-1.5 bg-slate-900 border border-slate-700 text-[9px] font-mono text-slate-200 placeholder-slate-700 focus:border-indigo-500 focus:outline-none transition-colors" />
+              </div>
+            ))}
+            <div className="text-[7px] text-slate-600 font-mono mb-3">
+              Estes dados serão incluídos no carimbo IEC do arquivo exportado.
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setShowExportMetaModal(false); setTimeout(handleExportPNG, 100); }}
+                className="flex-1 py-1.5 bg-indigo-900/40 border border-indigo-700/60 text-[8px] font-mono text-indigo-300 hover:bg-indigo-900/60 transition-colors">
+                Exportar PNG
+              </button>
+              <button
+                onClick={() => { setShowExportMetaModal(false); setTimeout(handleExport, 100); }}
+                className="flex-1 py-1.5 bg-slate-900 border border-slate-700 text-[8px] font-mono text-slate-300 hover:bg-slate-800 transition-colors">
+                Exportar SVG
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Legend bar */}
       <div className="absolute bottom-0 left-0 right-0 z-10 border-t border-slate-800/60 bg-slate-950/90 backdrop-blur-sm shrink-0">
+        {/* C7: Error tray — click any item to pan+zoom to that marker */}
+        {layout.markers.length > 0 && (
+          <div className="border-b border-slate-800/60 px-3 py-1 flex items-center gap-4 flex-wrap">
+            <span className="text-[7px] text-slate-600 font-mono uppercase tracking-wider shrink-0">
+              {layout.markers.some(m => m.severity === 'error')
+                ? `${layout.markers.filter(m => m.severity === 'error').length} erro${layout.markers.filter(m => m.severity === 'error').length !== 1 ? 's' : ''}`
+                : `${layout.markers.length} aviso${layout.markers.length !== 1 ? 's' : ''}`}
+            </span>
+            {layout.markers.map(marker => (
+              <button
+                key={marker.id}
+                onClick={() => {
+                  // SWEEP10-AREA7 fix: Extract MPPT ID from marker, find bus node, un-collapse if needed
+                  const match = marker.id.match(/marker-mppt-(\d+)/);
+                  if (match) {
+                    const mpptId = parseInt(match[1]);
+                    const busNodeId = `bus-${mpptId}`;
+                    // Un-collapse the MPPT group if it's collapsed
+                    setCollapsedMpptIds(prev => {
+                      if (prev.has(mpptId)) {
+                        const next = new Set(prev);
+                        next.delete(mpptId);
+                        return next;
+                      }
+                      return prev;
+                    });
+                    // Select the bus node (associated with this MPPT)
+                    setSelectedNodeId(busNodeId);
+                  } else {
+                    // Fallback: select marker itself (for non-MPPT markers)
+                    setSelectedNodeId(marker.id);
+                  }
+                  const targetZoom = 2.0;
+                  const { w, h } = layout.viewBox;
+                  setZoom(targetZoom);
+                  setPan({ x: marker.x - (w / targetZoom) / 2, y: marker.y - (h / targetZoom) / 2 });
+                }}
+                className="flex items-center gap-1 text-[7px] font-mono transition-opacity hover:opacity-60"
+                style={{ color: marker.severity === 'error' ? '#ef4444' : '#f59e0b' }}
+                title={`Navegar para: ${marker.messages.join(' | ')}`}
+              >
+                <span>{marker.severity === 'error' ? '✕' : '⚠'}</span>
+                <span className="max-w-[220px] truncate">{marker.messages[0]}</span>
+              </button>
+            ))}
+            <span className="text-[6px] text-slate-800 font-mono ml-auto">J para próximo</span>
+          </div>
+        )}
         <div className="flex items-center">
           <button
-            onClick={() => setLegendCollapsed(v => !v)}
+            onClick={() => setLegendCollapsed(v => {
+              const next = !v;
+              localStorage.setItem('unifilar-legend-collapsed', String(next));
+              return next;
+            })}
             className="px-2 py-2 text-slate-700 hover:text-slate-400 transition-colors border-r border-slate-800"
             title={legendCollapsed ? 'Expandir legenda' : 'Recolher legenda'}
           >
@@ -2170,7 +1893,7 @@ export const UnifilarSchematicCanvas: React.FC<UnifilarSchematicCanvasProps> = (
                 <span className="text-[7.5px] text-slate-600 uppercase font-bold tracking-widest">Condutor CC</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-5 h-[2px] bg-slate-400" />
+                <svg width="20" height="4"><line x1="0" y1="2" x2="20" y2="2" stroke="#94a3b8" strokeWidth="1.5" strokeDasharray="6 4" /></svg>
                 <span className="text-[7.5px] text-slate-600 uppercase font-bold tracking-widest">Condutor CA</span>
               </div>
               <div className="flex items-center gap-2">
@@ -2178,23 +1901,26 @@ export const UnifilarSchematicCanvas: React.FC<UnifilarSchematicCanvasProps> = (
                 <span className="text-[7.5px] text-slate-600 uppercase font-bold tracking-widest">Terra (PE)</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 border border-amber-500/60 rounded-full" />
+                <div className="w-3 h-3 border border-amber-500/60" />
                 <span className="text-[7.5px] text-slate-600 uppercase font-bold tracking-widest">DPS ±PE</span>
               </div>
+              {/* L3-I4: fusível gPV na legenda */}
               <div className="flex items-center gap-2">
-                {/* Seccionador CC icon */}
+                <svg width="16" height="9"><rect x="0" y="0" width="16" height="9" rx="1.5" fill="none" stroke="#64748b" strokeWidth="0.7" /><line x1="2" y1="4.5" x2="14" y2="4.5" stroke="#64748b" strokeWidth="0.7" strokeDasharray="2 1" /><circle cx="0" cy="4.5" r="1" fill="#64748b" /><circle cx="16" cy="4.5" r="1" fill="#64748b" /></svg>
+                <span className="text-[7.5px] text-slate-600 uppercase font-bold tracking-widest">Fusível gPV</span>
+              </div>
+              <div className="flex items-center gap-2">
                 <svg width="18" height="10"><circle cx="1" cy="5" r="1.5" fill="#64748b" /><line x1="1" y1="5" x2="6" y2="5" stroke="#64748b" strokeWidth="1" /><line x1="6" y1="5" x2="13" y2="2" stroke="#64748b" strokeWidth="1" /><circle cx="17" cy="5" r="1.5" fill="#64748b" /></svg>
                 <span className="text-[7.5px] text-slate-600 uppercase font-bold tracking-widest">Secc. CC</span>
               </div>
               <div className="flex items-center gap-2">
-                {/* Medidor bidirecional icon */}
                 <svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="none" stroke="#64748b" strokeWidth="1" /><text x="7" y="8" textAnchor="middle" fill="#64748b" fontSize="4" fontFamily="monospace" fontWeight="bold">kWh</text></svg>
                 <span className="text-[7.5px] text-slate-600 uppercase font-bold tracking-widest">Medidor</span>
               </div>
               <div className="flex items-center gap-2 ml-2">
-                <div className="w-2 h-2 rounded-full bg-red-500/70" />
+                <div className="w-2 h-2 bg-red-500/70" />
                 <span className="text-[7.5px] text-red-600 uppercase font-bold tracking-widest">Erro</span>
-                <div className="w-2 h-2 rounded-full bg-amber-500/70 ml-2" />
+                <div className="w-2 h-2 bg-amber-500/70 ml-2" />
                 <span className="text-[7.5px] text-amber-600 uppercase font-bold tracking-widest">Aviso</span>
               </div>
               {inverter.mpptConfigs.length > 1 && inverter.mpptConfigs.map((mppt, idx) => {
@@ -2206,9 +1932,14 @@ export const UnifilarSchematicCanvas: React.FC<UnifilarSchematicCanvasProps> = (
                   </div>
                 );
               })}
-              <div className="ml-auto">
+              <div className="ml-auto flex items-center gap-3">
+                {irradiance < 1000 && (
+                  <span className="text-[6.5px] font-mono uppercase tracking-wider text-amber-700 animate-pulse">
+                    ☀ Simulação {irradiance} W/m²
+                  </span>
+                )}
                 <span className="text-[6.5px] text-slate-800 font-mono uppercase tracking-[0.2em]">
-                  IEC 60617 · NBR 16690:2019
+                  IEC 60617 · IEC 61643 · NBR 16690:2019 · NT.020.EQTL
                 </span>
               </div>
             </div>
@@ -2219,39 +1950,80 @@ export const UnifilarSchematicCanvas: React.FC<UnifilarSchematicCanvasProps> = (
         </div>
       </div>
 
-      {/* String detail panel */}
-      {selectedNode?.type === 'pv-string' && (
-        <StringDetailCard
-          node={selectedNode}
-          mpptMetrics={mpptMetrics}
-          onClose={() => setSelectedNodeId(null)}
-        />
-      )}
-
-      {/* Inverter detail panel (G5) */}
-      {selectedNode?.type === 'inverter' && (
-        <InverterDetailPanel
-          node={selectedNode}
-          onClose={() => setSelectedNodeId(null)}
-        />
-      )}
-
-      {/* Fuse, BusBar, DPS, ACBreaker, Grid detail cards */}
-      {selectedNode?.type === 'fuse'       && <FuseDetailCard    node={selectedNode} mpptMetrics={mpptMetrics} onClose={() => setSelectedNodeId(null)} />}
-      {selectedNode?.type === 'bus-bar'    && <BusBarDetailCard  node={selectedNode} onClose={() => setSelectedNodeId(null)} />}
-      {selectedNode?.type === 'dps-tap'    && <DPSDetailCard     node={selectedNode} mpptMetrics={mpptMetrics} onClose={() => setSelectedNodeId(null)} />}
-      {selectedNode?.type === 'ac-breaker' && <ACBreakerDetailCard node={selectedNode} onClose={() => setSelectedNodeId(null)} />}
-      {selectedNode?.type === 'grid'       && <GridDetailCard    node={selectedNode} onClose={() => setSelectedNodeId(null)} />}
-
-      {/* Validation Error Panel */}
+      {/* Node detail panels */}
+      {/* SWEEP8-AREA5 fix: only show ONE detail panel at a time — prioritize validation marker over node */}
       {(() => {
-        const marker = selectedNodeId
-          ? layout.markers.find(m => m.id === selectedNodeId)
-          : null;
-        return marker ? (
-          <ValidationErrorPanel marker={marker} onClose={() => setSelectedNodeId(null)} />
-        ) : null;
+        const marker = selectedNodeId ? layout.markers.find(m => m.id === selectedNodeId) : null;
+        if (marker) {
+          return <ValidationErrorPanel marker={marker} onClose={() => setSelectedNodeId(null)} />;
+        }
+        if (!selectedNode) return null;
+        if (selectedNode.type === 'pv-string') return <StringDetailCard node={selectedNode} mpptMetrics={mpptMetrics} onClose={() => setSelectedNodeId(null)} />;
+        if (selectedNode.type === 'inverter') return <InverterDetailPanel node={selectedNode} mpptMetrics={mpptMetrics} onClose={() => setSelectedNodeId(null)} />;
+        if (selectedNode.type === 'fuse') return <FuseDetailCard node={selectedNode} mpptMetrics={mpptMetrics} onClose={() => setSelectedNodeId(null)} />;
+        if (selectedNode.type === 'bus-bar') return <BusBarDetailCard node={selectedNode} onClose={() => setSelectedNodeId(null)} />;
+        if (selectedNode.type === 'dps-tap') return <DPSDetailCard node={selectedNode} mpptMetrics={mpptMetrics} onClose={() => setSelectedNodeId(null)} />;
+        if (selectedNode.type === 'ac-breaker') return <ACBreakerDetailCard node={selectedNode} onClose={() => setSelectedNodeId(null)} />;
+        if (selectedNode.type === 'grid') return <GridDetailCard node={selectedNode} onClose={() => setSelectedNodeId(null)} />;
+        return null;
       })()}
+
+      {/* D: Compliance checklist panel */}
+      {showChecklist && (
+        <div className="absolute bottom-12 right-4 z-30 w-72 bg-slate-950 border border-slate-700 shadow-2xl">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-slate-800">
+            <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest">Conformidade ABNT / IEC</span>
+            <div className="flex items-center gap-2">
+              <span className={`text-[9px] font-mono font-bold tabular-nums ${
+                complianceScore === 100 ? 'text-emerald-400' : complianceScore >= 80 ? 'text-amber-400' : 'text-red-400'
+              }`}>{complianceScore}%</span>
+              <button onClick={() => setShowChecklist(false)} className="text-slate-600 hover:text-white text-xs">✕</button>
+            </div>
+          </div>
+          <div className="p-3 space-y-1.5 max-h-72 overflow-y-auto">
+            {[
+              { label: 'Voc strings ≤ Vmax inversor', ref: 'NBR 16690 §5.2', pass: !Object.values(validationErrors ?? {}).some(e => (e as any).errors?.some((err: string) => err.toLowerCase().includes('voc'))) },
+              { label: 'Isc total ≤ Impp max MPPT', ref: 'IEC 62109 §7', pass: !Object.values(validationErrors ?? {}).some(e => (e as any).errors?.some((err: string) => err.toLowerCase().includes('isc'))) },
+              { label: 'Nº strings dentro dos limites', ref: 'NBR 16690 §5.3', pass: !Object.values(validationErrors ?? {}).some(e => (e as any).errors?.length > 0) },
+              { label: 'Fusível gPV por string CC', ref: 'NBR 16690 §5.6', pass: true },
+              { label: 'DPS Tipo II em barramento CC', ref: 'IEC 61643-11', pass: true },
+              { label: 'Seccionador CC por MPPT', ref: 'NBR 16690 §5.4', pass: true },
+              { label: 'Disjuntor CA na saída', ref: 'NBR 5410', pass: true },
+              { label: 'Medidor bidirecional', ref: 'NT.020.EQTL', pass: true },
+              { label: 'Aterramento em todos os MPPT', ref: 'NBR 5419', pass: true },
+            ].map(item => (
+              <div key={item.label} className="flex items-start gap-2">
+                <span className={`shrink-0 text-[9px] font-bold ${item.pass ? 'text-emerald-500' : 'text-red-500'}`}>
+                  {item.pass ? '✓' : '✕'}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <span className={`text-[8px] font-mono ${item.pass ? 'text-slate-400' : 'text-red-400'}`}>{item.label}</span>
+                  <span className="text-[7px] text-slate-700 font-mono ml-2">{item.ref}</span>
+                </div>
+              </div>
+            ))}
+            {/* Inline correction suggestions */}
+            {layout.markers.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-slate-800 space-y-1">
+                <span className="text-[7px] text-slate-600 font-mono uppercase tracking-widest">Sugestões de correção</span>
+                {layout.markers.map(m => (
+                  <div key={m.id} className="flex items-start gap-1.5 py-0.5">
+                    <span className="text-[7px]" style={{ color: m.severity === 'error' ? '#ef4444' : '#f59e0b' }}>
+                      {m.severity === 'error' ? '✕' : '⚠'}
+                    </span>
+                    <div>
+                      <span className="text-[7px] font-mono text-slate-500">{m.messages[0]}</span>
+                      <span className="block text-[6.5px] text-slate-700 font-mono mt-0.5">
+                        → {m.severity === 'error' ? 'Rever configuração de strings no MPPT' : 'Verificar limites do inversor no datasheet'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

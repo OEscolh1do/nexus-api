@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ╔══════════════════════════════════════════════════════════════════════╗
+  ║  CATÁLOGO KURUPIRA — sym-dc-sw  (IEC 60617 Seccionador CC)          ║
+  ║  ViewBox local: 0 0 16 16                                           ║
+  ║                                                                      ║
+  ║  CSS Custom Properties:                                              ║
+  ║    --s  cor de todas as linhas e terminais   padrão #64748b         ║
+  ║                                                                      ║
+  ║  Geometria:                                                          ║
+  ║    terminal esq: cx=0,  cy=8, r=2                                   ║
+  ║    terminal dir: cx=16, cy=8, r=2                                   ║
+  ║    stub esq: (0,8)→(4.8,8)                                          ║
+  ║    lâmina:   (4.8,8)→(10.4,0.8)   (ângulo de abertura ~45°)        ║
+  ║    stub dir: (16,8)→(12.8,8)                                        ║
+  ║                                                                      ║
+  ║  Nota: rótulo "CC" é anotação externa — não faz parte do símbolo    ║
+  ║                                                                      ║
+  ║  Normas: IEC 60617-7 (chave de corte),                               ║
+  ║          NBR 16690:2019 §5.4 (seccionador CC obrigatório)            ║
+  ╚══════════════════════════════════════════════════════════════════════╝
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="-8 -16 80 52"
+     width="320" height="208"
+     style="background:#0f172a; font-family:monospace;">
+
+  <defs>
+    <symbol id="sym-dc-sw" viewBox="0 0 16 16">
+      <!-- Terminais (pontos de junção) -->
+      <circle cx="0"  cy="8" r="2" style="fill:var(--s,#64748b);"/>
+      <circle cx="16" cy="8" r="2" style="fill:var(--s,#64748b);"/>
+      <!-- Stub esquerdo (condutor → pivô) -->
+      <line x1="0"   y1="8" x2="4.8"  y2="8"
+        stroke-width="1.2" stroke-linecap="round"
+        style="stroke:var(--s,#64748b);"/>
+      <!-- Lâmina angulada (blade) — indica estado aberto em IEC -->
+      <line x1="4.8" y1="8" x2="10.4" y2="0.8"
+        stroke-width="1.2" stroke-linecap="round"
+        style="stroke:var(--s,#64748b);"/>
+      <!-- Stub direito (terminal → condutor) -->
+      <line x1="16"  y1="8" x2="12.8" y2="8"
+        stroke-width="1.2" stroke-linecap="round"
+        style="stroke:var(--s,#64748b);"/>
+    </symbol>
+  </defs>
+
+  <text x="0" y="-4" fill="#475569" font-size="7">sym-dc-sw — IEC 60617 Seccionador CC</text>
+
+  <!-- padrão -->
+  <text x="0" y="22" fill="#334155" font-size="6">padrão</text>
+  <use href="#sym-dc-sw" x="0" y="0" width="16" height="16"/>
+  <text x="8" y="28" text-anchor="middle" fill="#475569" font-size="6">CC</text>
+
+  <!-- ativo (âmbar) -->
+  <text x="30" y="22" fill="#f59e0b" font-size="6">ativo</text>
+  <use href="#sym-dc-sw" x="30" y="0" width="16" height="16"
+    style="--s:#f59e0b;"/>
+  <text x="38" y="28" text-anchor="middle" fill="#475569" font-size="6">CC</text>
+</svg>

@@ -1,6 +1,7 @@
 import React from 'react';
-import { Image, Box, Layers, Zap } from 'lucide-react';
+import { Map, Layers, Zap } from 'lucide-react';
 import { useUIStore, type CanvasViewMode } from '@/core/state/uiStore';
+import { useSolarStore } from '@/core/state/solarStore';
 import { cn } from '@/lib/utils';
 
 // =============================================================================
@@ -14,12 +15,16 @@ import { cn } from '@/lib/utils';
 export const ViewLayerSelector: React.FC = () => {
     const activeMode = useUIStore(s => s.canvasViewMode);
     const setViewMode = useUIStore(s => s.setCanvasViewMode);
+    const placedModules = useSolarStore(s => s.project.placedModules);
+
+    const assignedCount = placedModules.filter(m => m.stringData).length;
+    const totalCount = placedModules.length;
+    const completionPct = totalCount > 0 ? Math.round((assignedCount / totalCount) * 100) : null;
 
     const MODES: { id: CanvasViewMode; label: string; icon: any; shortcut: string }[] = [
-        { id: 'CONTEXT', label: 'Locação', icon: Image, shortcut: '1' },
-        { id: 'BLUEPRINT', label: 'Prancheta', icon: Box, shortcut: '2' },
-        { id: 'DIAGRAM', label: 'Topologia', icon: Layers, shortcut: '3' },
-        { id: 'UNIFILAR', label: 'Unifilar', icon: Zap, shortcut: '4' },
+        { id: 'CONTEXT', label: 'Arranjo', icon: Map, shortcut: '1' },
+        { id: 'DIAGRAM', label: 'Topologia', icon: Layers, shortcut: '2' },
+        { id: 'UNIFILAR', label: 'Unifilar', icon: Zap, shortcut: '3' },
     ];
 
     return (
@@ -35,23 +40,33 @@ export const ViewLayerSelector: React.FC = () => {
                             onClick={() => setViewMode(mode.id)}
                             className={cn(
                                 "flex items-center justify-center w-9 h-9 rounded-md transition-all duration-200 relative group/btn outline-none",
-                                isActive 
-                                    ? "bg-indigo-600 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)]" 
+                                isActive
+                                    ? "bg-indigo-600 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)]"
                                     : "text-slate-500 hover:text-slate-200 hover:bg-slate-800 active:scale-95"
                             )}
                             title={`${mode.label} (${mode.shortcut})`}
                         >
                             <Icon size={16} strokeWidth={isActive ? 2.5 : 2} />
-                            
+
                             {/* Shortcut Badge (Estilo CAD) */}
                             <span className={cn(
                                 "absolute -top-1 -right-1 text-[7px] font-bold px-1 rounded-full border bg-slate-900 transition-all z-10",
-                                isActive 
-                                    ? "text-indigo-300 border-indigo-500/50" 
+                                isActive
+                                    ? "text-indigo-300 border-indigo-500/50"
                                     : "text-slate-700 border-slate-800"
                             )}>
                                 {mode.shortcut}
                             </span>
+
+                            {/* Completion Badge (CONTEXT mode only) */}
+                            {mode.id === 'CONTEXT' && completionPct !== null && (
+                                <span className={cn(
+                                    "absolute -bottom-1 left-1/2 -translate-x-1/2 text-[6px] font-black px-0.5 rounded-sm tabular-nums leading-tight",
+                                    completionPct === 100 ? "text-emerald-400" : completionPct > 50 ? "text-amber-400" : "text-slate-500"
+                                )}>
+                                    {completionPct}%
+                                </span>
+                            )}
 
                             {/* Tooltip Superior (Blender-ish) */}
                             <span className="absolute bottom-12 px-2 py-1 bg-slate-900 border border-slate-800 text-[9px] font-black uppercase tracking-widest text-slate-200 rounded-sm opacity-0 group-hover/btn:opacity-100 pointer-events-none transition-all duration-200 translate-y-2 group-hover/btn:translate-y-0 whitespace-nowrap shadow-xl">

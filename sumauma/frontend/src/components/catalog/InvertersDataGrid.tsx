@@ -19,15 +19,16 @@ export default function InvertersDataGrid({ refreshTrigger }: { refreshTrigger: 
 
   const debouncedQ = useDebounce(rawQ, 300);
 
-  const { data: inverters, pagination, loading, refetch } = useInverters({
+  const { data: inverters, pagination, loading, error, refetch } = useInverters({
     page,
     limit: PAGE_SIZE,
     q: debouncedQ || undefined,
     isActive: filters.isActive === 'true' ? true : filters.isActive === 'false' ? false : undefined,
   });
 
-  // Refetch when external trigger changes (e.g. after upload)
-  useEffect(() => { refetch(); }, [refreshTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Refetch when external trigger changes (e.g. after upload) and reset to page 1
+  // so the user doesn't land on a now-empty page after a new item is added.
+  useEffect(() => { setPage(1); refetch(); }, [refreshTrigger, refetch]);
 
   const handleFilterChange = useCallback((partial: Partial<Filters>) => {
     if ('q' in partial) setRawQ(partial.q ?? '');
@@ -98,8 +99,16 @@ export default function InvertersDataGrid({ refreshTrigger }: { refreshTrigger: 
                     <td colSpan={8} className="px-4 py-4"><div className="h-3 w-full animate-pulse rounded-full bg-slate-800/50" /></td>
                   </tr>
                 ))}
-              
-              {!loading && inverters.length === 0 && (
+
+              {error && (
+                <tr>
+                  <td colSpan={8} className="px-4 py-12 text-center text-xs text-red-400">
+                    {error}
+                  </td>
+                </tr>
+              )}
+
+              {!loading && !error && inverters.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-4 py-16 text-center text-xs text-slate-600 font-bold uppercase tracking-widest italic">
                     Nenhum equipamento localizado no catálogo global.
@@ -107,7 +116,7 @@ export default function InvertersDataGrid({ refreshTrigger }: { refreshTrigger: 
                 </tr>
               )}
 
-              {!loading && inverters.map((m) => (
+              {!loading && !error && inverters.map((m) => (
                 <tr
                   key={m.id}
                   onClick={() => setSelectedInverter(m)}
@@ -126,9 +135,11 @@ export default function InvertersDataGrid({ refreshTrigger }: { refreshTrigger: 
                     {m.mpptCount ?? '—'}
                   </td>
                   <td className="px-4 py-3.5">
-                    <div className="flex items-center justify-center gap-2">
-                      <div title="Unifilar" className={`h-1.5 w-1.5 rounded-full ${m.symbolConfig ? 'bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.5)]' : 'bg-slate-800'}`} />
-                      <div title="Hardware" className={`h-1.5 w-1.5 rounded-full ${m.blockDiagramFootprint ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-800'}`} />
+                    <div className="flex items-center justify-center">
+                      <div
+                        title={m.typologyConfig ? 'Topologia configurada' : 'Sem topologia'}
+                        className={`h-1.5 w-1.5 rounded-full ${m.typologyConfig ? 'bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.5)]' : 'bg-slate-800'}`}
+                      />
                     </div>
                   </td>
                   <td className="px-4 py-3.5 text-center">

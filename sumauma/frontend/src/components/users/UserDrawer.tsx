@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   X,
   User as UserIcon,
@@ -10,6 +10,7 @@ import {
   KeyRound,
   History,
   Trash2,
+  Loader2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -35,20 +36,26 @@ interface UserDrawerProps {
 export default function UserDrawer({ userId, onClose, onMutated }: UserDrawerProps) {
   const { data: user, loading, refetch } = useUser(userId);
 
-  const handleSuccess = () => {
+  const handleSuccess = useCallback(() => {
     refetch();
     onMutated?.();
-  };
+  }, [refetch, onMutated]);
+
+  const handleDeleteSuccess = useCallback(() => {
+    onMutated?.();
+    onClose();
+  }, [onMutated, onClose]);
 
   const { mutate: block, loading: blocking } = useBlockUser(handleSuccess);
   const { mutate: unblock, loading: unblocking } = useUnblockUser(handleSuccess);
   const { mutate: resetPassword, loading: resetting, successMsg: resetMsg } = useResetPassword(handleSuccess);
-  const { mutate: deleteUser, loading: deleting } = useDeleteUser(() => { onMutated?.(); onClose(); });
+  const { mutate: deleteUser, loading: deleting } = useDeleteUser(handleDeleteSuccess);
 
   const navigate = useNavigate();
 
   const [showBlock, setShowBlock] = useState(false);
   const [showTenant, setShowTenant] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const isSelf = useIsSelf(userId);
   const isBlocked = user?.status === 'BLOCKED';
@@ -65,13 +72,44 @@ export default function UserDrawer({ userId, onClose, onMutated }: UserDrawerPro
 
   function handleDelete() {
     if (!userId) return;
-    if (window.confirm(`Tem certeza que deseja excluir permanentemente o usuário "${user?.username}"? Esta ação não pode ser desfeita.`)) {
-      deleteUser(userId);
-    }
+    setShowDeleteConfirm(true);
+  }
+
+  function handleDeleteConfirmed() {
+    setShowDeleteConfirm(false);
+    deleteUser(userId);
   }
 
   return (
     <>
+      {/* Delete confirm modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="mx-4 w-full max-w-sm rounded-xl border border-red-500/20 bg-slate-900 p-5 shadow-2xl">
+            <p className="text-sm font-semibold text-slate-100">Excluir usuário permanentemente?</p>
+            <p className="mt-1 text-xs text-slate-400">
+              O usuário <span className="font-semibold text-slate-200">@{user?.username}</span> e todos os seus dados serão
+              removidos. Esta ação não pode ser desfeita.
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 rounded-lg border border-slate-700 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteConfirmed}
+                disabled={deleting}
+                className="flex-1 rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-500 transition-colors disabled:opacity-50"
+              >
+                {deleting ? 'Excluindo…' : 'Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Backdrop */}
       <div
         className="fixed inset-0 z-30 bg-black/40 backdrop-blur-[2px]"
@@ -100,7 +138,7 @@ export default function UserDrawer({ userId, onClose, onMutated }: UserDrawerPro
         <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
           {loading ? (
             <div className="flex h-32 items-center justify-center">
-              <p className="text-xs text-slate-500">Carregando...</p>
+              <Loader2 className="h-6 w-6 animate-spin text-slate-600" />
             </div>
           ) : !user ? (
             <div className="flex h-32 items-center justify-center">

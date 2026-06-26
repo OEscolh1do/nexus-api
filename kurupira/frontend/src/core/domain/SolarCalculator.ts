@@ -55,6 +55,10 @@ export class SolarCalculator {
       const orientationFactor = settings.orientationFactors['norte'] || 1.0;
       const effectivePR = settings.performanceRatio * orientationFactor;
 
+      // R8-02: Guard divisor-zero — invalid irradiation or PR corrupts the full output
+      if (hspAvg <= 0) throw new Error(`[SolarCalculator] Irradiação inválida: hspAvg=${hspAvg}. Verifique o provider de dados.`);
+      if (effectivePR <= 0) throw new Error(`[SolarCalculator] Performance Ratio inválido: effectivePR=${effectivePR}. Verifique orientationFactor e performanceRatio.`);
+
       const targetSystemSizeKwp = avgConsumption / (hspAvg * 30.4 * effectivePR);
       
       // Select module (simple logic: pick highest power or first)
@@ -79,7 +83,8 @@ export class SolarCalculator {
       const kitPrice = actualSystemSizeKwp * settings.referenceKitPricePerKwp;
       
       // Service Price (Composition)
-      const serviceComposition = this.calculateServiceComposition(modulesNeeded, invertersNeeded, settings);
+      const totalSystemWp = actualSystemSizeKwp * 1000;
+      const serviceComposition = this.calculateServiceComposition(modulesNeeded, invertersNeeded, totalSystemWp, settings);
       const servicePrice = serviceComposition.reduce((acc, item) => acc + item.total, 0);
       
       const totalInvestment = kitPrice + servicePrice;
@@ -199,7 +204,7 @@ export class SolarCalculator {
     }
   }
 
-  private calculateServiceComposition(modQty: number, invQty: number, settings: EngineeringSettings): ServiceItem[] {
+  private calculateServiceComposition(modQty: number, invQty: number, totalWp: number, settings: EngineeringSettings): ServiceItem[] {
     const directServiceCosts: ServiceItem[] = [
       {
         description: "Módulos Fotovoltaico - Montagem telhado",
@@ -223,13 +228,15 @@ export class SolarCalculator {
         description: "Projeto, regularização e ART",
         quantity: `${(settings.serviceProjectPercent * 100).toFixed(0)}%`,
         unitValue: settings.serviceProjectBase,
-        total: settings.serviceProjectBase * settings.serviceProjectPercent
+        // R8-03: Custo fixo (base) + incremento por Wp. Alinhado com useProposalCalculator.ts.
+        // Fórmula anterior (base × percent) zeraba o custo fixo quando percent=0 (default do techSlice).
+        total: settings.serviceProjectBase + (totalWp * settings.serviceProjectPercent)
       },
       {
         description: "Administração da instalação e despesas gerais",
         quantity: `${(settings.serviceAdminPercent * 100).toFixed(0)}%`,
         unitValue: settings.serviceAdminBase,
-        total: settings.serviceAdminBase * settings.serviceAdminPercent
+        total: settings.serviceAdminBase + (totalWp * settings.serviceAdminPercent)
       }
     ];
 

@@ -114,7 +114,8 @@ describe('validateSystemStrings', () => {
         // We need vocMax to be between 760 (95%) and 800
         // At 0°C: vocPerModule = 49.8 * 1.07 ≈ 53.29
         // 15 modules: 53.29 * 15 ≈ 799 (just under 800)
-        const mppt = makeMPPT({ modulesPerString: 15, maxInputVoltage: 800 });
+        // stringsCount: 1 isola o cenário — com 2 strings (default), Isc×1.25 = 35A > 30A dispararia 'error' antes do Voc warning
+        const mppt = makeMPPT({ modulesPerString: 15, maxInputVoltage: 800, stringsCount: 1 });
         const report = validateSystemStrings([mppt], MODULE_SPECS, 0);
         // vocMax ≈ 799V which is > 760 (0.95 × 800) → warning
         expect(report.entries[0].status).toBe('warning');

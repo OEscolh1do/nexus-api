@@ -18,7 +18,6 @@ interface SidebarProps {
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  // { path: '/tenants', icon: Building2, label: 'Organizações' },
   { path: '/users', icon: Users, label: 'Contas & Acessos' },
   { path: '/catalog', icon: Package, label: 'Catálogo FV' },
   { path: '/audit', icon: ScrollText, label: 'Auditoria' },

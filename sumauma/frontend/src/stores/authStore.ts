@@ -10,18 +10,25 @@ interface Operator {
 
 interface AuthState {
   token: string | null;
+  refreshToken: string | null;
   operator: Operator | null;
   isAuthenticated: boolean;
-  login: (token: string, operator: Operator) => void;
+  accessDenied: boolean;
+  login: (token: string, operator: Operator, refreshToken?: string | null) => void;
+  /** Silently updates the access token (called by the refresh interceptor). */
+  updateToken: (token: string) => void;
+  /** Silently updates both tokens after a rotation (called by the refresh interceptor). */
+  updateTokens: (token: string, refreshToken: string) => void;
+  setAccessDenied: (value: boolean) => void;
   logout: () => void;
 }
 
-/** Verifica se um JWT (sem biblioteca) está expirado. */
 function isJwtExpired(token: string): boolean {
   try {
-    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    const b64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
+    const payload = JSON.parse(atob(padded));
     if (!payload?.exp) return false;
-    // Margem de 30s para evitar falsos positivos por clock skew
     return payload.exp * 1000 < Date.now() - 30_000;
   } catch {
     return false;
@@ -30,43 +37,52 @@ function isJwtExpired(token: string): boolean {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       token: null,
+      refreshToken: null,
       operator: null,
       isAuthenticated: false,
+      accessDenied: false,
 
-      login: (token, operator) =>
-        set({ token, operator, isAuthenticated: true }),
+      login: (token, operator, refreshToken = null) =>
+        set({ token, refreshToken, operator, isAuthenticated: true, accessDenied: false }),
 
-      logout: async () => {
-        const token = useAuthStore.getState().token;
+      updateToken: (token) => set({ token }),
+
+      updateTokens: (token, refreshToken) => set({ token, refreshToken }),
+
+      setAccessDenied: (value) => set({ accessDenied: value }),
+
+      logout: () => {
+        const { token, refreshToken } = get();
         if (token) {
-          // Tentar avisar o backend (fire and forget) para auditoria
-          try {
-            fetch('/admin/auth/logout', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-              },
-            });
-          } catch (err) {
-            console.warn('Falha ao notificar logout no backend', err);
-          }
+          // Fire-and-forget: revoga o refresh token no backend
+          fetch('/admin/auth/logout', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ refreshToken }),
+          }).catch(() => {});
         }
-
-        set({ token: null, operator: null, isAuthenticated: false });
+        set({ token: null, refreshToken: null, operator: null, isAuthenticated: false });
       },
     }),
     {
       name: 'neonorte-admin-auth',
-      // Ao hidratar o store do localStorage, descarta imediatamente tokens expirados.
-      // Isso garante que isAuthenticated=false no primeiro render, evitando o loop
-      // que ocorre quando o usuário volta horas depois com o token expirado persistido.
+      // accessDenied is session-only — never persist it to avoid permanent lockout on reload
+      partialize: (state) => ({
+        token: state.token,
+        refreshToken: state.refreshToken,
+        operator: state.operator,
+        isAuthenticated: state.isAuthenticated,
+      }),
       onRehydrateStorage: () => (state) => {
-        if (state?.token && isJwtExpired(state.token)) {
-          console.info('[AuthStore] Token expirado detectado no boot — limpando sessão.');
+        if (state?.token && isJwtExpired(state.token) && !state.refreshToken) {
+          // Token expirado E sem refresh token → limpa sessão no boot
           state.token = null;
+          state.refreshToken = null;
           state.operator = null;
           state.isAuthenticated = false;
         }

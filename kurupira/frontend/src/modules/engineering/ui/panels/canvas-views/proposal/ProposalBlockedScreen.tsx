@@ -60,7 +60,7 @@ export const ProposalBlockedScreen: React.FC<{ onGoToProjection: () => void; onN
             
             <div className="flex flex-col gap-2 mb-8">
                 <h2 className="text-2xl font-black text-slate-300 uppercase tracking-[0.2em]">
-                    Proposta Bloqueada
+                    Documento Bloqueado
                 </h2>
                 <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest max-w-[400px] leading-relaxed">
                     É necessário concluir o dimensionamento técnico <br/> antes de gerar o documento comercial.

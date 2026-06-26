@@ -1550,7 +1550,7 @@ export const ProposalCanvasView: FC = () => {
               <div
                 ref={canvasScrollRef}
                 role="application"
-                aria-label="Canvas de proposta"
+                aria-label="Canvas de documento"
                 // tabIndex={0} makes the canvas focusable so keyboard shortcuts fire for
                 // users who navigate via keyboard only (the window-level handler fires
                 // regardless, but focus here provides a clear activation target for AT).

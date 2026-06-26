@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { X, Save, AlertTriangle } from 'lucide-react';
 import api from '@/lib/api';
+import { toast } from '@/stores/toastStore';
 import { useRoles } from '@/hooks/useRoles';
+import { useTenantOptions } from '@/hooks/useTenants';
 import RoleBuilderMatrix from './RoleBuilderMatrix';
 
 interface RoleDrawerProps {
@@ -21,38 +23,28 @@ export default function RoleDrawer({ roleId, onClose, onMutated }: RoleDrawerPro
   const [tenantId, setTenantId] = useState('');
   const [selectedPermissionIds, setSelectedPermissionIds] = useState<string[]>([]);
 
-  // Para PLATFORM_ADMIN poder escolher de qual tenant é a role
-  // Numa implementação real, preencher isso via useTenants
-  const [tenants, setTenants] = useState<{id: string, name: string}[]>([]);
-
-  useEffect(() => {
-    // Carregar tenants para dropdown (se level == TENANT)
-    api.get('/tenants/options')
-      .then(res => setTenants(res.data.data))
-      .catch(console.error);
-  }, []);
+  const { data: tenants } = useTenantOptions();
 
   useEffect(() => {
     if (roleId && roles.length > 0) {
       // Editar: encontrar role e popular
-      const existing = roles.find((r: any) => r.id === roleId);
+      const existing = roles.find((r) => r.id === roleId);
       if (existing) {
         setName(existing.name);
         setLevel(existing.level);
         setTenantId(existing.tenantId || '');
-        const pIds = existing.permissions.map((p: any) => p.permissionId);
+        const pIds = existing.permissions.map((p) => p.permissionId);
         setSelectedPermissionIds(pIds);
       }
     } else if (!roleId) {
-      // Criar: limpar form (somente se necessário para evitar loops)
-      setName(n => n === '' ? n : '');
-      setLevel(l => l === 'TENANT' ? l : 'TENANT');
-      setTenantId(t => t === '' ? t : '');
-      setSelectedPermissionIds(p => p.length === 0 ? p : []);
+      setName('');
+      setLevel('TENANT');
+      setTenantId('');
+      setSelectedPermissionIds([]);
     }
   }, [roleId, roles]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
@@ -71,14 +63,18 @@ export default function RoleDrawer({ roleId, onClose, onMutated }: RoleDrawerPro
         await api.post('/roles', payload);
       }
 
+      toast.success(roleId ? 'Perfil atualizado com sucesso.' : 'Perfil criado com sucesso.');
       onMutated();
       onClose();
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Erro ao salvar o perfil');
+    } catch (err) {
+      const axiosErr = err as { response?: { data?: { error?: string } } };
+      const msg = axiosErr.response?.data?.error || 'Erro ao salvar o perfil';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
-  };
+  }, [roleId, name, level, tenantId, selectedPermissionIds, onMutated, onClose]);
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/60 backdrop-blur-sm">

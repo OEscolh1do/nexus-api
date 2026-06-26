@@ -2,7 +2,7 @@ import React from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import {
   Type, Image, Star, Droplets, Minus, BarChart2, TrendingUp,
-  Table, ListOrdered, Map, Zap, LayoutTemplate,
+  LayoutTemplate,
   Sun, CandlestickChart, Activity, PieChart, Layers, BarChart,
   Braces, Square, Sparkles,
 } from 'lucide-react';
@@ -22,38 +22,35 @@ interface PaletteItem {
 
 // ─── Catálogos de itens ───────────────────────────────────────────────────────
 
-const DYNAMIC_ITEMS: PaletteItem[] = [
+const TEXT_ITEMS: PaletteItem[] = [
+  { type: 'text',        label: 'Texto',         icon: <Type   size={14} />, defaultWidth: 240, defaultHeight: 40 },
   { type: 'placeholder', label: 'Campo Dinâmico', icon: <Braces size={14} />, defaultWidth: 240, defaultHeight: 32 },
 ];
 
-const CONTENT_ITEMS: PaletteItem[] = [
-  { type: 'kpi-box',           label: 'KPI Box',            icon: <Zap size={14} />,           defaultWidth: 160, defaultHeight: 80  },
-  { type: 'chart-generation',  label: 'Gráfico Geração',    icon: <BarChart2 size={14} />,      defaultWidth: 360, defaultHeight: 200 },
-  { type: 'chart-financial',   label: 'Gráfico Financeiro', icon: <TrendingUp size={14} />,     defaultWidth: 360, defaultHeight: 200 },
-  { type: 'payment-table',     label: 'Tab. Investimento',  icon: <Table size={14} />,          defaultWidth: 340, defaultHeight: 180 },
-  { type: 'schedule-timeline', label: 'Cronograma',         icon: <ListOrdered size={14} />,    defaultWidth: 680, defaultHeight: 280 },
-  { type: 'map-static',        label: 'Mapa Estático',      icon: <Map size={14} />,            defaultWidth: 320, defaultHeight: 200 },
+const MEDIA_ITEMS: PaletteItem[] = [
+  { type: 'image',     label: 'Imagem',        icon: <Image    size={14} />, defaultWidth: 240, defaultHeight: 160 },
+  { type: 'logo',      label: 'Logo',          icon: <Star     size={14} />, defaultWidth: 120, defaultHeight: 50  },
+  { type: 'watermark', label: 'Marca d\'água', icon: <Droplets size={14} />, defaultWidth: 400, defaultHeight: 200 },
+  { type: 'icon',      label: 'Ícone',         icon: <Sparkles size={14} />, defaultWidth: 40,  defaultHeight: 40  },
 ];
 
-const PROJECTION_ITEMS: PaletteItem[] = [
-  { type: 'chart-gen-consumption',   label: 'Geração vs Consumo',  icon: <BarChart2 size={14} />,       defaultWidth: 400, defaultHeight: 220 },
-  { type: 'chart-roi',               label: 'Retorno Acumulado',   icon: <TrendingUp size={14} />,      defaultWidth: 400, defaultHeight: 220 },
-  { type: 'chart-financial-balance', label: 'Balanço Financeiro',  icon: <CandlestickChart size={14} />,defaultWidth: 380, defaultHeight: 220 },
-  { type: 'chart-credit-bank',       label: 'Banco de Créditos',   icon: <Activity size={14} />,        defaultWidth: 400, defaultHeight: 200 },
-  { type: 'chart-daily',             label: 'Geração Diária',      icon: <Sun size={14} />,             defaultWidth: 380, defaultHeight: 180 },
-  { type: 'chart-loss-waterfall',    label: 'Análise de Perdas',   icon: <Layers size={14} />,          defaultWidth: 360, defaultHeight: 200 },
-  { type: 'kpi-projection',          label: 'KPI Projeção',        icon: <PieChart size={14} />,        defaultWidth: 180, defaultHeight: 80  },
-  { type: 'table-analytics',         label: 'Tabela Analítica',    icon: <BarChart size={14} />,        defaultWidth: 700, defaultHeight: 300 },
+const LAYOUT_ITEMS: PaletteItem[] = [
+  { type: 'box',     label: 'Caixa',     icon: <Square size={14} />, defaultWidth: 200, defaultHeight: 80 },
+  { type: 'divider', label: 'Divisória', icon: <Minus  size={14} />, defaultWidth: 600, defaultHeight: 16 },
 ];
 
-const DESIGN_ITEMS: PaletteItem[] = [
-  { type: 'text',      label: 'Texto',         icon: <Type size={14} />,        defaultWidth: 240, defaultHeight: 40  },
-  { type: 'box',       label: 'Caixa',         icon: <Square size={14} />,      defaultWidth: 200, defaultHeight: 80  },
-  { type: 'icon',      label: 'Ícone',         icon: <Sparkles size={14} />,    defaultWidth: 40,  defaultHeight: 40  },
-  { type: 'image',     label: 'Imagem',        icon: <Image size={14} />,       defaultWidth: 240, defaultHeight: 160 },
-  { type: 'logo',      label: 'Logo',          icon: <Star size={14} />,        defaultWidth: 120, defaultHeight: 50  },
-  { type: 'watermark', label: 'Marca d\'água', icon: <Droplets size={14} />,    defaultWidth: 400, defaultHeight: 200 },
-  { type: 'divider',   label: 'Divisória',     icon: <Minus size={14} />,       defaultWidth: 600, defaultHeight: 16  },
+const CHART_ITEMS: PaletteItem[] = [
+  { type: 'chart-gen-consumption',   label: 'Geração vs Consumo',  icon: <BarChart2       size={14} />, defaultWidth: 400, defaultHeight: 220 },
+  { type: 'chart-roi',               label: 'Retorno Acumulado',   icon: <TrendingUp      size={14} />, defaultWidth: 400, defaultHeight: 220 },
+  { type: 'chart-financial-balance', label: 'Balanço Financeiro',  icon: <CandlestickChart size={14} />, defaultWidth: 380, defaultHeight: 220 },
+  { type: 'chart-credit-bank',       label: 'Banco de Créditos',   icon: <Activity        size={14} />, defaultWidth: 400, defaultHeight: 200 },
+  { type: 'chart-daily',             label: 'Geração Diária',      icon: <Sun             size={14} />, defaultWidth: 380, defaultHeight: 180 },
+  { type: 'chart-loss-waterfall',    label: 'Análise de Perdas',   icon: <Layers          size={14} />, defaultWidth: 360, defaultHeight: 200 },
+];
+
+const METRIC_ITEMS: PaletteItem[] = [
+  { type: 'kpi-projection',  label: 'KPI Projeção',     icon: <PieChart size={14} />, defaultWidth: 180, defaultHeight: 80  },
+  { type: 'table-analytics', label: 'Tabela Analítica', icon: <BarChart size={14} />, defaultWidth: 700, defaultHeight: 300 },
 ];
 
 // ─── DraggableItem — elemento único ──────────────────────────────────────────
@@ -89,6 +86,17 @@ function DraggableItem({ item }: { item: PaletteItem }) {
   );
 }
 
+// ─── PaletteGroup — seção rotulada ───────────────────────────────────────────
+
+function PaletteGroup({ label, items, bordered }: { label: string; items: PaletteItem[]; bordered?: boolean }) {
+  return (
+    <div className={cn('px-3 py-1.5', bordered && 'border-t border-slate-800')}>
+      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">{label}</p>
+      {items.map((item) => <DraggableItem key={item.type} item={item} />)}
+    </div>
+  );
+}
+
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 interface Props {
@@ -114,37 +122,11 @@ export function ElementPalette({ hasCustomLayout }: Props) {
 
       <div className="flex-1 overflow-y-auto py-2 custom-scrollbar">
 
-        {/* Campos dinâmicos */}
-        <div className="px-3 py-1.5">
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Campos Dinâmicos</p>
-          {DYNAMIC_ITEMS.map((item) => (
-            <DraggableItem key={item.type} item={item} />
-          ))}
-        </div>
-
-        {/* Design (primitivos) */}
-        <div className="px-3 py-1.5 border-t border-slate-800">
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Design</p>
-          {DESIGN_ITEMS.map((item) => (
-            <DraggableItem key={item.type} item={item} />
-          ))}
-        </div>
-
-        {/* Projeção */}
-        <div className="px-3 py-1.5 border-t border-slate-800">
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Projeção</p>
-          {PROJECTION_ITEMS.map((item) => (
-            <DraggableItem key={item.type} item={item} />
-          ))}
-        </div>
-
-        {/* Conteúdo */}
-        <div className="px-3 py-1.5 border-t border-slate-800">
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Conteúdo</p>
-          {CONTENT_ITEMS.map((item) => (
-            <DraggableItem key={item.type} item={item} />
-          ))}
-        </div>
+        <PaletteGroup label="Texto"    items={TEXT_ITEMS}   />
+        <PaletteGroup label="Mídia"    items={MEDIA_ITEMS}  bordered />
+        <PaletteGroup label="Layout"   items={LAYOUT_ITEMS} bordered />
+        <PaletteGroup label="Gráficos" items={CHART_ITEMS}  bordered />
+        <PaletteGroup label="Métricas" items={METRIC_ITEMS} bordered />
 
       </div>
     </div>

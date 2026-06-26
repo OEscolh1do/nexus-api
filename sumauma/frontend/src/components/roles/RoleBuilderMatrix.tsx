@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { usePermissions, type Permission } from '@/hooks/usePermissions';
 import { ShieldAlert, Check } from 'lucide-react';
 
@@ -8,6 +9,26 @@ interface RoleBuilderMatrixProps {
 
 export default function RoleBuilderMatrix({ selectedPermissionIds, onChange }: RoleBuilderMatrixProps) {
   const { groupedPermissions, loading, error } = usePermissions();
+
+  const handleToggle = useCallback((permissionId: string) => {
+    if (selectedPermissionIds.includes(permissionId)) {
+      onChange(selectedPermissionIds.filter(id => id !== permissionId));
+    } else {
+      onChange([...selectedPermissionIds, permissionId]);
+    }
+  }, [selectedPermissionIds, onChange]);
+
+  const handleToggleGroup = useCallback((permissions: Permission[]) => {
+    const allSelected = permissions.every(p => selectedPermissionIds.includes(p.id));
+    if (allSelected) {
+      const groupIds = permissions.map(p => p.id);
+      onChange(selectedPermissionIds.filter(id => !groupIds.includes(id)));
+    } else {
+      const newIds = new Set(selectedPermissionIds);
+      permissions.forEach(p => newIds.add(p.id));
+      onChange(Array.from(newIds));
+    }
+  }, [selectedPermissionIds, onChange]);
 
   if (loading) {
     return <div className="animate-pulse h-32 bg-slate-800 rounded-sm"></div>;
@@ -22,36 +43,10 @@ export default function RoleBuilderMatrix({ selectedPermissionIds, onChange }: R
     );
   }
 
-  const handleToggle = (permissionId: string) => {
-    if (selectedPermissionIds.includes(permissionId)) {
-      onChange(selectedPermissionIds.filter(id => id !== permissionId));
-    } else {
-      onChange([...selectedPermissionIds, permissionId]);
-    }
-  };
-
-  const handleToggleGroup = (permissions: Permission[]) => {
-    const allSelected = permissions.every(p => selectedPermissionIds.includes(p.id));
-    
-    if (allSelected) {
-      // Remove all in this group
-      const groupIds = permissions.map(p => p.id);
-      onChange(selectedPermissionIds.filter(id => !groupIds.includes(id)));
-    } else {
-      // Add all missing in this group
-      const newIds = new Set(selectedPermissionIds);
-      permissions.forEach(p => newIds.add(p.id));
-      onChange(Array.from(newIds));
-    }
-  };
-
   return (
     <div className="flex flex-col gap-4">
       {Object.entries(groupedPermissions).map(([moduleName, permissions]) => {
-        // Mapear actions (read, write, delete, manage, etc)
-        // Isso ajuda a ordenar visualmente se necessário. No momento renderizamos como vêm
-        
-        const allSelected = (permissions as Permission[]).every((p: Permission) => selectedPermissionIds.includes(p.id));
+        const allSelected = permissions.every((p) => selectedPermissionIds.includes(p.id));
 
         return (
           <div key={moduleName} className="flex flex-col rounded-sm border border-slate-800 overflow-hidden bg-slate-900/50">
@@ -61,15 +56,15 @@ export default function RoleBuilderMatrix({ selectedPermissionIds, onChange }: R
               </h4>
               <button
                 type="button"
-                onClick={() => handleToggleGroup(permissions as Permission[])}
+                onClick={() => handleToggleGroup(permissions)}
                 className="text-[10px] uppercase font-bold tracking-wider text-sky-400 hover:text-sky-300 transition-colors"
               >
                 {allSelected ? 'Desmarcar Todos' : 'Marcar Todos'}
               </button>
             </div>
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-px bg-slate-800">
-              {(permissions as Permission[]).map((p: Permission) => {
+              {permissions.map((p) => {
                 const isSelected = selectedPermissionIds.includes(p.id);
                 // Extrair a action do slug, ex: "catalog:write" -> "write"
                 const action = p.slug.split(':')[1] || p.slug;

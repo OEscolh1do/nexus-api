@@ -5,18 +5,20 @@ import { useSolarStore } from '@/core/state/solarStore';
 
 /**
  * BLUEPRINT MASK (PGFX-04)
- * 
- * Implementa o efeito de "Máscara do Illustrator" utilizando um polígono invertido.
+ *
+ * Implementa o efeito de "Máscara do Illustrador" utilizando um polígono invertido.
  * Cria um overlay opaco sobre o mundo inteiro com um "furo" (hole) exatamente
  * no formato e posição da área de instalação selecionada.
+ *
+ * Após unificação L0+L1: ativa quando showGrid = true (não mais por modo BLUEPRINT).
  */
 export const BlueprintMask: React.FC = () => {
-  const canvasViewMode = useUIStore(s => s.canvasViewMode);
+  const showGrid = useUIStore(s => s.showGrid);
   const selectedEntity = useUIStore(s => s.selectedEntity);
   const areas = useSolarStore(s => s.project.installationAreas) || [];
 
-  // Só renderiza se estiver no modo BLUEPRINT
-  if (canvasViewMode !== 'BLUEPRINT') return null;
+  // Só renderiza se a grade técnica estiver ativa
+  if (!showGrid) return null;
 
   // Encontra a área ativa para usar como máscara
   // Se não houver seleção, tentamos o primeiro bloco do arrangement

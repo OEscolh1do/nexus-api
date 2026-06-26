@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { ShieldCheck, ShieldOff, Shield, AlertTriangle, Lock, Unlock, Terminal } from 'lucide-react';
 import api from '@/lib/api';
 import useSWR from 'swr';
+import { toast } from '@/stores/toastStore';
 
 interface Operator {
   id: string;
@@ -43,7 +44,17 @@ export default function OperatorsPage() {
 
   const operators = data?.data || [];
 
-  async function handleToggleBlock(op: Operator) {
+  const { activeCount, blockedCount } = useMemo(() => {
+    let activeCount = 0;
+    let blockedCount = 0;
+    for (const op of operators) {
+      if (op.status === 'ACTIVE') activeCount++;
+      else blockedCount++;
+    }
+    return { activeCount, blockedCount };
+  }, [operators]);
+
+  const handleToggleBlock = useCallback(async (op: Operator) => {
     setActionLoading(op.id);
     try {
       const endpoint = op.status === 'ACTIVE'
@@ -51,12 +62,14 @@ export default function OperatorsPage() {
         : `/operators/${op.id}/unblock`;
       await api.patch(endpoint);
       mutate();
-    } catch (err: any) {
-      console.error('[OperatorsPage] Erro:', err.response?.data?.error);
+      toast.success(op.status === 'ACTIVE' ? 'Operador bloqueado.' : 'Operador restaurado.');
+    } catch (err) {
+      const axiosErr = err as { response?: { data?: { error?: string } } };
+      toast.error(axiosErr.response?.data?.error ?? 'Falha ao atualizar status do operador.');
     } finally {
       setActionLoading(null);
     }
-  }
+  }, [mutate]);
 
   return (
     <div className="flex h-full flex-col gap-4">
@@ -127,7 +140,7 @@ export default function OperatorsPage() {
             <tbody>
               {isLoading && Array.from({ length: 3 }).map((_, i) => (
                 <tr key={i} className="border-b border-slate-800/50">
-                  <td colSpan={6} className="px-4 py-3">
+                  <td colSpan={7} className="px-4 py-3">
                     <div className="h-3 w-full animate-pulse rounded-sm bg-slate-800" />
                   </td>
                 </tr>
@@ -135,7 +148,7 @@ export default function OperatorsPage() {
 
               {error && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-xs text-red-400">
+                  <td colSpan={7} className="px-4 py-12 text-center text-xs text-red-400">
                     Erro ao carregar operadores. Verifique a conexão com o backend.
                   </td>
                 </tr>
@@ -143,7 +156,7 @@ export default function OperatorsPage() {
 
               {!isLoading && !error && operators.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-16 text-center">
+                  <td colSpan={7} className="px-4 py-16 text-center">
                     <Shield className="mx-auto mb-2 h-7 w-7 text-slate-700" />
                     <p className="text-xs text-slate-500">Nenhum operador de plataforma encontrado.</p>
                     <p className="text-[11px] text-slate-600 mt-1">
@@ -153,7 +166,7 @@ export default function OperatorsPage() {
                 </tr>
               )}
 
-              {!isLoading && operators.map((op: any) => (
+              {!isLoading && operators.map((op: Operator) => (
                 <tr
                   key={op.id}
                   className={`border-b border-slate-800/50 ${op.status === 'BLOCKED' ? 'opacity-60' : ''}`}
@@ -245,9 +258,7 @@ export default function OperatorsPage() {
         {!isLoading && operators.length > 0 && (
           <div className="flex items-center justify-between border-t border-slate-800 px-4 py-2.5">
             <p className="text-[11px] text-slate-600">
-              {operators.filter((o: any) => o.status === 'ACTIVE').length} ativo(s) ·{' '}
-              {operators.filter((o: any) => o.status === 'BLOCKED').length} bloqueado(s) ·{' '}
-              {operators.length} total
+              {activeCount} ativo(s) · {blockedCount} bloqueado(s) · {operators.length} total
             </p>
             <div className="flex items-center gap-1.5">
               <ShieldOff className="h-3 w-3 text-slate-700" />

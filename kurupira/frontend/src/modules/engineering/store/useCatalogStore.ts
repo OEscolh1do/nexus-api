@@ -90,7 +90,8 @@ export const useCatalogStore = create<CatalogState>((set) => ({
           model: i.model,
           imageUrl: i.imageUrl,
           unifilarSymbolRef: i.unifilarSymbolRef,
-          symbolConfig: (i as any).symbolConfig ?? null,   // PSB: propagar config paramétrico
+          symbolConfig: (i as any).symbolConfig ?? null,      // PSB: @deprecated
+          typologyConfig: (i as any).typologyConfig ?? null, // New topology engine
           nominalPowerW: i.nominalPowerW,
           maxDCPowerW: i.nominalPowerW * 1.5,
           maxInputVoltage: i.maxInputV || 600,

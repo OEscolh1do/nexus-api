@@ -27,6 +27,7 @@ export type TrackedSolarState = Pick<
   | 'settings'
   | 'clientData'
   | 'legalData'
+  | 'project'
 >;
 
 /**

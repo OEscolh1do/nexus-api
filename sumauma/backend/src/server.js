@@ -16,6 +16,7 @@ const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 // Middleware
 const platformAuth = require('./middleware/platformAuth');
@@ -126,26 +127,44 @@ app.post('/admin/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Credenciais inválidas' });
     }
 
-    // Gerar JWT (expira em 8h)
+    // Gerar JWT (expira em 1h — refresh token estende a sessão silenciosamente)
     const token = jwt.sign(
       { id: user.id, username: user.username, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: '8h' }
+      { expiresIn: '1h' }
     );
 
+    // Gerar refresh token (30 dias) e persistir na tabela Session
+    const refreshTokenValue = crypto.randomBytes(32).toString('hex');
+    await Promise.all([
+      prismaSumauma.session.create({
+        data: {
+          userId: user.id,
+          token: refreshTokenValue,
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        },
+      }),
+      // Atualizar lastLoginAt do operador
+      prismaSumauma.user.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() },
+      }),
+    ]);
+
     // Auditoria de Login
-    await auditLog({ 
-      operator: { id: user.id, role: user.role }, 
-      action: 'ADMIN_LOGIN', 
-      entity: 'Operator', 
-      resourceId: user.id, 
+    await auditLog({
+      operator: { id: user.id, role: user.role },
+      action: 'ADMIN_LOGIN',
+      entity: 'Operator',
+      resourceId: user.id,
       ipAddress: req.ip || req.headers['x-forwarded-for'],
       userAgent: req.headers['user-agent'],
-      details: `Login realizado pelo operador: ${user.username}` 
+      details: `Login realizado pelo operador: ${user.username}`
     });
 
     res.json({
       token,
+      refreshToken: refreshTokenValue,
       operator: {
         id: user.id,
         username: user.username,
@@ -160,19 +179,85 @@ app.post('/admin/auth/login', async (req, res) => {
 });
 
 // =============================================================
+// AUTH — Refresh Token (público — credencial é o próprio refreshToken)
+// =============================================================
+app.post('/admin/auth/refresh', async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    if (!refreshToken) {
+      return res.status(400).json({ error: 'refreshToken é obrigatório' });
+    }
+
+    const prismaSumauma = require('./lib/prismaSumauma');
+    const session = await prismaSumauma.session.findUnique({
+      where: { token: refreshToken },
+      include: {
+        user: { select: { id: true, username: true, fullName: true, role: true, status: true } },
+      },
+    });
+
+    if (!session) {
+      return res.status(401).json({ error: 'Refresh token inválido ou expirado' });
+    }
+
+    if (new Date() > session.expiresAt) {
+      await prismaSumauma.session.delete({ where: { id: session.id } }).catch(() => {});
+      return res.status(401).json({ error: 'Sessão expirada. Faça login novamente.' });
+    }
+
+    if (session.user.role !== 'PLATFORM_ADMIN' || session.user.status !== 'ACTIVE') {
+      await prismaSumauma.session.delete({ where: { id: session.id } }).catch(() => {});
+      return res.status(403).json({ error: 'Acesso revogado' });
+    }
+
+    // Novo access token (1h)
+    const newToken = jwt.sign(
+      { id: session.user.id, username: session.user.username, role: session.user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    // Rotate refresh token — delete old, create new (prevents token reuse)
+    const newRefreshToken = crypto.randomBytes(32).toString('hex');
+    await prismaSumauma.$transaction([
+      prismaSumauma.session.delete({ where: { id: session.id } }),
+      prismaSumauma.session.create({
+        data: {
+          userId: session.user.id,
+          token: newRefreshToken,
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        },
+      }),
+    ]);
+
+    res.json({ token: newToken, refreshToken: newRefreshToken });
+  } catch (error) {
+    logger.error('Erro no refresh de token', { err: error.message });
+    res.status(500).json({ error: 'Falha ao renovar sessão' });
+  }
+});
+
+// =============================================================
 // AUTH — Logout do Operador (protegido)
 // =============================================================
 app.post('/admin/auth/logout', platformAuth, async (req, res) => {
   try {
+    // Revogar refresh token se fornecido
+    const { refreshToken } = req.body || {};
+    if (refreshToken) {
+      const prismaSumauma = require('./lib/prismaSumauma');
+      await prismaSumauma.session.deleteMany({ where: { token: refreshToken } }).catch(() => {});
+    }
+
     // Auditoria de Logout
-    await auditLog({ 
-      operator: req.operator, 
-      action: 'ADMIN_LOGOUT', 
-      entity: 'Operator', 
-      resourceId: req.operator.id, 
+    await auditLog({
+      operator: req.operator,
+      action: 'ADMIN_LOGOUT',
+      entity: 'Operator',
+      resourceId: req.operator.id,
       ipAddress: req.ip || req.headers['x-forwarded-for'],
       userAgent: req.headers['user-agent'],
-      details: `Logout realizado pelo operador: ${req.operator.username}` 
+      details: `Logout realizado pelo operador: ${req.operator.username}`
     });
 
     res.json({ message: 'Logout registrado com sucesso' });
@@ -279,6 +364,57 @@ app.get('/admin/dashboard', platformAuth, async (req, res) => {
   } catch (error) {
     logger.error('Erro fatal ao agregar KPIs do dashboard', { err: error.message });
     res.status(500).json({ error: 'Falha ao carregar dashboard' });
+  }
+});
+
+// =============================================================
+// DASHBOARD — Trend (últimos 7 dias)
+// Retorna séries diárias para sparklines do dashboard.
+// Endpoint separado para não bloquear o carregamento inicial dos KPIs.
+// =============================================================
+
+app.get('/admin/dashboard/trend', platformAuth, async (req, res) => {
+  try {
+    const prismaSumauma = require('./lib/prismaSumauma');
+
+    const now = new Date();
+    // Gera 7 janelas de 1 dia (hoje = dia 0, ontem = dia 1, …, 6 dias atrás = dia 6)
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const start = new Date(now);
+      start.setDate(start.getDate() - (6 - i)); // ordem crescente (mais antigo primeiro)
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(start);
+      end.setHours(23, 59, 59, 999);
+      return { start, end, label: start.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) };
+    });
+
+    const safeCountDay = async (model, field, start, end, extra = {}) => {
+      try {
+        return await model.count({ where: { [field]: { gte: start, lte: end }, ...extra } });
+      } catch {
+        return 0;
+      }
+    };
+
+    const [usersByDay, logsByDay, tenantsByDay] = await Promise.all([
+      Promise.all(days.map(d => safeCountDay(prismaSumauma.user,     'createdAt', d.start, d.end))),
+      Promise.all(days.map(d => safeCountDay(prismaSumauma.auditLog, 'timestamp', d.start, d.end))),
+      Promise.all(days.map(d => safeCountDay(prismaSumauma.tenant,   'createdAt', d.start, d.end))),
+    ]);
+
+    const labels = days.map(d => d.label);
+
+    res.json({
+      data: {
+        labels,
+        usersByDay,
+        logsByDay,
+        tenantsByDay,
+      },
+    });
+  } catch (error) {
+    logger.error('Erro ao gerar trend do dashboard', { err: error.message });
+    res.status(500).json({ error: 'Falha ao carregar tendências' });
   }
 });
 

@@ -42,7 +42,7 @@ export const generateProposalPDF = async (data: ProposalData) => {
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(22);
     doc.setFont("helvetica", "bold");
-    doc.text("Proposta Comercial", margin, 20);
+    doc.text("Documento Técnico", margin, 20);
     doc.setFontSize(12);
     doc.setFont("helvetica", "normal");
     doc.text("Sistema de Energia Solar Fotovoltaica", margin, 28);

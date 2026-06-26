@@ -146,7 +146,8 @@ router.delete('/sessions/:id', async (req, res) => {
     await prismaSumauma.session.delete({ where: { id: req.params.id } });
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    logger.error('Erro ao revogar sessão', { err: error.message });
+    res.status(500).json({ error: 'Falha ao revogar sessão' });
   }
 });
 

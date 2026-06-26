@@ -89,16 +89,24 @@ describe('SolarCalculator', () => {
           id: 'mod1',
           model: 'TestMod',
           manufacturer: 'TestManu',
-          power: 500,
-          price: 500,
-          area: 2,
-          efficiency: 0.2,
-          voc: 50,
-          isc: 10,
-          vmp: 40,
-          imp: 9,
-          tempCoeffPmax: -0.35,
-          tempCoeffVoc: -0.28
+          // Nested electrical structure alinhada com o contrato real de IEquipmentRepository
+          electrical: {
+            pmax: 500,
+            voc: 50,
+            isc: 10,
+            vmp: 40,
+            imp: 9,
+            tempCoeffPmax: -0.35,
+            tempCoeffVoc: -0.28,
+            efficiency: 0.215
+          },
+          physical: {
+            widthMm: 1134,
+            heightMm: 2278,
+            depthMm: 35,
+            weightKg: 28,
+            cells: 144
+          }
         }
       ]),
       getInverters: vi.fn().mockResolvedValue([

@@ -19,8 +19,8 @@ router.get('/modules', async (req, res) => {
     if (isActive !== undefined) where.isActive = isActive === 'true';
     if (q) {
       where.OR = [
-        { model: { contains: q } },
-        { manufacturer: { contains: q } },
+        { model: { contains: q, mode: 'insensitive' } },
+        { manufacturer: { contains: q, mode: 'insensitive' } },
       ];
     }
 
@@ -63,8 +63,8 @@ router.get('/inverters', async (req, res) => {
     if (isActive !== undefined) where.isActive = isActive === 'true';
     if (q) {
       where.OR = [
-        { model: { contains: q } },
-        { manufacturer: { contains: q } },
+        { model: { contains: q, mode: 'insensitive' } },
+        { manufacturer: { contains: q, mode: 'insensitive' } },
       ];
     }
 

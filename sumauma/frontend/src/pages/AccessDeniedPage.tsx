@@ -1,13 +1,18 @@
 import React from 'react';
 import { useLogto } from '@logto/react';
 import { ShieldX, LogOut, ExternalLink } from 'lucide-react';
+import { useAuthStore } from '@/stores/authStore';
 
 const AccessDeniedPage: React.FC = () => {
   const { signOut } = useLogto();
+  const logout = useAuthStore((s) => s.logout);
 
   const handleSignOut = async () => {
-    sessionStorage.clear();
-    localStorage.clear();
+    // Clear only app-owned keys — never nuke the whole storage domain
+    localStorage.removeItem('neonorte-admin-auth');
+    sessionStorage.removeItem('sumauma_force_logout');
+    // Reset Zustand state so the protected route doesn't redirect before Logto finishes
+    logout();
     await signOut();
   };
 

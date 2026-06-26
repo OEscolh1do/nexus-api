@@ -1,18 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Hash,
   X,
   Camera,
   MapPin,
   Zap,
+  Layers,
+  Image,
   type LucideIcon
 } from 'lucide-react';
-import { 
-  useMapEvents, 
-  Polyline, 
-  Marker as LeafletMarker, 
-  Tooltip, 
-  Polygon as LeafletPolygon
+import {
+  useMapEvents,
+  Polyline,
+  Marker as LeafletMarker,
+  Tooltip,
+  Polygon as LeafletPolygon,
+  Rectangle
 } from 'react-leaflet';
 import L from 'leaflet';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -29,7 +31,7 @@ import { toArray } from '@/core/types/normalized.types';
 import { calculateStringMetrics } from '../../../utils/electricalMath';
 import { getModuleSpecs } from '../../../utils/specAdapter';
 import type { InverterCatalogItem } from '@/core/schemas/inverterSchema';
-import { MapCore } from '../../../components/MapCore';
+import { MapCore, globalLeafletMapRef } from '../../../components/MapCore';
 import { WebGLOverlay } from '../../../components/WebGLOverlay';
 import { ViewLayerSelector } from '../../components/ViewLayerSelector';
 import { ManipulationIsland } from './toolbars/ManipulationIsland';
@@ -68,6 +70,94 @@ interface ToolbarButtonProps {
 
 // Fix 3: Move MPPT_HUD_COLORS to module level
 const MPPT_HUD_COLORS = ['#0ea5e9','#8b5cf6','#f59e0b','#10b981','#f43f5e','#06b6d4','#fb923c','#a855f7'];
+
+// =============================================================================
+// SUB-COMPONENTS: MAP STYLE SWITCHER (L0-A)
+// =============================================================================
+
+const MapStyleSwitcher: React.FC = () => {
+  const mapStyle = useUIStore(s => s.mapStyle);
+  const setMapStyle = useUIStore(s => s.setMapStyle);
+  const canvasViewMode = useUIStore(s => s.canvasViewMode);
+
+  const [isOpen, setIsOpen] = useState(false);
+
+  if (canvasViewMode !== 'CONTEXT') return null;
+
+  const styles: Array<{ id: 'hybrid' | 'satellite' | 'roadmap' | 'terrain'; label: string }> = [
+    { id: 'hybrid', label: 'Híbrido' },
+    { id: 'satellite', label: 'Satélite' },
+    { id: 'roadmap', label: 'Ruas' },
+    { id: 'terrain', label: 'Terreno' }
+  ];
+
+  return (
+    <div className="absolute bottom-16 right-4 z-[1100]">
+      <div className="relative">
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          title="Trocar estilo do mapa"
+          className="flex items-center justify-center p-2 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-lg transition-all hover:border-indigo-500/50 group"
+        >
+          <Layers size={18} className="text-slate-400 group-hover:text-indigo-400 transition-colors" />
+        </button>
+
+        {isOpen && (
+          <div className="absolute bottom-full mb-2 right-0 bg-slate-900/95 backdrop-blur-md border border-slate-700/50 rounded-lg shadow-2xl p-2 min-w-[140px] animate-in fade-in slide-in-from-bottom-2 duration-200">
+            <div className="flex flex-col gap-1">
+              {styles.map(style => (
+                <button
+                  key={style.id}
+                  onClick={() => {
+                    setMapStyle(style.id);
+                    setIsOpen(false);
+                  }}
+                  className={cn(
+                    "px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide rounded transition-all text-left",
+                    mapStyle === style.id
+                      ? "bg-indigo-600 text-white"
+                      : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                  )}
+                >
+                  {style.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const SatelliteOpacityControl: React.FC = () => {
+  const satelliteOpacity = useUIStore(s => s.satelliteOpacity);
+  const setSatelliteOpacity = useUIStore(s => s.setSatelliteOpacity);
+  const canvasViewMode = useUIStore(s => s.canvasViewMode);
+
+  if (canvasViewMode !== 'CONTEXT') return null;
+
+  return (
+    <div className="absolute bottom-28 right-4 z-[1100]">
+      <div className="flex items-center gap-2 px-3 py-2 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-lg shadow-lg">
+        <Image size={14} className="text-slate-400 shrink-0" />
+        <input
+          type="range"
+          min={0}
+          max={100}
+          step={5}
+          value={satelliteOpacity}
+          onChange={(e) => setSatelliteOpacity(Number(e.target.value))}
+          className="w-20 h-1 accent-indigo-500 cursor-pointer"
+          title="Opacidade do satélite"
+        />
+        <span className="text-[9px] font-mono font-bold text-slate-400 w-8 text-right tabular-nums">
+          {satelliteOpacity}%
+        </span>
+      </div>
+    </div>
+  );
+};
 
 // =============================================================================
 // SUB-COMPONENTS: RIBBONS
@@ -243,6 +333,13 @@ const DrawingEngine: React.FC<DrawingEngineProps> = ({ activeTool, points, setPo
     }
   };
 
+  const autoLayoutArea = useSolarStore(s => s.autoLayoutArea);
+  const installationAreas = useSolarStore(s => s.project.installationAreas);
+  const spawnFreeformArea = useSolarStore(s => s.spawnFreeformArea);
+  const spawnObstacle = useSolarStore(s => s.spawnObstacle);
+  const selectedAreaId = useUIStore(s => s.selectedEntity.type === 'area' ? s.selectedEntity.id : null);
+  const setActiveTool = useUIStore(s => s.setActiveTool);
+
   const map = useMapEvents({
     click: (e) => {
       // Fix 2: Allow points to be drawn for POLYGON/SUBTRACT/MEASURE
@@ -255,6 +352,46 @@ const DrawingEngine: React.FC<DrawingEngineProps> = ({ activeTool, points, setPo
         setPoints(prev => [...prev, [pos.lat, pos.lng]]);
       } else if (activeTool === 'DROP_POINT') {
         addDropPoint([e.latlng.lat, e.latlng.lng]);
+      } else if (activeTool === 'PLACE_MODULE') {
+        const clickedArea = installationAreas.find(area => {
+          const point = L.latLng(e.latlng.lat, e.latlng.lng);
+          const polygon = L.polygon(area.polygon as any);
+          const bounds = polygon.getBounds();
+          if (!bounds.contains(point)) return false;
+
+          let inside = false;
+          const x = e.latlng.lat;
+          const y = e.latlng.lng;
+          const vs = area.polygon;
+          for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+            const xi = vs[i][0], yi = vs[i][1];
+            const xj = vs[j][0], yj = vs[j][1];
+            if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) {
+              inside = !inside;
+            }
+          }
+          return inside;
+        });
+
+        if (clickedArea) {
+          autoLayoutArea(clickedArea.id);
+        }
+      }
+    },
+    // Item 3: Duplo-clique fecha o polígono
+    dblclick: (e) => {
+      if (activeTool !== 'POLYGON' && activeTool !== 'SUBTRACT') return;
+      L.DomEvent.stopPropagation(e.originalEvent);
+      if (points.length >= 3) {
+        if (activeTool === 'POLYGON') {
+          spawnFreeformArea(points);
+          setPoints([]);
+          setActiveTool('SELECT');
+        } else if (activeTool === 'SUBTRACT' && selectedAreaId) {
+          spawnObstacle(selectedAreaId, points);
+          setPoints([]);
+          setActiveTool('SELECT');
+        }
       }
     },
     mousemove: (e) => {
@@ -267,9 +404,28 @@ const DrawingEngine: React.FC<DrawingEngineProps> = ({ activeTool, points, setPo
     }
   });
 
+  // Item 3: Cursor crosshair para modos CAD
+  React.useEffect(() => {
+    const container = map.getContainer();
+    const isCadMode = activeTool === 'POLYGON' || activeTool === 'SUBTRACT' || activeTool === 'MEASURE' || activeTool === 'PLACE_MODULE';
+    if (isCadMode) {
+      container.style.cursor = 'crosshair';
+    } else if (activeTool === 'PAN') {
+      container.style.cursor = 'grab';
+    } else {
+      container.style.cursor = '';
+    }
+    return () => { container.style.cursor = ''; };
+  }, [activeTool, map]);
+
   if ((activeTool !== 'POLYGON' && activeTool !== 'SUBTRACT' && activeTool !== 'MEASURE') || points.length === 0) return null;
 
   const color = activeTool === 'SUBTRACT' ? "#f43f5e" : activeTool === 'MEASURE' ? "#10b981" : "#6366f1";
+
+  // Item 3: Detectar proximidade ao primeiro ponto para snap visual
+  const nearFirstPoint = points.length >= 3 && mousePos
+    ? map.distance(L.latLng(mousePos), L.latLng(points[0])) < 2
+    : false;
 
   return (
     <>
@@ -284,9 +440,16 @@ const DrawingEngine: React.FC<DrawingEngineProps> = ({ activeTool, points, setPo
       {points.map((p, i) => {
         const prev = i > 0 ? points[i - 1] : null;
         const dist = prev ? map.distance(L.latLng(prev), L.latLng(p)) : null;
+        // Item 3: Usar CLOSE_SNAP_ICON no primeiro vértice se estiver próximo
+        const useSnapIcon = i === 0 && nearFirstPoint;
+        const defaultIcon = L.divIcon({
+          className: activeTool === 'SUBTRACT' ? 'bg-rose-500 border-2 border-white rounded-full' : 'bg-white border-2 border-indigo-600 rounded-full',
+          iconSize: [8, 8],
+          iconAnchor: [4, 4]
+        });
         return (
           <React.Fragment key={i}>
-            <LeafletMarker position={p} icon={L.divIcon({ className: activeTool === 'SUBTRACT' ? 'bg-rose-500 border-2 border-white rounded-full' : 'bg-white border-2 border-indigo-600 rounded-full', iconSize: [8, 8], iconAnchor: [4, 4] })} />
+            <LeafletMarker position={p} icon={useSnapIcon ? CLOSE_SNAP_ICON : defaultIcon} />
             {dist && (
               <Polyline positions={[prev!, p]} color="transparent" opacity={0}>
                 <Tooltip permanent direction="center" className="bg-slate-900/80 border-none text-slate-300 font-mono text-[9px] p-0.5 rounded-sm">
@@ -327,9 +490,9 @@ const DropPointLayer: React.FC = () => {
   return (
     <>
       {dropPoints.map(dp => (
-        <LeafletMarker 
-          key={dp.id} 
-          position={dp.center} 
+        <LeafletMarker
+          key={dp.id}
+          position={dp.center}
           icon={dropIcon}
           draggable={activeTool === 'MOVE'}
           eventHandlers={{
@@ -346,12 +509,224 @@ const DropPointLayer: React.FC = () => {
   );
 };
 
+// =============================================================================
+// L1-A: POLYGON EDIT LAYER — Vertex editing for selected area
+// =============================================================================
+
+// FIX 1: Extract divIcon as module-level constants to prevent re-creation on every render
+const VERTEX_ICON = L.divIcon({
+  html: '<div style="width:12px;height:12px;background:white;border:2px solid #6366f1;border-radius:50%;cursor:move;"></div>',
+  className: '',
+  iconSize: [12, 12],
+  iconAnchor: [6, 6]
+});
+
+const MIDPOINT_ICON = L.divIcon({
+  html: '<div style="width:8px;height:8px;background:#22d3ee;border:1px solid white;border-radius:50%;cursor:pointer;opacity:0.7;"></div>',
+  className: '',
+  iconSize: [8, 8],
+  iconAnchor: [4, 4]
+});
+
+const VERTEX_ICON_SNAP = L.divIcon({
+  html: '<div style="width:12px;height:12px;background:white;border:2px solid #22d3ee;border-radius:50%;cursor:move;box-shadow:0 0 8px rgba(34,211,238,0.6);"></div>',
+  className: '',
+  iconSize: [12, 12],
+  iconAnchor: [6, 6]
+});
+
+const ROTATION_ICON = L.divIcon({
+  html: '<div style="width:24px;height:24px;background:#4f46e5;border:2px solid white;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:move;box-shadow:0 2px 8px rgba(0,0,0,0.4);"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></div>',
+  className: '',
+  iconSize: [24, 24],
+  iconAnchor: [12, 12]
+});
+
+// Item 3: Ícone de snap-to-close para o primeiro vértice
+const CLOSE_SNAP_ICON = L.divIcon({
+  html: '<div style="width:14px;height:14px;background:#10b981;border:2px solid #6ee7b7;border-radius:50%;box-shadow:0 0 12px rgba(16,185,129,0.8);animation:pulse 1s infinite;"></div>',
+  className: '',
+  iconSize: [14, 14],
+  iconAnchor: [7, 7]
+});
+
+const PolygonEditLayer: React.FC = () => {
+  const activeTool = useUIStore(s => s.activeTool);
+  const selectedAreaId = useUIStore(s => s.selectedEntity.type === 'area' ? s.selectedEntity.id : null);
+  const installationAreas = useSolarStore(s => s.project.installationAreas);
+  const updateAreaPolygon = useSolarStore(s => s.updateAreaPolygon);
+  const rotateArea = useSolarStore(s => s.rotateArea);
+
+  const [rotationAngle, setRotationAngle] = useState<number | null>(null);
+  const [isShiftPressed, setIsShiftPressed] = useState(false);
+
+  // TASK 6: Track Shift key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') setIsShiftPressed(true);
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') setIsShiftPressed(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
+  const area = installationAreas.find(a => a.id === selectedAreaId);
+
+  // useMemo must be called before any conditional return (Rules of Hooks)
+  const centroid = useMemo<[number, number]>(() => {
+    if (!area || area.polygon.length < 3) return [0, 0];
+    const latSum = area.polygon.reduce((sum, v) => sum + v[0], 0);
+    const lngSum = area.polygon.reduce((sum, v) => sum + v[1], 0);
+    return [latSum / area.polygon.length, lngSum / area.polygon.length];
+  }, [area]);
+
+  if (activeTool !== 'SELECT' || !selectedAreaId) return null;
+  if (!area || area.polygon.length < 3) return null;
+
+  const handleVertexDragEnd = (index: number, e: any) => {
+    let newPos = e.target.getLatLng();
+
+    // TASK 6: Snap to orthogonal if Shift is pressed
+    if (isShiftPressed) {
+      const prevIdx = (index - 1 + area.polygon.length) % area.polygon.length;
+      const nextIdx = (index + 1) % area.polygon.length;
+      const prev = area.polygon[prevIdx];
+      const next = area.polygon[nextIdx];
+
+      // Find which neighbor is closer for snapping
+      const deltaLatPrev = Math.abs(newPos.lat - prev[0]);
+      const deltaLngPrev = Math.abs(newPos.lng - prev[1]);
+      const deltaLatNext = Math.abs(newPos.lat - next[0]);
+      const deltaLngNext = Math.abs(newPos.lng - next[1]);
+
+      // Snap to closest neighbor's axis
+      const snapToPrev = Math.min(deltaLatPrev, deltaLngPrev) < Math.min(deltaLatNext, deltaLngNext);
+      if (snapToPrev) {
+        if (deltaLatPrev < deltaLngPrev) {
+          newPos = L.latLng(prev[0], newPos.lng); // Snap to horizontal
+        } else {
+          newPos = L.latLng(newPos.lat, prev[1]); // Snap to vertical
+        }
+      } else {
+        if (deltaLatNext < deltaLngNext) {
+          newPos = L.latLng(next[0], newPos.lng);
+        } else {
+          newPos = L.latLng(newPos.lat, next[1]);
+        }
+      }
+    }
+
+    const newPolygon = [...area.polygon];
+    newPolygon[index] = [newPos.lat, newPos.lng];
+    updateAreaPolygon(selectedAreaId, newPolygon as any);
+  };
+
+  const handleMidpointClick = (afterIndex: number, e: any) => {
+    const newPos = e.target.getLatLng();
+    const newPolygon = [...area.polygon];
+    newPolygon.splice(afterIndex + 1, 0, [newPos.lat, newPos.lng] as any);
+    updateAreaPolygon(selectedAreaId, newPolygon as any);
+  };
+
+  const handleVertexRightClick = (index: number) => {
+    if (area.polygon.length <= 3) return;
+    const newPolygon = area.polygon.filter((_, i) => i !== index);
+    updateAreaPolygon(selectedAreaId, newPolygon as any);
+  };
+
+  // TASK 7: Rotation handle drag
+  const handleRotationDragEnd = (e: any) => {
+    const newPos = e.target.getLatLng();
+    const angle = Math.atan2(newPos.lng - centroid[1], newPos.lat - centroid[0]) * (180 / Math.PI);
+    const newAzimuth = (90 - angle + 360) % 360; // Convert from atan2 to compass azimuth
+    rotateArea(selectedAreaId, newAzimuth);
+    setRotationAngle(null);
+  };
+
+  const handleRotationDrag = (e: any) => {
+    const newPos = e.target.getLatLng();
+    const angle = Math.atan2(newPos.lng - centroid[1], newPos.lat - centroid[0]) * (180 / Math.PI);
+    const newAzimuth = (90 - angle + 360) % 360;
+    setRotationAngle(newAzimuth);
+  };
+
+  return (
+    <>
+      {area.polygon.map((vertex, i) => (
+        <LeafletMarker
+          key={`vertex-${i}`}
+          position={vertex as any}
+          icon={isShiftPressed ? VERTEX_ICON_SNAP : VERTEX_ICON}
+          draggable
+          eventHandlers={{
+            // FIX 2: Stop propagation on mousedown and click to prevent clearing selection
+            mousedown: (e) => {
+              L.DomEvent.stopPropagation(e.originalEvent);
+            },
+            click: (e) => {
+              L.DomEvent.stopPropagation(e.originalEvent);
+            },
+            dragend: (e) => handleVertexDragEnd(i, e),
+            contextmenu: () => handleVertexRightClick(i)
+          }}
+        />
+      ))}
+      {area.polygon.map((vertex, i) => {
+        const nextVertex = area.polygon[(i + 1) % area.polygon.length];
+        const midLat = (vertex[0] + nextVertex[0]) / 2;
+        const midLng = (vertex[1] + nextVertex[1]) / 2;
+        return (
+          <LeafletMarker
+            key={`mid-${i}`}
+            position={[midLat, midLng]}
+            icon={MIDPOINT_ICON}
+            eventHandlers={{
+              // FIX 2: Stop propagation for midpoints too
+              mousedown: (e) => {
+                L.DomEvent.stopPropagation(e.originalEvent);
+              },
+              click: (e) => {
+                L.DomEvent.stopPropagation(e.originalEvent);
+                handleMidpointClick(i, e);
+              }
+            }}
+          />
+        );
+      })}
+      {/* Rotation handle at area centroid */}
+      <LeafletMarker
+        key="rotation-handle"
+        position={centroid}
+        icon={ROTATION_ICON}
+        draggable
+        eventHandlers={{
+          mousedown: (e) => { L.DomEvent.stopPropagation(e.originalEvent); },
+          drag: handleRotationDrag,
+          dragend: handleRotationDragEnd
+        }}
+      >
+        {rotationAngle !== null && (
+          <Tooltip permanent direction="top" offset={[0, -16]} className="bg-indigo-700 border-none text-white font-mono text-[9px] p-0.5 rounded-sm shadow-xl">
+            {rotationAngle.toFixed(0)}°
+          </Tooltip>
+        )}
+      </LeafletMarker>
+    </>
+  );
+};
+
 const ObstacleLayer: React.FC<{ areas: any[] }> = ({ areas }) => {
   return (
     <>
       {areas.map(area => (
         (area.obstacles || []).map((obs: any) => (
-          <LeafletPolygon 
+          <LeafletPolygon
             key={obs.id}
             positions={obs.polygon}
             fillColor="#fb7185" // rose-400
@@ -367,6 +742,163 @@ const ObstacleLayer: React.FC<{ areas: any[] }> = ({ areas }) => {
 };
 
 // =============================================================================
+// ITEM 2: BOX-SELECT LAYER — Box selection for STRINGING mode
+// =============================================================================
+
+interface BoxSelectLayerProps {
+  placedModules: any[];
+  onSelectModules: (ids: string[], additive: boolean) => void;
+}
+
+const BoxSelectLayer: React.FC<BoxSelectLayerProps> = ({ placedModules, onSelectModules }) => {
+  const startRef = React.useRef<L.LatLng | null>(null);
+  const [dragRect, setDragRect] = React.useState<[L.LatLng, L.LatLng] | null>(null);
+  const isDraggingRef = React.useRef(false);
+  const isShiftRef = React.useRef(false);
+
+  React.useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Shift') isShiftRef.current = true; };
+    const onKeyUp = (e: KeyboardEvent) => { if (e.key === 'Shift') isShiftRef.current = false; };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    return () => { window.removeEventListener('keydown', onKeyDown); window.removeEventListener('keyup', onKeyUp); };
+  }, []);
+
+  const map = useMapEvents({
+    mousedown: (e) => {
+      // Só ativa box-select com botão esquerdo
+      if (e.originalEvent.button !== 0) return;
+      startRef.current = e.latlng;
+      isDraggingRef.current = false;
+    },
+    mousemove: (e) => {
+      if (!startRef.current) return;
+      const dist = map.distance(startRef.current, e.latlng);
+      if (dist > 5) {
+        isDraggingRef.current = true;
+        map.dragging.disable();
+        setDragRect([startRef.current, e.latlng]);
+      }
+    },
+    mouseup: (e) => {
+      if (!startRef.current || !isDraggingRef.current) {
+        startRef.current = null;
+        map.dragging.enable();
+        setDragRect(null);
+        return;
+      }
+      // Calcular bounds e selecionar módulos dentro
+      const bounds = L.latLngBounds(startRef.current, e.latlng);
+      const ids = placedModules
+        .filter(m => m.center && bounds.contains(L.latLng(m.center[0], m.center[1])))
+        .map(m => m.id);
+      onSelectModules(ids, isShiftRef.current);
+      startRef.current = null;
+      isDraggingRef.current = false;
+      map.dragging.enable();
+      setDragRect(null);
+    }
+  });
+
+  if (!dragRect) return null;
+
+  const [sw, ne] = dragRect;
+  const bounds = L.latLngBounds(sw, ne);
+
+  return (
+    <Rectangle
+      bounds={bounds}
+      pathOptions={{
+        color: '#22d3ee',
+        fillColor: '#22d3ee',
+        fillOpacity: 0.08,
+        weight: 1.5,
+        dashArray: '4, 4',
+        interactive: false,
+      }}
+    />
+  );
+};
+
+// =============================================================================
+// TASK 8: AREA LABELS LAYER — Display area info at centroid
+// =============================================================================
+
+const AreaLabelsLayer: React.FC = () => {
+  const canvasViewMode = useUIStore(s => s.canvasViewMode);
+  const installationAreas = useSolarStore(s => s.project.installationAreas);
+  const placedModules = useSolarStore(s => s.project.placedModules);
+  const renameAreaFn = useSolarStore(s => s.renameArea);
+  const selectEntityFn = useUIStore(s => s.selectEntity);
+
+  // Only show in CONTEXT mode
+  if (canvasViewMode !== 'CONTEXT') return null;
+
+  const r = 6371000; // Earth radius
+
+  const calcAreaM2 = (polygon: [number, number][]) => {
+    if (polygon.length < 3) return 0;
+    const p0 = polygon[0];
+    const localCoords = polygon.map(p => {
+      const dy = (p[0] - p0[0]) * (Math.PI / 180) * r;
+      const dx = (p[1] - p0[1]) * (Math.PI / 180) * r * Math.cos(p0[0] * Math.PI / 180);
+      return [dx, dy];
+    });
+
+    let area = 0;
+    for (let i = 0; i < localCoords.length; i++) {
+      const j = (i + 1) % localCoords.length;
+      area += localCoords[i][0] * localCoords[j][1];
+      area -= localCoords[j][0] * localCoords[i][1];
+    }
+    return Math.abs(area) / 2;
+  };
+
+  return (
+    <>
+      {installationAreas.map((area, idx) => {
+        const areaM2 = calcAreaM2(area.polygon as any);
+        const modulesCount = placedModules.filter(m => m.areaId === area.id).length;
+        const areaName = area.name ?? `Área ${idx + 1}`;
+
+        const labelIcon = L.divIcon({
+          html: renderToStaticMarkup(
+            <div style={{ pointerEvents: 'none', cursor: 'pointer' }} className="bg-slate-900/80 border border-slate-700 px-2 py-1 rounded text-[10px] font-mono text-slate-300 whitespace-nowrap backdrop-blur-sm">
+              <div className="font-bold text-indigo-400">{areaName}</div>
+              <div className="text-slate-400">{areaM2.toFixed(1)}m² · {modulesCount} mod</div>
+            </div>
+          ),
+          className: 'cursor-pointer',
+          iconSize: [120, 42],
+          iconAnchor: [60, 42]
+        });
+
+        return (
+          <LeafletMarker
+            key={`label-${area.id}`}
+            position={area.center}
+            icon={labelIcon}
+            eventHandlers={{
+              click: (e) => {
+                L.DomEvent.stopPropagation(e.originalEvent);
+                selectEntityFn('area', area.id, areaName);
+              },
+              dblclick: (e) => {
+                L.DomEvent.stopPropagation(e.originalEvent);
+                const newName = window.prompt('Nome da área:', area.name ?? `Área ${idx + 1}`);
+                if (newName !== null) {
+                  renameAreaFn(area.id, newName);
+                }
+              }
+            }}
+          />
+        );
+      })}
+    </>
+  );
+};
+
+// =============================================================================
 // SUB-COMPONENTS: STRINGING LAYERS
 // =============================================================================
 
@@ -377,39 +909,67 @@ const StringPathOverlay: React.FC<{
   mpptColorMap: Record<string, string>;
   onMissingCenterCount?: (count: number) => void;
 }> = ({ moduleIds, placedModules, mpptColorMap, onMissingCenterCount }) => {
-  // Build paths for all assigned strings
+  // TASK 3: Build Manhattan-routed paths for all assigned strings
   const assignedPaths = useMemo(() => {
-    const groups: Record<string, { color: string; positions: [number, number][] }> = {};
+    const groups: Record<string, { color: string; positions: [number, number][]; manhattanPath: [number, number][]; arrows: Array<{ pos: [number, number]; angle: number }> }> = {};
+
     placedModules.forEach(m => {
       if (!m.stringData || !m.center) return;
       const key = `${m.stringData.inverterId}:${m.stringData.mpptId}`;
       if (!groups[key]) {
-        groups[key] = { color: mpptColorMap[key] ?? '#6366f1', positions: [] };
+        groups[key] = { color: mpptColorMap[key] ?? '#6366f1', positions: [], manhattanPath: [], arrows: [] };
       }
       groups[key].positions.push(m.center as [number, number]);
     });
+
+    // Sort by longitude (left to right) and generate Manhattan routing
+    Object.values(groups).forEach(group => {
+      group.positions.sort((a, b) => a[1] - b[1]); // Sort by lng
+
+      // Build Manhattan path: for each pair [p1, p2], route as [p1, [p2[0], p1[1]], p2]
+      const manhattan: [number, number][] = [];
+      const arrows: Array<{ pos: [number, number]; angle: number }> = [];
+
+      for (let i = 0; i < group.positions.length; i++) {
+        const p1 = group.positions[i];
+        manhattan.push(p1);
+
+        if (i < group.positions.length - 1) {
+          const p2 = group.positions[i + 1];
+          const corner: [number, number] = [p2[0], p1[1]]; // Vertical first, then horizontal
+          manhattan.push(corner);
+
+          // Arrow at midpoint of horizontal segment
+          const midLat = (corner[0] + p2[0]) / 2;
+          const midLng = (corner[1] + p2[1]) / 2;
+          const angle = p2[1] > corner[1] ? 90 : -90; // Right or left
+          arrows.push({ pos: [midLat, midLng], angle });
+        }
+      }
+
+      group.manhattanPath = manhattan;
+      group.arrows = arrows;
+    });
+
     return Object.entries(groups);
   }, [placedModules, mpptColorMap]);
 
   // [R4-03] MEDIUM: Compute count of geometrically orphaned modules
-  // Detect both !m.center AND center = [0,0] (invalid default coordinates)
   const missingCenterCount = useMemo(() => {
     return placedModules.filter(m => {
       if (!m.stringData) return false;
       if (!m.center) return true;
-      // [0,0] is invalid coordinate (Equator/Prime Meridian)
       return m.center[0] === 0 && m.center[1] === 0;
     }).length;
   }, [placedModules]);
 
-  // Report count to parent
   React.useEffect(() => {
     if (onMissingCenterCount) {
       onMissingCenterCount(missingCenterCount);
     }
   }, [missingCenterCount, onMissingCenterCount]);
 
-  // Current selection path
+  // Current selection path (remains direct polyline, no routing)
   const selectionPositions = useMemo(() => {
     if (moduleIds.length < 2) return [];
     return moduleIds
@@ -419,16 +979,33 @@ const StringPathOverlay: React.FC<{
 
   return (
     <>
-      {assignedPaths.map(([key, { color, positions }]) => (
-        positions.length >= 2 && (
-          <Polyline
-            key={key}
-            positions={positions as any}
-            color={color}
-            weight={1.5}
-            dashArray="3, 6"
-            opacity={0.5}
-          />
+      {assignedPaths.map(([key, { color, manhattanPath, arrows }]) => (
+        manhattanPath.length >= 2 && (
+          <React.Fragment key={key}>
+            <Polyline
+              positions={manhattanPath as any}
+              color={color}
+              weight={2}
+              opacity={0.7}
+            />
+            {/* TASK 3: Directional arrows */}
+            {arrows.map((arrow, idx) => {
+              const arrowIcon = L.divIcon({
+                html: `<div style="width:8px;height:6px;transform:rotate(${arrow.angle}deg);"><svg viewBox="0 0 8 6" fill="${color}"><polygon points="0,0 8,3 0,6"/></svg></div>`,
+                className: '',
+                iconSize: [8, 6],
+                iconAnchor: [4, 3]
+              });
+              return (
+                <LeafletMarker
+                  key={`${key}-arrow-${idx}`}
+                  position={arrow.pos}
+                  icon={arrowIcon}
+                  interactive={false}
+                />
+              );
+            })}
+          </React.Fragment>
         )
       ))}
       {selectionPositions.length >= 2 && (
@@ -497,6 +1074,177 @@ const ModuleInteractionLayer: React.FC<{
         );
       })}
     </>
+  );
+};
+
+// =============================================================================
+// STRINGING QUICK POPOVER — Inline MPPT assignment popover
+// =============================================================================
+
+const StringingQuickPopover: React.FC<{
+  selectedModuleIds: string[];
+  placedModules: any[];
+  techInverters: any[];
+  catalogInvertersList: any[];
+  onAssign: (moduleIds: string[], inverterId: string, mpptId: number, stringId: string) => void;
+  onClear: () => void;
+}> = ({ selectedModuleIds, placedModules, techInverters, catalogInvertersList, onAssign, onClear }) => {
+  const activeTool = useUIStore(s => s.activeTool);
+  const [popPos, setPopPos] = useState<{ x: number; y: number } | null>(null);
+
+  const computePos = useCallback(() => {
+    const map = globalLeafletMapRef.current;
+    if (!map || selectedModuleIds.length === 0) { setPopPos(null); return; }
+    const selected = selectedModuleIds.map(id => placedModules.find(m => m.id === id)).filter(Boolean) as any[];
+    if (selected.length === 0) { setPopPos(null); return; }
+    const avgLat = selected.reduce((s, m) => s + m.center[0], 0) / selected.length;
+    const avgLng = selected.reduce((s, m) => s + m.center[1], 0) / selected.length;
+    const pt = map.latLngToContainerPoint(L.latLng(avgLat, avgLng));
+    // Clamp to stay inside canvas with 120px margin from edges
+    const containerSize = map.getSize();
+    const x = Math.max(80, Math.min(pt.x, containerSize.x - 80));
+    const y = Math.max(60, Math.min(pt.y - 90, containerSize.y - 200));
+    setPopPos({ x, y });
+  }, [selectedModuleIds, placedModules]);
+
+  useEffect(() => {
+    computePos();
+    const map = globalLeafletMapRef.current;
+    if (!map) return;
+    map.on('move zoom', computePos);
+    return () => { map.off('move zoom', computePos); };
+  }, [computePos]);
+
+  if (activeTool !== 'STRINGING' || selectedModuleIds.length === 0 || !popPos || techInverters.length === 0) return null;
+
+  const handleAssign = (inverterId: string, mpptId: number) => {
+    const existingStringIds = new Set<string>(
+      placedModules
+        .filter(m => m.stringData?.inverterId === inverterId && m.stringData?.mpptId === mpptId && m.stringData?.stringId)
+        .map(m => m.stringData!.stringId as string)
+    );
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let nextStringId = 'String A';
+    for (let i = 0; i < letters.length; i++) {
+      const candidate = `String ${letters[i]}`;
+      if (!existingStringIds.has(candidate)) { nextStringId = candidate; break; }
+    }
+    onAssign(selectedModuleIds, inverterId, mpptId, nextStringId);
+  };
+
+  return (
+    <div
+      style={{ position: 'absolute', left: popPos.x, top: popPos.y, transform: 'translateX(-50%)', zIndex: 2000 }}
+      className="pointer-events-auto animate-in fade-in zoom-in-95 duration-150"
+      onClick={e => e.stopPropagation()}
+    >
+      <div className="bg-slate-950/98 backdrop-blur-xl border border-slate-700/80 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.6)] p-2 min-w-[160px]">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-1.5 px-1">
+          <span className="text-[8px] font-black text-cyan-400 uppercase tracking-widest">
+            {selectedModuleIds.length} módulo{selectedModuleIds.length !== 1 ? 's' : ''} → MPPT
+          </span>
+          <button onClick={onClear} className="text-slate-600 hover:text-slate-300 transition-colors text-[10px]">✕</button>
+        </div>
+        {/* Arrow pointing down to modules */}
+        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-slate-700/80" />
+        {/* MPPT buttons grouped by inverter */}
+        {techInverters.map((inv: any) => {
+          const cat = catalogInvertersList.find((c: any) => c.id === inv.catalogId);
+          const invLabel = cat?.model ?? inv.id.slice(0, 8);
+          return (
+            <div key={inv.id} className="mb-1">
+              {techInverters.length > 1 && (
+                <div className="text-[7px] font-black text-slate-600 uppercase tracking-widest px-1 mb-0.5">{invLabel}</div>
+              )}
+              <div className="flex flex-wrap gap-1">
+                {inv.mpptConfigs.map((mppt: any) => {
+                  const assignedCount = placedModules.filter(
+                    m => m.stringData?.inverterId === inv.id && m.stringData?.mpptId === mppt.mpptId
+                  ).length;
+                  const configuredCapacity = (mppt.strings || []).reduce(
+                    (acc: number, s: any) => acc + (s.modulesCount || mppt.modulesPerString || 0), 0
+                  );
+                  const isFull = configuredCapacity > 0 && assignedCount >= configuredCapacity;
+                  return (
+                    <button
+                      key={mppt.mpptId}
+                      onClick={() => handleAssign(inv.id, mppt.mpptId)}
+                      className={cn(
+                        "px-2 py-1 text-[9px] font-black uppercase rounded-md border transition-all",
+                        isFull
+                          ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+                          : "border-slate-700 bg-slate-900 text-slate-300 hover:bg-indigo-600 hover:border-indigo-500 hover:text-white"
+                      )}
+                    >
+                      MPPT {mppt.mpptId}
+                      {assignedCount > 0 && <span className="ml-0.5 text-[7px] opacity-60">{assignedCount}↑</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// =============================================================================
+// ITEM 4: PLACE_MODULE PANEL — Painel de Configuração
+// =============================================================================
+
+const PlaceModulePanel: React.FC = () => {
+  const activeTool = useUIStore(s => s.activeTool);
+  const setActiveTool = useUIStore(s => s.setActiveTool);
+  const { engineeringData, updateEngineeringData } = useSolarStore();
+  const installationAreas = useSolarStore(s => s.project.installationAreas);
+  const selectedAreaId = useUIStore(s => s.selectedEntity.type === 'area' ? s.selectedEntity.id : null);
+  const autoLayoutArea = useSolarStore(s => s.autoLayoutArea);
+
+  if (activeTool !== 'PLACE_MODULE') return null;
+
+  return (
+    <div className="absolute bottom-14 left-1/2 -translate-x-1/2 z-[1200] animate-in fade-in slide-in-from-bottom-2 duration-200">
+      <div className="flex items-center gap-3 px-4 py-2.5 bg-slate-900/95 backdrop-blur-md border border-slate-700 rounded-xl shadow-2xl">
+        {/* Orientação */}
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Orientação</span>
+          <div className="flex gap-1">
+            <button
+              onClick={() => updateEngineeringData({ moduleOrientation: 'portrait' })}
+              className={cn("px-2 py-0.5 text-[9px] font-black uppercase rounded transition-all",
+                engineeringData.moduleOrientation === 'portrait' ? "bg-indigo-600 text-white" : "bg-slate-800 text-slate-400 hover:text-slate-200")}
+            >Retrato</button>
+            <button
+              onClick={() => updateEngineeringData({ moduleOrientation: 'landscape' })}
+              className={cn("px-2 py-0.5 text-[9px] font-black uppercase rounded transition-all",
+                engineeringData.moduleOrientation === 'landscape' ? "bg-indigo-600 text-white" : "bg-slate-800 text-slate-400 hover:text-slate-200")}
+            >Paisagem</button>
+          </div>
+        </div>
+
+        <div className="w-px h-8 bg-slate-700" />
+
+        {/* Aplicar */}
+        <button
+          onClick={() => {
+            const targetId = selectedAreaId ?? installationAreas[0]?.id;
+            if (targetId) { autoLayoutArea(targetId); setActiveTool('SELECT'); }
+          }}
+          disabled={installationAreas.length === 0}
+          className="px-4 py-1.5 text-[10px] font-black uppercase tracking-widest bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg"
+        >
+          Aplicar
+        </button>
+
+        {/* Cancelar */}
+        <button onClick={() => setActiveTool('SELECT')} className="text-slate-500 hover:text-slate-300 transition-colors">
+          <X size={14} />
+        </button>
+      </div>
+    </div>
   );
 };
 
@@ -756,6 +1504,8 @@ export const PhysicalCanvasView: React.FC = () => {
   const setActiveTool = useUIStore(s => s.setActiveTool);
   const canvasViewMode = useUIStore(s => s.canvasViewMode);
   const setCanvasViewMode = useUIStore(s => s.setCanvasViewMode);
+  const satelliteOpacity = useUIStore(s => s.satelliteOpacity);
+  const showGrid = useUIStore(s => s.showGrid);
 
   // Anatomia migrada de useState local → Zustand (persiste entre re-renders)
   const isAnatomyPanelOpen = useUIStore(s => s.isAnatomyPanelOpen);
@@ -763,7 +1513,6 @@ export const PhysicalCanvasView: React.FC = () => {
 
   const [drawingPoints, setDrawingPoints] = React.useState<[number, number][]>([]);
   const [selectedModuleIds, setSelectedModuleIds] = React.useState<string[]>([]);
-  const [stringingPickerOpen, setStringingPickerOpen] = useState(false);
   const [missingCenterCount, setMissingCenterCount] = React.useState(0);
 
   // MELHORIA 1: Acesso aos inversores e catálogo para o picker de MPPT
@@ -788,6 +1537,7 @@ export const PhysicalCanvasView: React.FC = () => {
   
   const moduleSpecs = useSolarStore(s => s.modules);
   const assignModulesToString = useSolarStore(s => s.assignModulesToString);
+  const removePlacedModuleFn = useSolarStore(s => s.removePlacedModule);
   const spawnFreeformArea = useSolarStore(s => s.spawnFreeformArea);
   const spawnObstacle = useSolarStore(s => s.spawnObstacle);
   const selectedAreaId = useUIStore(s => s.selectedEntity.type === 'area' ? s.selectedEntity.id : null);
@@ -906,6 +1656,19 @@ export const PhysicalCanvasView: React.FC = () => {
     };
   }, [drawingPoints, installationAreas, placedModules]);
 
+  // Item 5: Cálculo de kWp total instalado
+  const totalKwp = useMemo(() => {
+    if (placedModules.length === 0) return 0;
+    return placedModules.reduce((sum, m) => {
+      if (!m.moduleSpecId) return sum;
+      const spec = moduleSpecs.entities[m.moduleSpecId];
+      if (!spec) return sum;
+      // Use vmp * imp for power if pmax not available
+      const power = (spec as any).pmax ?? (spec.vmp * (spec.imp ?? spec.isc * 0.95));
+      return sum + (power / 1000);
+    }, 0);
+  }, [placedModules, moduleSpecs]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Guard: ignore when focus is in an input field
@@ -915,11 +1678,20 @@ export const PhysicalCanvasView: React.FC = () => {
       const k = e.key.toLowerCase();
       if (e.key === 'Escape') { setDrawingPoints([]); setActiveTool('SELECT'); }
 
+      // Undo/Redo (TASK 5)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        useSolarStore.temporal.getState().undo();
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        useSolarStore.temporal.getState().redo();
+      }
+
       // Viewport Modes
       if (e.key === '1') setCanvasViewMode('CONTEXT');
-      if (e.key === '2') setCanvasViewMode('BLUEPRINT');
-      if (e.key === '3') setCanvasViewMode('DIAGRAM');
-      if (e.key === '4') setCanvasViewMode('UNIFILAR');
+      if (e.key === '2') setCanvasViewMode('DIAGRAM');
+      if (e.key === '3') setCanvasViewMode('UNIFILAR');
 
       // Universal Tools
       if (k === 's') setActiveTool('SELECT');
@@ -932,6 +1704,7 @@ export const PhysicalCanvasView: React.FC = () => {
       if (k === 'd') setActiveTool('DROP_POINT');
       if (k === 'm') setActiveTool('MEASURE');
       if (k === 'q') setActiveTool('STRINGING');
+      if (k === 'f') setActiveTool('PLACE_MODULE');
 
       if (e.key === 'Enter' && drawingPoints.length >= 3) {
         if (activeTool === 'POLYGON') {
@@ -949,10 +1722,27 @@ export const PhysicalCanvasView: React.FC = () => {
           setActiveTool('SELECT');
         }
       }
+
+      // Delete/Backspace — remove selected modules in STRINGING mode
+      if ((e.key === 'Delete' || e.key === 'Backspace') && activeTool === 'STRINGING' && selectedModuleIds.length > 0) {
+        e.preventDefault();
+        selectedModuleIds.forEach(id => removePlacedModuleFn(id));
+        setSelectedModuleIds([]);
+      }
+
+      // Ctrl+A — select all modules in the selected area (or all modules)
+      if ((e.ctrlKey || e.metaKey) && k === 'a' && activeTool === 'STRINGING') {
+        e.preventDefault();
+        const targetAreaId = selectedAreaId;
+        const allIds = targetAreaId
+          ? placedModules.filter(m => m.areaId === targetAreaId).map(m => m.id)
+          : placedModules.map(m => m.id);
+        setSelectedModuleIds(allIds);
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [drawingPoints, setActiveTool, setCanvasViewMode, activeTool, selectedAreaId, spawnFreeformArea, spawnObstacle]);
+  }, [drawingPoints, setActiveTool, setCanvasViewMode, activeTool, selectedAreaId, spawnFreeformArea, spawnObstacle, selectedModuleIds, placedModules, removePlacedModuleFn]);
 
   // B3: Limpar seleção de módulos ao sair de STRINGING
   useEffect(() => {
@@ -965,161 +1755,45 @@ export const PhysicalCanvasView: React.FC = () => {
   const isDropPointActive = activeTool === 'DROP_POINT';
   const isMeasureActive = activeTool === 'MEASURE';
   const isStringingActive = selectedModuleIds.length > 0;
+  const isPlaceModuleActive = activeTool === 'PLACE_MODULE';
 
-  // C03: More granular mpptColorMap dependency — only recompute when stringData assignments change
-  const mpptColorSig = useMemo(() =>
-    placedModules
-      .filter(m => m.stringData)
-      .map(m => `${m.id}:${m.stringData!.inverterId}:${m.stringData!.mpptId}`)
-      .sort()
-      .join('|'),
-    [placedModules]
-  );
-
+  // C02: Stable mpptColorMap — only recomputes when unique MPPT assignments change (not all module IDs)
   const mpptColorMap = useMemo(() => {
-    const map: Record<string, string> = {};
-    let colorIdx = 0;
+    const uniqueMpptKeys = new Set<string>();
     placedModules.forEach(m => {
       if (!m.stringData) return;
-      const key = `${m.stringData.inverterId}:${m.stringData.mpptId}`;
-      if (!(key in map)) { map[key] = MPPT_HUD_COLORS[colorIdx++ % MPPT_HUD_COLORS.length]; }
+      uniqueMpptKeys.add(`${m.stringData.inverterId}:${m.stringData.mpptId}`);
+    });
+
+    const sortedKeys = Array.from(uniqueMpptKeys).sort();
+    const map: Record<string, string> = {};
+    sortedKeys.forEach((key, idx) => {
+      map[key] = MPPT_HUD_COLORS[idx % MPPT_HUD_COLORS.length];
     });
     return map;
-  }, [mpptColorSig]);
-
-  // MPPT Picker — exibido ao confirmar stringing
-  const StringingMpptPicker = stringingPickerOpen && selectedModuleIds.length > 0 ? (
-    <div className="absolute inset-0 z-[2000] flex items-end justify-center pb-16 pointer-events-none">
-      <div
-        className="pointer-events-auto bg-slate-950 border border-slate-700 rounded-xl shadow-2xl p-4 w-[360px] animate-in slide-in-from-bottom-4 duration-300"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-[11px] font-black text-cyan-400 uppercase tracking-widest">
-            Atribuir {selectedModuleIds.length} módulo{selectedModuleIds.length !== 1 ? 's' : ''} ao MPPT
-          </span>
-          <button onClick={() => setStringingPickerOpen(false)} className="text-slate-500 hover:text-white transition-colors">
-            ✕
-          </button>
-        </div>
-        {/* D03: Aviso de reassociação com origem das strings */}
-        {(() => {
-          const assignedModules = selectedModuleIds
-            .map(id => placedModules.find(m => m.id === id))
-            .filter(m => m?.stringData);
-
-          if (assignedModules.length === 0) return null;
-
-          const sourceStrings = [...new Set(
-            assignedModules.map(m => {
-              const sd = m!.stringData!;
-              const inv = techInverters.find(i => i.id === sd.inverterId);
-              const invLabel = inv
-                ? (catalogInvertersList.find((c: any) => c.id === inv.catalogId)?.model ?? `Inv ${sd.inverterId.slice(0, 6)}`)
-                : `Inv ${sd.inverterId.slice(0, 6)}`;
-              return `${invLabel} › MPPT ${sd.mpptId}`;
-            })
-          )];
-
-          return (
-            <div className="mb-2 px-2 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-md text-[9px] text-amber-400 font-bold uppercase tracking-wider">
-              ⚠ {assignedModules.length} módulo(s) de {sourceStrings.join(', ')} serão reassociados
-            </div>
-          );
-        })()}
-        {techInverters.length === 0 ? (
-          <p className="text-[10px] text-slate-500 text-center py-4">
-            Nenhum inversor configurado. Vá para a aba Inversores.
-          </p>
-        ) : (
-          <div className="flex flex-col gap-2 max-h-60 overflow-y-auto custom-scrollbar">
-            {techInverters.map(inv => {
-              const cat = catalogInvertersList.find(c => c.id === inv.catalogId);
-              return (
-                <div key={inv.id} className="border border-slate-800 rounded-lg overflow-hidden">
-                  <div className="px-3 py-1.5 bg-slate-900 text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                    {cat?.model ?? inv.snapshot?.model ?? inv.id}
-                  </div>
-                  <div className="flex flex-wrap gap-1 p-2">
-                    {inv.mpptConfigs.map(mppt => {
-                      const assignedCount = placedModules.filter(
-                        m => m.stringData?.inverterId === inv.id && m.stringData?.mpptId === mppt.mpptId
-                      ).length;
-                      const stringCount = mppt.strings?.length ?? 0;
-                      const configuredCapacity = (mppt.strings || []).reduce((acc, s) => acc + (s.modulesCount || mppt.modulesPerString || 0), 0);
-                      const remaining = Math.max(0, configuredCapacity - assignedCount);
-                      return (
-                        <button
-                          key={mppt.mpptId}
-                          onClick={() => {
-                            // Compute next available stringId within this MPPT
-                            const existingStringIds = new Set(
-                              placedModules
-                                .filter(m => m.stringData?.inverterId === inv.id && m.stringData?.mpptId === mppt.mpptId && m.stringData?.stringId)
-                                .map(m => m.stringData!.stringId as string)
-                            );
-                            const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-                            let nextStringId = 'String A';
-                            for (let i = 0; i < letters.length; i++) {
-                              const candidate = `String ${letters[i]}`;
-                              if (!existingStringIds.has(candidate)) { nextStringId = candidate; break; }
-                            }
-                            assignModulesToString(selectedModuleIds, inv.id, mppt.mpptId, nextStringId);
-                            setSelectedModuleIds([]);
-                            setActiveTool('SELECT');
-                            setStringingPickerOpen(false);
-                          }}
-                          className="px-2 py-1 text-[9px] font-black uppercase rounded border border-slate-700 bg-slate-900 hover:bg-indigo-600 hover:border-indigo-500 hover:text-white text-slate-400 transition-all"
-                        >
-                          <span>MPPT {mppt.mpptId}</span>
-                          {stringCount > 0 && <span className="opacity-60"> · {stringCount} str</span>}
-                          <span className="ml-1 flex items-center gap-0.5">
-                            {assignedCount > 0 && (
-                              <span className="px-1 rounded bg-indigo-500/20 text-indigo-300 text-[8px] font-mono">
-                                {assignedCount}↑
-                              </span>
-                            )}
-                            {configuredCapacity > 0 && remaining > 0 && (
-                              <span className="px-1 rounded bg-slate-600/40 text-slate-400 text-[8px] font-mono">
-                                {remaining}↓
-                              </span>
-                            )}
-                            {configuredCapacity > 0 && remaining === 0 && assignedCount > 0 && (
-                              <span className="px-1 rounded bg-emerald-500/20 text-emerald-400 text-[8px] font-mono">✓</span>
-                            )}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        <button
-          onClick={() => setStringingPickerOpen(false)}
-          className="mt-3 w-full py-1.5 text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-300 transition-colors border border-slate-800 rounded-md"
-        >
-          Cancelar
-        </button>
-      </div>
-    </div>
-  ) : null;
+  }, [placedModules]);
 
   return (
     <div className="relative w-full h-full flex flex-col bg-slate-950 overflow-hidden select-none">
       {/* ── D1: TopRibbon local ELIMINADO — canvas começa direto ── */}
 
       <div className="flex-1 flex min-h-0 relative bg-slate-950/20">
-        {/* C1: SearchIsland — só em CONTEXT/BLUEPRINT */}
-        {(canvasViewMode === 'CONTEXT' || canvasViewMode === 'BLUEPRINT') && <SearchIsland />}
+        {/* C1: SearchIsland — só em CONTEXT */}
+        {canvasViewMode === 'CONTEXT' && <SearchIsland />}
 
         {/* ── STACK DE ILHAS (Lado Esquerdo) ── */}
         <div className="absolute left-6 top-24 flex flex-col gap-3 items-center z-[1100]">
-          {(canvasViewMode === 'CONTEXT' || canvasViewMode === 'BLUEPRINT') && <ManipulationIsland />}
-          {(canvasViewMode === 'CONTEXT' || canvasViewMode === 'BLUEPRINT') && <NavigationIsland />}
-          {(canvasViewMode === 'CONTEXT' || canvasViewMode === 'BLUEPRINT') && <VisionIsland />}
+          {canvasViewMode === 'CONTEXT' && (
+            <>
+              <ManipulationIsland />
+              {/* Item 6b: Separador entre ilhas */}
+              <div className="w-6 h-px bg-slate-800/50" />
+              <NavigationIsland />
+              <div className="w-6 h-px bg-slate-800/50" />
+              <VisionIsland />
+              <div className="w-6 h-px bg-slate-800/50" />
+            </>
+          )}
           <DraftingIsland />
         </div>
 
@@ -1132,18 +1806,30 @@ export const PhysicalCanvasView: React.FC = () => {
             />
           )}
 
-          <div className={cn(
-            "absolute inset-0 transition-all duration-700 ease-in-out", 
-            (canvasViewMode === 'BLUEPRINT') ? "brightness-[0.4] saturate-0 opacity-60" : 
-            (canvasViewMode === 'DIAGRAM' || canvasViewMode === 'UNIFILAR') ? "brightness-0 opacity-0" :
-            "brightness-100 saturate-100 opacity-100"
-          )}>
+          <div
+            className={cn(
+              "absolute inset-0 transition-opacity duration-500",
+              (canvasViewMode === 'DIAGRAM' || canvasViewMode === 'UNIFILAR') ? "opacity-0 pointer-events-none" : ""
+            )}
+            style={(canvasViewMode === 'CONTEXT') ? { opacity: satelliteOpacity / 100 } : undefined}
+          >
             <MapCore activeTool={activeTool}>
               <WebGLOverlay />
               <DrawingEngine activeTool={activeTool} points={drawingPoints} setPoints={setDrawingPoints} />
               <SafeEdgeOverlay points={drawingPoints} />
               <ObstacleLayer areas={installationAreas} />
+              {/* Item 2: Box-select para STRINGING */}
+              {activeTool === 'STRINGING' && (
+                <BoxSelectLayer
+                  placedModules={placedModules}
+                  onSelectModules={(ids, additive) => {
+                    setSelectedModuleIds(prev => additive ? [...new Set([...prev, ...ids])] : ids);
+                  }}
+                />
+              )}
+              <AreaLabelsLayer />
               <DropPointLayer />
+              <PolygonEditLayer />
               <ModuleInteractionLayer
                 activeTool={activeTool}
                 placedModules={placedModules}
@@ -1176,10 +1862,13 @@ export const PhysicalCanvasView: React.FC = () => {
             </div>
           )}
 
-          <div className={cn(
-            "absolute inset-0 pointer-events-none transition-opacity duration-500", 
-            canvasViewMode === 'BLUEPRINT' ? "opacity-10" : "opacity-0"
-          )} style={{ backgroundImage: `linear-gradient(#4f46e5 1px, transparent 1px), linear-gradient(90deg, #4f46e5 1px, transparent 1px)`, backgroundSize: '40px 40px' }} />
+          <div
+            className={cn(
+              "absolute inset-0 pointer-events-none transition-opacity duration-500",
+              showGrid ? "opacity-10" : "opacity-0"
+            )}
+            style={{ backgroundImage: `linear-gradient(#4f46e5 1px, transparent 1px), linear-gradient(90deg, #4f46e5 1px, transparent 1px)`, backgroundSize: '40px 40px' }}
+          />
           
           {/* Seletor de Camadas — alinhado à esquerda, acima da MainActionIsland */}
           <ViewLayerSelector />
@@ -1194,8 +1883,11 @@ export const PhysicalCanvasView: React.FC = () => {
             onSurfaceChange={(type) => updateClientData({ roofType: type as any })}
           />
 
+          {/* Item 4: PlaceModulePanel floating config */}
+          <PlaceModulePanel />
+
           {/* Fix 1: HUD: Status de Stringing por MPPT - wrapped in conditional */}
-          {(canvasViewMode === 'CONTEXT' || canvasViewMode === 'BLUEPRINT') && (() => {
+          {canvasViewMode === 'CONTEXT' && (() => {
             const assignedModules = placedModules.filter(m => m.stringData);
             if (assignedModules.length === 0) return null;
             const byMppt: Record<string, { inverterId: string; mpptId: number; count: number }> = {};
@@ -1226,8 +1918,12 @@ export const PhysicalCanvasView: React.FC = () => {
             );
           })()}
 
+          {/* L0-A: Map Style Switcher */}
+          <MapStyleSwitcher />
+          <SatelliteOpacityControl />
+
           {/* Fix 1: Camera button - wrapped in conditional */}
-          {(canvasViewMode === 'CONTEXT' || canvasViewMode === 'BLUEPRINT') && (
+          {canvasViewMode === 'CONTEXT' && (
             <div className="absolute bottom-4 right-4 z-[1100]">
               <button
                 disabled
@@ -1239,10 +1935,24 @@ export const PhysicalCanvasView: React.FC = () => {
               </button>
             </div>
           )}
+
+          {/* Stringing Quick Popover — MUST be inside flex-1 relative min-w-0 */}
+          {activeTool === 'STRINGING' && (
+            <StringingQuickPopover
+              selectedModuleIds={selectedModuleIds}
+              placedModules={placedModules}
+              techInverters={techInverters}
+              catalogInvertersList={catalogInvertersList}
+              onAssign={(moduleIds, inverterId, mpptId, stringId) => {
+                assignModulesToString(moduleIds, inverterId, mpptId, stringId);
+                setSelectedModuleIds([]);
+                setActiveTool('SELECT');
+              }}
+              onClear={() => setSelectedModuleIds([])}
+            />
+          )}
         </div>
       </div>
-
-      {StringingMpptPicker}
 
       <div className="h-10 shrink-0 bg-slate-900 border-t border-slate-800 flex items-center px-4 z-[1100]">
         {isDrawingActive ? (
@@ -1325,10 +2035,6 @@ export const PhysicalCanvasView: React.FC = () => {
             <div className="h-4 w-px bg-slate-800" />
             <div className="flex items-center gap-2">
               <button onClick={() => setSelectedModuleIds([])} className="px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-400 transition-colors">Limpar</button>
-              <button
-                onClick={() => setStringingPickerOpen(true)}
-                className="px-3 py-0.5 text-[9px] font-black uppercase tracking-widest bg-cyan-600 hover:bg-cyan-500 text-white border border-cyan-400/50 rounded-sm transition-all"
-              >Atribuir a MPPT…</button>
             </div>
           </div>
         ) : isDropPointActive ? (
@@ -1372,8 +2078,8 @@ export const PhysicalCanvasView: React.FC = () => {
             </div>
             <div className="h-4 w-px bg-slate-800" />
             <div className="flex items-center gap-4">
-               <button 
-                  onClick={() => setDrawingPoints([])} 
+               <button
+                  onClick={() => setDrawingPoints([])}
                   className="text-slate-500 hover:text-slate-300 transition-colors uppercase text-[9px] font-black"
                >
                  Limpar
@@ -1386,38 +2092,81 @@ export const PhysicalCanvasView: React.FC = () => {
                </button>
             </div>
           </div>
-        ) : (
-          /* Estado padrão: telemetria passiva com todos os KPIs */
-          <div className="flex-1 flex items-center gap-6 font-mono text-[11px] tabular-nums tracking-wider h-full">
+        ) : isPlaceModuleActive ? (
+          /* L1-C: PLACE_MODULE HUD */
+          <div className="flex-1 flex items-center gap-4 font-mono text-[11px] h-full animate-in fade-in duration-150">
             <div className="flex items-center gap-2">
-              <Hash size={12} className="text-slate-600" />
-              <div className="flex gap-3">
-                {/* [R4-10] LOW: LAT/LNG show dynamic centroid of installation areas */}
-                <div className="flex gap-1.5"><span className="text-slate-600 font-black">LAT</span><span className="text-indigo-400 font-bold">{(() => {
-                  if (!installationAreas || installationAreas.length === 0) {
-                    return clientData.lat?.toFixed(6) ?? '--';
-                  }
-                  const latSum = installationAreas.reduce((sum, a) => sum + (a.center?.[0] ?? 0), 0);
-                  return (latSum / installationAreas.length).toFixed(6);
-                })()}</span></div>
-                <div className="flex gap-1.5"><span className="text-slate-600 font-black">LNG</span><span className="text-indigo-400 font-bold">{(() => {
-                  if (!installationAreas || installationAreas.length === 0) {
-                    return clientData.lng?.toFixed(6) ?? '--';
-                  }
-                  const lngSum = installationAreas.reduce((sum, a) => sum + (a.center?.[1] ?? 0), 0);
-                  return (lngSum / installationAreas.length).toFixed(6);
-                })()}</span></div>
-              </div>
+              <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+              <span className="text-[10px] font-black text-indigo-300 uppercase tracking-widest font-mono">
+                PREENCHER ÁREA — Clique em uma área de instalação
+              </span>
             </div>
             <div className="h-4 w-px bg-slate-800" />
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] text-slate-500 uppercase font-black">Orientação</span>
+              <span className="text-indigo-400 text-[10px] font-bold">
+                {useSolarStore.getState().engineeringData.moduleOrientation === 'portrait' ? 'Retrato' : 'Paisagem'}
+              </span>
+            </div>
+            <div className="h-4 w-px bg-slate-800" />
+            <button
+              onClick={() => setActiveTool('SELECT')}
+              className="px-2 py-0.5 text-[9px] font-black uppercase tracking-widest bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-700 hover:border-rose-500/50 rounded-sm transition-all"
+            >
+              Cancelar (Esc)
+            </button>
+          </div>
+        ) : selectedAreaId && activeTool === 'SELECT' ? (
+          /* Area Selected HUD */
+          <div className="flex-1 flex items-center gap-4 font-mono text-[11px] h-full animate-in fade-in duration-150">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-violet-500" />
+              <span className="text-[10px] font-black text-violet-300 uppercase tracking-widest font-mono">
+                {installationAreas.find(a => a.id === selectedAreaId)?.name ?? `Área selecionada`}
+              </span>
+            </div>
+            <div className="h-4 w-px bg-slate-800" />
+            <div className="flex items-center gap-3">
+              <span className="text-[9px] text-slate-500 uppercase font-black">Arrastar ponto central = Mover</span>
+              <span className="text-slate-700">·</span>
+              <span className="text-[9px] text-slate-500 uppercase font-black">Delete = Excluir</span>
+              <span className="text-slate-700">·</span>
+              <span className="text-[9px] text-slate-500 uppercase font-black">Duplo-clique label = Renomear</span>
+            </div>
+            <div className="h-4 w-px bg-slate-800" />
+            <button
+              onClick={() => {
+                const count = placedModules.filter(m => m.areaId === selectedAreaId).length;
+                const ok = count === 0 || window.confirm(`Esta área contém ${count} módulo(s). Confirmar exclusão?`);
+                if (ok) {
+                  useSolarStore.getState().deleteArea(selectedAreaId);
+                  useUIStore.getState().clearSelection();
+                }
+              }}
+              className="px-2 py-0.5 text-[9px] font-black uppercase tracking-widest bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 hover:border-rose-500/50 rounded-sm transition-all"
+            >
+              Excluir Área
+            </button>
+          </div>
+        ) : (
+          /* Item 5: Estado padrão simplificado */
+          <div className="flex-1 flex items-center gap-6 font-mono text-[11px] tabular-nums tracking-wider h-full">
             <div className="flex items-center gap-4">
-              <div className="flex gap-1.5 items-center"><span className="text-slate-600 font-black uppercase text-[9px]">Área</span><span className="text-slate-300 font-bold">{stats.areaTot.toFixed(1)}m²</span></div>
+              {/* Item 5: kWp instalado */}
+              <div className="flex gap-1.5 items-center">
+                <div className="w-2 h-2 rounded-full bg-indigo-500" />
+                <span className="text-slate-600 font-black uppercase text-[9px]">kWp</span>
+                <span className="text-indigo-400 font-bold">{totalKwp > 0 ? totalKwp.toFixed(2) : '--'}</span>
+              </div>
+              <div className="h-4 w-px bg-slate-800" />
+              {/* Item 5: Útil (área mais relevante) */}
               <div className="flex gap-1.5 items-center"><span className="text-slate-600 font-black uppercase text-[9px]">Útil</span><span className="text-emerald-400 font-bold">{stats.areaUtil.toFixed(1)}m²</span></div>
+              {/* Mods X/Y mantido */}
               <div className="flex gap-1.5 items-center">
                 <span className="text-slate-600 font-black uppercase text-[9px]">Mods</span>
                 <span className={cn("font-bold", stats.modulos < modulosMeta ? "text-amber-400" : "text-indigo-400")}>{stats.modulos}/{modulosMeta}</span>
               </div>
-              {/* Fix 5: FDI health semaphore */}
+              {/* FDI mantido */}
               <div className="flex gap-1.5 items-center">
                 <span className="text-slate-600 font-black uppercase text-[9px]">FDI</span>
                 <span className={cn(
@@ -1445,7 +2194,6 @@ export const PhysicalCanvasView: React.FC = () => {
                 if (unassignedModulesCount > 0) issueLabels.push(`${unassignedModulesCount} s/str`);
                 if (emptyConfiguredMPPTCount > 0) issueLabels.push(`${emptyConfiguredMPPTCount} MPPT∅`);
 
-                // U03: Limit to 2 issues + "+N mais" suffix
                 const displayLabels = issueLabels.slice(0, 2);
                 const extraCount = issueLabels.length - displayLabels.length;
                 const badgeText = displayLabels.join(' · ') + (extraCount > 0 ? ` +${extraCount}` : '');
@@ -1463,7 +2211,6 @@ export const PhysicalCanvasView: React.FC = () => {
                   </div>
                 ) : null;
               })()}
-              <div className="flex gap-1.5 items-center"><span className="text-slate-600 font-black uppercase text-[9px]">Trilhos</span><span className="text-indigo-300 font-bold">--</span></div>
             </div>
           </div>
         )}

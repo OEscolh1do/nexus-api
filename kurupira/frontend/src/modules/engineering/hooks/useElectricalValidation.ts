@@ -3,7 +3,9 @@ import { useSolarStore, selectModules } from '@/core/state/solarStore';
 import { useTechStore } from '@/modules/engineering/store/useTechStore';
 import { useCatalogStore } from '@/modules/engineering/store/useCatalogStore';
 import { validateSystemStrings, type MPPTInput, type SystemValidationReport } from '@/modules/engineering/utils/electricalMath';
+import { getModuleSpecs, type ModuleSpecs } from '@/modules/engineering/utils/specAdapter';
 import { useThermalPremises } from './useThermalPremises';
+import { useDebounce } from './useDebounce';
 
 /** Lightweight djb2 string hash — for change detection only, not cryptographic */
 function djb2Hash(str: string): number {
@@ -89,17 +91,21 @@ export const useElectricalValidation = (): UnifiedValidationResult => {
         return topSpec ?? modules[0];
     }, [modules, placedModules, placedCount]);
 
-    const invertersSig = djb2Hash(
+    // Debounced: rapid MPPT field edits (e.g., modulesPerString typing) fire validation
+    // only after 300ms of inactivity — avoids O(n) electrical re-calc on every keystroke.
+    const invertersSigRaw = djb2Hash(
         Object.values(invertersNorm.entities)
             .map(inv => `${inv.id}-${inv.mpptConfigs.map(m => `${m.stringIds?.join(',')}|${m.modulesPerString}|${m.stringsCount}|${m.cableLength}`).join('|')}`)
             .join('::')
     );
+    const invertersSig = useDebounce(invertersSigRaw, 300);
 
-    const stringsSig = djb2Hash(
+    const stringsSigRaw = djb2Hash(
         Object.values(stringsNorm.entities)
             .map(str => `${str.id}-${str.mpptId}-${str.moduleIds?.length}`)
             .join('::')
     );
+    const stringsSig = useDebounce(stringsSigRaw, 300);
 
     // F01: Hash catalog inverter specs to detect changes to voltage/current limits
     // R5-07: Sort by id before hashing to avoid order-sensitive hash changes
@@ -202,15 +208,8 @@ export const useElectricalValidation = (): UnifiedValidationResult => {
         let electricalReport: SystemValidationReport | null = null;
 
         if (representativeModule && techInverters.length > 0) {
-            const moduleSpecs = {
-                voc: representativeModule.voc ?? 0,
-                vmp: representativeModule.vmp ?? (representativeModule.voc ?? 0) * 0.82,
-                isc: representativeModule.isc ?? 0,
-                imp: (representativeModule as any).imp ?? ((representativeModule.isc ?? 0) * 0.95),
-                tempCoeffVoc: (representativeModule as any).electrical?.tempCoeffVoc
-                    ?? representativeModule.tempCoeff
-                    ?? -0.29,
-            };
+            // representativeModule is guaranteed non-null at this point
+            const moduleSpecs: ModuleSpecs = getModuleSpecs(representativeModule)!;
 
             // E01: Guard against invalid module specs that would corrupt thermal calculations
             // D03: Return explicit error instead of silent skip
@@ -250,13 +249,7 @@ export const useElectricalValidation = (): UnifiedValidationResult => {
                     const mpptRawSpec = mpptSpecId
                         ? modules.find(mod => mod.id === mpptSpecId)
                         : representativeModule;
-                    const mpptModuleSpecs = mpptRawSpec ? {
-                        voc: mpptRawSpec.voc,
-                        vmp: mpptRawSpec.vmp ?? mpptRawSpec.voc * 0.82,
-                        isc: mpptRawSpec.isc ?? 0,
-                        imp: (mpptRawSpec as any).imp ?? (mpptRawSpec.isc ?? 0) * 0.95,
-                        tempCoeffVoc: (mpptRawSpec as any).electrical?.tempCoeffVoc ?? mpptRawSpec.tempCoeff ?? -0.29,
-                    } : moduleSpecs;
+                    const mpptModuleSpecs: ModuleSpecs = getModuleSpecs(mpptRawSpec) ?? moduleSpecs;
 
                     // Determinamos as strings ativas: Prioridade V5 (Anilhas) > Tier 3 (Drawn) > Legacy
                     const v5Strings = cfg.strings || [];

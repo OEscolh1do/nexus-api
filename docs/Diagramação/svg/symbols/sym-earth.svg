@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ╔══════════════════════════════════════════════════════════════════════╗
+  ║  CATÁLOGO KURUPIRA — sym-earth  (IEC 60617-2 Terra de Proteção)     ║
+  ║  ViewBox local: 0 0 16 12                                           ║
+  ║                                                                      ║
+  ║  CSS Custom Properties:                                              ║
+  ║    --s  cor de todas as barras   padrão #22c55e (verde segurança)   ║
+  ║                                                                      ║
+  ║  Geometria:                                                          ║
+  ║    barra 1 (larga):   (0,0)→(16,0)                                  ║
+  ║    barra 2 (média):   (2.5,4)→(13.5,4)                              ║
+  ║    barra 3 (estreita): (5,8)→(11,8)                                 ║
+  ║                                                                      ║
+  ║  Uso: posicionar com x = cx−8, y = node.y para centrar              ║
+  ║                                                                      ║
+  ║  Normas: IEC 60617-2 (símbolo PE),                                   ║
+  ║          NBR 5410:2004 §6.1 (condutor de proteção PE — verde/am.)    ║
+  ╚══════════════════════════════════════════════════════════════════════╝
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="-8 -16 72 48"
+     width="288" height="192"
+     style="background:#0f172a; font-family:monospace;">
+
+  <defs>
+    <symbol id="sym-earth" viewBox="0 0 16 12">
+      <!-- Barra larga (topo — conexão com PE) -->
+      <line x1="0"   y1="0" x2="16"   y2="0"
+        stroke-width="1.5" stroke-linecap="round"
+        style="stroke:var(--s,#22c55e);"/>
+      <!-- Barra média -->
+      <line x1="2.5" y1="4" x2="13.5" y2="4"
+        stroke-width="1.5" stroke-linecap="round"
+        style="stroke:var(--s,#22c55e);"/>
+      <!-- Barra estreita (fundo — potencial de terra) -->
+      <line x1="5"   y1="8" x2="11"   y2="8"
+        stroke-width="1.5" stroke-linecap="round"
+        style="stroke:var(--s,#22c55e);"/>
+    </symbol>
+  </defs>
+
+  <text x="0" y="-4" fill="#475569" font-size="7">sym-earth — IEC 60617-2 Terra de Proteção (PE)</text>
+
+  <!-- padrão (verde segurança) -->
+  <text x="8" y="17" text-anchor="middle" fill="#22c55e" font-size="6">PE verde</text>
+  <use href="#sym-earth" x="0" y="0" width="16" height="12"/>
+
+  <!-- aterramento de sinal (cinza — GND funcional) -->
+  <text x="36" y="17" text-anchor="middle" fill="#64748b" font-size="6">GND func.</text>
+  <use href="#sym-earth" x="28" y="0" width="16" height="12"
+    style="--s:#64748b;"/>
+</svg>

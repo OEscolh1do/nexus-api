@@ -46,9 +46,9 @@ export const DASHBOARD_TABS: readonly TabConfig[] = [
   },
   {
     id: 'proposal',
-    label: 'Proposta',
+    label: 'Documento',
     icon: FileText,
-    description: 'Documentação e orçamento final',
+    description: 'Canvas para documentos e propostas técnicas',
     color: 'purple',
     order: 4,
   },

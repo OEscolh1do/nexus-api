@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ╔══════════════════════════════════════════════════════════════════════╗
+  ║  CATÁLOGO KURUPIRA — sym-meter  (Medidor Bidirecional kWh)          ║
+  ║  ViewBox local: 0 0 22 22                                           ║
+  ║                                                                      ║
+  ║  CSS Custom Properties:                                              ║
+  ║    --s   stroke / fill do texto e setas   padrão #64748b            ║
+  ║    --sw  stroke-width (círculo)            padrão 1.2               ║
+  ║    --f   fill (fundo)                      padrão #0f172a           ║
+  ║                                                                      ║
+  ║  Geometria (cx=11, cy=11, r=10):                                     ║
+  ║    texto "kWh": x=11, y=9                                           ║
+  ║    linha bidirecional: (5.5,14)→(16.5,14)                           ║
+  ║    seta direita: "16.5,14 14,12.5 14,15.5"                          ║
+  ║    seta esquerda: "5.5,14 8,12.5 8,15.5"                            ║
+  ║                                                                      ║
+  ║  Normas: NT.020.EQTL Rev.05 §4.2 (medidor bidirecional obrigatório) ║
+  ║          Resolução ANEEL 482/2012 (microgeração distribuída)         ║
+  ╚══════════════════════════════════════════════════════════════════════╝
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="-8 -16 80 56"
+     width="320" height="224"
+     style="background:#0f172a; font-family:monospace;">
+
+  <defs>
+    <symbol id="sym-meter" viewBox="0 0 22 22">
+      <!-- Corpo circular -->
+      <circle cx="11" cy="11" r="10"
+        style="fill:var(--f,#0f172a); stroke:var(--s,#64748b); stroke-width:var(--sw,1.2);"/>
+      <!-- Texto kWh -->
+      <text x="11" y="9" text-anchor="middle" dominant-baseline="middle"
+        font-size="5" font-family="monospace" font-weight="bold"
+        style="fill:var(--s,#64748b);">kWh</text>
+      <!-- Linha horizontal bidirecional -->
+      <line x1="5.5" y1="14" x2="16.5" y2="14" stroke-width="0.8"
+        style="stroke:var(--s,#64748b);"/>
+      <!-- Cabeça de seta → (direita) -->
+      <polygon points="16.5,14 14,12.5 14,15.5"
+        style="fill:var(--s,#64748b);"/>
+      <!-- Cabeça de seta ← (esquerda) -->
+      <polygon points="5.5,14 8,12.5 8,15.5"
+        style="fill:var(--s,#64748b);"/>
+    </symbol>
+  </defs>
+
+  <text x="0" y="-4" fill="#475569" font-size="7">sym-meter — Medidor Bidirecional kWh (NT.020.EQTL)</text>
+
+  <!-- padrão -->
+  <text x="11" y="28" text-anchor="middle" fill="#334155" font-size="6">padrão</text>
+  <use href="#sym-meter" x="0" y="0" width="22" height="22"/>
+
+  <!-- hover (violeta) -->
+  <text x="39" y="28" text-anchor="middle" fill="#a78bfa" font-size="6">hover</text>
+  <use href="#sym-meter" x="28" y="0" width="22" height="22"
+    style="--s:#a78bfa; --sw:1.6;"/>
+
+  <!-- selecionado -->
+  <text x="67" y="28" text-anchor="middle" fill="#6366f1" font-size="6">selecionado</text>
+  <use href="#sym-meter" x="56" y="0" width="22" height="22"
+    style="--s:#6366f1; --sw:1.8;"/>
+</svg>

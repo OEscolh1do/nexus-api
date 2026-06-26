@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/api';
+import { toast } from '@/stores/toastStore';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -73,7 +74,9 @@ export function useTenants(params: TenantsListParams) {
         setPagination(res.data.pagination);
       })
       .catch((err) => {
-        setError(err.response?.data?.error ?? 'Falha ao carregar organizações');
+        const msg = err.response?.data?.error ?? 'Falha ao carregar organizações';
+        setError(msg);
+        toast.error(msg);
       })
       .finally(() => setLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -100,7 +103,11 @@ export function useTenant(id: string | null) {
     api
       .get(`/tenants/${id}`)
       .then((res) => setData(res.data.data))
-      .catch((err) => setError(err.response?.data?.error ?? 'Falha ao carregar organização'))
+      .catch((err) => {
+        const msg = err.response?.data?.error ?? 'Falha ao carregar organização';
+        setError(msg);
+        toast.error(msg);
+      })
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -123,9 +130,11 @@ export function usePatchTenant(onSuccess?: () => void) {
       setError(null);
       return api
         .patch(`/tenants/${id}`, payload)
-        .then(() => onSuccess?.())
+        .then(() => { toast.success('Organização atualizada com sucesso.'); onSuccess?.(); })
         .catch((err) => {
-          setError(err.response?.data?.error ?? 'Falha ao atualizar organização');
+          const msg = err.response?.data?.error ?? 'Falha ao atualizar organização';
+          setError(msg);
+          toast.error(msg);
           throw err;
         })
         .finally(() => setLoading(false));
@@ -146,9 +155,11 @@ export function useBlockTenant(onSuccess?: () => void) {
       setError(null);
       return api
         .post(`/tenants/${id}/block`)
-        .then(() => onSuccess?.())
+        .then(() => { toast.success('Organização bloqueada.'); onSuccess?.(); })
         .catch((err) => {
-          setError(err.response?.data?.error ?? 'Falha ao bloquear organização');
+          const msg = err.response?.data?.error ?? 'Falha ao bloquear organização';
+          setError(msg);
+          toast.error(msg);
           throw err;
         })
         .finally(() => setLoading(false));
@@ -169,9 +180,11 @@ export function useUnblockTenant(onSuccess?: () => void) {
       setError(null);
       return api
         .post(`/tenants/${id}/unblock`)
-        .then(() => onSuccess?.())
+        .then(() => { toast.success('Organização desbloqueada.'); onSuccess?.(); })
         .catch((err) => {
-          setError(err.response?.data?.error ?? 'Falha ao desbloquear organização');
+          const msg = err.response?.data?.error ?? 'Falha ao desbloquear organização';
+          setError(msg);
+          toast.error(msg);
           throw err;
         })
         .finally(() => setLoading(false));
@@ -201,7 +214,11 @@ export function useTenantOptions() {
     api
       .get('/tenants/options')
       .then((res) => setData(res.data.data ?? []))
-      .catch(() => setData([]))
+      .catch((err) => {
+        const msg = err.response?.data?.error ?? 'Falha ao carregar opções de organização';
+        toast.error(msg);
+        setData([]);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -218,9 +235,11 @@ export function useCreateTenant(onSuccess?: (id: string, name: string) => void) 
       setError(null);
       return api
         .post('/tenants', payload)
-        .then((res) => onSuccess?.(res.data.data?.id, res.data.data?.name))
+        .then((res) => { toast.success('Organização criada com sucesso.'); onSuccess?.(res.data.data?.id, res.data.data?.name); })
         .catch((err) => {
-          setError(err.response?.data?.error ?? 'Falha ao criar organização');
+          const msg = err.response?.data?.error ?? 'Falha ao criar organização';
+          setError(msg);
+          toast.error(msg);
           throw err;
         })
         .finally(() => setLoading(false));
@@ -240,9 +259,11 @@ export function useDeleteTenant(onSuccess?: () => void) {
       setError(null);
       return api
         .delete(`/tenants/${id}`)
-        .then(() => onSuccess?.())
+        .then(() => { toast.success('Organização excluída.'); onSuccess?.(); })
         .catch((err) => {
-          setError(err.response?.data?.error ?? 'Falha ao excluir organização');
+          const msg = err.response?.data?.error ?? 'Falha ao excluir organização';
+          setError(msg);
+          toast.error(msg);
           throw err;
         })
         .finally(() => setLoading(false));

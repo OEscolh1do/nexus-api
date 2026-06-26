@@ -152,7 +152,10 @@ export const calculateVoltageDrop = (
     section: number,
     voltage: number
 ): { volts: number; percent: number } => {
-    if (voltage === 0 || section === 0) return { volts: 0, percent: 0 };
+    // R8-01: Guard against undefined/zero operands that produce NaN and silently bypass safety checks.
+    // imp is optional in ModuleElectricalSpecs — runtime can receive undefined even though TS types say number.
+    if (!current || current <= 0) return { volts: 0, percent: 0 };
+    if (voltage <= 0 || section <= 0) return { volts: 0, percent: 0 };
     const SIGMA_CU = 56; // Copper conductivity
     const dropV = (2 * length * current) / (SIGMA_CU * section);
     const dropPercent = (dropV / voltage) * 100;

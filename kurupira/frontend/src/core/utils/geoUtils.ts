@@ -86,6 +86,28 @@ export function calcModulePolygon(
 }
 
 /**
+ * Calcula a distância em metros entre dois pontos geográficos usando a fórmula de Haversine.
+ * Precisa ± 0,5% para distâncias < 100 km — adequado para cálculo de comprimento de cabo.
+ *
+ * @param a - Ponto A [latitude, longitude]
+ * @param b - Ponto B [latitude, longitude]
+ * @returns Distância em metros
+ */
+export function haversineDistanceM(a: LatLngTuple, b: LatLngTuple): number {
+  const R = 6_371_000; // raio médio da Terra em metros
+  const φ1 = a[0] * Math.PI / 180;
+  const φ2 = b[0] * Math.PI / 180;
+  const Δφ = (b[0] - a[0]) * Math.PI / 180;
+  const Δλ = (b[1] - a[1]) * Math.PI / 180;
+
+  const sinHalfΔφ = Math.sin(Δφ / 2);
+  const sinHalfΔλ = Math.sin(Δλ / 2);
+  const h = sinHalfΔφ * sinHalfΔφ + Math.cos(φ1) * Math.cos(φ2) * sinHalfΔλ * sinHalfΔλ;
+
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/**
  * Calcula a área de um polígono em metros quadrados usando a fórmula de Shoelace (Cadarço).
  * Assume que os vértices estão em um sistema de coordenadas métricas locais (X, Y).
  * 

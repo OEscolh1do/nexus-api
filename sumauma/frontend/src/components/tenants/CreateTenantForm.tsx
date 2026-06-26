@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Building2, Loader2 } from 'lucide-react';
 import { useCreateTenant } from '@/hooks/useTenants';
 import { PLAN_SEATS, QUOTA_BY_PLAN } from '@/lib/tenantUtils';
@@ -26,7 +26,8 @@ export default function CreateTenantForm({ onClose, onCreated }: CreateTenantFor
   const [apiPlan, setApiPlan] = useState('FREE');
   const [apiMonthlyQuota, setApiMonthlyQuota] = useState(QUOTA_BY_PLAN['FREE']);
 
-  const { mutate: create, loading, error } = useCreateTenant(onCreated);
+  const handleCreated = useCallback((id: string, name: string) => { onCreated(id, name); }, [onCreated]);
+  const { mutate: create, loading, error } = useCreateTenant(handleCreated);
 
   function handlePlanChange(plan: string) {
     setApiPlan(plan);

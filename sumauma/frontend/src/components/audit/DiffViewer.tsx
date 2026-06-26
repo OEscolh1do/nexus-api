@@ -1,44 +1,44 @@
 
-
 interface DiffViewerProps {
-  before: any;
-  after: any;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+}
+
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
+const SENSITIVE_KEYS = ['password', 'token', 'secret', 'key'];
+
+function sanitize(data: Record<string, unknown> | string | null): string | null {
+  if (!data) return null;
+
+  let obj: unknown = data;
+  if (typeof data === 'string') {
+    try {
+      obj = JSON.parse(data);
+    } catch {
+      return data;
+    }
+  }
+
+  function clean(val: unknown): JsonValue {
+    if (typeof val !== 'object' || val === null) return val as JsonValue;
+    if (Array.isArray(val)) return val.map(clean);
+
+    const newObj: { [key: string]: JsonValue } = {};
+    for (const key in val as Record<string, unknown>) {
+      if (SENSITIVE_KEYS.some((sk) => key.toLowerCase().includes(sk))) {
+        newObj[key] = '********';
+      } else {
+        newObj[key] = clean((val as Record<string, unknown>)[key]);
+      }
+    }
+    return newObj;
+  }
+
+  return JSON.stringify(clean(obj), null, 2);
 }
 
 export default function DiffViewer({ before, after }: DiffViewerProps) {
-  const sanitize = (data: any) => {
-    if (!data) return null;
-    
-    // Se vier como string (fallback), tenta parsear, senão usa o objeto
-    let obj = data;
-    if (typeof data === 'string') {
-      try {
-        obj = JSON.parse(data);
-      } catch (e) {
-        return data;
-      }
-    }
-
-    const sensitiveKeys = ['password', 'token', 'secret', 'key'];
-    
-    const clean = (val: any): any => {
-      if (typeof val !== 'object' || val === null) return val;
-      if (Array.isArray(val)) return val.map(clean);
-      
-      const newObj: any = {};
-      for (const key in val) {
-        if (sensitiveKeys.some(sk => key.toLowerCase().includes(sk))) {
-          newObj[key] = '********';
-        } else {
-          newObj[key] = clean(val[key]);
-        }
-      }
-      return newObj;
-    };
-
-    return JSON.stringify(clean(obj), null, 2);
-  };
-
   const beforeClean = sanitize(before);
   const afterClean = sanitize(after);
 

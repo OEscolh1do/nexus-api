@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ╔══════════════════════════════════════════════════════════════════════╗
+  ║  CATÁLOGO KURUPIRA — sym-pv  (IEC 60617 Módulo/String Fotovoltaica) ║
+  ║  ViewBox local: 0 0 62 46                                           ║
+  ║                                                                      ║
+  ║  CSS Custom Properties:                                              ║
+  ║    --s      stroke (borda + diagonal)        padrão #475569         ║
+  ║    --sw     stroke-width                      padrão 0.9            ║
+  ║    --f      fill (fundo)                      padrão #0f172a        ║
+  ║    --rad    cor das setas de radiação          padrão #34d399        ║
+  ║    --rad-op opacidade das setas               padrão 0.75           ║
+  ║                                                                      ║
+  ║  Uso em SVG:                                                         ║
+  ║    <use href="#sym-pv" x="10" y="10" width="62" height="46"         ║
+  ║         style="--s:#34d399; --sw:1.4; --rad:#34d399; --rad-op:1;"/> ║
+  ║                                                                      ║
+  ║  Normas: IEC 60617-11 (fonte fotovoltaica),                          ║
+  ║          NBR 16690:2019 §4 (identificação de string)                 ║
+  ╚══════════════════════════════════════════════════════════════════════╝
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="-16 -20 130 120"
+     width="390" height="360"
+     style="background:#0f172a; font-family:monospace;">
+
+  <defs>
+    <symbol id="sym-pv" viewBox="0 0 62 46">
+      <!-- Retângulo IEC 60617 (lógica de bloco retangular) -->
+      <rect width="62" height="46" rx="2"
+        style="fill:var(--f,#0f172a); stroke:var(--s,#475569); stroke-width:var(--sw,0.9);"/>
+
+      <!-- Linha diagonal — indicador de fonte CC (polaridade IEC) -->
+      <line x1="8" y1="38" x2="54" y2="8"
+        stroke-width="1" stroke-linecap="round"
+        style="stroke:var(--s,#475569);"/>
+
+      <!--
+        Setas de radiação: 3 paralelas a 45°, apontando lower-left
+        Coordenadas pré-calculadas (shaftLen=11, headSz=3.4, spacing=6.5):
+          dir = (-1/√2, +1/√2)  barbs = 285° / 345°
+      -->
+      <g style="opacity:var(--rad-op,0.75)">
+        <!-- Seta i=-1: cauda(42.7,7.6) → ponta(34.9,15.4) -->
+        <line x1="42.7" y1="7.6"  x2="34.9" y2="15.4"
+          stroke-width="1.1" stroke-linecap="round"
+          style="stroke:var(--rad,#34d399);"/>
+        <polyline points="35.8,12.1 34.9,15.4 38.2,14.5"
+          fill="none" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round"
+          style="stroke:var(--rad,#34d399);"/>
+
+        <!-- Seta i=0: cauda(47.3,12.2) → ponta(39.5,20.0) -->
+        <line x1="47.3" y1="12.2" x2="39.5" y2="20.0"
+          stroke-width="1.1" stroke-linecap="round"
+          style="stroke:var(--rad,#34d399);"/>
+        <polyline points="40.4,16.7 39.5,20.0 42.8,19.1"
+          fill="none" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round"
+          style="stroke:var(--rad,#34d399);"/>
+
+        <!-- Seta i=+1: cauda(51.9,16.8) → ponta(44.1,24.6) -->
+        <line x1="51.9" y1="16.8" x2="44.1" y2="24.6"
+          stroke-width="1.1" stroke-linecap="round"
+          style="stroke:var(--rad,#34d399);"/>
+        <polyline points="45.0,21.3 44.1,24.6 47.4,23.7"
+          fill="none" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round"
+          style="stroke:var(--rad,#34d399);"/>
+      </g>
+
+      <!-- Marcas de terminal (+/-) — cores fixas por convenção IEC -->
+      <text x="3" y="9"  fill="#f87171" font-size="8" font-weight="bold">+</text>
+      <text x="3" y="44" fill="#93c5fd" font-size="8" font-weight="bold">−</text>
+    </symbol>
+  </defs>
+
+  <!-- ── Legenda ───────────────────────────────────────────────────── -->
+  <text x="0" y="-8" fill="#475569" font-size="7">sym-pv — IEC 60617 Módulo Fotovoltaico</text>
+
+  <!-- ── Demo 1: estado padrão (inativo) ──────────────────────────── -->
+  <text x="0" y="52" fill="#334155" font-size="6">padrão</text>
+  <use href="#sym-pv" x="0" y="0" width="62" height="46"/>
+
+  <!-- ── Demo 2: hover MPPT-0 (#34d399 verde) ─────────────────────── -->
+  <text x="80" y="52" fill="#34d399" font-size="6">MPPT-0 hover</text>
+  <use href="#sym-pv" x="80" y="0" width="62" height="46"
+    style="--s:#34d399; --sw:1.4; --rad:#34d399; --rad-op:1;"/>
+
+  <!-- ── Demo 3: hover MPPT-1 (#60a5fa azul) ─────────────────────── -->
+  <text x="0" y="110" fill="#60a5fa" font-size="6">MPPT-1 hover</text>
+  <use href="#sym-pv" x="0" y="58" width="62" height="46"
+    style="--s:#60a5fa; --sw:1.4; --rad:#60a5fa; --rad-op:1;"/>
+
+  <!-- ── Demo 4: selecionado (#6366f1 índigo) ─────────────────────── -->
+  <text x="80" y="110" fill="#6366f1" font-size="6">selecionado</text>
+  <use href="#sym-pv" x="80" y="58" width="62" height="46"
+    style="--s:#6366f1; --sw:1.4; --rad:#6366f1; --rad-op:1;"/>
+</svg>

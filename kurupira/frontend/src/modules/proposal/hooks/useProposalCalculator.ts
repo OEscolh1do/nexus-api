@@ -80,8 +80,9 @@ export const useProposalCalculator = (): ProposalCalculations & { settings: Engi
         const totalLabor = costLaborModules + costLaborStructure + costLaborInverter;
 
         // Soft Costs
-        const costProject = settings.serviceProjectBase + (totalPowerkWp * 1000 * (settings.serviceProjectPercent/100));
-        const costAdmin = settings.serviceAdminBase + (totalPowerkWp * 1000 * (settings.serviceAdminPercent/100)); // Be careful with Wp vs kWp. Input usually R$/Wp. keeping consistent.
+        // R8-04: serviceProjectPercent is decimal (0–1). /100 was incorrect for canonical decimal format.
+        const costProject = settings.serviceProjectBase + (totalPowerkWp * 1000 * settings.serviceProjectPercent);
+        const costAdmin = settings.serviceAdminBase + (totalPowerkWp * 1000 * settings.serviceAdminPercent); // Be careful with Wp vs kWp. Input usually R$/Wp. keeping consistent.
 
         // Extras
         const costInfra = settings.infrastructureUpgradeCost || 0;

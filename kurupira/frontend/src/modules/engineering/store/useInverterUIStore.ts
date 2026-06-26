@@ -1,31 +1,7 @@
-import { create } from 'zustand';
-
-export type InverterCanvasTab = 'unifilar' | 'audit' | 'temperatura' | 'oversizing';
-
-interface InverterUIState {
-  activeInverterId: string | null;
-  setActiveInverterId: (id: string | null) => void;
-
-  activeCanvasTab: InverterCanvasTab;
-  setActiveCanvasTab: (tab: InverterCanvasTab) => void;
-
-  terminalOpen: boolean;
-  setTerminalOpen: (isOpen: boolean) => void;
-
-  highlightMpptId: number | null;
-  setHighlightMpptId: (id: number | null) => void;
-}
-
-export const useInverterUIStore = create<InverterUIState>((set) => ({
-  activeInverterId: null,
-  setActiveInverterId: (id) => set({ activeInverterId: id }),
-
-  activeCanvasTab: 'unifilar',
-  setActiveCanvasTab: (tab) => set({ activeCanvasTab: tab }),
-
-  terminalOpen: false,
-  setTerminalOpen: (isOpen) => set({ terminalOpen: isOpen }),
-
-  highlightMpptId: null,
-  setHighlightMpptId: (id) => set({ highlightMpptId: id }),
-}));
+/**
+ * @deprecated Absorvido por panelStore (H7).
+ * Este arquivo é um re-export shim para compatibilidade com imports existentes.
+ * Migre imports para `panelStore` diretamente.
+ */
+export type { InverterCanvasTab } from './panelStore';
+export { usePanelStore as useInverterUIStore } from './panelStore';

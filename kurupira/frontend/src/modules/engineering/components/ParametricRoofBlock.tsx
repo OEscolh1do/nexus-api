@@ -27,11 +27,11 @@ interface ParametricRoofBlockProps {
 // =============================================================================
 
 const AREA_POLYGON_STYLE = {
-  color: '#10b981',      
-  weight: 2,
+  color: '#10b981',
+  weight: 3,
   opacity: 0.8,
   fillColor: '#10b981',
-  fillOpacity: 0.15,
+  fillOpacity: 0.12,
   dashArray: '6, 4',
 };
 
@@ -39,7 +39,8 @@ const AREA_HOVER_STYLE = {
   ...AREA_POLYGON_STYLE,
   color: '#f59e0b',
   fillColor: '#f59e0b',
-  fillOpacity: 0.25,
+  fillOpacity: 0.2,
+  weight: 3,
 };
 
 const AREA_SELECTED_STYLE = {
@@ -88,10 +89,10 @@ const midEdgeGripIcon = L.divIcon({
 });
 
 const centerGripIcon = L.divIcon({
-  className: 'bg-white border-2 border-indigo-500 rounded-full shadow-md cursor-move',
-  iconSize: [14, 14],
-  iconAnchor: [7, 7],
-  html: '<div style="width:6px;height:6px;border-radius:50%;background:#6366f1;margin:2px auto;"></div>',
+  className: 'bg-white border-2 border-violet-500 rounded-full shadow-md cursor-move',
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+  html: '<div style="width:8px;height:8px;border-radius:50%;background:#8b5cf6;margin:3px auto;"></div>',
 });
 
 const rotateGripIcon = L.divIcon({

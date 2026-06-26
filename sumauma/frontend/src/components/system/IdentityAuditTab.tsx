@@ -14,7 +14,21 @@ import type {
 import * as Dialog from '@radix-ui/react-dialog';
 import { useTenantOptions } from '@/hooks/useTenants';
 
+// ─── Lookup tables ────────────────────────────────────────────────────────────
+const FIELD_LABELS: Record<'name' | 'email' | 'role', string> = {
+  name: 'Nome Completo',
+  email: 'E-mail',
+  role: 'Papel (Role)',
+};
+
 // ─── KPI Card compacto ──────────────────────────────────────────────────────
+const KPI_COLOR_MAP = {
+  muted:   { text: 'text-slate-300', border: 'border-slate-700', left: 'border-l-slate-600', bg: 'bg-slate-900/40' },
+  success: { text: 'text-emerald-400', border: 'border-emerald-500/20', left: 'border-l-emerald-500', bg: 'bg-emerald-500/5' },
+  danger:  { text: 'text-red-400', border: 'border-red-500/20', left: 'border-l-red-500', bg: 'bg-red-500/5' },
+  warning: { text: 'text-amber-400', border: 'border-amber-500/20', left: 'border-l-amber-500', bg: 'bg-amber-500/5' },
+};
+
 function AuditKpiCard({
   label,
   value,
@@ -24,13 +38,7 @@ function AuditKpiCard({
   value: number;
   color: 'muted' | 'success' | 'danger' | 'warning';
 }) {
-  const colorMap = {
-    muted:   { text: 'text-slate-300', border: 'border-slate-700', left: 'border-l-slate-600', bg: 'bg-slate-900/40' },
-    success: { text: 'text-emerald-400', border: 'border-emerald-500/20', left: 'border-l-emerald-500', bg: 'bg-emerald-500/5' },
-    danger:  { text: 'text-red-400', border: 'border-red-500/20', left: 'border-l-red-500', bg: 'bg-red-500/5' },
-    warning: { text: 'text-amber-400', border: 'border-amber-500/20', left: 'border-l-amber-500', bg: 'bg-amber-500/5' },
-  };
-  const theme = colorMap[color];
+  const theme = KPI_COLOR_MAP[color];
   return (
     <div className={`group relative ${theme.bg} border ${theme.border} border-l-2 ${theme.left} rounded-sm px-4 py-3 flex flex-col gap-1 transition-all hover:translate-y-[-1px] hover:shadow-lg hover:shadow-black/20`}>
       <span className="text-[9px] uppercase tracking-[0.1em] text-slate-500 font-bold">{label}</span>
@@ -52,7 +60,7 @@ function OrphanRow({
 }: { 
   orphan: IdentityOrphan;
   onDelete: (logtoId: string) => Promise<void>;
-  onProvision: (logtoId: string, data: any) => Promise<void>;
+  onProvision: (logtoId: string, data: { tenantId: string; username: string; role: string; fullName: string; email: string }) => Promise<void>;
 }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [provisionOpen, setProvisionOpen] = useState(false);
@@ -76,6 +84,8 @@ function OrphanRow({
     try {
       await onDelete(orphan.logtoId);
       setDone(true);
+    } catch {
+      // toast já emitido pelo caller em useSystemHealth
     } finally {
       setLoading(false);
       setDeleteOpen(false);
@@ -87,6 +97,8 @@ function OrphanRow({
     try {
       await onProvision(orphan.logtoId, formData);
       setDone(true);
+    } catch {
+      // toast já emitido pelo caller em useSystemHealth
     } finally {
       setLoading(false);
       setProvisionOpen(false);
@@ -435,12 +447,6 @@ function AttributeMismatchRow({
 
   if (done) return null;
 
-  const fieldLabels: Record<'name' | 'email' | 'role', string> = {
-    name: 'Nome Completo',
-    email: 'E-mail',
-    role: 'Papel (Role)'
-  };
-
   return (
     <tr className="group border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
       <td className="px-4 py-3 font-medium text-slate-300">
@@ -451,7 +457,7 @@ function AttributeMismatchRow({
       </td>
       <td className="px-4 py-3">
         <span className="px-2 py-0.5 rounded-sm bg-slate-950 text-slate-500 text-[10px] font-bold uppercase border border-slate-800 tracking-tighter">
-          {fieldLabels[mismatch.field]}
+          {FIELD_LABELS[mismatch.field]}
         </span>
       </td>
       <td className="px-4 py-3">
@@ -489,7 +495,28 @@ function AttributeMismatchRow({
 }
 
 // ─── Linha de Erro de Membership ─────────────────────────────────────────────
-function MembershipMismatchRow({ mismatch }: { mismatch: MembershipMismatch }) {
+function MembershipMismatchRow({
+  mismatch,
+  onFix,
+}: {
+  mismatch: MembershipMismatch;
+  onFix: (userId: string) => Promise<void>;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const handleFix = async () => {
+    setLoading(true);
+    try {
+      await onFix(mismatch.userId);
+      setDone(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (done) return null;
+
   return (
     <tr className="group border-b border-slate-800 hover:bg-slate-800/20 transition-colors">
       <td className="px-4 py-3 font-medium text-slate-300">
@@ -520,12 +547,14 @@ function MembershipMismatchRow({ mismatch }: { mismatch: MembershipMismatch }) {
         </div>
       </td>
       <td className="px-4 py-3 text-right">
-        <div className="flex items-center justify-end gap-2 group-hover:translate-x-[-4px] transition-transform">
-          <span className="text-[9px] px-2 py-1 bg-slate-950 border border-slate-800 rounded-sm text-slate-500 font-bold uppercase tracking-widest flex items-center gap-1.5">
-            <ExternalLink className="h-3 w-3" />
-            Console Logto
-          </span>
-        </div>
+        <button
+          onClick={handleFix}
+          disabled={loading}
+          className="h-7 px-3 text-[10px] font-bold uppercase tracking-tight rounded-sm bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-all flex items-center gap-1.5 ml-auto disabled:opacity-50"
+        >
+          {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
+          Corrigir
+        </button>
       </td>
     </tr>
   );
@@ -625,15 +654,16 @@ interface IdentityAuditTabProps {
   onRunAudit: () => Promise<void>;
   onReprovision: (userId: string) => Promise<void>;
   onDeleteOrphan: (logtoId: string) => Promise<void>;
-  onProvisionLocal: (logtoId: string, data: any) => Promise<void>;
+  onProvisionLocal: (logtoId: string, data: { tenantId: string; username: string; role: string; fullName: string; email: string }) => Promise<void>;
   onBlockLocal: (userId: string) => Promise<void>;
   onDeleteLocal: (userId: string) => Promise<void>;
   onDeleteTenant: (tenantId: string) => Promise<void>;
   onProvisionLocalTenant: (logtoId: string, data: { name: string; type: string }) => Promise<void>;
   onSyncAttributes: (userId: string, direction?: 'TO_LOCAL' | 'TO_LOGTO') => Promise<void>;
-  onBatchAction: (action: string, targets: string[]) => Promise<any>;
+  onBatchAction: (action: string, targets: string[]) => Promise<unknown>;
   onLinkOrg: (tenantId: string, logtoId: string) => Promise<void>;
   onProvisionOrg: (tenantId: string) => Promise<void>;
+  onFixMembership: (userId: string) => Promise<void>;
   lastAudit?: IdentityAuditHistory | null;
 }
 
@@ -652,6 +682,7 @@ export default function IdentityAuditTab({
   onBatchAction,
   onLinkOrg,
   onProvisionOrg,
+  onFixMembership,
   lastAudit,
 }: IdentityAuditTabProps) {
   const [activeSubTab, setActiveSubTab] = useState<'users' | 'orgs'>('users');
@@ -984,6 +1015,7 @@ export default function IdentityAuditTab({
                           <th className="px-4 py-3">Usuário Local</th>
                           <th className="px-4 py-3">E-mail</th>
                           <th className="px-4 py-3">Tenant de Origem</th>
+                          <th className="px-4 py-3">Logto ID</th>
                           <th className="px-4 py-3 text-right">Ações Corretivas</th>
                         </tr>
                       </thead>
@@ -1136,7 +1168,7 @@ export default function IdentityAuditTab({
                       </thead>
                       <tbody>
                         {report.membershipMismatches.map(mismatch => (
-                          <MembershipMismatchRow key={mismatch.userId} mismatch={mismatch} />
+                          <MembershipMismatchRow key={mismatch.userId} mismatch={mismatch} onFix={onFixMembership} />
                         ))}
                       </tbody>
                     </table>

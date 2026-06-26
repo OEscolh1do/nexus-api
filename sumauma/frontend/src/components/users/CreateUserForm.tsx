@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Users, Loader2, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useCreateUser } from '@/hooks/useUsers';
 import { useTenantOptions } from '@/hooks/useTenants';
@@ -27,7 +27,7 @@ export default function CreateUserForm({ onClose, onCreated, defaultTenantId }: 
   const [tenantId, setTenantId] = useState(defaultTenantId ?? '');
   const [jobTitle, setJobTitle] = useState('');
 
-  const { mutate: create, loading, error } = useCreateUser(() => {
+  const handleCreateSuccess = useCallback(() => {
     onCreated();
     setFullName('');
     setEmail('');
@@ -35,11 +35,17 @@ export default function CreateUserForm({ onClose, onCreated, defaultTenantId }: 
     setPassword('');
     setTenantId(defaultTenantId || '');
     setJobTitle('');
-  });
+  }, [onCreated, defaultTenantId]);
+
+  const { mutate: create, loading, error } = useCreateUser(handleCreateSuccess);
   const { data: tenantOptions, loading: loadingTenants } = useTenantOptions();
 
+  // Ref keeps latest username readable in the effect without being a dep
+  const usernameRef = useRef(username);
+  usernameRef.current = username;
+
   useEffect(() => {
-    if (!fullName || username) return;
+    if (!fullName || usernameRef.current) return;
     const generated = fullName
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
@@ -47,7 +53,7 @@ export default function CreateUserForm({ onClose, onCreated, defaultTenantId }: 
       .trim()
       .replace(/\s+/g, '_');
     setUsername(generated);
-  }, [fullName, username]);
+  }, [fullName]);
 
   const selectedTenant = tenantOptions.find(t => t.id === tenantId);
   const maxSeats = selectedTenant ? (PLAN_SEATS[selectedTenant.apiPlan] ?? 1) : 0;
@@ -177,7 +183,7 @@ export default function CreateUserForm({ onClose, onCreated, defaultTenantId }: 
             />
             <button
               type="button"
-              onClick={() => setShowPassword(!showPassword)}
+              onClick={() => setShowPassword(prev => !prev)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
               tabIndex={-1}
             >

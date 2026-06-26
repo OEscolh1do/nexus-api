@@ -27,6 +27,18 @@ export interface LossProfile {
   inverterEfficiency: number; // Stored as percentage, e.g., 98.0
 }
 
+/**
+ * @deprecated Legacy V4 string system — migrate to StringDef V5 (mpptConfig.strings[])
+ *
+ * This interface represents the old string system where strings were stored
+ * separately and referenced by ID in mpptConfig.stringIds.
+ *
+ * **Migration Path:**
+ * - V4: `strings: NormalizedCollection<LogicalString>` + `mpptConfig.stringIds: string[]`
+ * - V5: `mpptConfig.strings: StringDef[]` (embedded, no external references)
+ *
+ * Use V5's StringDef for new code. V4 will be removed in a future release.
+ */
 export interface LogicalString {
     id: string;
     name: string;
@@ -46,15 +58,18 @@ export interface StringDef {
 
 export interface MPPTConfig {
     mpptId: number;
+    /** @deprecated V4 legacy field — use `strings: StringDef[]` instead */
     stringIds: string[]; // V4: Array de IDs das Strings atribuídas
+    /** @deprecated V4 legacy field — use `strings.length` instead */
     stringsCount?: number; // Mapeado para retro-compatibilidade temporária
-    modulesPerString?: number; // Mapeado para retro-compatibilidade 
+    /** @deprecated V4 legacy field — use `strings[i].modulesCount` instead */
+    modulesPerString?: number; // Mapeado para retro-compatibilidade
     azimuth?: number; // Advanced: MPPTs can face different directions
     inclination?: number;
     cableLength?: number; // [LEGACY] Comprimento do cabo CC (m)
     cableSection?: number; // [LEGACY] Seção nominal (mm²)
-    strings: StringDef[]; // [NEW] V5: Strings locais do MPPT para engenharia
-    moduleModel?: string; // [NEW] V6: Modelo do módulo específico para este MPPT
+    strings: StringDef[]; // [V5] Strings locais do MPPT para engenharia (current standard)
+    moduleModel?: string; // [V6] Modelo do módulo específico para este MPPT
 }
 
 export interface ElectricalValidation {
@@ -86,7 +101,9 @@ export interface InverterState {
         maxEfficiency: number;
         maxOutputPowerW?: number;
         deratingTempC?: number;
-        symbolConfig?: ParametricSymbolConfig | null;  // PSB: config paramétrico do símbolo unifilar
+        symbolConfig?: ParametricSymbolConfig | null;       // PSB: @deprecated
+        // New topology engine — seeded from catalog.typologyConfig when inverter is added
+        typologyConfig?: Record<string, unknown> | null;
     };
 }
 
@@ -97,17 +114,24 @@ interface TechState {
   lossProfile: LossProfile;
   selectedModuleId: string | null;
   cosip: number; // R$ Iluminação Pública
-  
+
   // Inverters State (PRÉ-1: normalizado)
   inverters: NormalizedCollection<InverterState>;
+  /** @deprecated V4 legacy — use mpptConfig.strings (StringDef[]) instead */
   strings: NormalizedCollection<LogicalString>; // V4: Strings Lógicas
-  
+
+  // Project-level topology pre-seeded from the first inverter's catalog typologyConfig.
+  // Null until an inverter with a typologyConfig is added.
+  // Will be the starting point for Kurupira's future TopologyEditor integration.
+  projectTopologyConfig: Record<string, unknown> | null;
+
   // Actions
   updateLoss: (key: keyof LossProfile, value: number) => void;
   resetLosses: () => void;
   resetProject: () => void;
   setSelectedModuleId: (id: string | null) => void;
   setCosip: (val: number) => void;
+  setProjectTopologyConfig: (config: Record<string, unknown> | null) => void;
   
   // Inverter Actions
   addInverter: (equipment: any, providedId?: string) => void;
@@ -129,16 +153,39 @@ interface TechState {
   syncStringModulesCount: (inverterId: string, mpptId: number, stringId: string | undefined, count: number) => void;
   /** Reset all StringDef.modulesCount to 0 for an inverter (called by clearStringAssignments) */
   resetStringCounts: (inverterId?: string) => void;
-  
-  // V4 String Actions
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // V4 String Actions — DEPRECATED
+  // ═══════════════════════════════════════════════════════════════════════════
+  // The following methods operate on the legacy `strings: NormalizedCollection<LogicalString>`
+  // system where strings are stored separately and referenced by ID.
+  //
+  // **Migration to V5:**
+  // Instead of manipulating `state.strings` + `mpptConfig.stringIds`, use:
+  // - `addStringToMPPT(inverterId, mpptId)` — adds a StringDef to mppt.strings[]
+  // - `updateStringInMPPT(inverterId, mpptId, stringId, data)` — updates a StringDef
+  // - `removeStringFromMPPT(inverterId, mpptId, stringId)` — removes a StringDef
+  //
+  // V4 will be removed in a future release.
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /** @deprecated Use addStringToMPPT + updateStringInMPPT instead */
   createString: (moduleIds: string[]) => void;
+  /** @deprecated Use removeStringFromMPPT instead */
   deleteString: (stringId: string) => void;
+  /** @deprecated Use updateStringInMPPT to modify StringDef.modulesCount */
   addModulesToString: (stringId: string, moduleIds: string[]) => void;
+  /** @deprecated Use updateStringInMPPT to modify StringDef.modulesCount */
   removeModulesFromString: (stringId: string, moduleIds: string[]) => void;
+  /** @deprecated Use addStringToMPPT or move existing StringDef in mppt.strings[] */
   assignStringToMPPT: (stringId: string, inverterId: string, mpptId: number) => void;
+  /** @deprecated Use removeStringFromMPPT instead */
   unassignStringFromMPPT: (stringId: string) => void;
+  /** @deprecated Use addStringToMPPT + updateStringInMPPT instead */
   assignModulesToNewString: (moduleIds: string[], inverterId: string, mpptId: number) => void;
+  /** @deprecated Use addStringToMPPT to add StringDef to first MPPT */
   assignStringToInverterFallback: (stringId: string, inverterId: string) => void;
+  /** @deprecated Manage module assignments via solarStore or update StringDef.modulesCount directly */
   removeModules: (moduleIds: string[]) => void;
   
   // Selectors (Computed)
@@ -190,12 +237,15 @@ export const useTechStore = create<TechState>()(
       strings: createEmptyCollection<LogicalString>(),
       prCalculationMode: 'additive', // Default per user request
       cosip: 35.00,
+      projectTopologyConfig: null,
 
       setPrCalculationMode: (mode) => set({ prCalculationMode: mode }),
 
       setSelectedModuleId: (id) => set({ selectedModuleId: id }),
 
       setCosip: (val) => set({ cosip: val }),
+
+      setProjectTopologyConfig: (config) => set({ projectTopologyConfig: config }),
 
       addInverter: (equipment, providedId) => set(state => {
           // Defensivo: mppts pode vir como array (CatalogStore) ou number (adapter/SolarStore)
@@ -230,19 +280,22 @@ export const useTechStore = create<TechState>()(
                       maxEfficiency: equipment.efficiency?.euro || equipment.efficiency?.cec || equipment.maxEfficiency || 98.0,
                       maxOutputPowerW: equipment.maxOutputPowerW,
                       deratingTempC: equipment.deratingTempC,
-                      symbolConfig: equipment.symbolConfig ?? null,  // PSB
+                      symbolConfig: equipment.symbolConfig ?? null,       // PSB @deprecated
+                      typologyConfig: (equipment as any).typologyConfig ?? null,
                   },
-
               };
               newIds.push(instanceId);
               newEntities[instanceId] = newInverter;
           }
 
+          // Seed project topology from the first inverter that has one,
+          // only if no project topology has been set yet.
+          const firstTypology = (equipment as any).typologyConfig ?? null;
+          const shouldSeed = firstTypology && state.projectTopologyConfig === null;
+
           return {
-            inverters: {
-              ids: newIds,
-              entities: newEntities,
-            },
+            inverters: { ids: newIds, entities: newEntities },
+            ...(shouldSeed && { projectTopologyConfig: firstTypology }),
           };
       }),
 
@@ -744,7 +797,8 @@ export const useTechStore = create<TechState>()(
           strings: createEmptyCollection<LogicalString>(),
           selectedModuleId: null,
           prCalculationMode: 'additive',
-          cosip: 35.00
+          cosip: 35.00,
+          projectTopologyConfig: null,
       }),
 
       getPerformanceRatio: () => {
@@ -809,7 +863,31 @@ export const useTechStore = create<TechState>()(
         return Math.max(0, (100 - totalLossSum) / 100);
       },
 
-      // ─── V4: String Actions ────────────────────────────────────────────────
+      // ═══════════════════════════════════════════════════════════════════════════
+      // V4: String Actions — DEPRECATED — DO NOT USE IN NEW CODE
+      // ═══════════════════════════════════════════════════════════════════════════
+      // These methods are kept for backward compatibility only. They operate on the
+      // legacy `strings: NormalizedCollection<LogicalString>` system.
+      //
+      // **Why V4 is deprecated:**
+      // - Strings were stored separately from MPPTs, requiring two-step lookups
+      // - StringIDs had to be managed manually and could become orphaned
+      // - No clear ownership model (strings could exist without MPPT assignment)
+      //
+      // **V5 Approach (current standard):**
+      // - Strings are embedded directly in `mpptConfig.strings: StringDef[]`
+      // - No external IDs or lookups needed
+      // - Clear ownership: each StringDef belongs to exactly one MPPT
+      //
+      // **Migration checklist:**
+      // 1. Replace `createString()` with `addStringToMPPT(inverterId, mpptId)`
+      // 2. Replace `deleteString()` with `removeStringFromMPPT(inverterId, mpptId, stringId)`
+      // 3. Replace `addModulesToString()` with `updateStringInMPPT(..., { modulesCount })`
+      // 4. Use `mppt.strings` array directly instead of `stringIds` lookups
+      //
+      // V4 will be removed in release 1.0.0.
+      // ═══════════════════════════════════════════════════════════════════════════
+
       createString: (moduleIds) => set((state) => {
           const id = 'str-' + genId();
           const newStringCount = state.strings.ids.length + 1;
@@ -1126,7 +1204,20 @@ export const selectTechInvertersArray = (state: TechState) => {
   return _invCacheArr;
 };
 
-/** Stable selector for strings array — avoids repeated toArray() calls across hooks */
+/**
+ * @deprecated V4 legacy selector — use mppt.strings directly from selectTechInvertersArray
+ *
+ * Instead of:
+ * ```ts
+ * const strings = useTechStore(selectTechStringsArray);
+ * ```
+ *
+ * Use:
+ * ```ts
+ * const inverters = useTechStore(selectTechInvertersArray);
+ * // Access strings via: inverters[i].mpptConfigs[j].strings
+ * ```
+ */
 let _strCacheRef: any = null;
 let _strCacheArr: LogicalString[] = [];
 export const selectTechStringsArray = (state: TechState) => {

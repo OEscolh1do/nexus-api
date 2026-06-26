@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ╔══════════════════════════════════════════════════════════════════╗
+  ║  CATÁLOGO KURUPIRA — sym-fuse  (IEC 60617 Fusível CC gPV)      ║
+  ║  ViewBox local: 0 0 22 13                                       ║
+  ║                                                                  ║
+  ║  CSS Custom Properties:                                          ║
+  ║    --s   stroke (borda + pontos terminais)   padrão #475569     ║
+  ║    --sw  stroke-width                         padrão 0.8        ║
+  ║    --el  cor do elemento interno (fusível)    padrão #47556999  ║
+  ║                                                                  ║
+  ║  Normas: IEC 60617 §7 (fusível),                                 ║
+  ║          NBR 16690:2019 §5.3 (proteção CC — classe gPV)          ║
+  ╚══════════════════════════════════════════════════════════════════╝
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="-8 -16 80 60"
+     width="320" height="240"
+     style="background:#0f172a; font-family:monospace;">
+
+  <defs>
+    <symbol id="sym-fuse" viewBox="0 0 22 13">
+      <!-- Retângulo IEC (lógica de bloco) -->
+      <rect x="0" y="0" width="22" height="13" rx="2" fill="none"
+        style="stroke:var(--s,#475569); stroke-width:var(--sw,0.8);"/>
+      <!-- Elemento fusível interno (linha tracejada) -->
+      <line x1="3" y1="6.5" x2="19" y2="6.5"
+        stroke-width="0.8" stroke-dasharray="2 1"
+        style="stroke:var(--el,#47556999);"/>
+      <!-- Pontos de terminal (junção com condutor) -->
+      <circle cx="0"  cy="6.5" r="1.2" style="fill:var(--s,#475569);"/>
+      <circle cx="22" cy="6.5" r="1.2" style="fill:var(--s,#475569);"/>
+    </symbol>
+  </defs>
+
+  <text x="0" y="-4" fill="#475569" font-size="7">sym-fuse — IEC 60617 Fusível CC gPV</text>
+
+  <!-- padrão -->
+  <text x="0" y="18" fill="#334155" font-size="6">padrão</text>
+  <use href="#sym-fuse" x="0" y="0" width="22" height="13"/>
+
+  <!-- ativo MPPT-0 -->
+  <text x="36" y="18" fill="#34d399" font-size="6">MPPT-0 ativo</text>
+  <use href="#sym-fuse" x="36" y="0" width="22" height="13"
+    style="--s:#34d399; --sw:1.2; --el:#34d39999;"/>
+
+  <!-- ativo MPPT-1 -->
+  <text x="0" y="38" fill="#60a5fa" font-size="6">MPPT-1 ativo</text>
+  <use href="#sym-fuse" x="0" y="22" width="22" height="13"
+    style="--s:#60a5fa; --sw:1.2; --el:#60a5fa99;"/>
+</svg>

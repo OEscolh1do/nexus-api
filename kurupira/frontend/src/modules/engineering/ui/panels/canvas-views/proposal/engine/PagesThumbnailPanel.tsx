@@ -7,16 +7,16 @@ import { cn } from '@/lib/utils';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const THUMB_W = 116; // thumbnail display width in px
+// Compact thumbnail: narrow enough to leave room for label in the same row.
+const THUMB_W = 64;
 
 // These types are inexpensive to render at thumbnail scale.
-// Heavy types (page-*, chart-*, kpi-capacity-badge, etc.) get a colored placeholder
+// Heavy types (page-*, chart-*, kpi-*, etc.) get a colored placeholder block
 // instead to avoid spinning up Recharts / full page components per thumbnail.
 const CHEAP_TYPES = new Set([
   'text', 'box', 'image', 'logo', 'watermark', 'divider', 'icon', 'placeholder',
 ]);
 
-// Accent color used in the placeholder block for expensive element types.
 function placeholderColor(type: string): string {
   if (type.startsWith('page-'))          return '#1e293b';
   if (type.startsWith('chart-'))         return '#0ea5e9';
@@ -47,7 +47,7 @@ function ThumbnailEl({ el }: { el: CanvasElement }) {
   );
 }
 
-// ─── Individual page card ─────────────────────────────────────────────────────
+// ─── Individual page card (horizontal row layout) ─────────────────────────────
 
 interface PageCardProps {
   page: CanvasPage;
@@ -85,18 +85,23 @@ const PageCard = React.memo(function PageCard({
   return (
     <div
       className={cn(
-        'group relative flex flex-col items-center gap-1.5 px-2.5 py-2 cursor-pointer rounded transition-colors select-none',
-        isActive ? 'bg-indigo-500/10' : 'hover:bg-slate-800/50',
+        'group relative flex items-start gap-2.5 px-2.5 py-2.5 cursor-pointer border-b border-slate-800/40 transition-colors select-none',
+        isActive ? 'bg-indigo-500/10' : 'hover:bg-slate-800/40',
       )}
       onClick={onSelect}
     >
-      {/* Thumbnail frame */}
+      {/* Active left-edge indicator */}
+      {isActive && (
+        <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-indigo-500 rounded-r-full" />
+      )}
+
+      {/* Mini-page thumbnail */}
       <div
         className={cn(
-          'relative rounded overflow-hidden shadow-lg transition-all shrink-0',
+          'relative rounded overflow-hidden shrink-0 transition-all',
           isActive
-            ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-slate-950'
-            : 'ring-1 ring-white/10 group-hover:ring-slate-600',
+            ? 'ring-1 ring-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.35)]'
+            : 'ring-1 ring-white/[0.08] group-hover:ring-slate-600',
         )}
         style={{ width: THUMB_W, height: thumbH }}
       >
@@ -135,32 +140,39 @@ const PageCard = React.memo(function PageCard({
 
         {/* Excluded-from-PDF overlay */}
         {isExcluded && (
-          <div className="absolute inset-0 bg-slate-950/55 flex flex-col items-center justify-center gap-1">
-            <EyeOff size={13} className="text-amber-400" />
-            <span className="text-[8px] font-bold uppercase tracking-widest text-amber-400/80">
-              Excluída
-            </span>
+          <div className="absolute inset-0 bg-slate-950/60 flex items-center justify-center">
+            <EyeOff size={10} className="text-amber-400" />
           </div>
         )}
+      </div>
 
-        {/* Page number badge */}
-        <div
-          className={cn(
-            'absolute bottom-1 left-1 text-[8px] font-black tabular-nums px-1 py-0.5 rounded',
-            isActive ? 'bg-indigo-500 text-white' : 'bg-black/50 text-slate-300',
-          )}
-        >
-          {index + 1}
-        </div>
+      {/* Meta column */}
+      <div className="flex-1 min-w-0 flex flex-col gap-1 pt-0.5">
+        {/* Page number */}
+        <span className={cn(
+          'text-[8px] font-black tabular-nums uppercase tracking-widest leading-none',
+          isActive ? 'text-indigo-500' : 'text-slate-600',
+        )}>
+          Pág. {index + 1}
+        </span>
 
-        {/* Hover action buttons */}
-        <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        {/* Label */}
+        <span className={cn(
+          'text-[10px] font-medium leading-tight truncate',
+          isActive ? 'text-slate-200' : 'text-slate-500 group-hover:text-slate-400',
+          isExcluded && 'line-through opacity-50',
+        )}>
+          {page.label || `Página ${index + 1}`}
+        </span>
+
+        {/* Action buttons — appear on hover */}
+        <div className="flex items-center gap-0.5 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             type="button"
             title="Duplicar página"
             aria-label="Duplicar página"
             onClick={onDuplicate}
-            className="p-0.5 rounded bg-slate-900/80 text-slate-300 hover:text-white hover:bg-slate-700 transition-colors"
+            className="p-0.5 rounded text-slate-500 hover:text-white hover:bg-slate-700 transition-colors"
           >
             <Copy size={9} />
           </button>
@@ -170,24 +182,18 @@ const PageCard = React.memo(function PageCard({
               title="Remover página"
               aria-label="Remover página"
               onClick={onRemove}
-              className="p-0.5 rounded bg-slate-900/80 text-slate-300 hover:text-red-400 hover:bg-red-950/60 transition-colors"
+              className="p-0.5 rounded text-slate-500 hover:text-red-400 hover:bg-red-950/60 transition-colors"
             >
               <Trash2 size={9} />
             </button>
           )}
+          {isExcluded && (
+            <span className="text-[8px] text-amber-500 font-bold uppercase tracking-wider ml-0.5">
+              Excluída
+            </span>
+          )}
         </div>
       </div>
-
-      {/* Label */}
-      <span
-        className={cn(
-          'text-[10px] font-medium truncate w-full text-center leading-none',
-          isActive ? 'text-indigo-400' : 'text-slate-500',
-          isExcluded && 'opacity-50',
-        )}
-      >
-        {page.label || `Página ${index + 1}`}
-      </span>
     </div>
   );
 });
@@ -229,8 +235,8 @@ export function PagesThumbnailPanel({
         </span>
       </div>
 
-      {/* Scrollable thumbnail list */}
-      <div className="flex-1 overflow-y-auto py-1 custom-scrollbar">
+      {/* Scrollable page list */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
         {pages.map((page, idx) => (
           <div
             key={page.id}

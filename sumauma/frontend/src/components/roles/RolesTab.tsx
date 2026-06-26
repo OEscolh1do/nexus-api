@@ -1,13 +1,18 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { ShieldCheck, ShieldAlert, Users, Plus } from 'lucide-react';
 import RoleDrawer from './RoleDrawer';
-import { useRoles } from '@/hooks/useRoles';
+import { useRoles, type Role } from '@/hooks/useRoles';
 
 export default function RolesTab() {
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
 
   const { roles, loading, error, refetch } = useRoles();
+
+  const handleClose = useCallback(() => {
+    setSelectedRoleId(null);
+    setCreateOpen(false);
+  }, []);
 
   return (
     <div className="flex h-full flex-col gap-4">
@@ -67,7 +72,7 @@ export default function RolesTab() {
                 </tr>
               )}
 
-              {!loading && roles.map((role: any) => (
+              {!loading && roles.map((role: Role) => (
                 <tr
                   key={role.id}
                   onClick={() => setSelectedRoleId(role.id)}
@@ -112,13 +117,8 @@ export default function RolesTab() {
       {(selectedRoleId || createOpen) && (
         <RoleDrawer
           roleId={selectedRoleId}
-          onClose={() => {
-            setSelectedRoleId(null);
-            setCreateOpen(false);
-          }}
-          onMutated={() => {
-            refetch();
-          }}
+          onClose={handleClose}
+          onMutated={refetch}
         />
       )}
     </div>

@@ -10,8 +10,9 @@ export default function LoginPage() {
   const logto = useLogto();
   const { signIn, isAuthenticated, isLoading, error } = logto;
   const loginStore = useAuthStore((s) => s.login);
-  const [isAuditing, setIsAuditing] = useState(false);
-  const [auditFailed, setAuditFailed] = useState(false);
+  // Refs (not state) so they don't trigger re-render cycles; audit is non-blocking
+  const isAuditing = useRef(false);
+  const auditAttempted = useRef(false);
 
   // Hook específico para processar o callback do Logto
   const { isLoading: isCallbackLoading } = useHandleSignInCallback();
@@ -34,7 +35,6 @@ export default function LoginPage() {
     if (isForceLogout) {
       if (isAuthenticated && !signOutAttempted.current) {
         signOutAttempted.current = true;
-        console.warn('[Login] Loop detectado. Forçando logout do Logto para limpar sessão...');
         // ✅ CRÍTICO: limpar a flag ANTES de chamar signOut.
         // O Logto vai redirecionar de volta para /login — quando a página recarregar,
         // a flag já estará limpa e o loop não recomeça.
@@ -43,12 +43,11 @@ export default function LoginPage() {
       } else if (!isAuthenticated && !isLoading) {
         // Logto já deslogou — limpar a flag e liberar novos logins
         sessionStorage.removeItem('sumauma_force_logout');
-        setAuditFailed(false);
       }
       return;
     }
 
-    if (!isAuthenticated || isLoading || isCallbackLoading || isAuditing || auditFailed) return;
+    if (!isAuthenticated || isLoading || isCallbackLoading || isAuditing.current || auditAttempted.current) return;
 
     // Sucesso no login: extraímos o Token e os claims
     Promise.all([logto.getIdToken(), logto.getIdTokenClaims()]).then(([rawIdToken, claims]) => {
@@ -66,26 +65,24 @@ export default function LoginPage() {
 
       // Notificar o backend sobre o login via SSO para auditoria.
       // Passamos o token explicitamente — o interceptor vai passá-lo direto sem checar o Zustand.
-      setIsAuditing(true);
+      isAuditing.current = true;
+      auditAttempted.current = true;
       api.post('/auth/audit-login', {}, {
-        headers: { Authorization: `Bearer ${rawIdToken}` }
+        headers: { Authorization: `Bearer ${rawIdToken}` },
+        // Auditoria é não-crítica: falha de 403 não deve acionar lockout global.
+        // O backend fix em platformAuth.js resolve o 403 na origem;
+        // este flag garante que uma falha residual nunca bloqueie o acesso.
+        skipAccessDenied: true,
       }).then(() => {
-        setIsAuditing(false);
+        isAuditing.current = false;
         navigate('/');
-      }).catch(err => {
-        setIsAuditing(false);
-        setAuditFailed(true);
-        const errorMsg = err.response?.data?.error || err.message;
-        const details = err.response?.data?.details || '';
-
-        if (errorMsg?.includes('expirado')) {
-          console.warn(`[Login] Auditoria ignorada: Sessão expirada no interceptor (provável refresh/race condition)`);
-        } else {
-          console.warn('Falha ao auditar login SSO', errorMsg, details);
-        }
+      }).catch(() => {
+        // Audit is non-blocking — navigate regardless of failure
+        isAuditing.current = false;
+        navigate('/');
       });
     });
-  }, [isAuthenticated, isLoading, isCallbackLoading, logto, loginStore, navigate, isAuditing, auditFailed]);
+  }, [isAuthenticated, isLoading, isCallbackLoading, logto, loginStore, navigate]);
 
 
   const handleLogtoClick = () => {
@@ -98,10 +95,11 @@ export default function LoginPage() {
     setLocalLoading(true);
     try {
       const { data } = await api.post('/auth/login', { username, password });
-      loginStore(data.token, data.operator);
+      loginStore(data.token, data.operator, data.refreshToken ?? null);
       navigate('/');
-    } catch (err: any) {
-      setLocalError(err.response?.data?.error || err.message || 'Credenciais inválidas');
+    } catch (err) {
+      const e = err as { response?: { data?: { error?: string } }; message?: string };
+      setLocalError(e.response?.data?.error || e.message || 'Credenciais inválidas');
     } finally {
       setLocalLoading(false);
     }

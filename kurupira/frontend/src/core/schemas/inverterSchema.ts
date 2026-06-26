@@ -61,8 +61,10 @@ export const InverterCatalogItemSchema = z.object({
   model: z.string().min(1),
   imageUrl: z.string().optional(),
   unifilarSymbolRef: z.string().optional(),
-  symbolConfig: ParametricSymbolConfigSchema.nullable().optional(), // PSB (Layer 3)
-  blockDiagramFootprint: BlockDiagramFootprintSchema.nullable().optional(), // Hardware (Layer 2)
+  symbolConfig: ParametricSymbolConfigSchema.nullable().optional(), // PSB (Layer 3) — @deprecated
+  blockDiagramFootprint: BlockDiagramFootprintSchema.nullable().optional(), // Hardware (Layer 2) — @deprecated
+  // New unified topology engine (TopologyEditor / BlockDiagramCanvas + UnifileCanvas)
+  typologyConfig: z.record(z.unknown()).nullable().optional(),
   nominalPowerW: z.number().positive(), // W — potência nominal CA
   maxDCPowerW: z.number().positive(),   // W — potência máxima CC
   mppts: z.array(MPPTSpecSchema).min(1),

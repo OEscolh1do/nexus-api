@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/api';
-import { ParametricSymbolConfig } from '@/lib/types/parametricSymbol';
+import type { TopologyConfig } from '@/lib/types/topology';
+import { toast } from '@/stores/toastStore';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -52,22 +53,6 @@ export interface ModuleEquipment {
   };
 }
 
-// -- BlockDiagramFootprint Types --
-export interface MPPTChannel {
-  mpptIndex: number;
-  inputCount: number;
-  inputLabels?: string[];
-}
-
-export interface BlockDiagramFootprint {
-  inverterId?: string;
-  mpptChannels: MPPTChannel[];
-  acOutput: {
-    label: string;
-    phase: 'mono' | 'tri';
-  };
-}
-
 export interface InverterEquipment {
   id: string;
   manufacturer: string;
@@ -93,11 +78,8 @@ export interface InverterEquipment {
   rsd?: boolean;
   portaria515Compliant?: boolean;
 
-  // -- PSB: Parametric Symbol Engine (Unifilar) --
-  symbolConfig?: ParametricSymbolConfig;
-
-  // -- Block Diagram Footprint (Diagrama de Blocos) --
-  blockDiagramFootprint?: BlockDiagramFootprint;
+  // -- Topology (Diagrama de Blocos + Unifilar) --
+  typologyConfig?: TopologyConfig;
 
   // Parâmetros técnicos vindos de `electricalData` (JSON):
   electricalData?: {
@@ -174,7 +156,11 @@ function useCatalogList<T>(endpoint: string, params: CatalogListParams) {
         setData(res.data.data);
         setPagination(res.data.pagination);
       })
-      .catch((err) => setError(err.response?.data?.error ?? 'Falha ao carregar catálogo'))
+      .catch((err) => {
+        const msg = err.response?.data?.error ?? 'Falha ao carregar catálogo';
+        setError(msg);
+        toast.error(msg);
+      })
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [endpoint, JSON.stringify(params)]);
@@ -209,7 +195,9 @@ export function useUploadEquipment(endpoint: string, onSuccess?: () => void) {
 
         .then(() => onSuccess?.())
         .catch((err) => {
-          setError(err.response?.data?.error ?? 'Falha no upload do equipamento');
+          const msg = err.response?.data?.error ?? 'Falha no upload do equipamento';
+          setError(msg);
+          toast.error(msg);
           throw err;
         })
         .finally(() => setLoading(false));
@@ -230,9 +218,9 @@ export function useToggleEquipment(endpointBase: string, onSuccess?: () => void)
       setLoadingId(id);
       return api
         .patch(`${endpointBase}/${id}`, { isActive })
-        .then(() => onSuccess?.())
+        .then(() => { toast.success(isActive ? 'Equipamento ativado.' : 'Equipamento desativado.'); onSuccess?.(); })
         .catch((err) => {
-          console.error('Falha ao alterar status:', err);
+          toast.error(err.response?.data?.error ?? 'Falha ao alterar status do equipamento.');
           throw err;
         })
         .finally(() => setLoadingId(null));
@@ -250,17 +238,15 @@ export function useDeleteEquipment(endpointBase: string, onSuccess?: () => void)
 
   const remove = useCallback(
     (id: string) => {
-      if (!window.confirm('Tem certeza que deseja excluir este equipamento permanentemente?')) {
-        return;
-      }
-
       setDeletingId(id);
       return api
         .delete(`${endpointBase}/${id}`)
-        .then(() => onSuccess?.())
+        .then(() => {
+          toast.success('Equipamento excluído com sucesso.');
+          onSuccess?.();
+        })
         .catch((err) => {
-          console.error('Falha ao excluir equipamento:', err);
-          alert(err.response?.data?.error || 'Falha ao excluir equipamento');
+          toast.error(err.response?.data?.error ?? 'Falha ao excluir equipamento.');
           throw err;
         })
         .finally(() => setDeletingId(null));

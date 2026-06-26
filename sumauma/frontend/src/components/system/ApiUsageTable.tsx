@@ -30,13 +30,14 @@ export default function ApiUsageTable({ apiUsage }: { apiUsage: ApiUsageInfo[] }
               </tr>
             ) : (
               apiUsage.map(tenant => {
-                const percentage = tenant.apiMonthlyQuota > 0 
-                  ? (tenant.apiCurrentUsage / tenant.apiMonthlyQuota) * 100 
+                const percentage = tenant.apiMonthlyQuota > 0
+                  ? (tenant.apiCurrentUsage / tenant.apiMonthlyQuota) * 100
                   : 0;
-                
-                let usageBadgeClass = 'badge-active';
-                if (percentage > 95) usageBadgeClass = 'badge-blocked';
-                else if (percentage > 80) usageBadgeClass = 'badge-pending';
+
+                const usageBadgeClass =
+                  percentage > 95 ? 'badge-blocked' :
+                  percentage > 80 ? 'badge-pending' :
+                  'badge-active';
 
                 return (
                   <tr key={tenant.id} className="hover:bg-slate-800/20 transition-colors">

@@ -1,10 +1,19 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { X, Cpu, Thermometer, Info, Zap, Edit2, Save, Loader2, Trash2 } from 'lucide-react';
 import { useToggleEquipment, useDeleteEquipment, type ModuleEquipment } from '@/hooks/useCatalog';
 import { usePatchEquipment } from '@/hooks/usePatchEquipment';
 import { mergeTechnicalData, syncModuleData } from '@/lib/catalogSync';
 import TenantStatusBadge from '@/components/tenants/TenantStatusBadge';
 import { ShieldCheck, AlertTriangle, ShieldAlert, Shield } from 'lucide-react';
+
+// Pure formatters — module-level to avoid recreation on every render
+function formatN(val: number | undefined | null, dec = 2): string {
+  return val != null ? val.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec }) : '—';
+}
+
+function formatP(val: number | undefined | null): string {
+  return val != null ? `${(val * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%` : '—';
+}
 
 const TECHNOL_LABELS: Record<string, string> = {
   mtSiMono:   'Monocristalino (Si)',
@@ -23,33 +32,39 @@ interface ModuleDrawerProps {
 }
 
 export default function ModuleDrawer({ moduleEquipment: m, onClose, onMutated }: ModuleDrawerProps) {
-  const { toggle, loadingId } = useToggleEquipment('/catalog/modules', onMutated);
-  const { remove, deletingId } = useDeleteEquipment('/catalog/modules', () => {
-    onMutated?.();
-    onClose();
-  });
-  const loading = loadingId === m.id;
-  const isDeleting = deletingId === m.id;
-
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({ 
-    powerWp: m.powerWp, 
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [formData, setFormData] = useState({
+    powerWp: m.powerWp,
     efficiency: m.efficiency || '',
     dimensions: m.dimensions || '',
     weight: m.weight || '',
     // Technical parameters (Advanced Edit)
-    voc: (m.electricalData as any)?.voc || '',
-    isc: (m.electricalData as any)?.isc || '',
-    vmp: (m.electricalData as any)?.vmp || '',
-    imp: (m.electricalData as any)?.imp || '',
-    tempCoeffVoc: m.tempCoeffVoc || (m.electricalData as any)?.tempCoeffVoc || '',
-    tempCoeffPmax: m.tempCoeffPmax || (m.electricalData as any)?.tempCoeffPmax || '',
+    voc: m.electricalData?.voc || '',
+    isc: m.electricalData?.isc || '',
+    vmp: m.electricalData?.vmp || '',
+    imp: m.electricalData?.imp || '',
+    tempCoeffVoc: m.tempCoeffVoc || m.electricalData?.tempCoeffVoc || '',
+    tempCoeffPmax: m.tempCoeffPmax || m.electricalData?.tempCoeffPmax || '',
   });
 
-  const { mutate: patch, loadingId: patchLoadingId } = usePatchEquipment('/catalog/modules', () => {
+  const handleDeleteSuccess = useCallback(() => {
+    onMutated?.();
+    onClose();
+  }, [onMutated, onClose]);
+
+  const handlePatchSuccess = useCallback(() => {
     setIsEditing(false);
-    if (onMutated) onMutated();
-  });
+    onMutated?.();
+  }, [onMutated]);
+
+  const handleToggleMutated = useCallback(() => { onMutated?.(); }, [onMutated]);
+  const { toggle, loadingId } = useToggleEquipment('/catalog/modules', handleToggleMutated);
+  const { remove, deletingId } = useDeleteEquipment('/catalog/modules', handleDeleteSuccess);
+  const loading = loadingId === m.id;
+  const isDeleting = deletingId === m.id;
+
+  const { mutate: patch, loadingId: patchLoadingId } = usePatchEquipment('/catalog/modules', handlePatchSuccess);
   const isSaving = patchLoadingId === m.id;
 
   // Casting estendido para electricalData (campos PVSyst)
@@ -80,13 +95,6 @@ export default function ModuleDrawer({ moduleEquipment: m, onClose, onMutated }:
   };
 
   const technolLabel = ed?.technol ? (TECHNOL_LABELS[ed.technol] ?? ed.technol) : null;
-
-  // Helpers de Formatação (Padrão Backoffice PT-BR)
-  const formatN = (val: number | undefined | null, dec = 2) => 
-    val != null ? val.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec }) : '—';
-  
-  const formatP = (val: number | undefined | null) => 
-    val != null ? `${(val * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%` : '—';
 
   return (
     <>
@@ -458,7 +466,7 @@ export default function ModuleDrawer({ moduleEquipment: m, onClose, onMutated }:
               </button>
               <button
                 onClick={() => {
-                  const payload: any = {
+                  const payload: Record<string, unknown> = {
                     powerWp: Number(formData.powerWp) || m.powerWp,
                     efficiency: formData.efficiency ? Number(formData.efficiency) : null,
                     dimensions: formData.dimensions || null,
@@ -468,7 +476,7 @@ export default function ModuleDrawer({ moduleEquipment: m, onClose, onMutated }:
                   };
 
                   // Merge e Sincronização de Dados de Engenharia
-                  const currentED = (m.electricalData as any) || {};
+                  const currentED = (m.electricalData || {}) as Record<string, unknown>;
                   const updatedED = mergeTechnicalData(currentED, {
                     voc: formData.voc ? Number(formData.voc) : currentED.voc,
                     isc: formData.isc ? Number(formData.isc) : currentED.isc,
@@ -514,13 +522,39 @@ export default function ModuleDrawer({ moduleEquipment: m, onClose, onMutated }:
 
           {!isEditing && (
             <button
-              onClick={() => remove(m.id)}
+              onClick={() => setDeleteConfirm(true)}
               disabled={isDeleting || loading}
               className="flex w-full items-center justify-between rounded-sm border border-transparent px-3 py-2 text-xs font-medium text-slate-600 hover:bg-red-500/10 hover:text-red-500 transition-all opacity-40 hover:opacity-100"
             >
               <span>{isDeleting ? 'Excluindo...' : 'Excluir Permanentemente'}</span>
               <Trash2 className="h-3.5 w-3.5" />
             </button>
+          )}
+
+          {deleteConfirm && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm rounded-lg">
+              <div className="mx-4 w-full max-w-xs rounded-xl border border-red-500/20 bg-slate-900 p-5 shadow-2xl">
+                <p className="text-sm font-semibold text-slate-100">Excluir módulo?</p>
+                <p className="mt-1 text-xs text-slate-400">
+                  Esta ação é irreversível. O módulo será removido permanentemente do catálogo.
+                </p>
+                <div className="mt-4 flex gap-2">
+                  <button
+                    onClick={() => setDeleteConfirm(false)}
+                    className="flex-1 rounded-lg border border-slate-700 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => { setDeleteConfirm(false); remove(m.id); }}
+                    disabled={isDeleting}
+                    className="flex-1 rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-500 transition-colors disabled:opacity-50"
+                  >
+                    {isDeleting ? 'Excluindo...' : 'Excluir'}
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>

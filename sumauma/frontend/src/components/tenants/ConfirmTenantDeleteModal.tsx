@@ -15,7 +15,7 @@ export default function ConfirmTenantDeleteModal({
   loading,
 }: ConfirmTenantDeleteModalProps) {
   const [confirmName, setConfirmName] = useState('');
-  const isMatch = confirmName.trim().toLowerCase() === tenantName.trim().toLowerCase();
+  const isMatch = confirmName.trim() === tenantName.trim();
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">

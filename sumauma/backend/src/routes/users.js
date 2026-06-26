@@ -157,7 +157,7 @@ router.post('/', async (req, res) => {
 // ============================================
 router.get('/', async (req, res) => {
   try {
-    const { page = 1, limit = 20, tenantId, role, q } = req.query;
+    const { page = 1, limit = 20, tenantId, tenantType, role, q } = req.query;
     const take = Math.min(Number(limit), 100);
     const skip = (Number(page) - 1) * take;
 
@@ -165,11 +165,12 @@ router.get('/', async (req, res) => {
     // Impedimos também bypass via query string
     const where = { role: { not: 'PLATFORM_ADMIN' } };
     if (tenantId) where.tenantId = tenantId;
+    if (tenantType) where.tenant = { type: tenantType };
     if (role && role !== 'PLATFORM_ADMIN') where.role = role;
     if (q) {
       where.OR = [
-        { username: { contains: q } },
-        { fullName: { contains: q } },
+        { username: { contains: q, mode: 'insensitive' } },
+        { fullName: { contains: q, mode: 'insensitive' } },
       ];
     }
 

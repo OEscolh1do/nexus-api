@@ -4,12 +4,12 @@ import { useTechStore } from '../../../store/useTechStore';
 import { useTechKPIs } from '../../../hooks/useTechKPIs';
 import { useElectricalValidation } from '../../../hooks/useElectricalValidation';
 import { useThermalPremises } from '../../../hooks/useThermalPremises';
+import { useElectricalDashboard } from '../../../hooks/useElectricalDashboard';
 import { useInverterUIStore } from '../../../store/useInverterUIStore';
 import { useCatalogStore } from '../../../store/useCatalogStore';
 import { toArray } from '@/core/types/normalized.types';
 import { Zap, Cpu, Sun, Terminal, ChevronUp, ChevronDown, GitBranch } from 'lucide-react';
 import { useUIStore } from '@/core/state/uiStore';
-import { calculateStringMetrics } from '../../../utils/electricalMath';
 import type { InverterCatalogItem } from '@/core/schemas/inverterSchema';
 import { cn } from '@/lib/utils';
 
@@ -18,14 +18,12 @@ import { cn } from '@/lib/utils';
 import { InverterHub, type InverterChipData, type ValidationPill } from './electrical/InverterHub';
 import { MPPTInspectorPanel } from './electrical/MPPTInspectorPanel';
 import { getModuleSpecs } from '../../../utils/specAdapter';
-import { type MpptThermalProfile } from './electrical/VoltageRangeChart';
 import { OversizingPanel } from './electrical/OversizingPanel';
 import { CalculationAuditPanel } from './electrical/components/CalculationAuditPanel';
-import { DiagnosticAlertsList, AlertDescriptor } from './electrical/components/DiagnosticAlertsList';
+import { DiagnosticAlertsList } from './electrical/components/DiagnosticAlertsList';
 import { TemperatureTab } from './electrical/TemperatureTab';
 import { parsePanOnd } from '@/utils/pvsystParser';
 import { mapOndToInverter } from '../../../utils/ondAdapter';
-import { ENGINEERING_CONSTANTS } from '../../../constants/engineeringConstants';
 
 import { UnifilarSchematicCanvas, type MpptValidationError } from './electrical/UnifilarSchematicCanvas';
 
@@ -81,141 +79,17 @@ export const ElectricalCanvasView: React.FC = () => {
   // Substitui resolveTemps() local que causava divergência com useElectricalValidation.
   const { tmin, tambMax: tamb_max, tcellMax, uf } = useThermalPremises();
 
-  // ── Cálculo de Vmp(calor) por MPPT ───────────────────────────────────────
-  // FIX B1: usa tempCoeffVmp (coeficiente correto para Vmp) em vez de tempCoeffVoc.
-  // tempCoeffVmp ≈ -0.34 %/°C vs tempCoeffVoc ≈ -0.29 %/°C — diferença de ~17%.
-  // Norma: NBR 16690:2019, §4.3.1.2
-  const calcVmpCalor = useCallback((specs: any, modulesPerString: number): number => {
-    if (!specs || modulesPerString <= 0) return 0;
-    // Prioridade: tempCoeffVmp > tempCoeffPmax > tempCoeffVoc (fallback conservador)
-    const tCoeffVmp = specs.tempCoeffVmp ?? specs.tempCoeffPmax ?? specs.tempCoeffVoc;
-    const vmpCalor = specs.vmp * (1 + (tCoeffVmp / 100) * (tcellMax - 25)) * modulesPerString;
-    return vmpCalor;
-  }, [tcellMax]);
+  // BUG-07 fix: Verificar se há dados térmicos válidos
+  const hasThermalData = tmin != null && tcellMax != null && !isNaN(tmin) && !isNaN(tcellMax);
 
-  // ── Dados derivados do inversor ativo ─────────────────────────────────────
-  const dashboardData = useMemo(() => {
-    if (!activeInverter || modules.length === 0) return null;
-
-    const limitInverterVMax  = activeInverter.snapshot?.maxInputVoltage ?? 1000;
-    const limitMpptVMin      = activeInverter.snapshot?.minMpptVoltage ?? 150;
-    const limitMpptVMax      = activeInverter.snapshot?.maxMpptVoltage ?? 800;
-    const limitIscMaxMppt    = activeInverter.snapshot?.maxCurrentPerMPPT ?? 22;
-
-    const repSpecs = getModuleSpecs(modules[0]);
-    if (!repSpecs) return null;
-
-    // ── Cálculo dos limites físicos por string (baseado no módulo padrão)
-    const vocFrio1 = calculateStringMetrics(repSpecs, 1, tmin).vocMax;
-    const vmpCalor1 = calcVmpCalor(repSpecs, 1);
-    
-    // Teto absoluto: Tensão de circuito aberto no frio extremo vs Limite do Inversor
-    const maxModulesLimit = vocFrio1 > 0 ? Math.floor(limitInverterVMax / vocFrio1) : 40;
-    
-    // Piso de segurança
-    const startupVoltage = (activeInverter.snapshot as any)?.startupVoltage ?? limitMpptVMin;
-    const effectiveMinVoltage = Math.max(limitMpptVMin, startupVoltage);
-    const minModulesLimit = vmpCalor1 > 0 ? Math.ceil(effectiveMinVoltage / (vmpCalor1 * ENGINEERING_CONSTANTS.CC_VOLTAGE_DROP_FACTOR)) : 0;
-
-    let totalVocMax = 0;
-    let totalIscMax = 0;
-    const mpptProfiles: MpptThermalProfile[] = [];
-
-    activeInverter.mpptConfigs.forEach(mppt => {
-      const specificModule = mppt.moduleModel ? modules.find(m => m.model === mppt.moduleModel) : modules[0];
-      const specs = getModuleSpecs(specificModule);
-      if (!specs) return;
-
-      const activeStrings = mppt.strings?.length ? mppt.strings : 
-          Array.from({ length: mppt.stringsCount || 0 }).map(() => ({ modulesCount: mppt.modulesPerString || 0 }));
-          
-      if (activeStrings.length > 0 && activeStrings.some(s => s.modulesCount > 0)) {
-        const maxMods  = Math.max(...activeStrings.map(s => s.modulesCount));
-        const metrics  = calculateStringMetrics(specs, maxMods, tmin);
-        const vmpCalor = calcVmpCalor(specs, maxMods);
-        const iscMppt  = specs.isc * activeStrings.length;
-        
-        if (metrics.vocMax > totalVocMax) totalVocMax = metrics.vocMax;
-        if (iscMppt > totalIscMax) totalIscMax = iscMppt;
-        
-        mpptProfiles.push({
-          mpptId:   mppt.mpptId,
-          vocMax:   metrics.vocMax,
-          vmpMin:   metrics.vmpMin,
-          vmpMax:   metrics.vmpMax,
-          vmpCalor,
-        });
-      }
-    });
-
-    const alerts: AlertDescriptor[] = [];
-    electrical?.entries?.forEach(entry => {
-      entry.messages.forEach((msg, idx) => {
-        alerts.push({
-          id:       `${entry.mpptId}-${idx}`,
-          mpptId:   entry.mpptId.toString(),
-          severity: entry.status === 'error' ? 'error' : 'warning',
-          message:  msg,
-        });
-      });
-    });
-
-    return {
-      totalVocMax, totalIscMax,
-      limitInverterVMax, limitMpptVMin, limitMpptVMax, limitIscMaxMppt,
-      startupVoltage,
-      mpptProfiles, alerts,
-      minModulesLimit, maxModulesLimit,
-    };
-  }, [activeInverter, modules, tmin, electrical, calcVmpCalor]);
-
-  // ── Métricas por MPPT para o Strip ────────────────────────────────────────
-  const mpptMetrics = useMemo(() => {
-    if (!activeInverter || modules.length === 0) return {};
-    const result: Record<number, any> = {};
-    
-    activeInverter.mpptConfigs.forEach(mppt => {
-      const specificModule = mppt.moduleModel ? modules.find(m => m.model === mppt.moduleModel) : modules[0];
-      const specs = getModuleSpecs(specificModule);
-      if (!specs) return;
-
-      const activeStrings = mppt.strings?.length ? mppt.strings : 
-          Array.from({ length: mppt.stringsCount || 0 }).map(() => ({ modulesCount: mppt.modulesPerString || 0 }));
-
-      const strCount = activeStrings.length;
-      const maxMods = strCount > 0 ? Math.max(...activeStrings.map(s => s.modulesCount)) : 0;
-      const totalMods = activeStrings.reduce((acc, s) => acc + s.modulesCount, 0);
-
-      const metrics  = maxMods > 0 ? calculateStringMetrics(specs, maxMods, tmin) : null;
-      const vmpCalor = maxMods > 0 ? calcVmpCalor(specs, maxMods) : 0;
-
-      const bifacialFactor = specs.isBifacial ? (1 + 0.70 * specs.albedo) : 1;
-
-      const mpptEntry = electrical?.entries?.find(e => e.mpptId === mppt.mpptId);
-      const hasMismatch = mpptEntry?.messages.some(m => m.includes('Sistema Multi-orientado')) || false;
-
-      result[mppt.mpptId] = {
-        vocFrio:    metrics?.vocMax ?? 0,
-        vmpCalor,
-        // FIX D2: iscTotal SEM fator 1.25 — para comparação com limite de hardware do MPPT.
-        // O fator 1.25 (NBR 16690 §5.3.11.1) é para dimensionamento de proteções (fusíveis),
-        // NÃO para comparar com maxCurrentPerMPPT do datasheet do inversor.
-        iscTotal:      (specs.isc || 0) * strCount * bifacialFactor,
-        // iscProtection: valor majorado 1.25× para dimensionar fusíveis/DPS (exibir separado)
-        iscProtection: (specs.isc || 0) * strCount * bifacialFactor * 1.25,
-        impTotal:   (specs.imp || 0) * strCount * bifacialFactor,
-        powerKwp:   totalMods > 0 ? (specs.pmax * totalMods) / 1000 : 0,
-        hasMismatch,
-        unitVmp: specs.vmp,
-        unitImp: specs.imp,
-      };
-    });
-    return result;
-  }, [activeInverter, modules, tmin, calcVmpCalor, electrical]);
-
-  const activeMpptCount = useMemo(() => {
-    return Object.values(mpptMetrics).filter(m => m.powerKwp > 0).length;
-  }, [mpptMetrics]);
+  // ── Dashboard Data + MPPT Metrics (extracted to hook) ─────────────────────
+  const { dashboardData, mpptMetrics, activeMpptCount } = useElectricalDashboard({
+    activeInverter,
+    modules,
+    tmin: hasThermalData ? tmin : 25,
+    tcellMax: hasThermalData ? tcellMax : 75,
+    electrical,
+  });
 
   // Catalog item do inversor ativo (para UnifilarSchematicCanvas)
   const activeCatalogItem = useMemo(
@@ -319,10 +193,12 @@ export const ElectricalCanvasView: React.FC = () => {
     setHighlightMpptId(id);
     // Expandir o inspector se estiver colapsado para o scroll funcionar
     setInspectorCollapsed(false);
-    // Aguarda a animação de expansão (300ms) antes de scrollar
-    setTimeout(() => {
-      document.getElementById(`mppt-inspector-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 320);
+    // BUG-02 fix: RAF duplo garante DOM pintado antes do scroll
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        document.getElementById(`mppt-inspector-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    });
     setTimeout(() => setHighlightMpptId(null), 2800);
   }, [setHighlightMpptId]);
 
@@ -526,15 +402,26 @@ export const ElectricalCanvasView: React.FC = () => {
           </div>
 
           {/* Tab Content */}
-          <div className={cn('flex-1 min-h-0', activeCanvasTab === 'unifilar' ? 'overflow-hidden' : 'overflow-y-auto custom-scrollbar p-6')}>
-            {activeCanvasTab === 'unifilar' && activeInverter && (
+          {/* B6 fix: UnifilarSchematicCanvas sempre montado com visibilidade CSS */}
+          <div className={cn('flex-1 min-h-0', activeCanvasTab === 'unifilar' ? 'flex overflow-hidden' : 'hidden')}>
+            {activeInverter && activeCatalogItem ? (
               <UnifilarSchematicCanvas
                 inverter={activeInverter}
                 catalogItem={activeCatalogItem}
                 mpptMetrics={mpptMetrics}
                 validationErrors={validationErrors}
               />
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center gap-4 p-8">
+                <div className="text-slate-800 text-3xl">⚠</div>
+                <p className="text-sm font-medium text-slate-300 text-center">Inversor não encontrado no catálogo</p>
+                <p className="text-xs text-slate-500 text-center max-w-md">
+                  O inversor selecionado não existe no catálogo. Verifique as configurações ou selecione outro inversor.
+                </p>
+              </div>
             )}
+          </div>
+          <div className={cn('flex-1 min-h-0 overflow-y-auto custom-scrollbar p-6', activeCanvasTab === 'audit' ? 'block' : 'hidden')}>
             {activeCanvasTab === 'audit' && (
               <div className="max-w-5xl mx-auto">
                 <CalculationAuditPanel
@@ -552,6 +439,8 @@ export const ElectricalCanvasView: React.FC = () => {
                 />
               </div>
             )}
+          </div>
+          <div className={cn('flex-1 min-h-0 overflow-y-auto custom-scrollbar p-6', activeCanvasTab === 'temperatura' ? 'block' : 'hidden')}>
             {activeCanvasTab === 'temperatura' && (
               <div className="max-w-5xl mx-auto">
                 <TemperatureTab
@@ -567,7 +456,8 @@ export const ElectricalCanvasView: React.FC = () => {
                 />
               </div>
             )}
-
+          </div>
+          <div className={cn('flex-1 min-h-0 overflow-y-auto custom-scrollbar p-6', activeCanvasTab === 'oversizing' ? 'block' : 'hidden')}>
             {activeCanvasTab === 'oversizing' && (
               <div className="max-w-4xl mx-auto">
                 <OversizingPanel
@@ -600,10 +490,10 @@ export const ElectricalCanvasView: React.FC = () => {
             </span>
             {hasAlerts ? (
               <div className="flex items-center gap-2 ml-2">
-                {errorCount > 0 && <span className="text-[10px] font-mono font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-sm">{errorCount} Erro{errorCount !== 1 && 's'}</span>}
+                {errorCount > 0 && <span className="text-[10px] font-mono font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5">{errorCount} Erro{errorCount !== 1 && 's'}</span>}
               </div>
             ) : (
-              <span className="text-[10px] font-mono font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-sm ml-2">Sistema Nominal</span>
+              <span className="text-[10px] font-mono font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 ml-2">Sistema Nominal</span>
             )}
           </div>
           <div className="text-slate-500 flex items-center gap-2">

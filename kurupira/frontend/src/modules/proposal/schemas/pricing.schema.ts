@@ -19,9 +19,9 @@ export const EngineeringSettingsSchema = z.object({
     
     // Project & Admin (Soft Costs)
     serviceProjectBase: z.number().nonnegative(),
-    serviceProjectPercent: z.number().min(0).max(100).default(0),
+    serviceProjectPercent: z.number().min(0).max(1).default(0),
     serviceAdminBase: z.number().nonnegative(),
-    serviceAdminPercent: z.number().min(0).max(100).default(0),
+    serviceAdminPercent: z.number().min(0).max(1).default(0),
     serviceMaterialsPercent: z.number().min(0).max(1).default(0.20),
     
     // Extras

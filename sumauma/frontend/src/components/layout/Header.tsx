@@ -1,4 +1,4 @@
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useLogto } from '@logto/react';
@@ -6,11 +6,11 @@ import { useState, useRef, useEffect } from 'react';
 
 const pageTitles: Record<string, string> = {
   '/': 'Dashboard',
-  '/tenants': 'Organizações',
   '/users': 'Usuários',
   '/catalog': 'Catálogo FV',
   '/audit': 'Auditoria',
   '/system': 'Sistema',
+  '/operators': 'Operadores',
 };
 
 // ── Helpers de avatar ─────────────────────────────────────────────────────────
@@ -25,16 +25,17 @@ function getInitials(name?: string | null): string {
     .join('');
 }
 
+const AVATAR_COLORS = [
+  'bg-indigo-600', 'bg-violet-600', 'bg-teal-600',
+  'bg-sky-600',    'bg-amber-600',  'bg-emerald-600',
+  'bg-rose-600',   'bg-slate-600',
+];
+
 function getAvatarColor(seed?: string | null): string {
-  const colors = [
-    'bg-indigo-600', 'bg-violet-600', 'bg-teal-600',
-    'bg-sky-600',    'bg-amber-600',  'bg-emerald-600',
-    'bg-rose-600',   'bg-slate-600'
-  ];
-  if (!seed) return colors[0];
+  if (!seed) return AVATAR_COLORS[0];
   let hash = 0;
   for (let i = 0; i < seed.length; i++) hash = seed.charCodeAt(i) + ((hash << 5) - hash);
-  return colors[Math.abs(hash) % colors.length];
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
 const ROLE_META: Record<string, { label: string; cls: string }> = {
@@ -45,6 +46,7 @@ const ROLE_META: Record<string, { label: string; cls: string }> = {
 
 export default function Header() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { operator, logout } = useAuthStore();
   const { signOut, isAuthenticated: isLogtoAuth } = useLogto();
   const [open, setOpen] = useState(false);
@@ -66,7 +68,7 @@ export default function Header() {
     if (isLogtoAuth) {
       signOut();
     } else {
-      window.location.href = '/login';
+      navigate('/login', { replace: true });
     }
   };
 
@@ -139,7 +141,7 @@ export default function Header() {
 
             {/* Footer */}
             <div className="px-4 py-2.5 bg-slate-950/50 border-t border-slate-800/40 text-center">
-               <p className="text-[8px] text-slate-700 font-bold uppercase tracking-[0.2em]">Sumaúma v1.0.0</p>
+               <p className="text-[8px] text-slate-700 font-bold uppercase tracking-[0.2em]">Sumaúma v{__APP_VERSION__}</p>
             </div>
           </div>
         )}

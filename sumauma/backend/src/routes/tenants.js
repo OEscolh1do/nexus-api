@@ -152,7 +152,7 @@ router.get('/', async (req, res) => {
     const where = { type: { not: 'MASTER' } };
     if (plan) where.apiPlan = plan;
     if (type && type !== 'MASTER') where.type = type;
-    if (q) where.name = { contains: q };
+    if (q) where.name = { contains: q, mode: 'insensitive' };
 
     const [tenants, total] = await Promise.all([
       prismaSumauma.tenant.findMany({

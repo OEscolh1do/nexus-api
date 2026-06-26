@@ -173,7 +173,7 @@ export function ProposalTemplateGallery({ onUseTemplate }: Props) {
       <div className="px-6 py-5 border-b border-slate-800 shrink-0 bg-slate-900/20">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-base font-semibold text-slate-200">Templates de Proposta</h3>
+            <h3 className="text-base font-semibold text-slate-200">Templates de Documento</h3>
             <p className="text-xs text-slate-500 mt-0.5">Escolha um template ou crie do zero</p>
           </div>
           <button

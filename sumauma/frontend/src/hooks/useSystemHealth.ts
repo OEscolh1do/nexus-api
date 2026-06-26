@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/api';
+import { toast } from '@/stores/toastStore';
 
 export interface ServiceStatus {
   name: string;
@@ -119,8 +120,8 @@ export interface IdentityAuditReport {
 export interface IdentityAuditHistory {
   id: string;
   checkedAt: string;
-  summary: any;
-  report?: any;
+  summary: IdentityAuditReport['summary'];
+  report?: IdentityAuditReport;
   status: 'SUCCESS' | 'FAILED';
   errorMessage?: string;
 }
@@ -134,6 +135,7 @@ export function useSystemHealth() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [apiUsage, setApiUsage] = useState<ApiUsageInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [auditReport, setAuditReport] = useState<IdentityAuditReport | null>(null);
   const [auditStatus, setAuditStatus] = useState<AuditStatus>('idle');
@@ -144,11 +146,14 @@ export function useSystemHealth() {
       const response = await api.get('/system/health');
       setHealth(response.data);
       setError(null);
-    } catch (err: any) {
-      if (err.response?.status === 503) {
-        setHealth(err.response.data);
+    } catch (err) {
+      const e = err as { response?: { status?: number; data?: SystemHealth } };
+      if (e.response?.status === 503) {
+        setHealth(e.response.data ?? null);
       } else {
-        setError('Falha ao obter status de saúde do sistema');
+        const msg = 'Falha ao obter status de saúde do sistema';
+        setError(msg);
+        toast.error(msg);
       }
     }
   }, []);
@@ -157,8 +162,8 @@ export function useSystemHealth() {
     try {
       const response = await api.get('/system/info');
       setInfo(response.data);
-    } catch (err) {
-      console.error('Falha ao obter informações do sistema');
+    } catch {
+      // Non-critical — SystemPage shows N/A for missing fields
     }
   }, []);
 
@@ -166,8 +171,8 @@ export function useSystemHealth() {
     try {
       const response = await api.get('/system/jobs');
       setJobs(response.data.data);
-    } catch (err) {
-      console.error('Falha ao obter jobs');
+    } catch {
+      // Non-critical — CronJobsTable renders with empty list
     }
   }, []);
 
@@ -175,8 +180,8 @@ export function useSystemHealth() {
     try {
       const response = await api.get('/system/api-usage');
       setApiUsage(response.data.data);
-    } catch (err) {
-      console.error('Falha ao obter api usage');
+    } catch {
+      // Non-critical — ApiUsageTable renders with empty list
     }
   }, []);
 
@@ -184,8 +189,8 @@ export function useSystemHealth() {
     try {
       const response = await api.get('/system/sessions');
       setSessions(response.data.data);
-    } catch (err) {
-      console.error('Falha ao obter sessões');
+    } catch {
+      // Non-critical — SessionsTable renders with empty list
     }
   }, []);
 
@@ -193,9 +198,19 @@ export function useSystemHealth() {
     try {
       await api.delete(`/system/sessions/${id}`);
       setSessions(prev => prev.filter(s => s.id !== id));
+      toast.success('Sessão revogada com sucesso.');
     } catch (err) {
-      console.error('Erro ao revogar sessão');
+      toast.error('Falha ao revogar sessão.');
       throw err;
+    }
+  }, []);
+
+  const fetchAuditHistory = useCallback(async () => {
+    try {
+      const response = await api.get<IdentityAuditHistory>('/system/identity-audit/history');
+      setLastAudit(response.data);
+    } catch {
+      // Non-critical — history panel stays empty if unavailable
     }
   }, []);
 
@@ -205,50 +220,53 @@ export function useSystemHealth() {
       const response = await api.get<IdentityAuditReport>('/system/identity-audit');
       setAuditReport(response.data);
       setAuditStatus('done');
-      fetchAuditHistory(); // Atualizar histórico após rodar manual
+      fetchAuditHistory();
     } catch {
       setAuditStatus('error');
+      toast.error('Falha ao executar auditoria de identidade.');
     }
-  }, []);
-
-  const fetchAuditHistory = useCallback(async () => {
-    try {
-      const response = await api.get<IdentityAuditHistory>('/system/identity-audit/history');
-      setLastAudit(response.data);
-    } catch (err) {
-      console.error('Falha ao obter histórico de auditoria');
-    }
-  }, []);
+  }, [fetchAuditHistory]);
 
   const reprovisionUser = useCallback(async (userId: string) => {
-    const response = await api.post(`/system/identity-audit/reprovision/${userId}`);
-    // Retirar o usuário do relatório após reprovisionar com sucesso
-    setAuditReport(prev =>
-      prev
-        ? {
-            ...prev,
-            missingInLogto: prev.missingInLogto.filter(u => u.id !== userId),
-            summary: {
-              ...prev.summary,
-              missing_count: prev.summary.missing_count - 1,
-            },
-          }
-        : null
-    );
-    return response.data;
+    try {
+      const response = await api.post(`/system/identity-audit/reprovision/${userId}`);
+      // Retirar o usuário do relatório após reprovisionar com sucesso
+      setAuditReport(prev =>
+        prev
+          ? {
+              ...prev,
+              missingInLogto: prev.missingInLogto.filter(u => u.id !== userId),
+              summary: {
+                ...prev.summary,
+                missing_count: prev.summary.missing_count - 1,
+              },
+            }
+          : null
+      );
+      toast.success('Usuário reprovisionado com sucesso.');
+      return response.data;
+    } catch (err) {
+      const e = err as { response?: { data?: { error?: string } } };
+      toast.error(e.response?.data?.error ?? 'Falha ao reprovisionar usuário.');
+      throw err;
+    }
   }, []);
 
   const refresh = useCallback(async (isInitial = false) => {
     if (isInitial) setLoading(true);
-    await Promise.all([
-      fetchHealth(), 
-      fetchInfo(), 
-      fetchJobs(), 
-      fetchApiUsage(), 
+    else setRefreshing(true);
+    const fetches: Promise<void>[] = [
+      fetchHealth(),
+      fetchInfo(),
+      fetchJobs(),
+      fetchApiUsage(),
       fetchSessions(),
-      fetchAuditHistory()
-    ]);
+    ];
+    // Audit history is heavy — only fetch on initial load, not on 60s auto-refresh
+    if (isInitial) fetches.push(fetchAuditHistory());
+    await Promise.all(fetches);
     setLoading(false);
+    setRefreshing(false);
   }, [fetchHealth, fetchInfo, fetchJobs, fetchApiUsage, fetchSessions, fetchAuditHistory]);
 
   useEffect(() => {
@@ -258,7 +276,7 @@ export function useSystemHealth() {
   }, [refresh]);
 
   return {
-    health, info, jobs, sessions, apiUsage, loading, error, refresh, revokeSession,
+    health, info, jobs, sessions, apiUsage, loading, refreshing, error, refresh, revokeSession,
     auditReport, auditStatus, lastAudit, runIdentityAudit, reprovisionUser,
     deleteLogtoOrphan,
     provisionLocalUser,
@@ -274,47 +292,74 @@ export function useSystemHealth() {
   };
 }
 
-async function deleteLogtoOrphan(logtoId: string) {
+function wrapAction<TArgs extends unknown[], TReturn>(
+  fn: (...args: TArgs) => Promise<TReturn>,
+  errorMsg: string
+): (...args: TArgs) => Promise<TReturn> {
+  return async (...args) => {
+    try {
+      return await fn(...args);
+    } catch (err) {
+      const e = err as { response?: { data?: { error?: string } } };
+      toast.error(e.response?.data?.error ?? errorMsg);
+      throw err;
+    }
+  };
+}
+
+async function _deleteLogtoOrphan(logtoId: string) {
   await api.delete(`/system/identity-audit/orphan/${logtoId}`);
 }
 
-async function provisionLocalUser(logtoId: string, data: { tenantId: string; username: string; role?: string; fullName?: string; email?: string }) {
+async function _provisionLocalUser(logtoId: string, data: { tenantId: string; username: string; role?: string; fullName?: string; email?: string }) {
   await api.post(`/system/identity-audit/orphan/${logtoId}/provision-local`, data);
 }
 
-async function blockLocalUser(userId: string) {
+async function _blockLocalUser(userId: string) {
   await api.patch(`/system/identity-audit/missing/${userId}/block`);
 }
 
-async function linkLogtoOrg(tenantId: string, logtoOrgId: string) {
+async function _linkLogtoOrg(tenantId: string, logtoOrgId: string) {
   await api.post(`/system/identity-audit/tenant/${tenantId}/link`, { logtoOrgId });
 }
 
-async function provisionLogtoOrg(tenantId: string) {
+async function _provisionLogtoOrg(tenantId: string) {
   await api.post(`/system/identity-audit/tenant/${tenantId}/provision`);
 }
 
-async function deleteLocalUser(userId: string) {
+async function _deleteLocalUser(userId: string) {
   await api.delete(`/system/identity-audit/missing/${userId}`);
 }
 
-async function deleteLocalTenant(tenantId: string) {
+async function _deleteLocalTenant(tenantId: string) {
   await api.delete(`/system/identity-audit/tenant/${tenantId}`);
 }
 
-async function provisionLocalTenant(logtoId: string, data: { name: string; type: string }) {
+async function _provisionLocalTenant(logtoId: string, data: { name: string; type: string }) {
   await api.post(`/system/identity-audit/orphan-org/${logtoId}/provision-local`, data);
 }
 
-async function syncAttributes(userId: string, direction: 'TO_LOCAL' | 'TO_LOGTO' = 'TO_LOCAL') {
+async function _syncAttributes(userId: string, direction: 'TO_LOCAL' | 'TO_LOGTO' = 'TO_LOCAL') {
   await api.post(`/system/identity-audit/sync-attributes/${userId}`, { direction });
 }
 
-async function runBatchAction(action: string, targets: string[]) {
+async function _runBatchAction(action: string, targets: string[]) {
   const { data } = await api.post('/system/identity-audit/batch', { action, targets });
   return data;
 }
 
-async function fixMembership(userId: string) {
+async function _fixMembership(userId: string) {
   await api.post(`/system/identity-audit/fix-membership/${userId}`);
 }
+
+const deleteLogtoOrphan   = wrapAction(_deleteLogtoOrphan,   'Falha ao remover usuário do Logto.');
+const provisionLocalUser  = wrapAction(_provisionLocalUser,  'Falha ao provisionar usuário local.');
+const blockLocalUser      = wrapAction(_blockLocalUser,      'Falha ao bloquear usuário local.');
+const linkLogtoOrg        = wrapAction(_linkLogtoOrg,        'Falha ao vincular organização.');
+const provisionLogtoOrg   = wrapAction(_provisionLogtoOrg,   'Falha ao provisionar organização no Logto.');
+const deleteLocalUser     = wrapAction(_deleteLocalUser,     'Falha ao excluir usuário local.');
+const deleteLocalTenant   = wrapAction(_deleteLocalTenant,   'Falha ao excluir tenant local.');
+const provisionLocalTenant = wrapAction(_provisionLocalTenant, 'Falha ao provisionar tenant local.');
+const syncAttributes      = wrapAction(_syncAttributes,      'Falha ao sincronizar atributos.');
+const runBatchAction      = wrapAction(_runBatchAction,      'Falha ao executar ação em lote.');
+const fixMembership       = wrapAction(_fixMembership,       'Falha ao corrigir membership.');

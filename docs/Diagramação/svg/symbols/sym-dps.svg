@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ╔══════════════════════════════════════════════════════════════════════╗
+  ║  CATÁLOGO KURUPIRA — sym-dps  (IEC 61643 DPS Tipo II — varistor)   ║
+  ║  ViewBox local: 0 0 14 24                                           ║
+  ║                                                                      ║
+  ║  CSS Custom Properties:                                              ║
+  ║    --s     stroke (todas as linhas)            padrão #64748b       ║
+  ║    --s-bg  fill do triângulo varistor           padrão none         ║
+  ║            (em hover: rgba(245,158,11,0.15))                        ║
+  ║                                                                      ║
+  ║  Geometria (cx=7, midY=9.12):                                        ║
+  ║    triângulo: "0,5.1 14,5.1 7,18.1"                                 ║
+  ║    terra: 3 barras em 16/19/22px                                     ║
+  ║                                                                      ║
+  ║  Normas: IEC 61643-11 (DPS Tipo II),                                 ║
+  ║          NBR 16690:2019 §5.5 (proteção surto CC),                    ║
+  ║          Uc ≥ Voc_frio → próximo valor comercial [600,800,1000,...]  ║
+  ╚══════════════════════════════════════════════════════════════════════╝
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="-12 -16 90 64"
+     width="270" height="192"
+     style="background:#0f172a; font-family:monospace;">
+
+  <defs>
+    <symbol id="sym-dps" viewBox="0 0 14 24">
+      <!-- Linha de conexão superior -->
+      <line x1="7" y1="0" x2="7" y2="5.1" stroke-width="1.5"
+        style="stroke:var(--s,#64748b);"/>
+      <!-- Triângulo varistor -->
+      <polygon points="0,5.1 14,5.1 7,18.1" stroke-width="1.5"
+        style="fill:var(--s-bg,none); stroke:var(--s,#64748b);"/>
+      <!-- Barra de base -->
+      <line x1="0" y1="20.1" x2="14" y2="20.1" stroke-width="1.5"
+        style="stroke:var(--s,#64748b);"/>
+      <!-- Fio terra -->
+      <line x1="7" y1="20.1" x2="7" y2="12" stroke-width="1.5"
+        style="stroke:var(--s,#64748b);"/>
+      <!-- Barras de terra decrescentes (IEC 60617-2) -->
+      <line x1="2"  y1="16" x2="12" y2="16" stroke-width="1.5" style="stroke:var(--s,#64748b);"/>
+      <line x1="4"  y1="19" x2="10" y2="19" stroke-width="1"   style="stroke:var(--s,#64748b);"/>
+      <line x1="6"  y1="22" x2="8"  y2="22" stroke-width="0.8" style="stroke:var(--s,#64748b);"/>
+    </symbol>
+  </defs>
+
+  <text x="0" y="-4" fill="#475569" font-size="7">sym-dps — IEC 61643 DPS Tipo II</text>
+
+  <!-- padrão -->
+  <text x="0" y="30" fill="#334155" font-size="6">padrão</text>
+  <use href="#sym-dps" x="0" y="0" width="14" height="24"/>
+
+  <!-- ativo (hover âmbar) -->
+  <text x="24" y="30" fill="#f59e0b" font-size="6">ativo</text>
+  <use href="#sym-dps" x="24" y="0" width="14" height="24"
+    style="--s:#f59e0b; --s-bg:rgba(245,158,11,0.15);"/>
+
+  <!-- ativo MPPT-1 -->
+  <text x="48" y="30" fill="#60a5fa" font-size="6">MPPT-1</text>
+  <use href="#sym-dps" x="48" y="0" width="14" height="24"
+    style="--s:#60a5fa; --s-bg:rgba(96,165,250,0.12);"/>
+</svg>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Users, Loader2, Eye, EyeOff, AlertCircle, Building2, User } from 'lucide-react';
 import { useCreateUser } from '@/hooks/useUsers';
 import { useTenantOptions } from '@/hooks/useTenants';
@@ -27,16 +27,24 @@ export default function CreateAccountDrawer({ onClose, onCreated }: CreateAccoun
   const [role, setRole] = useState<'ADMIN' | 'ENGINEER'>('ENGINEER');
   const [tenantId, setTenantId] = useState('');
 
-  const { mutate: create, loading, error } = useCreateUser(() => {
+  const handleCreateSuccess = useCallback(() => {
     onCreated();
     onClose();
-  });
+  }, [onCreated, onClose]);
+
+  const { mutate: create, loading, error } = useCreateUser(handleCreateSuccess);
   const { data: tenantOptions, loading: loadingTenants } = useTenantOptions();
+
+  // Refs keep the latest values readable inside the effect without causing cycles
+  const usernameRef = useRef(username);
+  usernameRef.current = username;
+  const orgNameRef = useRef(orgName);
+  orgNameRef.current = orgName;
 
   // Auto-generate username and orgName
   useEffect(() => {
-    // Auto-generate username if empty
-    if (!username && fullName) {
+    // Auto-generate username only if the field hasn't been manually edited
+    if (!usernameRef.current && fullName) {
       const generated = fullName
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
@@ -45,12 +53,12 @@ export default function CreateAccountDrawer({ onClose, onCreated }: CreateAccoun
         .replace(/\s+/g, '_');
       setUsername(generated);
     }
-    
+
     // Auto-generate orgName for INDIVIDUAL if empty
-    if (type === 'INDIVIDUAL' && fullName && !orgName) {
+    if (type === 'INDIVIDUAL' && fullName && !orgNameRef.current) {
       setOrgName(`Workspace de ${fullName.trim()}`);
     }
-  }, [fullName, username, orgName, type]);
+  }, [fullName, type]);
 
   const selectedTenant = type === 'CORPORATE' ? tenantOptions.find(t => t.id === tenantId) : null;
   const maxSeats = selectedTenant ? (PLAN_SEATS[selectedTenant.apiPlan] ?? 1) : 0;
@@ -197,7 +205,7 @@ export default function CreateAccountDrawer({ onClose, onCreated }: CreateAccoun
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
+                    onClick={() => setShowPassword(prev => !prev)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
                     tabIndex={-1}
                   >

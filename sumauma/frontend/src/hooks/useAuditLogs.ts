@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '@/lib/api';
+import { toast } from '@/stores/toastStore';
 
 export interface AuditLog {
   id: string;
@@ -8,12 +9,12 @@ export interface AuditLog {
   entity: string | null;
   resourceId: string;
   details: string | null;
-  before: any;
-  after: any;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
   ipAddress: string | null;
   userAgent: string | null;
-  user: { id: string; username: string; fullName: string };
-  tenant: { id: string; name: string };
+  user: { id: string; username: string; fullName: string } | null;
+  tenant: { id: string; name: string } | null;
 }
 
 export interface AuditLogsParams {
@@ -23,6 +24,7 @@ export interface AuditLogsParams {
   userId?: string;
   action?: string;
   entity?: string;
+  resourceId?: string;
   dateFrom?: string;
   dateTo?: string;
   q?: string;
@@ -39,6 +41,8 @@ export function useAuditLogs(params: AuditLogsParams) {
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const isExportingRef = useRef(false);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -47,18 +51,26 @@ export function useAuditLogs(params: AuditLogsParams) {
       const response = await api.get('/audit-logs', { params });
       setLogs(response.data.data);
       setPagination(response.data.pagination);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Erro ao carregar logs');
+    } catch (err) {
+      const axiosErr = err as { response?: { data?: { error?: string } } };
+      const msg = axiosErr.response?.data?.error || 'Erro ao carregar logs';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
-  }, [JSON.stringify(params)]);
+  // Normalize null/undefined cursor so JSON.stringify produces a stable key
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify({ ...params, cursor: params.cursor ?? undefined })]);
 
   useEffect(() => {
     fetchLogs();
   }, [fetchLogs]);
 
-  const exportLogs = async () => {
+  const exportLogs = useCallback(async () => {
+    if (isExportingRef.current) return;
+    isExportingRef.current = true;
+    setIsExporting(true);
     try {
       const response = await api.get('/audit-logs/export', {
         params,
@@ -71,10 +83,16 @@ export function useAuditLogs(params: AuditLogsParams) {
       document.body.appendChild(link);
       link.click();
       link.remove();
-    } catch (err) {
-      console.error('Erro ao exportar logs:', err);
+      window.URL.revokeObjectURL(url);
+      toast.success('Exportação concluída — audit-logs.csv');
+    } catch {
+      toast.error('Falha ao exportar logs de auditoria');
+    } finally {
+      isExportingRef.current = false;
+      setIsExporting(false);
     }
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(params)]);
 
-  return { logs, pagination, loading, error, refetch: fetchLogs, exportLogs };
+  return { logs, pagination, loading, error, isExporting, refetch: fetchLogs, exportLogs };
 }

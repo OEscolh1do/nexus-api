@@ -51,12 +51,12 @@ export const PLACEHOLDER_FIELDS: PlaceholderFieldDef[] = [
   { field: 'project.coverage',      group: 'Projeto',  label: 'Cobertura solar',      example: '87,3%'                                         },
   { field: 'project.economiaAno',   group: 'Projeto',  label: 'Economia anual',       example: 'R$ 8.346,24'                                   },
   { field: 'project.investment',    group: 'Projeto',  label: 'Investimento total',   example: 'R$ 22.500,00'                                  },
-  { field: 'proposal.date',         group: 'Proposta', label: 'Data da proposta',     example: '06/05/2026'                                    },
-  { field: 'proposal.dueDate',      group: 'Proposta', label: 'Válida até',           example: '21/05/2026'                                    },
-  { field: 'proposal.validity',     group: 'Proposta', label: 'Validade (dias)',       example: '15 dias'                                       },
-  { field: 'proposal.engineer',     group: 'Proposta', label: 'Responsável técnico',  example: 'Eng. Maria Santos'                             },
-  { field: 'proposal.engineerCrea', group: 'Proposta', label: 'CREA do engenheiro',   example: 'CREA-PA 123456'                                },
-  { field: 'proposal.phone',        group: 'Proposta', label: 'Telefone de contato',  example: '(94) 99999-9999'                               },
+  { field: 'proposal.date',         group: 'Documento', label: 'Data da proposta',     example: '06/05/2026'                                    },
+  { field: 'proposal.dueDate',      group: 'Documento', label: 'Válida até',           example: '21/05/2026'                                    },
+  { field: 'proposal.validity',     group: 'Documento', label: 'Validade (dias)',       example: '15 dias'                                       },
+  { field: 'proposal.engineer',     group: 'Documento', label: 'Responsável técnico',  example: 'Eng. Maria Santos'                             },
+  { field: 'proposal.engineerCrea', group: 'Documento', label: 'CREA do engenheiro',   example: 'CREA-PA 123456'                                },
+  { field: 'proposal.phone',        group: 'Documento', label: 'Telefone de contato',  example: '(94) 99999-9999'                               },
 ];
 
 export const DEFAULT_PLACEHOLDER_FIELD: PlaceholderField = PLACEHOLDER_FIELDS[0].field;

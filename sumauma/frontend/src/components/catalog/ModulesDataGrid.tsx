@@ -19,15 +19,16 @@ export default function ModulesDataGrid({ refreshTrigger }: { refreshTrigger: nu
 
   const debouncedQ = useDebounce(rawQ, 300);
 
-  const { data: modules, pagination, loading, refetch } = useModules({
+  const { data: modules, pagination, loading, error, refetch } = useModules({
     page,
     limit: PAGE_SIZE,
     q: debouncedQ || undefined,
     isActive: filters.isActive === 'true' ? true : filters.isActive === 'false' ? false : undefined,
   });
 
-  // Refetch when external trigger changes (e.g. after upload)
-  useEffect(() => { refetch(); }, [refreshTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Refetch when external trigger changes (e.g. after upload) and reset to page 1
+  // so the user doesn't land on a now-empty page after a new item is added.
+  useEffect(() => { setPage(1); refetch(); }, [refreshTrigger, refetch]);
 
   const handleFilterChange = useCallback((partial: Partial<Filters>) => {
     if ('q' in partial) setRawQ(partial.q ?? '');
@@ -80,19 +81,27 @@ export default function ModulesDataGrid({ refreshTrigger }: { refreshTrigger: nu
               {loading &&
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="border-b border-slate-800/50">
-                    <td colSpan={6} className="px-4 py-3"><div className="h-3 w-full animate-pulse rounded-sm bg-slate-800" /></td>
+                    <td colSpan={5} className="px-4 py-3"><div className="h-3 w-full animate-pulse rounded-sm bg-slate-800" /></td>
                   </tr>
                 ))}
-              
-              {!loading && modules.length === 0 && (
+
+              {error && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-xs text-slate-500">
+                  <td colSpan={5} className="px-4 py-12 text-center text-xs text-red-400">
+                    {error}
+                  </td>
+                </tr>
+              )}
+
+              {!loading && !error && modules.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-12 text-center text-xs text-slate-500">
                     Nenhum módulo encontrado.
                   </td>
                 </tr>
               )}
 
-              {!loading && modules.map((m) => (
+              {!loading && !error && modules.map((m) => (
                 <tr
                   key={m.id}
                   onClick={() => setSelectedModule(m)}

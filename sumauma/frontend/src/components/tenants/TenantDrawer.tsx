@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   X,
   Building2,
@@ -13,6 +13,7 @@ import {
   Trash2,
   UserPlus,
   AlertCircle,
+  Loader2,
 } from 'lucide-react';
 import {
   useTenant,
@@ -29,6 +30,7 @@ import CreateTenantForm from './CreateTenantForm';
 import CreateUserForm from '@/components/users/CreateUserForm';
 import RoleBadge from '@/components/users/RoleBadge';
 import { PLAN_SEATS } from '@/lib/tenantUtils';
+
 // ─── Plan edit sub-panel ──────────────────────────────────────────────────────
 
 const PLAN_OPTIONS = ['FREE', 'STARTER', 'PRO', 'ENTERPRISE'];
@@ -36,19 +38,16 @@ const PLAN_OPTIONS = ['FREE', 'STARTER', 'PRO', 'ENTERPRISE'];
 function EditPlanPanel({
   tenant,
   onClose,
-  onSaved,
+  onSave,
+  loading,
 }: {
   tenant: TenantDetail;
   onClose: () => void;
-  onSaved: () => void;
+  onSave: (payload: { apiPlan: TenantDetail['apiPlan']; apiMonthlyQuota: number }) => void;
+  loading: boolean;
 }) {
-  const { mutate: patch, loading } = usePatchTenant(onSaved);
   const [plan, setPlan] = useState(tenant.apiPlan);
   const [quota, setQuota] = useState(String(tenant.apiMonthlyQuota));
-
-  function handleSave() {
-    patch(tenant.id, { apiPlan: plan, apiMonthlyQuota: Number(quota) });
-  }
 
   return (
     <div className="mt-4 rounded-sm border border-slate-700 bg-slate-800/60 p-4 space-y-3">
@@ -62,9 +61,7 @@ function EditPlanPanel({
             className="w-full rounded-sm border border-slate-700 bg-slate-800 px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500/50"
           >
             {PLAN_OPTIONS.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
+              <option key={p} value={p}>{p}</option>
             ))}
           </select>
         </div>
@@ -87,7 +84,7 @@ function EditPlanPanel({
           Cancelar
         </button>
         <button
-          onClick={handleSave}
+          onClick={() => onSave({ apiPlan: plan, apiMonthlyQuota: Number(quota) })}
           disabled={loading}
           className="rounded-sm border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-xs font-medium text-sky-400 hover:bg-sky-500/20 transition-colors disabled:opacity-50"
         >
@@ -101,21 +98,15 @@ function EditPlanPanel({
 // ─── Inject Quota sub-panel ───────────────────────────────────────────────────
 
 function InjectQuotaPanel({
-  tenant,
   onClose,
-  onSaved,
+  onSave,
+  loading,
 }: {
-  tenant: TenantDetail;
   onClose: () => void;
-  onSaved: () => void;
+  onSave: (extra: number) => void;
+  loading: boolean;
 }) {
-  const { mutate: patch, loading } = usePatchTenant(onSaved);
   const [extra, setExtra] = useState('100');
-
-  function handleSave() {
-    const newQuota = tenant.apiMonthlyQuota + Number(extra);
-    patch(tenant.id, { apiMonthlyQuota: newQuota });
-  }
 
   return (
     <div className="mt-4 rounded-sm border border-slate-700 bg-slate-800/60 p-4 space-y-3">
@@ -138,7 +129,7 @@ function InjectQuotaPanel({
           Cancelar
         </button>
         <button
-          onClick={handleSave}
+          onClick={() => onSave(Number(extra))}
           disabled={loading}
           className="rounded-sm border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-xs font-medium text-sky-400 hover:bg-sky-500/20 transition-colors disabled:opacity-50"
         >
@@ -213,7 +204,51 @@ interface TenantDrawerProps {
 }
 
 export default function TenantDrawer({ tenantId, onClose, onMutated }: TenantDrawerProps) {
-  // Modo create
+  // ─── ALL hooks unconditionally — no early returns before this block ───────
+  const { data: tenant, loading, refetch } = useTenant(tenantId);
+
+  const [showBlock,       setShowBlock]       = useState(false);
+  const [showDelete,      setShowDelete]       = useState(false);
+  const [showEditPlan,    setShowEditPlan]     = useState(false);
+  const [showInjectQuota, setShowInjectQuota]  = useState(false);
+  const [showAddMember,   setShowAddMember]    = useState(false);
+
+  // Stable success callbacks
+  const handleSuccess = useCallback(() => {
+    refetch();
+    onMutated?.();
+  }, [refetch, onMutated]);
+
+  // Plan/quota patch: also closes the sub-panels on success
+  const handlePatchSuccess = useCallback(() => {
+    refetch();
+    onMutated?.();
+    setShowEditPlan(false);
+    setShowInjectQuota(false);
+  }, [refetch, onMutated]);
+
+  const handleDeleteSuccess = useCallback(() => {
+    onMutated?.();
+    onClose();
+  }, [onMutated, onClose]);
+
+  const handleTenantCreated = useCallback(() => {
+    onMutated?.();
+    onClose();
+  }, [onMutated, onClose]);
+
+  const handleMemberCreated = useCallback(() => {
+    setShowAddMember(false);
+    refetch();
+    onMutated?.();
+  }, [refetch, onMutated]);
+
+  const { mutate: block,        loading: blocking   } = useBlockTenant(handleSuccess);
+  const { mutate: unblock,      loading: unblocking  } = useUnblockTenant(handleSuccess);
+  const { mutate: patch,        loading: patching    } = usePatchTenant(handlePatchSuccess);
+  const { mutate: deleteTenant, loading: deleting    } = useDeleteTenant(handleDeleteSuccess);
+
+  // ─── Create mode — safe: all hooks already called above ──────────────────
   if (tenantId === null) {
     return (
       <>
@@ -225,36 +260,19 @@ export default function TenantDrawer({ tenantId, onClose, onMutated }: TenantDra
         <div className="fixed right-0 top-0 z-40 flex h-full w-full max-w-md flex-col border-l border-slate-800 bg-slate-950 shadow-2xl">
           <CreateTenantForm
             onClose={onClose}
-            onCreated={(_id, _name) => { onMutated?.(); onClose(); }}
+            onCreated={handleTenantCreated}
           />
         </div>
       </>
     );
   }
 
-  const { data: tenant, loading, refetch } = useTenant(tenantId);
-
-  const handleSuccess = () => {
-    refetch();
-    onMutated?.();
-  };
-
-  const { mutate: block, loading: blocking } = useBlockTenant(handleSuccess);
-  const { mutate: unblock, loading: unblocking } = useUnblockTenant(handleSuccess);
-  const { mutate: patch, loading: resetting } = usePatchTenant(handleSuccess);
-  const { mutate: deleteTenant, loading: deleting } = useDeleteTenant(() => { onMutated?.(); onClose(); });
-
-  const [showBlock, setShowBlock] = useState(false);
-  const [showDelete, setShowDelete] = useState(false);
-  const [showEditPlan, setShowEditPlan] = useState(false);
-  const [showInjectQuota, setShowInjectQuota] = useState(false);
-  const [showAddMember, setShowAddMember] = useState(false);
-
-  const isMaster = tenant?.type === 'MASTER';
-  const isBlocked = tenant?.status === 'BLOCKED';
-  const maxSeats = tenant ? (PLAN_SEATS[tenant.apiPlan] ?? 1) : 0;
+  // ─── Derived state ────────────────────────────────────────────────────────
+  const isMaster        = tenant?.type === 'MASTER';
+  const isBlocked       = tenant?.status === 'BLOCKED';
+  const maxSeats        = tenant ? (PLAN_SEATS[tenant.apiPlan] ?? 1) : 0;
   const isUnlimitedSeats = maxSeats > 1000;
-  const isSeatsFull = !isUnlimitedSeats && !!tenant && tenant._count.users >= maxSeats;
+  const isSeatsFull     = !isUnlimitedSeats && !!tenant && tenant._count.users >= maxSeats;
 
   function handleBlock() {
     if (!tenantId) return;
@@ -301,7 +319,7 @@ export default function TenantDrawer({ tenantId, onClose, onMutated }: TenantDra
         <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
           {loading ? (
             <div className="flex h-32 items-center justify-center">
-              <p className="text-xs text-slate-500">Carregando...</p>
+              <Loader2 className="h-6 w-6 animate-spin text-slate-600" />
             </div>
           ) : !tenant ? (
             <div className="flex h-32 items-center justify-center">
@@ -332,9 +350,9 @@ export default function TenantDrawer({ tenantId, onClose, onMutated }: TenantDra
               {/* Stats row */}
               <section className="grid grid-cols-3 gap-2">
                 {[
-                  { Icon: Users, label: 'Usuários', value: String(tenant._count.users) },
+                  { Icon: Users,    label: 'Usuários',  value: String(tenant._count.users) },
                   { Icon: Activity, label: 'Audit Logs', value: String(tenant._count.auditLogs) },
-                  { Icon: Zap, label: 'SSO', value: tenant.ssoEnforced ? 'Ativo' : 'Off' },
+                  { Icon: Zap,      label: 'SSO',        value: tenant.ssoEnforced ? 'Ativo' : 'Off' },
                 ].map(({ Icon, label, value }) => (
                   <div
                     key={label}
@@ -353,14 +371,14 @@ export default function TenantDrawer({ tenantId, onClose, onMutated }: TenantDra
                   <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
                     Limites e Quotas
                   </p>
-                  <span className="badge badge-info">{tenant.apiPlan}</span>
+                  <span className="rounded-sm border border-slate-700 bg-slate-800 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-300">{tenant.apiPlan}</span>
                 </div>
-                
+
                 <ApiUsageBar
                   current={tenant.apiCurrentUsage}
                   quota={tenant.apiMonthlyQuota}
                 />
-                
+
                 <SeatsUsageBar
                   current={tenant._count.users}
                   plan={tenant.apiPlan}
@@ -370,15 +388,16 @@ export default function TenantDrawer({ tenantId, onClose, onMutated }: TenantDra
                   <EditPlanPanel
                     tenant={tenant}
                     onClose={() => setShowEditPlan(false)}
-                    onSaved={() => setShowEditPlan(false)}
+                    onSave={(payload) => patch(tenant.id, payload)}
+                    loading={patching}
                   />
                 )}
-                
+
                 {showInjectQuota && (
                   <InjectQuotaPanel
-                    tenant={tenant}
                     onClose={() => setShowInjectQuota(false)}
-                    onSaved={() => setShowInjectQuota(false)}
+                    onSave={(extra) => patch(tenant.id, { apiMonthlyQuota: tenant.apiMonthlyQuota + extra })}
+                    loading={patching}
                   />
                 )}
               </section>
@@ -415,7 +434,7 @@ export default function TenantDrawer({ tenantId, onClose, onMutated }: TenantDra
                   </div>
                 </section>
               )}
-              
+
               {/* Audit Logs */}
               {tenant.auditLogs && tenant.auditLogs.length > 0 && (
                 <section className="space-y-2">
@@ -490,6 +509,7 @@ export default function TenantDrawer({ tenantId, onClose, onMutated }: TenantDra
                 <UserPlus className="h-3.5 w-3.5" />
               </button>
             )}
+
             <button
               onClick={() => { setShowInjectQuota((v) => !v); setShowEditPlan(false); }}
               className="flex w-full items-center justify-between rounded-sm border border-sky-500/20 bg-sky-500/5 px-3 py-2 text-xs text-sky-400 hover:bg-sky-500/10 transition-colors"
@@ -510,10 +530,10 @@ export default function TenantDrawer({ tenantId, onClose, onMutated }: TenantDra
             {/* Reset quota */}
             <button
               onClick={handleResetQuota}
-              disabled={resetting}
+              disabled={patching}
               className="flex w-full items-center justify-between rounded-sm border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-amber-400 hover:bg-amber-500/10 transition-colors disabled:opacity-50"
             >
-              <span>{resetting ? 'Resetando…' : 'Resetar Quota Mensal'}</span>
+              <span>{patching ? 'Salvando…' : 'Resetar Quota Mensal'}</span>
               <RefreshCw className="h-3.5 w-3.5" />
             </button>
 
@@ -583,11 +603,7 @@ export default function TenantDrawer({ tenantId, onClose, onMutated }: TenantDra
             <CreateUserForm
               defaultTenantId={tenantId}
               onClose={() => setShowAddMember(false)}
-              onCreated={() => {
-                setShowAddMember(false);
-                refetch();
-                onMutated?.();
-              }}
+              onCreated={handleMemberCreated}
             />
           </div>
         </>

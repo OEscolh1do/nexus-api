@@ -1,6 +1,6 @@
 /**
  * CATALOG SYNC UTILS
- * 
+ *
  * Helper functions to ensure data integrity between top-level database fields
  * and the 'electricalData' JSON blob used by the engineering engine.
  */
@@ -14,7 +14,7 @@ interface ModuleElectricalData {
   tempCoeffVoc?: number;
   tempCoeffPmax?: number;
   tempCoeffIsc?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface InverterElectricalData {
@@ -26,25 +26,24 @@ interface InverterElectricalData {
   iMaxDC?: number;
   maxOutputW?: number;
   nbMppt?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
  * Syncs module top-level fields into electricalData JSON.
  */
 export function syncModuleData(
-  topLevel: { 
+  topLevel: {
     powerWp?: number;
-    // Add other top-level fields here if needed
   },
   electricalData: ModuleElectricalData
 ): ModuleElectricalData {
   const synced = { ...electricalData };
-  
+
   if (topLevel.powerWp !== undefined) {
     synced.pmax = topLevel.powerWp;
   }
-  
+
   return synced;
 }
 
@@ -65,20 +64,19 @@ export function syncInverterData(
   electricalData: InverterElectricalData
 ): InverterElectricalData {
   const synced = { ...electricalData };
-  
+
   if (topLevel.nominalPowerW !== undefined) {
-    // Sincroniza potência nominal CA
     synced.maxOutputW = topLevel.nominalPowerW;
     // Se pNomDCW não existe, assume 110% da AC como chute inicial (oversizing comum)
     if (!synced.pNomDCW) {
       synced.pNomDCW = topLevel.nominalPowerW * 1.1;
     }
   }
-  
+
   if (topLevel.maxInputV !== undefined) {
     synced.vAbsMax = topLevel.maxInputV;
   }
-  
+
   if (topLevel.mpptCount !== undefined) {
     synced.nbMppt = topLevel.mpptCount;
   }
@@ -92,20 +90,20 @@ export function syncInverterData(
   if (topLevel.width !== undefined) synced.width = topLevel.width;
   if (topLevel.height !== undefined) synced.height = topLevel.height;
   if (topLevel.depth !== undefined) synced.depth = topLevel.depth;
-  
+
   return synced;
 }
 
 /**
- * Deep merges form fields into the electricalData object.
+ * Shallow-merges form fields into the electricalData object.
  * Use this when the form has direct access to technical parameters.
  */
-export function mergeTechnicalData<T extends Record<string, any>>(
+export function mergeTechnicalData<T extends Record<string, unknown>>(
   current: T,
   updates: Partial<T>
 ): T {
   return {
     ...current,
-    ...updates
+    ...updates,
   };
 }

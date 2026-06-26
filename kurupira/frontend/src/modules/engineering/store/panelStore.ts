@@ -26,7 +26,10 @@ import { create } from 'zustand';
  * IDs dos grupos registrados no dock.
  * Extensível — novos grupos podem ser adicionados sem alterar a store.
  */
-export type PanelGroupId = 'site' | 'projection' | 'electrical' | 'module-selection' | 'properties' | 'minimap' | 'documentation' | 'proposal' | 'settings';
+export type PanelGroupId = 'site' | 'projection' | 'electrical' | 'module-selection' | 'properties' | 'minimap' | 'documentation' | 'proposal' | 'settings' | 'symbol-editor';
+
+/** Abas do canvas de inversores (diagrama unifilar, auditoria, etc.) */
+export type InverterCanvasTab = 'unifilar' | 'audit' | 'temperatura' | 'oversizing';
 
 // =============================================================================
 // STORE
@@ -56,6 +59,26 @@ interface PanelState {
 
   /** Expande um grupo específico. */
   expandGroup: (id: PanelGroupId) => void;
+
+  // ---------------------------------------------------------------------------
+  // Inverter canvas UI (absorvido de useInverterUIStore)
+  // ---------------------------------------------------------------------------
+
+  /** ID do inversor atualmente selecionado no painel elétrico. null = nenhum */
+  activeInverterId: string | null;
+  setActiveInverterId: (id: string | null) => void;
+
+  /** Aba ativa no canvas de inversores */
+  activeCanvasTab: InverterCanvasTab;
+  setActiveCanvasTab: (tab: InverterCanvasTab) => void;
+
+  /** Se o terminal de debug está aberto */
+  terminalOpen: boolean;
+  setTerminalOpen: (isOpen: boolean) => void;
+
+  /** MPPT destacado no diagrama (hover/seleção) */
+  highlightMpptId: number | null;
+  setHighlightMpptId: (id: number | null) => void;
 }
 
 /** Grupos que iniciam colapsados por default */
@@ -105,6 +128,19 @@ export const usePanelStore = create<PanelState>((set) => ({
       next.delete(id);
       return { collapsedGroups: next };
     }),
+
+  // Inverter canvas UI
+  activeInverterId: null,
+  setActiveInverterId: (id) => set({ activeInverterId: id }),
+
+  activeCanvasTab: 'unifilar',
+  setActiveCanvasTab: (tab) => set({ activeCanvasTab: tab }),
+
+  terminalOpen: false,
+  setTerminalOpen: (isOpen) => set({ terminalOpen: isOpen }),
+
+  highlightMpptId: null,
+  setHighlightMpptId: (id) => set({ highlightMpptId: id }),
 }));
 
 // =============================================================================

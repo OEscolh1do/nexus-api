@@ -256,6 +256,11 @@ export default function TenantsTab() {
     setPage(1);
   }, []);
 
+  const handleCreateMutated = useCallback(() => {
+    refetch();
+    setPage(1);
+  }, [refetch]);
+
   return (
     <div className="flex h-full flex-col gap-4">
       {/* Filters & Actions */}
@@ -361,7 +366,7 @@ export default function TenantsTab() {
         <TenantDrawer
           tenantId={null}
           onClose={() => setCreateOpen(false)}
-          onMutated={() => { refetch(); setPage(1); }}
+          onMutated={handleCreateMutated}
         />
       )}
     </div>

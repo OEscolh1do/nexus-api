@@ -104,6 +104,35 @@ export interface TechnicalDesignFull extends TechnicalDesignSummary {
   simulations: any[];
 }
 
+// =============================================================
+// SYMBOL CATALOG (IEC symbol library — SymbolEditorCanvas)
+// =============================================================
+
+export interface SymbolCatalogEntry {
+  id:        string;
+  tenantId:  string;
+  createdBy: string;
+  name:      string;
+  symId:     string;
+  vbW:       number;
+  vbH:       number;
+  elements:  unknown[];   // SymElem[] from SymbolEditorCanvas — typed loosely here
+  cssVars:   Record<string, string> | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  deletedBy: string | null;
+}
+
+export interface SymbolCatalogEntryInput {
+  name:     string;
+  symId:    string;
+  vbW:      number;
+  vbH:      number;
+  elements: unknown[];
+  cssVars?: Record<string, string> | null;
+}
+
 export const KurupiraClient = {
   designs: {
     list: () => apiFetch<TechnicalDesignSummary[]>('/api/v1/designs'),
@@ -189,6 +218,36 @@ export const KurupiraClient = {
         body: formData,
       });
     },
+  },
+
+  symbolCatalog: {
+    /** Lista todos os símbolos salvos do tenant (opcionalmente filtrados por symId base) */
+    list: (symId?: string) =>
+      apiFetch<SymbolCatalogEntry[]>(
+        `/api/v1/symbol-catalog${symId ? `?symId=${encodeURIComponent(symId)}` : ''}`,
+      ),
+
+    /** Busca um símbolo pelo ID */
+    get: (id: string) =>
+      apiFetch<SymbolCatalogEntry>(`/api/v1/symbol-catalog/${id}`),
+
+    /** Salva um novo símbolo na biblioteca remota */
+    create: (data: SymbolCatalogEntryInput) =>
+      apiFetch<SymbolCatalogEntry>('/api/v1/symbol-catalog', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    /** Atualiza nome / elementos / cssVars de uma entrada existente */
+    update: (id: string, data: Partial<SymbolCatalogEntryInput>) =>
+      apiFetch<SymbolCatalogEntry>(`/api/v1/symbol-catalog/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+
+    /** Soft-delete — remove da biblioteca do tenant */
+    remove: (id: string) =>
+      apiFetch<{ success: boolean }>(`/api/v1/symbol-catalog/${id}`, { method: 'DELETE' }),
   },
 
   team: {

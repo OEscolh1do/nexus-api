@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import {
   Users,
   Search,
@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { useUsers, type User } from '@/hooks/useUsers';
 import { useDebounce } from '@/hooks/useDebounce';
-import api from '@/lib/api';
+import { useTenantOptions } from '@/hooks/useTenants';
 import UserDrawer from '@/components/users/UserDrawer';
 import CreateAccountDrawer from '@/components/accounts/CreateAccountDrawer';
 import RoleBadge from '@/components/users/RoleBadge';
@@ -23,11 +23,6 @@ interface Filters {
   tenantType: string;
 }
 
-interface TenantOption {
-  id: string;
-  name: string;
-}
-
 function FilterBar({
   filters,
   onChange,
@@ -35,13 +30,7 @@ function FilterBar({
   filters: Filters;
   onChange: (f: Partial<Filters>) => void;
 }) {
-  const [tenants, setTenants] = useState<TenantOption[]>([]);
-
-  useEffect(() => {
-    api.get('/tenants/options')
-      .then(res => setTenants(res.data.data))
-      .catch(console.error);
-  }, []);
+  const { data: tenants } = useTenantOptions();
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -261,6 +250,7 @@ export default function UsersTab() {
     limit: PAGE_SIZE,
     q: debouncedQ || undefined,
     tenantId: filters.tenantId || undefined,
+    tenantType: filters.tenantType || undefined,
   });
 
   const handleFilterChange = useCallback((partial: Partial<Filters>) => {
@@ -268,6 +258,11 @@ export default function UsersTab() {
     else setFilters((prev) => ({ ...prev, ...partial }));
     setPage(1);
   }, []);
+
+  const handleAccountCreated = useCallback(() => {
+    refetch();
+    setPage(1);
+  }, [refetch]);
 
   return (
     <div className="flex h-full flex-col gap-4">
@@ -370,7 +365,7 @@ export default function UsersTab() {
       {createOpen && (
         <CreateAccountDrawer
           onClose={() => setCreateOpen(false)}
-          onCreated={() => { refetch(); setPage(1); }}
+          onCreated={handleAccountCreated}
         />
       )}
     </div>

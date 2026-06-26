@@ -1,17 +1,18 @@
-
+import { useCallback } from 'react';
 import { Search, XCircle } from 'lucide-react';
+import type { AuditLogsParams } from '@/hooks/useAuditLogs';
 
 interface AuditFiltersProps {
-  filters: any;
-  setFilters: (filters: any) => void;
+  filters: AuditLogsParams;
+  setFilters: (filters: Partial<AuditLogsParams>) => void;
   onClear: () => void;
 }
 
 export default function AuditFilters({ filters, setFilters, onClear }: AuditFiltersProps) {
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFilters((prev: any) => ({ ...prev, [name]: value }));
-  };
+    setFilters({ [name]: value || undefined });
+  }, [setFilters]);
 
   return (
     <div className="flex flex-wrap items-end gap-3 p-4 bg-slate-900 border border-slate-800 rounded-sm">

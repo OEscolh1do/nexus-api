@@ -16,6 +16,7 @@ const catalogRouter = require('./routes/catalog');
 const internalCatalogRouter = require('./routes/internalCatalog');
 const settingsRouter = require('./routes/settings');
 const teamRouter = require('./routes/team');
+const symbolCatalogRouter = require('./routes/symbolCatalog');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -54,6 +55,7 @@ app.use('/api/v1/catalog', catalogRouter);
 app.use('/internal/catalog', internalCatalogRouter);
 app.use('/api/v1/settings', settingsRouter);
 app.use('/api/v1/team', teamRouter);
+app.use('/api/v1/symbol-catalog', symbolCatalogRouter);
 
 // Health check profundo — verifica conectividade com o banco
 app.get('/health', async (req, res) => {
@@ -85,12 +87,6 @@ app.use((err, req, res, next) => {
   logger.error('Unhandled error', { err: err.message, stack: err.stack });
   res.status(500).json({ success: false, error: 'Internal server error' });
 });
-
-// Popula o cache de catálogo antes de começar a receber tráfego
-async function authenticateToken(req, res, next) {
-  console.log('[Auth] Iniciando validação de token...');
-  const auth = req.headers.authorization;
-}
 
 async function warmUpCache() {
   try {

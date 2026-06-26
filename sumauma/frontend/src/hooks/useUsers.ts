@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
+import { toast } from '@/stores/toastStore';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -43,6 +44,7 @@ export interface UsersListParams {
   page?: number;
   limit?: number;
   tenantId?: string;
+  tenantType?: string;
   role?: string;
   q?: string;
 }
@@ -72,7 +74,9 @@ export function useUsers(params: UsersListParams) {
         setPagination(res.data.pagination);
       })
       .catch((err) => {
-        setError(err.response?.data?.error ?? 'Falha ao carregar usuários');
+        const msg = err.response?.data?.error ?? 'Falha ao carregar usuários';
+        setError(msg);
+        toast.error(msg);
       })
       .finally(() => setLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -99,7 +103,11 @@ export function useUser(id: string | null) {
     api
       .get(`/users/${id}`)
       .then((res) => setData(res.data.data))
-      .catch((err) => setError(err.response?.data?.error ?? 'Falha ao carregar usuário'))
+      .catch((err) => {
+        const msg = err.response?.data?.error ?? 'Falha ao carregar usuário';
+        setError(msg);
+        toast.error(msg);
+      })
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -122,9 +130,11 @@ export function usePatchUser(onSuccess?: () => void) {
       setError(null);
       return api
         .patch(`/users/${id}`, payload)
-        .then(() => onSuccess?.())
+        .then(() => { toast.success('Usuário atualizado com sucesso.'); onSuccess?.(); })
         .catch((err) => {
-          setError(err.response?.data?.error ?? 'Falha ao atualizar usuário');
+          const msg = err.response?.data?.error ?? 'Falha ao atualizar usuário';
+          setError(msg);
+          toast.error(msg);
           throw err;
         })
         .finally(() => setLoading(false));
@@ -145,9 +155,11 @@ export function useBlockUser(onSuccess?: () => void) {
       setError(null);
       return api
         .post(`/users/${id}/block`)
-        .then(() => onSuccess?.())
+        .then(() => { toast.success('Usuário bloqueado.'); onSuccess?.(); })
         .catch((err) => {
-          setError(err.response?.data?.error ?? 'Falha ao bloquear usuário');
+          const msg = err.response?.data?.error ?? 'Falha ao bloquear usuário';
+          setError(msg);
+          toast.error(msg);
           throw err;
         })
         .finally(() => setLoading(false));
@@ -168,9 +180,11 @@ export function useUnblockUser(onSuccess?: () => void) {
       setError(null);
       return api
         .post(`/users/${id}/unblock`)
-        .then(() => onSuccess?.())
+        .then(() => { toast.success('Usuário desbloqueado.'); onSuccess?.(); })
         .catch((err) => {
-          setError(err.response?.data?.error ?? 'Falha ao desbloquear usuário');
+          const msg = err.response?.data?.error ?? 'Falha ao desbloquear usuário';
+          setError(msg);
+          toast.error(msg);
           throw err;
         })
         .finally(() => setLoading(false));
@@ -195,10 +209,13 @@ export function useResetPassword(onSuccess?: () => void) {
         .post(`/users/${id}/reset-password`)
         .then((res) => {
           setSuccessMsg(res.data.message);
+          toast.success('Senha redefinida com sucesso.');
           onSuccess?.();
         })
         .catch((err) => {
-          setError(err.response?.data?.error ?? 'Falha ao redefinir senha');
+          const msg = err.response?.data?.error ?? 'Falha ao redefinir senha';
+          setError(msg);
+          toast.error(msg);
           throw err;
         })
         .finally(() => setLoading(false));
@@ -231,9 +248,11 @@ export function useCreateUser(onSuccess?: () => void) {
       setError(null);
       return api
         .post('/users', payload)
-        .then(() => onSuccess?.())
+        .then(() => { toast.success('Usuário criado com sucesso.'); onSuccess?.(); })
         .catch((err) => {
-          setError(err.response?.data?.error ?? 'Falha ao criar usuário');
+          const msg = err.response?.data?.error ?? 'Falha ao criar usuário';
+          setError(msg);
+          toast.error(msg);
           throw err;
         })
         .finally(() => setLoading(false));
@@ -258,9 +277,11 @@ export function useDeleteUser(onSuccess?: () => void) {
       setError(null);
       return api
         .delete(`/users/${id}`)
-        .then(() => onSuccess?.())
+        .then(() => { toast.success('Usuário excluído.'); onSuccess?.(); })
         .catch((err) => {
-          setError(err.response?.data?.error ?? 'Falha ao excluir usuário');
+          const msg = err.response?.data?.error ?? 'Falha ao excluir usuário';
+          setError(msg);
+          toast.error(msg);
           throw err;
         })
         .finally(() => setLoading(false));

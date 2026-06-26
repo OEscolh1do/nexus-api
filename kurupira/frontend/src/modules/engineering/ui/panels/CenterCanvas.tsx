@@ -34,6 +34,7 @@ import { ProposalCanvasView } from './canvas-views/ProposalCanvasView';
 import { PropertiesGroup } from './groups/PropertiesGroup';
 import { SettingsModule } from '@/modules/settings/SettingsModule';
 import { DocumentationModule } from '@/modules/documentation/DocumentationModule';
+import { SymbolEditorCanvas } from './canvas-views/electrical/SymbolEditorCanvas';
 
 // =============================================================================
 // REGISTRY — Grupos renderizáveis no center
@@ -48,6 +49,7 @@ const CANVAS_VIEWS_REGISTRY: Partial<Record<PanelGroupId, React.FC>> = {
   settings: SettingsModule,
   documentation: DocumentationModule,
   proposal: ProposalCanvasView,
+  'symbol-editor': SymbolEditorCanvas,
 };
 
 // =============================================================================

@@ -101,7 +101,7 @@ export const ProposalHero: React.FC<ProposalHeroProps> = ({ pricing, financials,
                             onClick={onGeneratePDF}
                             icon={<Download size={16} />}
                         >
-                            Baixar Proposta PDF
+                            Baixar Documento PDF
                         </DenseButton>
                     </div>
                 </DenseCard>

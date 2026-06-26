@@ -27,7 +27,7 @@ export type Tool = 'SELECT' | 'MOVE' | 'PAN' | 'POLYGON' | 'MEASURE' | 'PLACE_MO
 
 export type WorkspaceMode = 'SIMULATION' | 'ELECTRICAL' | 'REPORTS' | 'PROPOSAL';
 
-export type CanvasViewMode = 'CONTEXT' | 'BLUEPRINT' | 'DIAGRAM' | 'UNIFILAR';
+export type CanvasViewMode = 'CONTEXT' | 'DIAGRAM' | 'UNIFILAR';
 
 export type FocusedBlock = 'consumption' | 'module' | 'arrangement' | 'inverter' | 'projection' | 'site' | 'proposal' | 'map' | null;
 
@@ -101,6 +101,10 @@ export interface UIState {
   mapType: 'SATELLITE' | 'STREET' | 'GOOGLE_SATELLITE';
   setMapType: (type: 'SATELLITE' | 'STREET' | 'GOOGLE_SATELLITE') => void;
 
+  /** Estilo do Google Maps (L0-A: Map Style Switcher) */
+  mapStyle: 'hybrid' | 'satellite' | 'roadmap' | 'terrain';
+  setMapStyle: (style: 'hybrid' | 'satellite' | 'roadmap' | 'terrain') => void;
+
   /** Estado do Modal/Drawer Suspenso de Premissas (Menu Configurações do Projeto) */
   isSettingsDrawerOpen: boolean;
   toggleSettingsDrawer: () => void;
@@ -119,6 +123,14 @@ export interface UIState {
   /** Busca de Endereço (Explorer) */
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+
+  /** Opacidade do satélite (0-100, unificação Layer 0 + Layer 1) */
+  satelliteOpacity: number;
+  setSatelliteOpacity: (v: number) => void;
+
+  /** Toggle de grade técnica (unificação Layer 0 + Layer 1) */
+  showGrid: boolean;
+  setShowGrid: (v: boolean) => void;
 
   // ---------------------------------------------------------------------------
   // LOADING CONTEXT — Fonte de verdade única para carregamentos assíncronos
@@ -229,8 +241,17 @@ export const useUIStore = create<UIState>((set) => ({
   toggleLossSidebar: () => set((state) => ({ isLossSidebarOpen: !state.isLossSidebarOpen })),
   closeLossSidebar: () => set({ isLossSidebarOpen: false }),
 
+  satelliteOpacity: 100,
+  setSatelliteOpacity: (v) => set({ satelliteOpacity: v }),
+
+  showGrid: false,
+  setShowGrid: (v) => set({ showGrid: v }),
+
   mapType: 'GOOGLE_SATELLITE',
   setMapType: (type) => set({ mapType: type }),
+
+  mapStyle: 'hybrid',
+  setMapStyle: (style) => set({ mapStyle: style }),
 
   // Loading context
   isAppLoading: false,

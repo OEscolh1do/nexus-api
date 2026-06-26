@@ -13,10 +13,10 @@ import OperatorsPage from '@/pages/OperatorsPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const accessDenied = useAuthStore((s) => s.accessDenied);
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (accessDenied) return <Navigate to="/access-denied" replace />;
 
   return <>{children}</>;
 }

@@ -5,39 +5,39 @@ interface ServiceHealthCardProps {
   service: ServiceStatus;
 }
 
-export default function ServiceHealthCard({ service }: ServiceHealthCardProps) {
-  const statusConfig = {
-    healthy: {
-      color: 'text-emerald-400',
-      bgColor: 'bg-emerald-500/10',
-      borderColor: 'border-emerald-500/20',
-      icon: CheckCircle2,
-      label: 'Online'
-    },
-    degraded: {
-      color: 'text-amber-400',
-      bgColor: 'bg-amber-500/10',
-      borderColor: 'border-amber-500/20',
-      icon: AlertTriangle,
-      label: 'Degradado'
-    },
-    down: {
-      color: 'text-red-400',
-      bgColor: 'bg-red-500/10',
-      borderColor: 'border-red-500/20',
-      icon: XCircle,
-      label: 'Offline'
-    },
-    error: {
-      color: 'text-slate-400',
-      bgColor: 'bg-slate-500/10',
-      borderColor: 'border-slate-500/20',
-      icon: Activity,
-      label: 'Erro'
-    }
-  };
+const STATUS_CONFIG = {
+  healthy: {
+    color: 'text-emerald-400',
+    bgColor: 'bg-emerald-500/10',
+    borderColor: 'border-emerald-500/20',
+    icon: CheckCircle2,
+    label: 'Online'
+  },
+  degraded: {
+    color: 'text-amber-400',
+    bgColor: 'bg-amber-500/10',
+    borderColor: 'border-amber-500/20',
+    icon: AlertTriangle,
+    label: 'Degradado'
+  },
+  down: {
+    color: 'text-red-400',
+    bgColor: 'bg-red-500/10',
+    borderColor: 'border-red-500/20',
+    icon: XCircle,
+    label: 'Offline'
+  },
+  error: {
+    color: 'text-slate-400',
+    bgColor: 'bg-slate-500/10',
+    borderColor: 'border-slate-500/20',
+    icon: Activity,
+    label: 'Erro'
+  },
+};
 
-  const config = statusConfig[service.status];
+export default function ServiceHealthCard({ service }: ServiceHealthCardProps) {
+  const config = STATUS_CONFIG[service.status];
   const Icon = config.icon;
 
   return (

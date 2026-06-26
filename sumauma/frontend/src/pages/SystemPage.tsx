@@ -7,23 +7,24 @@ import CronJobsTable from '@/components/system/CronJobsTable';
 import ApiUsageTable from '@/components/system/ApiUsageTable';
 import RolesTab from '@/components/roles/RolesTab';
 import IdentityAuditTab from '@/components/system/IdentityAuditTab';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+
+function formatUptime(seconds: number): string {
+  const days  = Math.floor(seconds / (24 * 3600));
+  const hours = Math.floor((seconds % (24 * 3600)) / 3600);
+  const mins  = Math.floor((seconds % 3600) / 60);
+  return `${days}d ${hours}h ${mins}m`;
+}
 
 export default function SystemPage() {
-  const { 
-    health, info, jobs, sessions, apiUsage, loading, refresh, revokeSession, 
-    auditReport, auditStatus, runIdentityAudit, reprovisionUser,
+  const {
+    health, info, jobs, sessions, apiUsage, loading, refreshing, refresh, revokeSession,
+    auditReport, auditStatus, lastAudit, runIdentityAudit, reprovisionUser,
     deleteLogtoOrphan, provisionLocalUser, blockLocalUser,
-    linkLogtoOrg, provisionLogtoOrg, deleteLocalUser, deleteLocalTenant, provisionLocalTenant, syncAttributes, runBatchAction
+    linkLogtoOrg, provisionLogtoOrg, deleteLocalUser, deleteLocalTenant, provisionLocalTenant, syncAttributes, runBatchAction, fixMembership
   } = useSystemHealth();
   const [activeTab, setActiveTab] = useState<'health' | 'roles' | 'identity'>('health');
-
-  const formatUptime = (seconds: number) => {
-    const days = Math.floor(seconds / (24 * 3600));
-    const hours = Math.floor((seconds % (24 * 3600)) / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    return `${days}d ${hours}h ${mins}m`;
-  };
+  const handleRefresh = useCallback(() => refresh(), [refresh]);
 
   return (
     <div className="flex h-full flex-col gap-4 overflow-hidden pb-4">
@@ -43,11 +44,11 @@ export default function SystemPage() {
         </div>
 
         <button
-          onClick={() => refresh()}
+          onClick={handleRefresh}
           disabled={loading}
           className="flex items-center gap-2 h-8 px-3 text-[10px] font-bold uppercase tracking-wider bg-slate-800 border border-slate-700 rounded-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-all disabled:opacity-50"
         >
-          <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-3 w-3 ${loading || refreshing ? 'animate-spin' : ''}`} />
           Sincronizar
         </button>
       </div>
@@ -182,6 +183,8 @@ export default function SystemPage() {
             onProvisionLocalTenant={provisionLocalTenant}
             onSyncAttributes={syncAttributes}
             onBatchAction={runBatchAction}
+            onFixMembership={fixMembership}
+            lastAudit={lastAudit}
           />
         )}
       </div>

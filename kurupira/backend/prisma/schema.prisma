@@ -159,8 +159,38 @@ model InverterCatalog {
   portaria515Compliant Boolean @default(false)
 
   electricalData    Json?
+
+  // -- Topology (Diagrama de Blocos + Unifilar — new engine) --
+  typologyConfig    Json?
+
+  // @deprecated — kept for backward compat with UnifilarSchematicCanvas (Kurupira Layer 3 legacy)
+  // Remove after UnifilarSchematicCanvas is migrated to TopologyEditor
   symbolConfig      Json?
 
   @@index([manufacturer])
   @@map("inverter_catalog")
+}
+
+// ─── Biblioteca de Símbolos IEC (editados pelo usuário no SymbolEditorCanvas) ───
+
+model SymbolCatalogEntry {
+  id        String   @id @default(cuid())
+  tenantId  String
+  createdBy String
+
+  name      String
+  symId     String   // qual símbolo base (ex: "sym-pv", "sym-fuse", etc.)
+  vbW       Int
+  vbH       Int
+  elements  Json     // SymElem[] serializado
+  cssVars   Json?    // variáveis CSS default (--s, --rad, etc.)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  deletedBy String?
+
+  @@index([tenantId])
+  @@index([symId])
+  @@map("symbol_catalog_entries")
 }
